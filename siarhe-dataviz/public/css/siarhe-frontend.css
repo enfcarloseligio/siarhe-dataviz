@@ -1,6 +1,38 @@
 /* =========================================
-   ESTRUCTURA DE PÁGINA (Layout)
+   1. VARIABLES & RESET (Fallback)
    ========================================= */
+:root {
+    /* Estos valores son sobreescritos por PHP si hay configuración guardada */
+    
+    /* Mapa */
+    --s-map-null: #d9d9d9;
+    
+    /* Tabla - Fondos */
+    --s-th-bg: #f4f4f4;
+    --s-tr-odd: #ffffff;
+    --s-tr-even: #f9f9f9;
+    --s-total-bg: #e8f4fd;
+    
+    /* Tabla - Textos */
+    --s-th-text: #333;
+    --s-tr-odd-txt: #555;
+    --s-tr-even-txt: #555;
+    --s-total-txt: #000;
+    
+    /* Bordes */
+    --s-border: 1px solid #ddd;
+}
+
+/* =========================================
+   2. ESTRUCTURA DE PÁGINA (Layout)
+   ========================================= */
+.siarhe-viz-wrapper {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 20px 0;
+    position: relative;
+    max-width: 100%;
+}
+
 .siarhe-header {
     margin-bottom: 25px;
     border-bottom: 1px solid #eee;
@@ -11,12 +43,15 @@
     font-size: 24px;
     color: #005177;
     margin: 0 0 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-.siarhe-description {
-    font-size: 16px;
-    color: #555;
-    line-height: 1.5;
+.siarhe-meta {
+    font-size: 14px;
+    color: #666;
+    margin: 0;
 }
 
 .siarhe-section-map,
@@ -27,51 +62,281 @@
     border-radius: 8px;
     margin-bottom: 30px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    position: relative;
 }
 
+/* Footer / Disclaimer */
 .siarhe-footer {
     font-size: 12px;
     color: #888;
     border-top: 1px solid #eee;
-    padding-top: 15px;
+    padding-top: 20px;
     margin-top: 40px;
 }
 
+.siarhe-ref-col strong {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 13px;
+}
+
 /* =========================================
-   BOTONES
+   3. CONTROLES (Selectores)
+   ========================================= */
+.siarhe-controls {
+    background: #f8f9fa;
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.siarhe-controls label {
+    font-weight: 700;
+    color: #333;
+    font-size: 14px;
+}
+
+.siarhe-metric-select {
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 250px;
+    max-width: 100%;
+}
+
+/* =========================================
+   4. MAPA INTERACTIVO
+   ========================================= */
+.siarhe-map-container {
+    background-color: #e6f0f8; /* Color mar fijo */
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    overflow: hidden;
+    min-height: 500px; /* Altura mínima para evitar colapso */
+    position: relative;
+}
+
+/* Estados / Polígonos */
+path.siarhe-feature {
+    fill: var(--s-map-null); /* Usa variable dinámica */
+    stroke: #ffffff;
+    stroke-width: 0.5px;
+    transition: fill 0.4s ease, stroke 0.2s ease;
+    cursor: pointer;
+    vector-effect: non-scaling-stroke; /* Evita que el borde engorde al hacer zoom */
+}
+
+path.siarhe-feature:hover {
+    stroke: #333;
+    stroke-width: 1.5px;
+    filter: brightness(0.95);
+    z-index: 10; /* Traer al frente virtualmente */
+}
+
+.siarhe-map-footer {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #777;
+    text-align: right;
+}
+
+/* =========================================
+   5. TOOLTIP (Ajustado para datos largos)
+   ========================================= */
+.siarhe-tooltip {
+    position: absolute;
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.9);
+    color: #fff;
+    border-radius: 6px;
+    pointer-events: none; /* Ignora el mouse para no parpadear */
+    z-index: 9999;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.25);
+    display: none;
+    
+    /* Dimensiones y Texto */
+    min-width: 220px;
+    max-width: 320px;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: normal;
+}
+
+.siarhe-tooltip strong {
+    font-size: 14px;
+    color: #fff;
+    display: block;
+    margin-bottom: 5px;
+    border-bottom: 1px solid #555;
+    padding-bottom: 3px;
+}
+
+/* =========================================
+   6. TABLA DE DATOS (Con Variables Dinámicas)
+   ========================================= */
+.siarhe-table-container {
+    margin-top: 20px;
+    overflow-x: auto; /* Scroll horizontal en móviles */
+    border-radius: 5px;
+    border: var(--s-border);
+}
+
+table.siarhe-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    min-width: 600px; /* Fuerza ancho mínimo para scroll */
+}
+
+/* Encabezados */
+table.siarhe-data-table th {
+    background-color: var(--s-th-bg);
+    color: var(--s-th-text);
+    padding: 12px 10px;
+    text-align: left;
+    font-weight: 700;
+    border-bottom: var(--s-border);
+    white-space: nowrap;
+    
+    /* Interacción de Ordenamiento */
+    cursor: pointer; 
+    user-select: none;
+    transition: background-color 0.2s ease;
+}
+
+table.siarhe-data-table th:hover {
+    filter: brightness(0.95);
+}
+
+/* Celdas generales */
+table.siarhe-data-table td {
+    padding: 10px;
+    border-bottom: var(--s-border);
+}
+
+/* Filas Impares (Odd) - Fondo + Texto */
+table.siarhe-data-table tr:nth-child(odd) {
+    background-color: var(--s-tr-odd);
+    color: var(--s-tr-odd-txt);
+}
+table.siarhe-data-table tr:nth-child(odd) td {
+    color: var(--s-tr-odd-txt);
+}
+
+/* Filas Pares (Even) - Fondo + Texto */
+table.siarhe-data-table tr:nth-child(even) {
+    background-color: var(--s-tr-even);
+    color: var(--s-tr-even-txt);
+}
+table.siarhe-data-table tr:nth-child(even) td {
+    color: var(--s-tr-even-txt);
+}
+
+/* Hover en filas normales */
+table.siarhe-data-table tr:not(.siarhe-row-total):hover td {
+    background-color: rgba(0,0,0,0.03); /* Sutil oscurecimiento */
+    cursor: default;
+}
+
+/* Fila de Totales (Prioridad Alta) */
+table.siarhe-data-table tr.siarhe-row-total,
+table.siarhe-data-table tr.siarhe-row-total td {
+    background-color: var(--s-total-bg) !important;
+    color: var(--s-total-txt) !important;
+    font-weight: 700;
+    border-top: 2px solid #aaa;
+}
+
+/* =========================================
+   7. LOADER / SPINNER
+   ========================================= */
+.siarhe-loading-overlay {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 255, 255, 0.95);
+    padding: 20px 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    font-weight: 600;
+    color: #555;
+    z-index: 100;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.spinner {
+    width: 30px;
+    height: 30px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #2271b1; /* Azul WP */
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* =========================================
+   8. BOTONES (Legacy User Styles)
    ========================================= */
 .siarhe-actions {
     margin-top: 15px;
     display: flex;
     align-items: center;
     gap: 15px;
+    flex-wrap: wrap;
 }
 
 .btn-siarhe {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     padding: 8px 16px;
     border-radius: 4px;
     font-weight: 600;
     cursor: pointer;
     border: none;
-    transition: background 0.2s;
-    font-size: 14px;
+    transition: background 0.2s, transform 0.1s;
+    font-size: 13px;
+    text-decoration: none;
 }
+
+.btn-siarhe:active { transform: translateY(1px); }
 
 .btn-download-map {
     background-color: #f0f0f1;
     color: #1d2327;
     border: 1px solid #c3c4c7;
 }
-.btn-download-map:hover { background-color: #e0e0e0; }
+.btn-download-map:hover { 
+    background-color: #e0e0e0;
+    color: #1d2327;
+}
 
 .btn-primary {
     background-color: #2271b1;
     color: #fff;
 }
-.btn-primary:hover { background-color: #135e96; }
+.btn-primary:hover { 
+    background-color: #135e96; 
+    color: #fff;
+}
 
-.note { color: #666; font-style: italic; }
-
-/* ... (MANTENER LOS ESTILOS DE MAPA Y TABLA QUE TE PASÉ ANTES) ... */
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .siarhe-title { font-size: 20px; }
+    .siarhe-metric-select { width: 100%; min-width: 0; }
+    .siarhe-footer div { grid-template-columns: 1fr !important; }
+}

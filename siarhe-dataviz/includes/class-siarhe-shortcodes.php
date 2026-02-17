@@ -24,19 +24,16 @@ class Siarhe_Shortcodes {
             $nombre_entidad = $data['nombre']; // Ej: "Aguascalientes"
 
             // 1. Shortcode: Mapa + Tabla (MT)
-            // Ej: [siarhe_mapa_MT_CVE_ENT_33]
             add_shortcode( "siarhe_mapa_MT_CVE_ENT_{$cve_ent}", function($atts) use ($slug, $cve_ent, $nombre_entidad) {
                 return $this->render_viz( $slug, $cve_ent, 'MT', $nombre_entidad );
             });
 
             // 2. Shortcode: Solo Mapa (M)
-            // Ej: [siarhe_mapa_M_CVE_ENT_01]
             add_shortcode( "siarhe_mapa_M_CVE_ENT_{$cve_ent}", function($atts) use ($slug, $cve_ent, $nombre_entidad) {
                 return $this->render_viz( $slug, $cve_ent, 'M', $nombre_entidad );
             });
 
             // 3. Shortcode: Solo Tabla (T)
-            // Ej: [siarhe_mapa_T_CVE_ENT_01]
             add_shortcode( "siarhe_mapa_T_CVE_ENT_{$cve_ent}", function($atts) use ($slug, $cve_ent, $nombre_entidad) {
                 return $this->render_viz( $slug, $cve_ent, 'T', $nombre_entidad );
             });
@@ -45,10 +42,6 @@ class Siarhe_Shortcodes {
 
     /**
      * Renderiza la vista utilizando la plantilla PHP separada.
-     * * @param string $slug Slug de la entidad (ej. 'aguascalientes').
-     * @param string $cve_ent Clave INEGI (ej. '01').
-     * @param string $mode Modo de visualización ('MT', 'M', 'T').
-     * @param string $nombre_entidad Nombre legible (ej. 'República Mexicana').
      */
     public function render_viz( $slug, $cve_ent, $mode, $nombre_entidad = '' ) {
         global $wpdb;
@@ -95,8 +88,7 @@ class Siarhe_Shortcodes {
         $template_path = SIARHE_PATH . 'public/partials/siarhe-view.php';
         
         if ( file_exists( $template_path ) ) {
-            // Las variables ($slug, $cve_ent, $mode, $nombre_entidad, $geojson_url, etc.) 
-            // estarán disponibles automáticamente dentro del archivo include.
+            // Las variables estarán disponibles automáticamente dentro del include.
             include $template_path;
         } else {
             if ( current_user_can('manage_options') ) {
@@ -109,15 +101,56 @@ class Siarhe_Shortcodes {
 
     /**
      * Carga los scripts y estilos necesarios en el Frontend.
+     * E inyecta las variables CSS dinámicas desde la configuración.
      */
     public function enqueue_frontend_scripts() {
-        // 1. Cargar estilos Frontend (Mapas, Tablas, Tooltips, Layout)
+        // 1. Cargar estilos Frontend
         wp_enqueue_style( 'siarhe-frontend-css', SIARHE_URL . 'public/css/siarhe-frontend.css', array(), SIARHE_VERSION );
 
-        // 2. Cargar D3.js (Librería Externa - Versión 7)
+        // 2. INYECTAR VARIABLES CSS DINÁMICAS
+        $opts = get_option( 'siarhe_map_options', [] );
+        
+        $defaults = [
+            'map_c1' => '#eff3ff', 'map_c2' => '#bdd7e7', 'map_c3' => '#6baed6', 'map_c4' => '#3182bd', 'map_c5' => '#08519c',
+            'map_zero' => '#d9d9d9', // NUEVO: Valor 0 (Gris)
+            'map_null' => '#000000', // NUEVO: Sin Datos (Negro)
+            
+            'th_bg' => '#f4f4f4', 'th_text' => '#333', 
+            'tr_odd' => '#fff', 'tr_even' => '#f9f9f9',
+            'tr_total_bg' => '#e8f4fd', 'tr_total_txt' => '#000', 
+            'border_color' => '#ddd', 'border_width' => '1'
+        ];
+        
+        $c = wp_parse_args( $opts, $defaults );
+
+        // Generamos el bloque de CSS Variables
+        $custom_css = "
+            :root {
+                /* Mapa */
+                --s-map-c1: {$c['map_c1']};
+                --s-map-c2: {$c['map_c2']};
+                --s-map-c3: {$c['map_c3']};
+                --s-map-c4: {$c['map_c4']};
+                --s-map-c5: {$c['map_c5']};
+                --s-map-zero: {$c['map_zero']};
+                --s-map-null: {$c['map_null']};
+                
+                /* Tabla */
+                --s-th-bg: {$c['th_bg']};
+                --s-th-text: {$c['th_text']};
+                --s-tr-odd: {$c['tr_odd']};
+                --s-tr-even: {$c['tr_even']};
+                --s-total-bg: {$c['tr_total_bg']};
+                --s-total-txt: {$c['tr_total_txt']};
+                --s-border: {$c['border_width']}px solid {$c['border_color']};
+            }
+        ";
+        wp_add_inline_style( 'siarhe-frontend-css', $custom_css );
+
+        // 3. Cargar D3.js (Librería Externa - Versión 7)
         wp_enqueue_script( 'd3-js', 'https://d3js.org/d3.v7.min.js', array(), '7.0.0', true );
 
-        // 3. Cargar nuestro Script Principal (Depende de D3.js)
+        // 4. Cargar nuestro Script Principal (Depende de D3.js)
         wp_enqueue_script( 'siarhe-viz-js', SIARHE_URL . 'public/js/siarhe-viz.js', array('d3-js'), SIARHE_VERSION, true );
     }
 }
