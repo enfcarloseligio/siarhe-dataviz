@@ -1,0 +1,27 @@
+# WordPress & System
+.DS_Store
+Thumbs.db
+node_modules/
+vendor/
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Logs & Debug
+debug.log
+*.log
+error_log
+
+# Uploads & Data (Importante: No subir los datos reales al repo público)
+siarhe-dataviz/uploads/*
+!siarhe-dataviz/uploads/.gitkeep
+*.csv
+*.xlsx
+*.json
+*.geojson
+
+# Build
+*.zip

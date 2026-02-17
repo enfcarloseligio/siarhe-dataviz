@@ -1,0 +1,39 @@
+estructura.bat
+estructura.txt
+
+================================
+ siarhe-dataviz
+================================
+Listado de rutas de carpetas para el volumen Windows 11
+El número de serie del volumen es 0246-9FF7
+C:\USERS\ENFCA\DOCUMENTS\PROYECTOS\SIARHE-DATAVIZ\SIARHE-DATAVIZ
+¦   siarhe-dataviz.php
+¦   
++---admin
+¦   ¦   class-siarhe-admin.php
+¦   ¦   
+¦   +---css
+¦   +---js
+¦   +---partials
+¦           dashboard-home.php
+¦           data-manager.php
+¦           data-uploader.php
+¦           ettings-styles.php
+¦           
++---includes
+¦   ¦   helpers.php
+¦   ¦   
+¦   +---db
+¦   ¦       class-data-loader.php
+¦   ¦       class-data-query.php
+¦   ¦       class-db-installer.php
+¦   ¦       
+¦   +---shortcodes
+¦           map-renderer.php
+¦           table-renderer.php
+¦           
++---public
+¦   +---css
+¦   +---js
+¦   +---partials
++---uploads
