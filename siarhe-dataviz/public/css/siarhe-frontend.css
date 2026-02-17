@@ -1,0 +1,77 @@
+/* =========================================
+   ESTRUCTURA DE PÁGINA (Layout)
+   ========================================= */
+.siarhe-header {
+    margin-bottom: 25px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 15px;
+}
+
+.siarhe-title {
+    font-size: 24px;
+    color: #005177;
+    margin: 0 0 10px 0;
+}
+
+.siarhe-description {
+    font-size: 16px;
+    color: #555;
+    line-height: 1.5;
+}
+
+.siarhe-section-map,
+.siarhe-section-table {
+    background: #fff;
+    padding: 20px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.siarhe-footer {
+    font-size: 12px;
+    color: #888;
+    border-top: 1px solid #eee;
+    padding-top: 15px;
+    margin-top: 40px;
+}
+
+/* =========================================
+   BOTONES
+   ========================================= */
+.siarhe-actions {
+    margin-top: 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.btn-siarhe {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s;
+    font-size: 14px;
+}
+
+.btn-download-map {
+    background-color: #f0f0f1;
+    color: #1d2327;
+    border: 1px solid #c3c4c7;
+}
+.btn-download-map:hover { background-color: #e0e0e0; }
+
+.btn-primary {
+    background-color: #2271b1;
+    color: #fff;
+}
+.btn-primary:hover { background-color: #135e96; }
+
+.note { color: #666; font-style: italic; }
+
+/* ... (MANTENER LOS ESTILOS DE MAPA Y TABLA QUE TE PASÉ ANTES) ... */

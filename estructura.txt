@@ -8,9 +8,9 @@ siarhe-dataviz.zip
 ================================
  siarhe-dataviz
 ================================
-Listado de rutas de carpetas para el volumen Archivos
-El número de serie del volumen es BCB7-CE12
-F:\USERS\ENFCA\DOCUMENTS\PROYECTOS\SIARHE-DATAVIZ\SIARHE-DATAVIZ
+Listado de rutas de carpetas para el volumen Windows 11
+El número de serie del volumen es 0246-9FF7
+C:\USERS\ENFCA\DOCUMENTS\PROYECTOS\SIARHE-DATAVIZ\SIARHE-DATAVIZ
 ¦   siarhe-dataviz.php
 ¦   
 +---admin
@@ -19,24 +19,45 @@ F:\USERS\ENFCA\DOCUMENTS\PROYECTOS\SIARHE-DATAVIZ\SIARHE-DATAVIZ
 ¦   +---css
 ¦   ¦       siarhe-admin.css
 ¦   ¦       
+¦   +---js
+¦   ¦       siarhe-admin.js
+¦   ¦       
 ¦   +---partials
 ¦       ¦   dashboard-home.php
 ¦       ¦   data-manager.php
 ¦       ¦   data-uploader.php
 ¦       ¦   ettings-styles.php
+¦       ¦   siarhe-settings.php
 ¦       ¦   
+¦       +---settings-tabs
+¦       ¦       tab-enlaces.php
+¦       ¦       tab-tema.php
+¦       ¦       
 ¦       +---upload-tabs
 ¦               tab-geojson.php
+¦               tab-static.php
 ¦               
 +---includes
-    ¦   helpers.php
-    ¦   
-    +---db
-    ¦       class-data-loader.php
-    ¦       class-data-query.php
-    ¦       class-db-installer.php
-    ¦       
-    +---shortcodes
-            map-renderer.php
-            table-renderer.php
-            
+¦   ¦   class-siarhe-shortcodes.php
+¦   ¦   helpers.php
+¦   ¦   
+¦   +---db
+¦   ¦       class-data-loader.php
+¦   ¦       class-data-query.php
+¦   ¦       class-db-installer.php
+¦   ¦       
+¦   +---shortcodes
+¦           map-renderer.php
+¦           table-renderer.php
+¦           
++---public
+¦   +---css
+¦   ¦       siarhe-frontend.css
+¦   ¦       
+¦   +---js
+¦   ¦       siarhe-viz.js
+¦   ¦       
+¦   +---partials
+¦           republica-mexicana.html
+¦           
++---uploads
