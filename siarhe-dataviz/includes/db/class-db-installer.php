@@ -9,21 +9,26 @@ class Siarhe_DB_Installer {
         
         require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 
-        // 1. Tabla de Logs de Archivos
-        $table_files = $wpdb->prefix . 'siarhe_files_log';
-        $sql_files = "CREATE TABLE $table_files (
+        // 1. Tabla de Recursos Estáticos (GeoJSON y CSVs Minificados)
+        $table_assets = $wpdb->prefix . 'siarhe_static_assets';
+        
+        $sql_assets = "CREATE TABLE $table_assets (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
-            nombre_archivo varchar(255) NOT NULL,
-            tipo_base varchar(50) NOT NULL,
-            anio year NOT NULL,
+            entidad_slug varchar(50) NOT NULL,
+            tipo_archivo varchar(20) NOT NULL, 
+            ruta_archivo varchar(255) NOT NULL,
+            anio_reporte year NOT NULL,
             fecha_corte date,
-            total_registros int(11) DEFAULT 0,
-            fecha_subida datetime DEFAULT '0000-00-00 00:00:00',
-            PRIMARY KEY  (id)
+            referencia_bibliografica text,
+            comentarios text,
+            es_activo boolean DEFAULT 1,
+            fecha_subida datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY entidad_slug (entidad_slug)
         ) $charset_collate;";
         
-        dbDelta( $sql_files );
-
-        // Aquí añadiremos el resto de las tablas (Pivote, Formaciones, etc.)
+        dbDelta( $sql_assets );
+        
+        // (Aquí dejaremos espacio para las tablas SQL maestras en la Fase 2)
     }
 }
