@@ -2,7 +2,7 @@
 /**
  * Plugin Name: SIARHE Data Visualization Engine
  * Description: Sistema modular de visualización de datos de enfermería con soporte SQL y GeoJSON.
- * Version: 0.0.1.8
+ * Version: 0.0.2.2
  * Author: Juan Carlos de la Cruz Eligio
  * Text Domain: siarhe-dataviz
  */

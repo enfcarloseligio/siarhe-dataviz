@@ -11,6 +11,21 @@
 }
 
 /* =========================================
+   ESTILOS GENERALES Y BADGES
+   ========================================= */
+.siarhe-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+.siarhe-badge.success { background: #d1e7dd; color: #0f5132; }
+.siarhe-badge.warning { background: #fff3cd; color: #664d03; }
+.siarhe-badge.neutral { background: #e2e3e5; color: #41464b; }
+
+/* =========================================
    TABLAS SIARHE (Diseño Universal)
    ========================================= */
 .siarhe-table {
@@ -30,11 +45,11 @@
     vertical-align: middle;
 }
 
-/* USANDO VARIABLES AQUÍ */
+/* Cabeceras con Variables */
 .siarhe-table th {
     font-weight: 600;
-    background: var(--siarhe-th-bg);      /* Variable */
-    color: var(--siarhe-th-text);         /* Variable */
+    background: var(--siarhe-th-bg);
+    color: var(--siarhe-th-text);
     border-bottom: 1px solid #c3c4c7;
 }
 
@@ -48,14 +63,56 @@
     color: var(--siarhe-tr-even-text);
 }
 
-/* Asegurar que el texto dentro de celdas herede el color */
 .siarhe-table td { color: inherit; }
+
 /* =========================================
-   RESPONSIVE: ACORDEÓN MÓVIL (< 768px)
+   VENTANA MODAL (ESTO ES LO QUE FALTABA)
    ========================================= */
+.siarhe-modal-overlay {
+    display: none; /* Oculto por defecto */
+    position: fixed; 
+    z-index: 99999; 
+    left: 0; 
+    top: 0; 
+    width: 100%; 
+    height: 100%; 
+    overflow: auto; 
+    background-color: rgba(0,0,0,0.6); 
+    backdrop-filter: blur(3px);
+}
+
+.siarhe-modal-content {
+    background-color: #fff;
+    margin: 5% auto;
+    padding: 25px;
+    border: 1px solid #888;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    width: 50%; /* Desktop */
+    max-width: 600px;
+    position: relative;
+}
+
+/* =========================================
+   RESPONSIVE (Tablets y Móviles)
+   ========================================= */
+
+/* Tablet (ajustar modal) */
+@media screen and (min-width: 768px) and (max-width: 1023px) {
+    .siarhe-modal-content { width: 80%; }
+}
+
+/* Móvil (< 768px) - Acordeón y Modal Full */
 @media screen and (max-width: 767px) {
     
-    /* Reset de tabla */
+    /* Ajuste del Modal en Móvil */
+    .siarhe-modal-content {
+        width: 95%;
+        margin: 10% auto;
+        padding: 15px;
+    }
+
+    /* Reset de tabla para modo tarjetas */
     .siarhe-table { border: 0; background: transparent; box-shadow: none; }
     .siarhe-table thead { display: none; }
 
@@ -82,22 +139,22 @@
     /* Celdas Ocultas por defecto */
     .siarhe-table td { display: none; padding: 10px 15px; text-align: right; }
 
-    /* Celdas "Título" (Visible siempre) */
+    /* Título (Visible) */
     .siarhe-table td[data-mobile-role="primary"] {
         display: block; font-size: 15px; font-weight: 600; color: #2271b1;
         padding: 15px; padding-right: 40px; text-align: left; border-bottom: 1px solid #eee;
     }
 
-    /* Celdas "Estado" (Visible siempre) */
+    /* Subtítulo (Visible) */
     .siarhe-table td[data-mobile-role="secondary"] {
         display: block; text-align: left; padding: 0 15px 15px 15px; font-size: 13px; border-bottom: none;
     }
 
     /* Al abrir */
     .siarhe-table tr.is-open td { display: block; border-bottom: 1px solid #f0f0f1; }
-    .siarhe-table tr.is-open td:last-child { border-bottom: none; background: #f6f7f7; text-align: center; }
+    .siarhe-table tr.is-open td:last-child { border-bottom: none; background: #f6f7f7; text-align: center; border-radius: 0 0 8px 8px; }
 
-    /* Labels automáticos */
+    /* Labels */
     .siarhe-table td::before {
         content: attr(data-label); float: left; font-weight: 700; color: #646970;
         text-transform: uppercase; font-size: 10px; margin-top: 4px;
