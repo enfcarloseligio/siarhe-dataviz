@@ -7,6 +7,8 @@ class Siarhe_Admin {
         // 1. Hooks para menús y estilos
         add_action( 'admin_menu', array( $this, 'add_plugin_menu' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_styles' ) );
+        add_action( 'admin_init', array( $this, 'register_plugin_settings' ) );
+        
 
         // 2. Hooks para procesar formularios (Backend)
         add_action( 'admin_post_siarhe_upload_geojson', array( $this, 'handle_geojson_upload' ) );
@@ -19,6 +21,7 @@ class Siarhe_Admin {
         add_submenu_page( 'siarhe-dataviz', 'Dashboard', 'Dashboard', 'manage_options', 'siarhe-dataviz', array( $this, 'display_dashboard' ) );
         add_submenu_page( 'siarhe-dataviz', 'Carga de Datos', 'Carga de Datos', 'manage_options', 'siarhe-uploader', array( $this, 'display_uploader' ) );
         add_submenu_page( 'siarhe-dataviz', 'Gestor de Bases', 'Gestor de Bases', 'manage_options', 'siarhe-manager', array( $this, 'display_manager' ) );
+        add_submenu_page( 'siarhe-dataviz', 'Configuración', 'Configuración', 'manage_options', 'siarhe-settings', array( $this, 'display_settings' ) );
     }
 
     /**
@@ -33,7 +36,10 @@ class Siarhe_Admin {
     public function display_dashboard() { include_once SIARHE_PATH . 'admin/partials/dashboard-home.php'; }
     public function display_uploader() { include_once SIARHE_PATH . 'admin/partials/data-uploader.php'; } 
     public function display_manager() { include_once SIARHE_PATH . 'admin/partials/data-manager.php'; }
+    public function display_settings() { include_once SIARHE_PATH . 'admin/partials/siarhe-settings.php'; }
 
+    // Registro de Settings (Para que funcione el botón Guardar automáticamente)
+    public function register_plugin_settings() {        register_setting( 'siarhe_links_group', 'siarhe_links_map' ); }
 
     // --- LÓGICA DE BACKEND (Sin cambios respecto a la versión anterior) ---
     public function handle_geojson_upload() {

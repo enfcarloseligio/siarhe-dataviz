@@ -1,7 +1,9 @@
 /* =========================================
-   ESTILOS GENERALES (Desktop First)
+   TEMA SIARHE - ESTILOS GLOBALES WP-ADMIN
    ========================================= */
-.badge {
+
+/* Badges de estado */
+.siarhe-badge {
     display: inline-block;
     padding: 2px 8px;
     border-radius: 4px;
@@ -9,79 +11,52 @@
     font-weight: 600;
     line-height: 1.5;
 }
-
-.column-actions { white-space: nowrap; }
+.siarhe-badge.success { background: #d1e7dd; color: #0f5132; }
+.siarhe-badge.warning { background: #fff3cd; color: #664d03; }
+.siarhe-badge.neutral { background: #e2e3e5; color: #41464b; }
 
 /* =========================================
-   MODAL RESPONSIVE
+   TABLAS SIARHE (Diseño Universal)
    ========================================= */
-.siarhe-modal-overlay {
-    display: none; 
-    position: fixed; 
-    z-index: 99999; 
-    left: 0; top: 0; 
-    width: 100%; height: 100%; 
-    overflow: auto; 
-    background-color: rgba(0,0,0,0.6); 
-    backdrop-filter: blur(3px);
+.siarhe-table {
+    width: 100%;
+    border-spacing: 0;
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.04);
 }
 
-.siarhe-modal-content {
-    background-color: #fff;
-    margin: 5% auto;
-    padding: 25px;
-    border: 1px solid #888;
-    border-radius: 8px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-    width: 50%; /* Desktop por defecto */
-    max-width: 600px;
-    position: relative;
+.siarhe-table th, 
+.siarhe-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid #f0f0f1;
+    vertical-align: middle;
 }
 
-/* =========================================
-   TABLET (>= 768px y < 1024px)
-   ========================================= */
-@media screen and (min-width: 768px) and (max-width: 1023px) {
-    .siarhe-modal-content { width: 80%; }
-    .wp-list-table th, .wp-list-table td { font-size: 12px; }
-    .button.button-small { padding: 0 5px; }
+.siarhe-table th {
+    font-weight: 600;
+    color: #1d2327;
+    background: #fcfcfc;
+    border-bottom: 1px solid #c3c4c7;
 }
+
+/* Zebra Striping */
+.siarhe-table tr:nth-child(odd) { background-color: #f9f9f9; }
+.siarhe-table tr:nth-child(even) { background-color: #fff; }
 
 /* =========================================
-   MÓVIL (<= 767px) - EFECTO ACORDEÓN
+   RESPONSIVE: ACORDEÓN MÓVIL (< 768px)
    ========================================= */
 @media screen and (max-width: 767px) {
     
-    /* 1. Modal ocupa casi toda la pantalla */
-    .siarhe-modal-content {
-        width: 95%;
-        margin: 10% auto;
-        padding: 15px;
-    }
+    /* Reset de tabla */
+    .siarhe-table { border: 0; background: transparent; box-shadow: none; }
+    .siarhe-table thead { display: none; }
 
-    /* 2. Formularios en bloque (stack) */
-    .form-table th, .form-table td {
-        display: block;
-        width: 100% !important;
-        padding: 0 0 10px 0;
-    }
-    .form-table input[type="text"],
-    .form-table input[type="number"],
-    .form-table input[type="date"],
-    .form-table select,
-    .form-table textarea {
-        width: 100%;
-        max-width: 100%;
-    }
-
-    /* 3. TABLA ACORDEÓN */
-    .wp-list-table.sortable-table { border: 0; }
-    
-    /* Ocultar cabeceras */
-    .wp-list-table.sortable-table thead { display: none; }
-
-    /* Fila como Tarjeta Clickable */
-    .wp-list-table.sortable-table tr {
+    /* Tarjetas */
+    .siarhe-table tr {
         display: block;
         margin-bottom: 15px;
         background: #fff;
@@ -90,90 +65,39 @@
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         position: relative;
         cursor: pointer;
-        transition: all 0.2s ease;
     }
 
-    .wp-list-table.sortable-table tr:hover {
-        border-color: #2271b1;
+    /* Flecha Indicadora */
+    .siarhe-table tr::after {
+        content: "\f140"; font-family: dashicons; position: absolute;
+        top: 15px; right: 15px; font-size: 20px; color: #a7aaad;
+        transition: transform 0.3s ease; pointer-events: none;
+    }
+    .siarhe-table tr.is-open::after { transform: rotate(180deg); color: #2271b1; }
+
+    /* Celdas Ocultas por defecto */
+    .siarhe-table td { display: none; padding: 10px 15px; text-align: right; }
+
+    /* Celdas "Título" (Visible siempre) */
+    .siarhe-table td[data-mobile-role="primary"] {
+        display: block; font-size: 15px; font-weight: 600; color: #2271b1;
+        padding: 15px; padding-right: 40px; text-align: left; border-bottom: 1px solid #eee;
     }
 
-    /* Icono de Flecha (Chevron) */
-    .wp-list-table.sortable-table tr::after {
-        content: "\f140"; /* Dashicon arrow down */
-        font-family: dashicons;
-        position: absolute;
-        top: 15px;
-        right: 15px;
-        font-size: 20px;
-        color: #a7aaad;
-        transition: transform 0.3s ease;
+    /* Celdas "Estado" (Visible siempre) */
+    .siarhe-table td[data-mobile-role="secondary"] {
+        display: block; text-align: left; padding: 0 15px 15px 15px; font-size: 13px; border-bottom: none;
     }
 
-    /* Rotar flecha al abrir */
-    .wp-list-table.sortable-table tr.is-open::after {
-        transform: rotate(180deg);
-        color: #2271b1;
-    }
+    /* Al abrir */
+    .siarhe-table tr.is-open td { display: block; border-bottom: 1px solid #f0f0f1; }
+    .siarhe-table tr.is-open td:last-child { border-bottom: none; background: #f6f7f7; text-align: center; }
 
-    /* Celdas: Ocultar todas por defecto */
-    .wp-list-table.sortable-table td {
-        display: none; 
-        padding: 8px 15px;
-        border-bottom: 1px solid #f0f0f1;
-        text-align: right;
+    /* Labels automáticos */
+    .siarhe-table td::before {
+        content: attr(data-label); float: left; font-weight: 700; color: #646970;
+        text-transform: uppercase; font-size: 10px; margin-top: 4px;
     }
-
-    /* MOSTRAR SIEMPRE: Entidad (Título) */
-    .wp-list-table.sortable-table td[data-colname="Entidad"] {
-        display: block;
-        font-size: 16px;
-        color: #2271b1;
-        padding: 12px 15px;
-        border-bottom: 1px solid #eee;
-        padding-right: 40px; 
-        text-align: left;
-    }
-
-    /* MOSTRAR SIEMPRE: Estado */
-    .wp-list-table.sortable-table td[data-colname="Estado"] {
-        display: block;
-        text-align: left;
-        padding: 0 15px 12px 15px;
-        font-size: 12px;
-        border-bottom: none; 
-    }
-
-    /* CUANDO ESTÁ ABIERTO (.is-open) MOSTRAR TODO */
-    .wp-list-table.sortable-table tr.is-open td {
-        display: block;
-    }
-
-    /* Ajuste visual para cuando se abre */
-    .wp-list-table.sortable-table tr.is-open td[data-colname="Estado"] {
-        border-bottom: 1px solid #f0f0f1;
-    }
-    
-    .wp-list-table.sortable-table tr.is-open td:last-child {
-        border-bottom: none;
-        background-color: #f6f7f7;
-        text-align: center;
-        padding: 15px;
-    }
-
-    /* Etiquetas (Label) a la izquierda */
-    .wp-list-table.sortable-table td::before {
-        content: attr(data-colname);
-        float: left;
-        font-weight: 700;
-        color: #646970;
-        text-transform: uppercase;
-        font-size: 10px;
-        margin-top: 4px;
-    }
-
-    /* Excepciones de etiquetas */
-    .wp-list-table.sortable-table td[data-colname="Entidad"]::before,
-    .wp-list-table.sortable-table td[data-colname="Estado"]::before {
-        display: none; 
-    }
+    .siarhe-table td[data-mobile-role="primary"]::before,
+    .siarhe-table td[data-mobile-role="secondary"]::before { display: none; }
 }
