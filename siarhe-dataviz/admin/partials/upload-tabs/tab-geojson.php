@@ -1,7 +1,7 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// 1. Lista Maestra de Entidades
+// 1. Lista Maestra (Sin cambios)
 $entidades_federativas = [
     'republica-mexicana' => 'República Mexicana',
     'aguascalientes' => 'Aguascalientes',
@@ -38,7 +38,6 @@ $entidades_federativas = [
     'zacatecas' => 'Zacatecas'
 ];
 
-// 2. Claves INEGI (Normalización para ordenamiento)
 $claves_inegi = [
     'aguascalientes' => '01', 'baja-california' => '02', 'baja-california-sur' => '03', 
     'campeche' => '04', 'coahuila' => '05', 'colima' => '06', 'chiapas' => '07', 
@@ -51,20 +50,13 @@ $claves_inegi = [
     'zacatecas' => '32', 'republica-mexicana' => '00'
 ];
 
-// 3. Obtener datos existentes de la BD
 global $wpdb;
 $table_assets = $wpdb->prefix . 'siarhe_static_assets';
-$existing_files = $wpdb->get_results( 
-    $wpdb->prepare( "SELECT * FROM $table_assets WHERE tipo_archivo = %s AND es_activo = 1", 'geojson' )
-);
+$existing_files = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM $table_assets WHERE tipo_archivo = %s AND es_activo = 1", 'geojson' ) );
 
-// Indexar por slug
 $files_by_slug = [];
-foreach ($existing_files as $file) {
-    $files_by_slug[$file->entidad_slug] = $file;
-}
+foreach ($existing_files as $file) { $files_by_slug[$file->entidad_slug] = $file; }
 
-// Mensajes de estado
 if ( isset($_GET['status']) ) {
     if ( $_GET['status'] == 'success' ) echo '<div class="notice notice-success is-dismissible"><p>Archivo GeoJSON subido correctamente.</p></div>';
     if ( $_GET['status'] == 'updated' ) echo '<div class="notice notice-success is-dismissible"><p>Metadatos actualizados correctamente.</p></div>';
@@ -76,12 +68,11 @@ if ( isset($_GET['status']) ) {
     <h2>📤 Cargar Nuevo Mapa GeoJSON</h2>
     
     <div class="notice notice-info inline" style="margin: 10px 0 20px 0;">
-        <p><strong>Requisitos Técnicos del Archivo:</strong></p>
+        <p><strong>Requisitos Técnicos:</strong></p>
         <ul style="list-style: disc; margin-left: 20px;">
-            <li>El archivo debe ser un polígono geoespacial válido (JSON/GeoJSON).</li>
-            <li><strong>Sistema de Coordenadas:</strong> Debe usar el estándar <strong>WGS84 (EPSG:4326)</strong>.</li>
-            <li>En los metadatos del archivo suele aparecer como: <code>urn:ogc:def:crs:OGC:1.3:CRS84</code>.</li>
-            <li>Si usas otro sistema de proyección, el mapa podría no visualizarse correctamente en D3.js.</li>
+            <li>Formato de archivo: <strong>.json</strong> o <strong>.geojson</strong>.</li>
+            <li>Sistema de Coordenadas: <strong>WGS84 (EPSG:4326)</strong>.</li>
+            <li>Metadato esperado: <code>urn:ogc:def:crs:OGC:1.3:CRS84</code>.</li>
         </ul>
     </div>
     
@@ -156,96 +147,64 @@ if ( isset($_GET['status']) ) {
         </thead>
         <tbody id="geo-table-body">
             <?php 
-            // PREPARAR DATOS PARA ORDENAR
             $rows = [];
             foreach ($entidades_federativas as $slug => $nombre) {
                 $clave = isset($claves_inegi[$slug]) ? $claves_inegi[$slug] : '99';
                 $archivo = isset($files_by_slug[$slug]) ? $files_by_slug[$slug] : null;
-                
-                // Prioridad de ordenamiento: República (00) primero
                 $sort_key = (int)$clave; 
                 if ($slug == 'republica-mexicana') $sort_key = -1; 
-
-                $rows[] = [
-                    'slug' => $slug, 'nombre' => $nombre, 'clave' => $clave, 
-                    'archivo' => $archivo, 'sort_key' => $sort_key
-                ];
+                $rows[] = ['slug' => $slug, 'nombre' => $nombre, 'clave' => $clave, 'archivo' => $archivo, 'sort_key' => $sort_key];
             }
-
-            // Ordenar array por ID INEGI (Default)
             usort($rows, function($a, $b) { return $a['sort_key'] <=> $b['sort_key']; });
 
-            // RENDERIZAR TABLA
             foreach ($rows as $row) : 
-                $slug = $row['slug'];
-                $nombre = $row['nombre'];
-                $clave = $row['clave'];
-                $archivo = $row['archivo'];
-                $has_file = !empty($archivo);
+                $slug = $row['slug']; $nombre = $row['nombre']; $clave = $row['clave']; $archivo = $row['archivo']; $has_file = !empty($archivo);
             ?>
             <tr>
-                <td class="column-primary" data-value="<?php echo $nombre; ?>">
+                <td class="column-primary" data-colname="Entidad" data-value="<?php echo $nombre; ?>">
                     <strong><?php echo $nombre; ?></strong>
                 </td>
-                <td data-value="<?php echo $clave; ?>">
-                    <span class="badge" style="background:#eee; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">
-                        <?php echo $clave; ?>
-                    </span>
+                <td data-colname="ID INEGI" data-value="<?php echo $clave; ?>">
+                    <span class="badge" style="background:#eee;"><?php echo $clave; ?></span>
                 </td>
-                <td data-value="<?php echo $has_file ? '1' : '0'; ?>">
+                <td data-colname="Estado" data-value="<?php echo $has_file ? '1' : '0'; ?>">
                     <?php if ($has_file) : ?>
                         <span class="dashicons dashicons-yes" style="color: #46b450;"></span> <strong style="color:#46b450">Listo</strong>
                     <?php else : ?>
                         <span class="dashicons dashicons-warning" style="color: #ffb900;"></span> Pendiente
                     <?php endif; ?>
                 </td>
-                <td>
-                    <?php if ($has_file) : ?>
-                        <code style="font-size:10px;">.geojson</code>
-                    <?php else : ?>—<?php endif; ?>
+                <td data-colname="Formato">
+                    <?php if ($has_file) : ?><code style="font-size:10px;">.geojson</code><?php else : ?>—<?php endif; ?>
                 </td>
-                <td>
+                <td data-colname="Detalles">
                     <?php if ($has_file) : ?>
                         <strong><?php echo $archivo->anio_reporte; ?></strong>
                         <div class="description" style="font-size:10px;">Corte: <?php echo date_i18n('d/M/y', strtotime($archivo->fecha_corte)); ?></div>
-                    <?php else : ?>
-                        —
-                    <?php endif; ?>
+                    <?php else : ?>—<?php endif; ?>
                 </td>
-                <td>
+                <td data-colname="Acciones">
                     <?php if ($has_file) : ?>
-                        <button type="button" class="button button-small copy-url-btn" 
-                                data-url="<?php echo esc_url(SIARHE_UPLOAD_URL . $archivo->ruta_archivo); ?>" title="Copiar URL">
+                        <button type="button" class="button button-small copy-url-btn" data-url="<?php echo esc_url(SIARHE_UPLOAD_URL . $archivo->ruta_archivo); ?>" title="Copiar URL">
                             <span class="dashicons dashicons-admin-links"></span> URL
                         </button>
-                        
                         <button type="button" class="button button-small edit-meta-btn" 
-                                data-id="<?php echo $archivo->id; ?>"
-                                data-nombre="<?php echo $nombre; ?>"
-                                data-anio="<?php echo $archivo->anio_reporte; ?>"
-                                data-corte="<?php echo $archivo->fecha_corte; ?>"
-                                data-ref="<?php echo esc_attr($archivo->referencia_bibliografica); ?>"
-                                data-notes="<?php echo esc_attr($archivo->comentarios); ?>"
+                                data-id="<?php echo $archivo->id; ?>" data-nombre="<?php echo $nombre; ?>" 
+                                data-anio="<?php echo $archivo->anio_reporte; ?>" data-corte="<?php echo $archivo->fecha_corte; ?>" 
+                                data-ref="<?php echo esc_attr($archivo->referencia_bibliografica); ?>" data-notes="<?php echo esc_attr($archivo->comentarios); ?>" 
                                 title="Ver Info / Editar">
                             <span class="dashicons dashicons-edit"></span>
                         </button>
-
                         <a href="<?php echo esc_url(SIARHE_UPLOAD_URL . $archivo->ruta_archivo); ?>" target="_blank" class="button button-small" title="Descargar">
                             <span class="dashicons dashicons-download"></span>
                         </a>
-
-                        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display:inline;" onsubmit="return confirm('⚠️ ¿Estás seguro de ELIMINAR este mapa?\n\nEsta acción borrará el archivo físico y no se puede deshacer.');">
+                        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display:inline;" onsubmit="return confirm('⚠️ ¿Borrar mapa?');">
                             <input type="hidden" name="action" value="siarhe_delete_geojson">
                             <input type="hidden" name="file_id" value="<?php echo $archivo->id; ?>">
                             <?php wp_nonce_field( 'siarhe_delete_nonce_' . $archivo->id ); ?>
-                            <button type="submit" class="button button-small button-link-delete" title="Eliminar archivo permanentemente">
-                                <span class="dashicons dashicons-trash" style="color: #a00;"></span>
-                            </button>
+                            <button type="submit" class="button button-small button-link-delete" title="Eliminar"><span class="dashicons dashicons-trash" style="color: #a00;"></span></button>
                         </form>
-
-                    <?php else : ?>
-                        <span class="description">Sin archivo</span>
-                    <?php endif; ?>
+                    <?php else : ?><span class="description">Sin archivo</span><?php endif; ?>
                 </td>
             </tr>
             <?php endforeach; ?>
@@ -253,9 +212,8 @@ if ( isset($_GET['status']) ) {
     </table>
 </div>
 
-<div id="siarhe-edit-modal" style="display:none; position:fixed; z-index:99999; left:0; top:0; width:100%; height:100%; overflow:auto; background-color:rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
-    <div style="background-color:#fff; margin:5% auto; padding:25px; border:1px solid #888; width:90%; max-width:600px; border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
-        
+<div id="siarhe-edit-modal" class="siarhe-modal-overlay">
+    <div class="siarhe-modal-content">
         <h2 style="margin-top:0; border-bottom: 1px solid #eee; padding-bottom: 15px;">
             Editar Metadatos: <span id="modal-entidad-name" style="color: #2271b1;"></span>
         </h2>
@@ -266,28 +224,10 @@ if ( isset($_GET['status']) ) {
             <?php wp_nonce_field( 'siarhe_update_meta_nonce', 'siarhe_meta_nonce' ); ?>
 
             <table class="form-table">
-                <tr>
-                    <th><label>Año del Reporte</label></th>
-                    <td><input type="number" name="anio_reporte" id="modal-anio" class="regular-text" required></td>
-                </tr>
-                <tr>
-                    <th><label>Fecha de Corte</label></th>
-                    <td><input type="date" name="fecha_corte" id="modal-corte" class="regular-text" required></td>
-                </tr>
-                <tr>
-                    <th><label>Referencia Bibliográfica</label></th>
-                    <td>
-                        <textarea name="referencia" id="modal-ref" rows="3" class="large-text"></textarea>
-                        <p class="description">HTML permitido para enlaces.</p>
-                    </td>
-                </tr>
-                <tr>
-                    <th><label>Comentarios Internos</label></th>
-                    <td>
-                        <textarea name="comentarios" id="modal-notes" rows="3" class="large-text"></textarea>
-                        <p class="description">Notas privadas, info de CRS, etc.</p>
-                    </td>
-                </tr>
+                <tr><th><label>Año</label></th><td><input type="number" name="anio_reporte" id="modal-anio" class="regular-text" required></td></tr>
+                <tr><th><label>Corte</label></th><td><input type="date" name="fecha_corte" id="modal-corte" class="regular-text" required></td></tr>
+                <tr><th><label>Referencia</label></th><td><textarea name="referencia" id="modal-ref" rows="3" class="large-text"></textarea></td></tr>
+                <tr><th><label>Comentarios</label></th><td><textarea name="comentarios" id="modal-notes" rows="3" class="large-text"></textarea></td></tr>
             </table>
             
             <div style="text-align:right; margin-top:20px; border-top: 1px solid #eee; padding-top: 15px;">
@@ -300,13 +240,36 @@ if ( isset($_GET['status']) ) {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // 1. Lógica del Modal
+    
+    // ------------------------------------------------------
+    // 1. LÓGICA DE ACORDEÓN MÓVIL (NUEVO)
+    // ------------------------------------------------------
+    const rows = document.querySelectorAll('.sortable-table tbody tr');
+    
+    rows.forEach(row => {
+        row.addEventListener('click', function(e) {
+            // Solo activar en vista móvil (<= 767px)
+            if (window.innerWidth > 767) return;
+
+            // Si el clic fue en un botón o enlace dentro de la fila, NO cerrar el acordeón
+            if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) {
+                return;
+            }
+
+            // Toggle clase para abrir/cerrar
+            this.classList.toggle('is-open');
+        });
+    });
+
+    // ------------------------------------------------------
+    // 2. MODALES Y OTROS (CÓDIGO EXISTENTE)
+    // ------------------------------------------------------
     const modal = document.getElementById('siarhe-edit-modal');
     const closeBtn = document.getElementById('close-modal-btn');
     
-    // Abrir al hacer clic en "Info / Editar"
     document.querySelectorAll('.edit-meta-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation(); // Evitar que el acordeón se cierre al dar clic en editar
             document.getElementById('modal-entidad-name').textContent = this.dataset.nombre;
             document.getElementById('modal-file-id').value = this.dataset.id;
             document.getElementById('modal-anio').value = this.dataset.anio;
@@ -317,65 +280,41 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Cerrar Modal
     closeBtn.addEventListener('click', () => { modal.style.display = 'none'; });
-    window.onclick = function(event) {
-        if (event.target == modal) { modal.style.display = 'none'; }
-    }
+    window.onclick = function(event) { if (event.target == modal) { modal.style.display = 'none'; } }
 
-    // 2. Copiar URL
     document.querySelectorAll('.copy-url-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
+            e.stopPropagation(); // Evitar cerrar acordeón
             const url = this.getAttribute('data-url');
             navigator.clipboard.writeText(url).then(() => {
                 const originalHtml = this.innerHTML;
-                this.innerHTML = '<span class="dashicons dashicons-yes"></span> Copiado';
-                this.classList.remove('button-small');
-                setTimeout(() => {
-                    this.innerHTML = originalHtml;
-                    this.classList.add('button-small');
-                }, 1500);
+                this.innerHTML = '<span class="dashicons dashicons-yes"></span>';
+                setTimeout(() => { this.innerHTML = originalHtml; }, 1500);
             });
         });
     });
 
-    // 3. Ordenamiento de Tabla (Cliente)
+    // Lógica de Ordenamiento (Se mantiene igual)
     const table = document.querySelector('.sortable-table');
     const headers = table.querySelectorAll('th.sortable');
     const tbody = table.querySelector('#geo-table-body');
-
     headers.forEach(th => {
         th.addEventListener('click', () => {
             const type = th.dataset.sort;
             const colIndex = Array.prototype.indexOf.call(th.parentNode.children, th);
-            const isAsc = !th.classList.contains('asc'); // Toggle
-            
-            // Reset icons
-            headers.forEach(h => { 
-                h.classList.remove('asc', 'desc'); 
-                h.querySelector('.dashicons').className = 'dashicons dashicons-sort';
-            });
-
-            // Set current icon
-            th.classList.toggle('asc', isAsc);
-            th.classList.toggle('desc', !isAsc);
+            const isAsc = !th.classList.contains('asc');
+            headers.forEach(h => { h.classList.remove('asc', 'desc'); h.querySelector('.dashicons').className = 'dashicons dashicons-sort'; });
+            th.classList.toggle('asc', isAsc); th.classList.toggle('desc', !isAsc);
             th.querySelector('.dashicons').className = isAsc ? 'dashicons dashicons-arrow-up' : 'dashicons dashicons-arrow-down';
-
-            // Sort logic
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-            rows.sort((rowA, rowB) => {
+            const rowsArr = Array.from(tbody.querySelectorAll('tr'));
+            rowsArr.sort((rowA, rowB) => {
                 const cellA = rowA.children[colIndex].dataset.value || rowA.children[colIndex].textContent.trim();
                 const cellB = rowB.children[colIndex].dataset.value || rowB.children[colIndex].textContent.trim();
-
-                if (type === 'int') {
-                    return isAsc ? parseInt(cellA) - parseInt(cellB) : parseInt(cellB) - parseInt(cellA);
-                } else {
-                    return isAsc ? cellA.localeCompare(cellB) : cellB.localeCompare(cellA);
-                }
+                return (type === 'int') ? (isAsc ? parseInt(cellA) - parseInt(cellB) : parseInt(cellB) - parseInt(cellA)) : (isAsc ? cellA.localeCompare(cellB) : cellB.localeCompare(cellA));
             });
-
-            rows.forEach(row => tbody.appendChild(row));
+            rowsArr.forEach(row => tbody.appendChild(row));
         });
     });
 });
