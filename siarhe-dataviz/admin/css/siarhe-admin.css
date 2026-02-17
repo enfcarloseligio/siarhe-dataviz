@@ -1,19 +1,14 @@
 /* =========================================
-   TEMA SIARHE - ESTILOS GLOBALES WP-ADMIN
+   VARIABLES POR DEFECTO (Fallback)
    ========================================= */
-
-/* Badges de estado */
-.siarhe-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1.5;
+:root {
+    --siarhe-th-bg: #fcfcfc;
+    --siarhe-th-text: #1d2327;
+    --siarhe-tr-odd-bg: #f9f9f9;
+    --siarhe-tr-odd-text: #50575e;
+    --siarhe-tr-even-bg: #ffffff;
+    --siarhe-tr-even-text: #50575e;
 }
-.siarhe-badge.success { background: #d1e7dd; color: #0f5132; }
-.siarhe-badge.warning { background: #fff3cd; color: #664d03; }
-.siarhe-badge.neutral { background: #e2e3e5; color: #41464b; }
 
 /* =========================================
    TABLAS SIARHE (Diseño Universal)
@@ -35,17 +30,26 @@
     vertical-align: middle;
 }
 
+/* USANDO VARIABLES AQUÍ */
 .siarhe-table th {
     font-weight: 600;
-    color: #1d2327;
-    background: #fcfcfc;
+    background: var(--siarhe-th-bg);      /* Variable */
+    color: var(--siarhe-th-text);         /* Variable */
     border-bottom: 1px solid #c3c4c7;
 }
 
-/* Zebra Striping */
-.siarhe-table tr:nth-child(odd) { background-color: #f9f9f9; }
-.siarhe-table tr:nth-child(even) { background-color: #fff; }
+/* Zebra Striping con Variables */
+.siarhe-table tr:nth-child(odd) { 
+    background-color: var(--siarhe-tr-odd-bg); 
+    color: var(--siarhe-tr-odd-text);
+}
+.siarhe-table tr:nth-child(even) { 
+    background-color: var(--siarhe-tr-even-bg); 
+    color: var(--siarhe-tr-even-text);
+}
 
+/* Asegurar que el texto dentro de celdas herede el color */
+.siarhe-table td { color: inherit; }
 /* =========================================
    RESPONSIVE: ACORDEÓN MÓVIL (< 768px)
    ========================================= */
