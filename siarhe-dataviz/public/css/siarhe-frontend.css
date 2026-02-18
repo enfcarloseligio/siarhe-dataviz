@@ -1,7 +1,9 @@
 /* =========================================
-   1. VARIABLES & RESET
+   1. VARIABLES & RESET (Fallback)
    ========================================= */
 :root {
+    /* Estos valores son sobreescritos por PHP si hay configuración guardada */
+    
     /* Mapa */
     --s-map-null: #d9d9d9;
     
@@ -22,7 +24,7 @@
 }
 
 /* =========================================
-   2. ESTRUCTURA (Layout)
+   2. ESTRUCTURA DE PÁGINA (Layout)
    ========================================= */
 .siarhe-viz-wrapper {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -63,13 +65,28 @@
     position: relative;
 }
 
+/* Footer / Disclaimer */
+.siarhe-footer {
+    font-size: 12px;
+    color: #888;
+    border-top: 1px solid #eee;
+    padding-top: 20px;
+    margin-top: 40px;
+}
+
+.siarhe-ref-col strong {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 13px;
+}
+
 /* =========================================
-   3. CONTROLES UNIFICADOS
+   3. CONTROLES UNIFICADOS (Indicador + Marcadores)
    ========================================= */
 .siarhe-controls {
     display: flex;
-    align-items: flex-end;
-    gap: 20px;
+    align-items: flex-end; /* Alineación inferior para que las etiquetas coincidan */
+    gap: 20px; /* Espacio entre el selector y los marcadores */
     background: #f9f9f9;
     padding: 15px 20px;
     border: 1px solid #ddd;
@@ -78,6 +95,7 @@
     flex-wrap: wrap;
 }
 
+/* Grupos de Control (Label + Input) */
 .siarhe-control-group {
     display: flex;
     flex-direction: column;
@@ -92,10 +110,10 @@
     letter-spacing: 0.5px;
 }
 
-/* Inputs */
+/* Estilo BASE compartido para Select y Dropdown Trigger */
 .siarhe-metric-select,
 .mc-trigger {
-    height: 38px;
+    height: 38px; /* Altura fija idéntica */
     min-width: 260px;
     padding: 6px 12px;
     font-size: 14px;
@@ -120,18 +138,27 @@
     outline: none;
 }
 
-/* Dropdown Marcadores */
-.mc-field { position: relative; }
+/* Ajustes específicos del Dropdown Custom (Marcadores) */
+.mc-field {
+    position: relative;
+}
 
-.mc-trigger { justify-content: space-between; }
+.mc-trigger {
+    justify-content: space-between; /* Texto izq, flecha der */
+}
+
 .mc-trigger::after {
     content: "▼";
     font-size: 10px;
     color: #666;
     margin-left: 10px;
 }
-.mc-trigger.is-placeholder { color: #777; }
 
+.mc-trigger.is-placeholder {
+    color: #777;
+}
+
+/* Menú desplegable de marcadores */
 .mc-menu {
     position: absolute;
     top: 100%;
@@ -143,12 +170,15 @@
     border-radius: 0 0 4px 4px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.15);
     display: none;
-    z-index: 1000;
+    z-index: 1000; /* Encima de todo */
     max-height: 250px;
     overflow-y: auto;
     margin-top: 2px;
 }
-.mc-menu.open { display: block; }
+
+.mc-menu.open {
+    display: block;
+}
 
 .mc-option {
     padding: 10px 12px;
@@ -159,15 +189,25 @@
     align-items: center;
     gap: 8px;
 }
-.mc-option:last-child { border-bottom: none; }
-.mc-option:hover { background-color: #f0f7fc; color: #2271b1; }
-.mc-check { cursor: pointer; }
+
+.mc-option:last-child {
+    border-bottom: none;
+}
+
+.mc-option:hover {
+    background-color: #f0f7fc;
+    color: #2271b1;
+}
+
+.mc-check {
+    cursor: pointer;
+}
 
 /* =========================================
-   4. MAPA
+   4. MAPA INTERACTIVO
    ========================================= */
 .siarhe-map-container {
-    background-color: #e6f0f8;
+    background-color: #e6f0f8; /* Color mar fijo */
     border: 1px solid #ccc;
     border-radius: 4px;
     overflow: hidden;
@@ -175,6 +215,7 @@
     position: relative;
 }
 
+/* Estados / Polígonos */
 path.siarhe-feature {
     fill: var(--s-map-null); 
     stroke: #ffffff;
@@ -183,6 +224,7 @@ path.siarhe-feature {
     cursor: pointer;
     vector-effect: non-scaling-stroke;
 }
+
 path.siarhe-feature:hover {
     stroke: #333;
     stroke-width: 1.5px;
@@ -190,45 +232,55 @@ path.siarhe-feature:hover {
     z-index: 10;
 }
 
+.siarhe-map-footer {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #777;
+    text-align: right;
+}
+
+/* Leyenda de Marcadores (Círculos) */
 .leyenda-marcadores text {
-    font-family: -apple-system, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     fill: #333;
 }
 
 /* =========================================
-   5. TOOLTIP
+   5. TOOLTIP (Versión Compacta V15)
    ========================================= */
 .siarhe-tooltip {
     position: absolute;
-    padding: 10px 14px;
+    padding: 8px 12px; /* Reducido para ser compacto */
     background: rgba(0, 0, 0, 0.9);
     color: #fff;
     border-radius: 6px;
-    pointer-events: none;
+    pointer-events: none; /* Ignora el mouse para no parpadear */
     
-    /* z-index */
+    /* Z-Index Crítico: Debe estar por encima de todo */
     z-index: 10000;
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     
     display: none;
-    min-width: 220px;
-    max-width: 320px;
-    font-size: 13px;
-    line-height: 1.5;
+    
+    /* Dimensiones y Texto */
+    min-width: 200px;
+    max-width: 300px;
+    font-size: 12px; /* Texto un poco más pequeño */
+    line-height: 1.4;
     white-space: normal;
 }
 
 .siarhe-tooltip strong {
-    font-size: 14px;
+    font-size: 13px;
     color: #fff;
     display: block;
-    margin-bottom: 5px;
-    border-bottom: 1px solid #555;
-    padding-bottom: 3px;
+    margin-bottom: 3px; /* Menor separación */
+    border-bottom: 1px solid #666; /* Línea separadora sutil */
+    padding-bottom: 2px;
 }
 
 /* =========================================
-   6. TABLA DE DATOS (Especificidad corregida)
+   6. TABLA DE DATOS (Sin !important)
    ========================================= */
 .siarhe-table-container {
     margin-top: 20px;
@@ -244,6 +296,7 @@ table.siarhe-data-table {
     min-width: 600px;
 }
 
+/* Encabezados */
 table.siarhe-data-table th {
     background-color: var(--s-th-bg);
     color: var(--s-th-text);
@@ -252,37 +305,48 @@ table.siarhe-data-table th {
     font-weight: 700;
     border-bottom: var(--s-border);
     white-space: nowrap;
+    
+    /* Interacción de Ordenamiento */
     cursor: pointer; 
     user-select: none;
     transition: background-color 0.2s ease;
 }
-table.siarhe-data-table th:hover { filter: brightness(0.95); }
 
+table.siarhe-data-table th:hover {
+    filter: brightness(0.95);
+}
+
+/* Celdas generales */
 table.siarhe-data-table td {
     padding: 10px;
     border-bottom: var(--s-border);
 }
 
-/* Filas Alternas */
+/* Filas Impares (Odd) */
 table.siarhe-data-table tr:nth-child(odd) {
     background-color: var(--s-tr-odd);
     color: var(--s-tr-odd-txt);
 }
-table.siarhe-data-table tr:nth-child(odd) td { color: var(--s-tr-odd-txt); }
+table.siarhe-data-table tr:nth-child(odd) td {
+    color: var(--s-tr-odd-txt);
+}
 
+/* Filas Pares (Even) */
 table.siarhe-data-table tr:nth-child(even) {
     background-color: var(--s-tr-even);
     color: var(--s-tr-even-txt);
 }
-table.siarhe-data-table tr:nth-child(even) td { color: var(--s-tr-even-txt); }
+table.siarhe-data-table tr:nth-child(even) td {
+    color: var(--s-tr-even-txt);
+}
 
-/* Hover filas */
+/* Hover */
 table.siarhe-data-table tr:not(.siarhe-row-total):hover td {
     background-color: rgba(0,0,0,0.03);
     cursor: default;
 }
 
-/* Fila de Totales */
+/* Fila de Totales (Mayor especificidad para ganar sin !important) */
 table.siarhe-data-table tbody tr.siarhe-row-total,
 table.siarhe-data-table tbody tr.siarhe-row-total td {
     background-color: var(--s-total-bg);
@@ -292,7 +356,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 }
 
 /* =========================================
-   7. UTILIDADES
+   7. LOADER / SPINNER
    ========================================= */
 .siarhe-loading-overlay {
     position: absolute;
@@ -312,15 +376,66 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 }
 
 .spinner {
-    width: 30px; height: 30px;
+    width: 30px;
+    height: 30px;
     border: 4px solid #f3f3f3;
     border-top: 4px solid #2271b1;
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-/* Botones Zoom */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* =========================================
+   8. BOTONES & ZOOM
+   ========================================= */
+.siarhe-actions {
+    margin-top: 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.btn-siarhe {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s, transform 0.1s;
+    font-size: 13px;
+    text-decoration: none;
+}
+
+.btn-siarhe:active { transform: translateY(1px); }
+
+.btn-download-map {
+    background-color: #f0f0f1;
+    color: #1d2327;
+    border: 1px solid #c3c4c7;
+}
+.btn-download-map:hover { 
+    background-color: #e0e0e0;
+    color: #1d2327;
+}
+
+.btn-primary {
+    background-color: #2271b1;
+    color: #fff;
+}
+.btn-primary:hover { 
+    background-color: #135e96; 
+    color: #fff;
+}
+
+/* Controles de Zoom Flotantes */
 .zoom-controles {
     position: absolute;
     top: 20px;
@@ -328,10 +443,12 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     display: flex;
     flex-direction: column;
     gap: 5px;
-    z-index: 900;
+    z-index: 900; /* Debajo del dropdown pero encima del mapa */
 }
+
 .zoom-controles .boton {
-    width: 36px; height: 36px;
+    width: 36px;
+    height: 36px;
     background: #fff;
     border: 1px solid #ccc;
     border-radius: 4px;
@@ -345,9 +462,13 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     justify-content: center;
     transition: all 0.2s;
 }
-.zoom-controles .boton:hover { background: #f0f0f1; color: #000; }
 
-/* Responsive */
+.zoom-controles .boton:hover {
+    background: #f0f0f1;
+    color: #000;
+}
+
+/* Responsive adjustments */
 @media (max-width: 600px) {
     .siarhe-title { font-size: 20px; }
     .siarhe-metric-select, .mc-trigger { width: 100%; min-width: 0; }

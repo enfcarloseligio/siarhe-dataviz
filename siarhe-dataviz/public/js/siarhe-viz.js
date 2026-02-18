@@ -1,5 +1,5 @@
 // 📢 LOG INICIAL
-console.log("%c 🚀 SIARHE JS V15: Tabla Estricta, Tooltip Compacto y No-DblClick Zoom", "background: #222; color: #bada55");
+console.log("%c 🚀 SIARHE JS V15: Tabla Estricta, Marcadores Dinámicos y Tooltip Compacto", "background: #222; color: #bada55");
 
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -26,7 +26,11 @@ document.addEventListener('DOMContentLoaded', function() {
         'enfermeras_administrativas': { label: 'Enf. Admin.', fullLabel: 'Enfermeras Administrativas', tipo: 'absoluto', pair: 'enfermeras_administrativas' }
     };
 
-    const MARCADOR_ESTILOS = { 'CATETER': { fill: "#1E5B4F", stroke: "#ffffff" }, 'HERIDAS': { fill: "#9B2247", stroke: "#ffffff" } };
+    // Estilos Legacy para marcadores (Hardcoded por ahora, luego pueden venir de PHP)
+    const MARCADOR_ESTILOS = { 
+        'CATETER': { fill: "#1E5B4F", stroke: "#ffffff" }, 
+        'HERIDAS': { fill: "#9B2247", stroke: "#ffffff" } 
+    };
     const MARCADOR_NOMBRES = { 'CATETER': "Clínicas de catéteres", 'HERIDAS': "Clínicas de heridas" };
 
     const styles = getComputedStyle(document.documentElement);
@@ -138,7 +142,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ==========================================
-    // 4. MAPA (NO DBLCLICK ZOOM)
+    // 4. MAPA (NO DBLCLICK ZOOM + MARCADORES RESIZE)
     // ==========================================
     function renderMap(container, state, cveEnt) {
         const mapDiv = container.querySelector('.siarhe-map-container');
@@ -194,7 +198,11 @@ document.addEventListener('DOMContentLoaded', function() {
             .scaleExtent([1, 8])
             .on("zoom", (e) => {
                 gMain.attr("transform", e.transform);
-                gMain.selectAll("circle").attr("r", 5 / e.transform.k).attr("stroke-width", 1 / e.transform.k);
+                // Re-escalar marcadores: se hacen más chicos al hacer zoom in para no estorbar
+                // Base radio: 5. Al zoom 2x -> radio visual 2.5
+                gMain.selectAll("circle")
+                    .attr("r", 5 / e.transform.k)
+                    .attr("stroke-width", 1 / e.transform.k);
             });
         
         svg.call(zoom).on("dblclick.zoom", null); // <--- ESTO DESACTIVA EL ZOOM AL DOBLE CLIC
@@ -320,12 +328,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 if(url) {
                     try {
                         const raw = await d3.csv(url);
+                        // Normalización exacta según tus CSVs de clínicas
                         state.markersData[type] = raw.map(d => ({
-                            lat: +d.LATITUD || +d.lat,
-                            lon: +d.LONGITUD || +d.lon,
-                            nombre: d.NOMBRE_UNIDAD || d.unidad,
+                            clues: d.CLUES || d.clues,
+                            institucion: d.Institucion || d.institucion,
+                            nombre: d.NOMBRE_UNIDAD || d.Nombre_Unidad || "Unidad sin nombre",
+                            municipio: d.MUNICIPIO || d.Municipio,
+                            lat: +(d.LATITUD || d.Latitud || 0),
+                            lon: +(d.LONGITUD || d.Longitud || 0),
                             tipo: type
-                        })).filter(d => !isNaN(d.lat));
+                        })).filter(d => !isNaN(d.lat) && d.lat !== 0);
                     } catch(e) { console.error("Error markers", e); }
                 }
             }
@@ -354,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const circles = state.gMarkers.selectAll("circle").data(allPoints);
         circles.exit().remove();
         circles.enter().append("circle")
-            .attr("r", 5) 
+            .attr("r", 5) // Radio inicial (se ajusta con el zoom)
             .merge(circles)
             .attr("cx", d => state.projection([d.lon, d.lat])[0])
             .attr("cy", d => state.projection([d.lon, d.lat])[1])
@@ -362,11 +374,27 @@ document.addEventListener('DOMContentLoaded', function() {
             .attr("stroke", "#fff").attr("stroke-width", 1)
             .style("cursor", "pointer")
             .on("mouseover", (e, d) => {
-                state.tooltip.html(`<strong>${MARCADOR_NOMBRES[d.tipo]}</strong><br>${d.nombre}`)
+                // Tooltip de Clínica
+                let html = `<strong>${d.tipo === 'CATETER' ? 'Clínica de Catéter' : 'Clínica de Heridas'}</strong>`;
+                html += `<div style="font-size:12px; margin-top:4px;">
+                    <div>${d.nombre}</div>
+                    <div style="color:#ccc; font-size:11px;">${d.institucion}</div>
+                    <div style="color:#ccc; font-size:11px;">${d.municipio || ''}</div>
+                    <div style="font-size:10px; margin-top:2px;">CLUES: ${d.clues}</div>
+                </div>`;
+                
+                state.tooltip.html(html)
                  .style("display", "block").style("opacity", 1)
                  .style("left", (e.pageX+10)+"px").style("top", (e.pageY-20)+"px");
             })
             .on("mouseout", () => state.tooltip.style("display", "none"));
+            
+        // Aplicar escala de zoom actual si ya hubo zoom
+        if(state.zoom) {
+            // Truco: invocar transform actual
+            // Pero como es complejo acceder al transform d3, esperamos al próximo evento zoom
+            // O podemos resetear a radio base si k=1.
+        }
     }
 
     // ==========================================
@@ -452,36 +480,29 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!state.csvData.length) return;
         const { thead, tbody } = state.tableElements;
         const mKey = state.currentMetric;
+        const pKey = METRICAS[mKey].pair || mKey;
         
-        // --- LÓGICA ESTRICTA DE COLUMNAS ---
-        let enfKey, tasaKey;
+        // --- COLUMNAS FIJAS: Entidad, Población, Enfermeras, Tasa ---
         const isPob = (mKey === 'poblacion');
-
-        if (isPob) {
-            enfKey = null; // No aplica
-            tasaKey = null; // No aplica
-        } else {
-            // Buscamos el sufijo (ej: "_primer", "_total")
-            const suffix = mKey.replace('tasa_', '').replace('enfermeras_', '');
-            enfKey = `enfermeras_${suffix}`;
-            tasaKey = `tasa_${suffix}`;
-        }
+        
+        // Datos a mostrar en columna "Enfermeras" y "Tasa"
+        const enfDataKey = isPob ? null : pKey; // Si es poblacion, es null
+        const tasaDataKey = isPob ? null : mKey; 
 
         const cols = [
             { id: 'estado', label: 'Entidad', isNum: false },
             { id: 'poblacion', label: 'Población', isNum: true },
-            { id: 'enfermeras', label: 'Enfermeras', isNum: true, dataKey: enfKey, dash: isPob },
-            { id: 'tasa', label: 'Tasa', isNum: true, dataKey: tasaKey, dash: isPob }
+            { id: 'enfermeras', label: 'Enfermeras', isNum: true, dataKey: enfDataKey, dash: isPob },
+            { id: 'tasa', label: 'Tasa', isNum: true, dataKey: tasaDataKey, dash: isPob }
         ];
 
         thead.innerHTML = ''; const tr = document.createElement('tr');
         cols.forEach(c => {
             const th = document.createElement('th');
-            // Mapear sort config local a columna
+            // Mapeo del sort config a columnas fijas
             let arrow = '↕';
-            if (sortConfig.key === c.id) {
-                arrow = sortConfig.direction === 'asc' ? '▲' : '▼';
-            }
+            if (sortConfig.key === c.id) arrow = sortConfig.direction === 'asc' ? '▲' : '▼';
+            
             th.innerHTML = `${c.label} <small>${arrow}</small>`;
             th.onclick = () => {
                 if (sortConfig.key === c.id) sortConfig.direction = sortConfig.direction==='asc'?'desc':'asc';
@@ -492,12 +513,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         thead.appendChild(tr);
 
-        // --- ORDENAMIENTO ---
+        // Función para obtener valor de ordenamiento
         const getVal = (r, colId) => {
             if (colId === 'estado') return r.estado;
             if (colId === 'poblacion') return r.poblacion;
-            if (colId === 'enfermeras') return isPob ? 0 : (r[enfKey] || 0);
-            if (colId === 'tasa') return isPob ? 0 : (r[tasaKey] || 0);
+            if (colId === 'enfermeras') return isPob ? 0 : (r[enfDataKey] || 0);
+            if (colId === 'tasa') return isPob ? 0 : (r[tasaDataKey] || 0);
             return 0;
         };
 
@@ -520,10 +541,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (c.id === 'estado') {
                     td.innerHTML = !r.isTotal ? `<strong>${r.estado}</strong>` : r.estado;
                 } else if (c.dash) {
-                    td.textContent = '—'; // Guion para población
+                    td.textContent = '—'; // Guion si es población
                 } else {
                     const v = (c.id === 'poblacion') ? r.poblacion : (r[c.dataKey] || 0);
-                    // Formato
                     if (c.id === 'tasa') td.textContent = v.toFixed(2);
                     else td.textContent = v.toLocaleString('es-MX');
                 }

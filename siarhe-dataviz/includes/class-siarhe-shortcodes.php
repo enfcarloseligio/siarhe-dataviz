@@ -169,8 +169,9 @@ class Siarhe_Shortcodes {
             'home_url'    => home_url( '/mapa-nacional/' ), // URL del mapa principal
             'markers'     => [
                 // Rutas a los CSV de marcadores (subidos en la carpeta de uploads del plugin)
-                'CATETER' => SIARHE_UPLOAD_URL . 'clinicas-cateteres.csv',
-                'HERIDAS' => SIARHE_UPLOAD_URL . 'clinicas-heridas.csv'
+                'CATETER'          => SIARHE_UPLOAD_URL . 'clinicas-cateteres.csv',
+                'HERIDAS'          => SIARHE_UPLOAD_URL . 'clinicas-heridas.csv',
+                'ESTABLECIMIENTOS' => SIARHE_UPLOAD_URL . 'establecimientos-salud.csv' // <--- AGREGADO
             ]
         ];
 

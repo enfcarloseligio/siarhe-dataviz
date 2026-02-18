@@ -1,7 +1,7 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// 1. Obtener Entidades desde el Helper Centralizado (Sincronizado con GeoJSON)
+// 1. Obtener Entidades desde el Helper Centralizado
 $entidades_data = siarhe_get_entities();
 
 // 2. Obtener archivos CSV existentes (Filtro: static_min)
@@ -11,16 +11,19 @@ $existing_files = $wpdb->get_results(
     $wpdb->prepare( "SELECT * FROM $table_assets WHERE tipo_archivo = %s AND es_activo = 1", 'static_min' )
 );
 
-// Indexar para búsqueda rápida
+// Indexar para búsqueda rápida por slug
 $files_by_slug = [];
 foreach ($existing_files as $file) {
     $files_by_slug[$file->entidad_slug] = $file;
 }
 
+// Directorio base para comprobaciones físicas
+$upload_base_dir = defined('SIARHE_UPLOAD_DIR') ? SIARHE_UPLOAD_DIR : wp_upload_dir()['basedir'] . '/siarhe-data/';
+
 // Mensajes de estado
 if ( isset($_GET['status']) ) {
-    if ( $_GET['status'] == 'success' ) echo '<div class="notice notice-success is-dismissible"><p>Base estática (CSV) cargada correctamente.</p></div>';
-    if ( $_GET['status'] == 'updated' ) echo '<div class="notice notice-success is-dismissible"><p>Metadatos actualizados correctamente.</p></div>';
+    if ( $_GET['status'] == 'success' ) echo '<div class="notice notice-success is-dismissible"><p>Base estática cargada y actualizada correctamente.</p></div>';
+    if ( $_GET['status'] == 'updated' ) echo '<div class="notice notice-success is-dismissible"><p>Metadatos actualizados.</p></div>';
     if ( $_GET['status'] == 'deleted' ) echo '<div class="notice notice-warning is-dismissible"><p>Archivo eliminado correctamente.</p></div>';
 }
 ?>
@@ -29,11 +32,11 @@ if ( isset($_GET['status']) ) {
     <h2>📤 Cargar Base Estática Minificada</h2>
     
     <div class="notice notice-info inline" style="margin: 10px 0 20px 0;">
-        <p><strong>Requisitos Técnicos:</strong></p>
+        <p><strong>Política de Archivos Únicos:</strong></p>
         <ul style="list-style: disc; margin-left: 20px;">
-            <li>Formato: <strong>.csv</strong> (Delimitado por comas).</li>
-            <li>Codificación: <strong>UTF-8</strong> (Para respetar acentos y ñ).</li>
-            <li>Estructura: Asegúrate de que las cabeceras coincidan con el estándar del sistema.</li>
+            <li>El sistema mantiene <strong>un solo archivo CSV por entidad</strong> (ej: <code>aguascalientes.csv</code>).</li>
+            <li>Al subir un nuevo archivo, <strong>se sobrescribirá el anterior</strong> automáticamente.</li>
+            <li>Esto garantiza que los enlaces en la web nunca se rompan, aunque actualices los datos cada año.</li>
         </ul>
     </div>
     
@@ -59,13 +62,22 @@ if ( isset($_GET['status']) ) {
                 <th scope="row"><label for="siarhe_file">Archivo CSV</label></th>
                 <td>
                     <input type="file" name="siarhe_file" id="siarhe_file" accept=".csv" required>
-                    <p class="description">Se renombrará automáticamente a <code>entidad-año.csv</code>.</p>
+                    <p class="description">
+                        Se guardará como: <code>{entidad}.csv</code> (sin el año en el nombre).<br>
+                        <em>Asegúrate que sea UTF-8 y delimitado por comas.</em>
+                    </p>
                 </td>
             </tr>
             <tr>
-                <th scope="row"><label for="anio_reporte">Año y Fecha de Corte</label></th>
+                <th scope="row"><label for="anio_reporte">Año de los Datos</label></th>
                 <td>
-                    <input type="number" name="anio_reporte" placeholder="Año (2026)" class="small-text" required min="2000" max="2100">
+                    <input type="number" name="anio_reporte" placeholder="Ej: 2026" class="small-text" required min="2000" max="2100">
+                    <span class="description">Este dato se guarda en la base de datos para referencia.</span>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="fecha_corte">Fecha de Corte</label></th>
+                <td>
                     <input type="date" name="fecha_corte" required>
                 </td>
             </tr>
@@ -78,12 +90,12 @@ if ( isset($_GET['status']) ) {
             <tr>
                 <th scope="row"><label for="comentarios">Comentarios Internos</label></th>
                 <td>
-                    <textarea name="comentarios" id="comentarios" rows="2" class="large-text" placeholder="Notas sobre la limpieza de datos..."></textarea>
+                    <textarea name="comentarios" id="comentarios" rows="2" class="large-text" placeholder="Notas sobre la versión, limpieza de datos, etc..."></textarea>
                 </td>
             </tr>
         </table>
         <p class="submit">
-            <input type="submit" name="submit" id="submit" class="button button-primary" value="Subir CSV">
+            <input type="submit" name="submit" id="submit" class="button button-primary" value="Subir y Reemplazar CSV">
         </p>
     </form>
 </div>
@@ -94,12 +106,14 @@ if ( isset($_GET['status']) ) {
     <table id="siarhe-static-table" class="siarhe-table">
         <thead>
             <tr>
-                <th style="width: 25%;">Entidad</th>
-                <th style="width: 10%;">CVE_ENT</th>
-                <th style="width: 15%;">Estado</th>
-                <th style="width: 10%;">Formato</th>
-                <th style="width: 15%;">Detalles (Año)</th>
-                <th style="width: 25%;">Acciones</th>
+                <th style="width: 20%;">Entidad</th>
+                <th style="width: 5%;">CVE</th>
+                <th style="width: 10%;">Estado</th>
+                <th style="width: 20%;">Archivo Sistema</th>
+                <th style="width: 10%;">Fecha de Corte</th>
+                <th style="width: 15%;">Última Modificación</th>
+                <th style="width: 5%;">Tamaño</th>
+                <th style="width: 15%;">Acciones</th>
             </tr>
         </thead>
         <tbody>
@@ -111,54 +125,89 @@ if ( isset($_GET['status']) ) {
                 $cve_ent = $data['CVE_ENT'];
                 $archivo = isset($files_by_slug[$slug]) ? $files_by_slug[$slug] : null;
                 
-                $sort_key = (int)$cve_ent;
-                if ($slug == 'republica-mexicana') $sort_key = -1; // Prioridad visual
+                // Comprobación física
+                $ruta_fisica = '';
+                $existe_fisico = false;
+                $file_size = '—';
+                $file_mtime = '—';
+
+                if ($archivo) {
+                    $rel_path = ltrim($archivo->ruta_archivo, '/');
+                    $ruta_fisica = $upload_base_dir . $rel_path;
+                    
+                    if (file_exists($ruta_fisica)) {
+                        $existe_fisico = true;
+                        $file_size = size_format(filesize($ruta_fisica));
+                        $file_mtime = date("d/m/y H:i", filemtime($ruta_fisica));
+                    }
+                }
                 
-                $rows[] = ['slug' => $slug, 'nombre' => $nombre, 'cve_ent' => $cve_ent, 'archivo' => $archivo, 'sort_key' => $sort_key];
+                $sort_key = (int)$cve_ent;
+                if ($slug == 'republica-mexicana') $sort_key = -1; 
+                
+                $rows[] = [
+                    'slug' => $slug, 
+                    'nombre' => $nombre, 
+                    'cve_ent' => $cve_ent, 
+                    'archivo' => $archivo, 
+                    'existe_fisico' => $existe_fisico,
+                    'file_size' => $file_size,
+                    'file_mtime' => $file_mtime,
+                    'sort_key' => $sort_key
+                ];
             }
             usort($rows, function($a, $b) { return $a['sort_key'] <=> $b['sort_key']; });
 
-            // Renderizar
+            // Renderizar filas
             foreach ($rows as $row) : 
                 $slug = $row['slug']; 
                 $nombre = $row['nombre']; 
                 $cve_ent = $row['cve_ent'];
                 $archivo = $row['archivo']; 
-                $has_file = !empty($archivo);
+                $exists = $row['existe_fisico'];
             ?>
             <tr>
-                <td data-label="Entidad" data-mobile-role="primary">
+                <td data-label="Entidad">
                     <strong><?php echo esc_html($nombre); ?></strong>
                 </td>
                 
-                <td data-label="CVE_ENT">
+                <td data-label="CVE">
                     <span class="siarhe-badge neutral"><?php echo esc_html($cve_ent); ?></span>
                 </td>
                 
-                <td data-label="Estado" data-mobile-role="secondary">
-                    <?php if ($has_file) : ?>
-                        <span class="dashicons dashicons-database" style="color: #46b450;"></span> <strong style="color:#46b450">Cargado</strong>
+                <td data-label="Estado">
+                    <?php if ($exists) : ?>
+                        <span class="dashicons dashicons-yes" style="color: #46b450;"></span> <strong style="color:#46b450">Cargado</strong>
                     <?php else : ?>
-                        <span class="dashicons dashicons-warning" style="color: #ffb900;"></span> Pendiente
+                        <span class="dashicons dashicons-minus" style="color: #ccc;"></span> - Sin archivo
                     <?php endif; ?>
                 </td>
 
-                <td data-label="Formato">
-                    <?php if ($has_file) : ?><code style="font-size:10px;">.csv</code><?php else : ?>—<?php endif; ?>
-                </td>
-
-                <td data-label="Detalles">
-                    <?php if ($has_file) : ?>
-                        <strong><?php echo esc_html($archivo->anio_reporte); ?></strong>
-                        <div class="description" style="font-size:10px;">Corte: <?php echo date_i18n('d/M/y', strtotime($archivo->fecha_corte)); ?></div>
+                <td data-label="Archivo Sistema">
+                    <?php if ($exists) : ?>
+                        <code style="font-size:11px;"><?php echo esc_html(basename($archivo->ruta_archivo)); ?></code>
                     <?php else : ?>—<?php endif; ?>
                 </td>
 
+                <td data-label="Fecha de Corte">
+                    <?php if ($archivo && $archivo->fecha_corte) : ?>
+                        <?php echo date_i18n('d/m/Y', strtotime($archivo->fecha_corte)); ?>
+                    <?php else : ?>—<?php endif; ?>
+                </td>
+
+                <td data-label="Última Modificación">
+                    <?php echo esc_html($row['file_mtime']); ?>
+                </td>
+
+                <td data-label="Tamaño">
+                    <?php echo esc_html($row['file_size']); ?>
+                </td>
+
                 <td data-label="Acciones">
-                    <?php if ($has_file) : ?>
+                    <?php if ($exists) : ?>
                         <button type="button" class="button button-small copy-url-btn" 
-                                data-url="<?php echo esc_url(SIARHE_UPLOAD_URL . $archivo->ruta_archivo); ?>" title="Copiar URL">
-                            <span class="dashicons dashicons-admin-links"></span> URL
+                                data-url="<?php echo esc_url(SIARHE_UPLOAD_URL . $archivo->ruta_archivo); ?>" title="Copiar Enlace">
+                            <span class="dashicons dashicons-admin-links"></span>
                         </button>
                         
                         <button type="button" class="button button-small edit-meta-btn" 
@@ -168,11 +217,11 @@ if ( isset($_GET['status']) ) {
                                 data-corte="<?php echo esc_attr($archivo->fecha_corte); ?>" 
                                 data-ref="<?php echo esc_attr($archivo->referencia_bibliografica); ?>" 
                                 data-notes="<?php echo esc_attr($archivo->comentarios); ?>"
-                                title="Ver Info / Editar">
+                                title="Editar Info">
                             <span class="dashicons dashicons-edit"></span>
                         </button>
                         
-                        <a href="<?php echo esc_url(SIARHE_UPLOAD_URL . $archivo->ruta_archivo); ?>" target="_blank" class="button button-small" title="Descargar">
+                        <a href="<?php echo esc_url(SIARHE_UPLOAD_URL . $archivo->ruta_archivo); ?>" target="_blank" class="button button-small" title="Ver/Descargar">
                             <span class="dashicons dashicons-download"></span>
                         </a>
 
@@ -182,7 +231,7 @@ if ( isset($_GET['status']) ) {
                             <?php wp_nonce_field( 'siarhe_delete_static_nonce_' . $archivo->id ); ?>
                             <button type="submit" class="button button-small button-link-delete" title="Eliminar"><span class="dashicons dashicons-trash" style="color: #a00;"></span></button>
                         </form>
-                    <?php else : ?><span class="description">Sin datos</span><?php endif; ?>
+                    <?php else : ?><span class="description">—</span><?php endif; ?>
                 </td>
             </tr>
             <?php endforeach; ?>
@@ -201,8 +250,8 @@ if ( isset($_GET['status']) ) {
             <?php wp_nonce_field( 'siarhe_update_static_meta_nonce', 'siarhe_meta_nonce' ); ?>
 
             <table class="form-table">
-                <tr><th><label>Año</label></th><td><input type="number" name="anio_reporte" id="modal-anio" class="regular-text" required></td></tr>
-                <tr><th><label>Corte</label></th><td><input type="date" name="fecha_corte" id="modal-corte" class="regular-text" required></td></tr>
+                <tr><th><label>Año de Datos</label></th><td><input type="number" name="anio_reporte" id="modal-anio" class="regular-text" required></td></tr>
+                <tr><th><label>Fecha de Corte</label></th><td><input type="date" name="fecha_corte" id="modal-corte" class="regular-text" required></td></tr>
                 <tr><th><label>Referencia</label></th><td><textarea name="referencia" id="modal-ref" rows="3" class="large-text"></textarea></td></tr>
                 <tr><th><label>Comentarios</label></th><td><textarea name="comentarios" id="modal-notes" rows="3" class="large-text"></textarea></td></tr>
             </table>
@@ -217,47 +266,39 @@ if ( isset($_GET['status']) ) {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     
-    // 1. Acordeón Móvil (Usando ID de tabla para evitar conflictos)
-    const table = document.getElementById('siarhe-static-table');
-    if(table) {
-        table.querySelectorAll('tbody tr').forEach(row => {
-            row.addEventListener('click', function(e) {
-                if (window.innerWidth > 767) return;
-                // Evitar disparo si se hace clic en inputs o enlaces
-                if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) return;
-                this.classList.toggle('is-open');
-            });
-        });
-    }
-
-    // 2. Modal
+    // Funcionalidad Modal
     const modal = document.getElementById('siarhe-edit-modal');
     const closeBtn = document.getElementById('close-modal-btn');
+    
     if(modal) {
         document.querySelectorAll('.edit-meta-btn').forEach(btn => {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
+                // Llenar datos en el modal
                 document.getElementById('modal-entidad-name').textContent = this.dataset.nombre;
                 document.getElementById('modal-file-id').value = this.dataset.id;
                 document.getElementById('modal-anio').value = this.dataset.anio;
                 document.getElementById('modal-corte').value = this.dataset.corte;
                 document.getElementById('modal-ref').value = this.dataset.ref;
                 document.getElementById('modal-notes').value = this.dataset.notes;
+                
                 modal.style.display = 'block';
             });
         });
+
+        // Cerrar Modal
         closeBtn.addEventListener('click', () => { modal.style.display = 'none'; });
         window.onclick = function(event) { if (event.target == modal) { modal.style.display = 'none'; } }
     }
 
-    // 3. Copiar URL
+    // Funcionalidad Copiar URL
     document.querySelectorAll('.copy-url-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.preventDefault(); e.stopPropagation();
             const url = this.getAttribute('data-url');
             navigator.clipboard.writeText(url).then(() => {
                 const original = this.innerHTML;
-                this.innerHTML = '<span class="dashicons dashicons-yes"></span>';
+                this.innerHTML = '<span class="dashicons dashicons-yes" style="color:green"></span>';
                 setTimeout(() => { this.innerHTML = original; }, 1500);
             });
         });

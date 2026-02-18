@@ -3,7 +3,6 @@ estructura.bat
 estructura.txt
 LICENSE
 README.md
-siarhe-dataviz.zip
 
 ================================
  siarhe-dataviz
@@ -31,6 +30,7 @@ C:\USERS\ENFCA\DOCUMENTS\PROYECTOS\SIARHE-DATAVIZ\SIARHE-DATAVIZ
 ¦       ¦   
 ¦       +---settings-tabs
 ¦       ¦       tab-enlaces.php
+¦       ¦       tab-mapa.php
 ¦       ¦       tab-tema.php
 ¦       ¦       
 ¦       +---upload-tabs
@@ -58,6 +58,6 @@ C:\USERS\ENFCA\DOCUMENTS\PROYECTOS\SIARHE-DATAVIZ\SIARHE-DATAVIZ
 ¦   ¦       siarhe-viz.js
 ¦   ¦       
 ¦   +---partials
-¦           republica-mexicana.html
+¦           siarhe-view.php
 ¦           
 +---uploads

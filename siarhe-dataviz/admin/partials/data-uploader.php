@@ -6,9 +6,10 @@ $active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'geojson';
 
 // 2. Definir las pestañas disponibles
 $tabs = [
-    'geojson'       => 'Geolocalización (GeoJSON)',
-    'static'        => 'Bases Estáticas (Min)',
-    'pivote'        => 'Pivotes (Capital Humano)',
+    'geojson'       => 'Geolocalización',
+    'static'        => 'Bases Estáticas',
+    'marcadores'    => 'Marcadores',
+    'pivote'        => 'Pivotes',
     'formaciones'   => 'Formaciones',
     'escuelas'      => 'Escuelas',
     'investigacion' => 'Investigación',
@@ -31,14 +32,11 @@ $tabs = [
 
     <div class="tab-content" style="margin-top: 20px;">
         <?php
-        // Definir la ruta del archivo parcial
         $tab_file = SIARHE_PATH . 'admin/partials/upload-tabs/tab-' . $active_tab . '.php';
-
-        // Validar que el archivo existe antes de cargarlo
         if ( file_exists( $tab_file ) ) {
             include $tab_file;
         } else {
-            echo '<div class="notice notice-error inline"><p>Error: No se encuentra el módulo para la pestaña <strong>' . esc_html($active_tab) . '</strong>.</p></div>';
+            echo '<div class="notice notice-error inline"><p>Error: No se encuentra el módulo <strong>' . esc_html($active_tab) . '</strong>.</p></div>';
         }
         ?>
     </div>
