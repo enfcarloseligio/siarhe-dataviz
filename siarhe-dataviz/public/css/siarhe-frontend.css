@@ -1,9 +1,7 @@
 /* =========================================
-   1. VARIABLES & RESET (Fallback)
+   1. VARIABLES & RESET
    ========================================= */
 :root {
-    /* Estos valores son sobreescritos por PHP si hay configuración guardada */
-    
     /* Mapa */
     --s-map-null: #d9d9d9;
     
@@ -24,7 +22,7 @@
 }
 
 /* =========================================
-   2. ESTRUCTURA DE PÁGINA (Layout)
+   2. ESTRUCTURA (Layout)
    ========================================= */
 .siarhe-viz-wrapper {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -65,89 +63,140 @@
     position: relative;
 }
 
-/* Footer / Disclaimer */
-.siarhe-footer {
-    font-size: 12px;
-    color: #888;
-    border-top: 1px solid #eee;
-    padding-top: 20px;
-    margin-top: 40px;
-}
-
-.siarhe-ref-col strong {
-    display: block;
-    margin-bottom: 5px;
-    font-size: 13px;
-}
-
 /* =========================================
-   3. CONTROLES (Selectores)
+   3. CONTROLES UNIFICADOS
    ========================================= */
 .siarhe-controls {
-    background: #f8f9fa;
-    padding: 12px 15px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    margin-bottom: 20px;
     display: flex;
-    align-items: center;
+    align-items: flex-end;
+    gap: 20px;
+    background: #f9f9f9;
+    padding: 15px 20px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin-bottom: 20px;
     flex-wrap: wrap;
-    gap: 10px;
 }
 
-.siarhe-controls label {
+.siarhe-control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.siarhe-control-group label {
     font-weight: 700;
-    color: #333;
-    font-size: 14px;
+    font-size: 13px;
+    color: #444;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.siarhe-metric-select {
-    padding: 6px 10px;
+/* Inputs */
+.siarhe-metric-select,
+.mc-trigger {
+    height: 38px;
+    min-width: 260px;
+    padding: 6px 12px;
+    font-size: 14px;
     border: 1px solid #ccc;
     border-radius: 4px;
-    font-size: 14px;
-    min-width: 250px;
-    max-width: 100%;
+    background-color: #fff;
+    color: #333;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: border-color 0.2s;
 }
 
+.siarhe-metric-select:hover,
+.mc-trigger:hover {
+    border-color: #999;
+}
+
+.siarhe-metric-select:focus {
+    border-color: #2271b1;
+    outline: none;
+}
+
+/* Dropdown Marcadores */
+.mc-field { position: relative; }
+
+.mc-trigger { justify-content: space-between; }
+.mc-trigger::after {
+    content: "▼";
+    font-size: 10px;
+    color: #666;
+    margin-left: 10px;
+}
+.mc-trigger.is-placeholder { color: #777; }
+
+.mc-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    display: none;
+    z-index: 1000;
+    max-height: 250px;
+    overflow-y: auto;
+    margin-top: 2px;
+}
+.mc-menu.open { display: block; }
+
+.mc-option {
+    padding: 10px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.mc-option:last-child { border-bottom: none; }
+.mc-option:hover { background-color: #f0f7fc; color: #2271b1; }
+.mc-check { cursor: pointer; }
+
 /* =========================================
-   4. MAPA INTERACTIVO
+   4. MAPA
    ========================================= */
 .siarhe-map-container {
-    background-color: #e6f0f8; /* Color mar fijo */
+    background-color: #e6f0f8;
     border: 1px solid #ccc;
     border-radius: 4px;
     overflow: hidden;
-    min-height: 500px; /* Altura mínima para evitar colapso */
+    min-height: 500px; 
     position: relative;
 }
 
-/* Estados / Polígonos */
 path.siarhe-feature {
-    fill: var(--s-map-null); /* Usa variable dinámica */
+    fill: var(--s-map-null); 
     stroke: #ffffff;
     stroke-width: 0.5px;
     transition: fill 0.4s ease, stroke 0.2s ease;
     cursor: pointer;
-    vector-effect: non-scaling-stroke; /* Evita que el borde engorde al hacer zoom */
+    vector-effect: non-scaling-stroke;
 }
-
 path.siarhe-feature:hover {
     stroke: #333;
     stroke-width: 1.5px;
     filter: brightness(0.95);
-    z-index: 10; /* Traer al frente virtualmente */
+    z-index: 10;
 }
 
-.siarhe-map-footer {
-    margin-top: 10px;
-    font-size: 12px;
-    color: #777;
-    text-align: right;
+.leyenda-marcadores text {
+    font-family: -apple-system, sans-serif;
+    fill: #333;
 }
 
 /* =========================================
-   5. TOOLTIP (Ajustado para datos largos)
+   5. TOOLTIP
    ========================================= */
 .siarhe-tooltip {
     position: absolute;
@@ -155,12 +204,13 @@ path.siarhe-feature:hover {
     background: rgba(0, 0, 0, 0.9);
     color: #fff;
     border-radius: 6px;
-    pointer-events: none; /* Ignora el mouse para no parpadear */
-    z-index: 9999;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.25);
-    display: none;
+    pointer-events: none;
     
-    /* Dimensiones y Texto */
+    /* z-index */
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    
+    display: none;
     min-width: 220px;
     max-width: 320px;
     font-size: 13px;
@@ -178,11 +228,11 @@ path.siarhe-feature:hover {
 }
 
 /* =========================================
-   6. TABLA DE DATOS (Con Variables Dinámicas)
+   6. TABLA DE DATOS (Especificidad corregida)
    ========================================= */
 .siarhe-table-container {
     margin-top: 20px;
-    overflow-x: auto; /* Scroll horizontal en móviles */
+    overflow-x: auto; 
     border-radius: 5px;
     border: var(--s-border);
 }
@@ -191,10 +241,9 @@ table.siarhe-data-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
-    min-width: 600px; /* Fuerza ancho mínimo para scroll */
+    min-width: 600px;
 }
 
-/* Encabezados */
 table.siarhe-data-table th {
     background-color: var(--s-th-bg);
     color: var(--s-th-text);
@@ -203,58 +252,47 @@ table.siarhe-data-table th {
     font-weight: 700;
     border-bottom: var(--s-border);
     white-space: nowrap;
-    
-    /* Interacción de Ordenamiento */
     cursor: pointer; 
     user-select: none;
     transition: background-color 0.2s ease;
 }
+table.siarhe-data-table th:hover { filter: brightness(0.95); }
 
-table.siarhe-data-table th:hover {
-    filter: brightness(0.95);
-}
-
-/* Celdas generales */
 table.siarhe-data-table td {
     padding: 10px;
     border-bottom: var(--s-border);
 }
 
-/* Filas Impares (Odd) - Fondo + Texto */
+/* Filas Alternas */
 table.siarhe-data-table tr:nth-child(odd) {
     background-color: var(--s-tr-odd);
     color: var(--s-tr-odd-txt);
 }
-table.siarhe-data-table tr:nth-child(odd) td {
-    color: var(--s-tr-odd-txt);
-}
+table.siarhe-data-table tr:nth-child(odd) td { color: var(--s-tr-odd-txt); }
 
-/* Filas Pares (Even) - Fondo + Texto */
 table.siarhe-data-table tr:nth-child(even) {
     background-color: var(--s-tr-even);
     color: var(--s-tr-even-txt);
 }
-table.siarhe-data-table tr:nth-child(even) td {
-    color: var(--s-tr-even-txt);
-}
+table.siarhe-data-table tr:nth-child(even) td { color: var(--s-tr-even-txt); }
 
-/* Hover en filas normales */
+/* Hover filas */
 table.siarhe-data-table tr:not(.siarhe-row-total):hover td {
-    background-color: rgba(0,0,0,0.03); /* Sutil oscurecimiento */
+    background-color: rgba(0,0,0,0.03);
     cursor: default;
 }
 
-/* Fila de Totales (Prioridad Alta) */
-table.siarhe-data-table tr.siarhe-row-total,
-table.siarhe-data-table tr.siarhe-row-total td {
-    background-color: var(--s-total-bg) !important;
-    color: var(--s-total-txt) !important;
+/* Fila de Totales */
+table.siarhe-data-table tbody tr.siarhe-row-total,
+table.siarhe-data-table tbody tr.siarhe-row-total td {
+    background-color: var(--s-total-bg);
+    color: var(--s-total-txt);
     font-weight: 700;
     border-top: 2px solid #aaa;
 }
 
 /* =========================================
-   7. LOADER / SPINNER
+   7. UTILIDADES
    ========================================= */
 .siarhe-loading-overlay {
     position: absolute;
@@ -271,72 +309,48 @@ table.siarhe-data-table tr.siarhe-row-total td {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
 }
 
 .spinner {
-    width: 30px;
-    height: 30px;
+    width: 30px; height: 30px;
     border: 4px solid #f3f3f3;
-    border-top: 4px solid #2271b1; /* Azul WP */
+    border-top: 4px solid #2271b1;
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+/* Botones Zoom */
+.zoom-controles {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    z-index: 900;
 }
-
-/* =========================================
-   8. BOTONES (Legacy User Styles)
-   ========================================= */
-.siarhe-actions {
-    margin-top: 15px;
+.zoom-controles .boton {
+    width: 36px; height: 36px;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #444;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     display: flex;
     align-items: center;
-    gap: 15px;
-    flex-wrap: wrap;
-}
-
-.btn-siarhe {
-    display: inline-flex;
-    align-items: center;
     justify-content: center;
-    padding: 8px 16px;
-    border-radius: 4px;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-    transition: background 0.2s, transform 0.1s;
-    font-size: 13px;
-    text-decoration: none;
+    transition: all 0.2s;
 }
+.zoom-controles .boton:hover { background: #f0f0f1; color: #000; }
 
-.btn-siarhe:active { transform: translateY(1px); }
-
-.btn-download-map {
-    background-color: #f0f0f1;
-    color: #1d2327;
-    border: 1px solid #c3c4c7;
-}
-.btn-download-map:hover { 
-    background-color: #e0e0e0;
-    color: #1d2327;
-}
-
-.btn-primary {
-    background-color: #2271b1;
-    color: #fff;
-}
-.btn-primary:hover { 
-    background-color: #135e96; 
-    color: #fff;
-}
-
-/* Responsive adjustments */
+/* Responsive */
 @media (max-width: 600px) {
     .siarhe-title { font-size: 20px; }
-    .siarhe-metric-select { width: 100%; min-width: 0; }
-    .siarhe-footer div { grid-template-columns: 1fr !important; }
+    .siarhe-metric-select, .mc-trigger { width: 100%; min-width: 0; }
+    .siarhe-footer div { grid-template-columns: 1fr; }
+    .siarhe-controls { flex-direction: column; align-items: flex-start; gap: 15px; }
 }

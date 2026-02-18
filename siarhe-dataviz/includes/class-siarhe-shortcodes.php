@@ -107,16 +107,16 @@ class Siarhe_Shortcodes {
         // 1. Cargar estilos Frontend
         wp_enqueue_style( 'siarhe-frontend-css', SIARHE_URL . 'public/css/siarhe-frontend.css', array(), SIARHE_VERSION );
 
-        // 2. INYECTAR VARIABLES CSS DINÁMICAS
+        // 2. INYECTAR VARIABLES CSS DINÁMICAS (Colores)
         $opts = get_option( 'siarhe_map_options', [] );
         
         $defaults = [
-            'map_c1' => '#eff3ff', 'map_c2' => '#bdd7e7', 'map_c3' => '#6baed6', 'map_c4' => '#3182bd', 'map_c5' => '#08519c',
-            'map_zero' => '#d9d9d9', // NUEVO: Valor 0 (Gris)
-            'map_null' => '#000000', // NUEVO: Sin Datos (Negro)
+            'map_c1' => '#eff3ff', 'map_c2' => '#bdd7e7', 'map_c3' => '#9ecae1', 'map_c4' => '#6baed6', 'map_c5' => '#08519c',
+            'map_zero' => '#d9d9d9', 'map_null' => '#000000',
             
             'th_bg' => '#f4f4f4', 'th_text' => '#333', 
-            'tr_odd' => '#fff', 'tr_even' => '#f9f9f9',
+            'tr_odd' => '#fff', 'tr_odd_txt' => '#555',
+            'tr_even' => '#f9f9f9', 'tr_even_txt' => '#555',
             'tr_total_bg' => '#e8f4fd', 'tr_total_txt' => '#000', 
             'border_color' => '#ddd', 'border_width' => '1'
         ];
@@ -139,7 +139,9 @@ class Siarhe_Shortcodes {
                 --s-th-bg: {$c['th_bg']};
                 --s-th-text: {$c['th_text']};
                 --s-tr-odd: {$c['tr_odd']};
+                --s-tr-odd-txt: {$c['tr_odd_txt']};
                 --s-tr-even: {$c['tr_even']};
+                --s-tr-even-txt: {$c['tr_even_txt']};
                 --s-total-bg: {$c['tr_total_bg']};
                 --s-total-txt: {$c['tr_total_txt']};
                 --s-border: {$c['border_width']}px solid {$c['border_color']};
@@ -152,5 +154,26 @@ class Siarhe_Shortcodes {
 
         // 4. Cargar nuestro Script Principal (Depende de D3.js)
         wp_enqueue_script( 'siarhe-viz-js', SIARHE_URL . 'public/js/siarhe-viz.js', array('d3-js'), SIARHE_VERSION, true );
+
+        // 5. INYECTAR DATOS DINÁMICOS A JS (Marcadores, URLs, Home)
+        // Esto permite que el JS sepa a dónde navegar y dónde están los CSVs de marcadores
+        $entities = siarhe_get_entities();
+        $urls_map = [];
+        foreach ( $entities as $slug => $data ) {
+            // Estructura de URL: /entidad/nombre-entidad/
+            $urls_map[$data['CVE_ENT']] = home_url( "/entidad/$slug/" );
+        }
+
+        $siarhe_data = [
+            'entity_urls' => $urls_map,
+            'home_url'    => home_url( '/mapa-nacional/' ), // URL del mapa principal
+            'markers'     => [
+                // Rutas a los CSV de marcadores (subidos en la carpeta de uploads del plugin)
+                'CATETER' => SIARHE_UPLOAD_URL . 'clinicas-cateteres.csv',
+                'HERIDAS' => SIARHE_UPLOAD_URL . 'clinicas-heridas.csv'
+            ]
+        ];
+
+        wp_localize_script( 'siarhe-viz-js', 'siarheData', $siarhe_data );
     }
 }
