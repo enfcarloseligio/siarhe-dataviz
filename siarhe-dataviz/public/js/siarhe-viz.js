@@ -1,5 +1,5 @@
 // 📢 LOG INICIAL
-console.log("%c 🚀 SIARHE JS V14: Tooltip Robusto & CSS Limpio", "background: #222; color: #bada55");
+console.log("%c 🚀 SIARHE JS V15: Tabla Estricta, Tooltip Compacto y No-DblClick Zoom", "background: #222; color: #bada55");
 
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -12,12 +12,16 @@ document.addEventListener('DOMContentLoaded', function() {
         'tasa_total':             { label: 'Tasa Total', fullLabel: 'Tasa Total (x 1,000 hab)', tipo: 'tasa', pair: 'enfermeras_total' },
         'enfermeras_total':       { label: 'Total Enf.', fullLabel: 'Total de Enfermeras',      tipo: 'absoluto', pair: 'enfermeras_total' },
         'poblacion':              { label: 'Población',  fullLabel: 'Población Total',          tipo: 'absoluto', pair: 'poblacion' },
+        
         'tasa_primer':            { label: 'Tasa 1er Nivel', fullLabel: 'Tasa 1er Nivel',       tipo: 'tasa', pair: 'enfermeras_primer' },
         'enfermeras_primer':      { label: 'Enf. 1er Nivel', fullLabel: 'Enfermeras 1er Nivel', tipo: 'absoluto', pair: 'enfermeras_primer' },
+        
         'tasa_segundo':           { label: 'Tasa 2do Nivel', fullLabel: 'Tasa 2do Nivel',       tipo: 'tasa', pair: 'enfermeras_segundo' },
         'enfermeras_segundo':     { label: 'Enf. 2do Nivel', fullLabel: 'Enfermeras 2do Nivel', tipo: 'absoluto', pair: 'enfermeras_segundo' },
+        
         'tasa_tercer':            { label: 'Tasa 3er Nivel', fullLabel: 'Tasa 3er Nivel',       tipo: 'tasa', pair: 'enfermeras_tercer' },
         'enfermeras_tercer':      { label: 'Enf. 3er Nivel', fullLabel: 'Enfermeras 3er Nivel', tipo: 'absoluto', pair: 'enfermeras_tercer' },
+        
         'tasa_administrativas':   { label: 'Tasa Admin.', fullLabel: 'Tasa Administrativas',     tipo: 'tasa', pair: 'enfermeras_administrativas' },
         'enfermeras_administrativas': { label: 'Enf. Admin.', fullLabel: 'Enfermeras Administrativas', tipo: 'absoluto', pair: 'enfermeras_administrativas' }
     };
@@ -31,7 +35,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const COLOR_ZERO = getVar('--s-map-zero', '#d9d9d9'); 
     const COLOR_NULL = getVar('--s-map-null', '#000000'); 
 
-    let sortConfig = { key: 'metric', direction: 'desc' };
+    // Orden inicial: Tasa de Mayor a Menor
+    let sortConfig = { key: 'tasa', direction: 'desc' };
 
     // ==========================================
     // 2. HELPERS
@@ -133,7 +138,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ==========================================
-    // 4. MAPA
+    // 4. MAPA (NO DBLCLICK ZOOM)
     // ==========================================
     function renderMap(container, state, cveEnt) {
         const mapDiv = container.querySelector('.siarhe-map-container');
@@ -163,10 +168,7 @@ document.addEventListener('DOMContentLoaded', function() {
         state.projection = projection;
         const path = d3.geoPath().projection(projection);
 
-        // --- TOOLTIP ROBUSTO ---
-        // 1. Eliminar tooltips huérfanos anteriores
         d3.selectAll("#siarhe-global-tooltip").remove();
-        // 2. Crear uno nuevo en el BODY
         state.tooltip = d3.select("body").append("div")
             .attr("id", "siarhe-global-tooltip")
             .attr("class", "siarhe-tooltip")
@@ -187,43 +189,55 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .on("click", (e, d) => handleMapClick(d, state));
 
-        const zoom = d3.zoom().scaleExtent([1, 8]).on("zoom", (e) => {
-            gMain.attr("transform", e.transform);
-            gMain.selectAll("circle").attr("r", 5 / e.transform.k).attr("stroke-width", 1 / e.transform.k);
-        });
-        state.zoom = zoom;
-        svg.call(zoom);
+        // ZOOM (DESACTIVAR DOBLE CLIC)
+        const zoom = d3.zoom()
+            .scaleExtent([1, 8])
+            .on("zoom", (e) => {
+                gMain.attr("transform", e.transform);
+                gMain.selectAll("circle").attr("r", 5 / e.transform.k).attr("stroke-width", 1 / e.transform.k);
+            });
+        
+        svg.call(zoom).on("dblclick.zoom", null); // <--- ESTO DESACTIVA EL ZOOM AL DOBLE CLIC
 
+        state.zoom = zoom;
         renderZoomButtons(mapDiv, svg, zoom, cveEnt);
         updateMapVisuals(container, state);
     }
 
     // ==========================================
-    // 5. TOOLTIP SHOW (Asegurar visualización)
+    // 5. TOOLTIP (COMPACTO)
     // ==========================================
     function showTooltip(event, d, state) {
         let cve = getGeoKey(d.properties);
         const row = state.dataMap.get(cve);
         const nombre = row ? row.estado : (d.properties.NOM_ENT || "Sin Datos");
-        let html = `<strong>${nombre}</strong>`;
+        
+        // Estilo compacto para el título
+        let html = `<div style="font-weight:bold; border-bottom:1px solid #555; padding-bottom:3px; margin-bottom:4px; font-size:13px;">${nombre}</div>`;
         
         if (row) {
             const mKey = state.currentMetric;
-            const pKey = METRICAS[mKey].pair || mKey;
-            html += `<br><span style="color:#ccc">Población:</span> ${row.poblacion.toLocaleString('es-MX')}`;
-            if(METRICAS[mKey].tipo === 'tasa') {
-                html += `<br><span style="color:#ccc">${METRICAS[pKey].label.replace('Total ','')}:</span> ${row[pKey].toLocaleString('es-MX')}`;
-                html += `<hr style="margin:4px 0; border-color:#555"><span style="color:#ffcc00">${METRICAS[mKey].label}: ${row[mKey].toFixed(2)}</span>`;
-            } else {
-                html += `<br><span style="color:#ffcc00">${METRICAS[mKey].label}: ${row[mKey].toLocaleString('es-MX')}</span>`;
+            // Si es poblacion, pairKey es poblacion
+            const pKey = METRICAS[mKey].pair || mKey; 
+            
+            html += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span style="color:#ccc">Población:</span> <b>${row.poblacion.toLocaleString('es-MX')}</b></div>`;
+            
+            // Si no es solo población, mostrar datos de enfermería
+            if (mKey !== 'poblacion') {
+                const labelAbs = METRICAS[pKey].label.replace('Total ',''); // Limpiar etiqueta
+                
+                // Mostrar Absoluto
+                html += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span style="color:#ccc">${labelAbs}:</span> <b>${row[pKey].toLocaleString('es-MX')}</b></div>`;
+                
+                // Mostrar Tasa (con separador)
+                html += `<div style="display:flex; justify-content:space-between; margin-top:4px; padding-top:4px; border-top:1px dashed #555; color:#ffcc00;"><span>${METRICAS[mKey].tipo === 'tasa' ? METRICAS[mKey].label : 'Tasa'}:</span> <b>${(METRICAS[mKey].tipo === 'tasa' ? row[mKey] : (row['tasa_'+mKey.replace('enfermeras_','')] || 0)).toFixed(2)}</b></div>`;
             }
         }
         
         state.tooltip
             .html(html)
             .style("display", "block")
-            .style("opacity", 1)  // IMPORTANTE
-            .style("visibility", "visible")
+            .style("opacity", 1) 
             .style("left", (event.pageX+15)+"px")
             .style("top", (event.pageY-28)+"px");
     }
@@ -239,7 +253,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const wrapper = document.createElement('div');
         wrapper.className = 'siarhe-controls'; 
 
-        // 1. Grupo Indicador
+        // Grupo Indicador
         const grpInd = document.createElement('div');
         grpInd.className = 'siarhe-control-group';
         grpInd.innerHTML = `<label>Indicador</label>`;
@@ -251,11 +265,16 @@ document.addEventListener('DOMContentLoaded', function() {
             if (key === state.currentMetric) opt.selected = true;
             selInd.appendChild(opt);
         });
-        selInd.onchange = (e) => { state.currentMetric = e.target.value; onUpdate(); };
+        selInd.onchange = (e) => { 
+            state.currentMetric = e.target.value; 
+            // Resetear orden de tabla al cambiar métrica
+            sortConfig = { key: 'tasa', direction: 'desc' };
+            onUpdate(); 
+        };
         grpInd.appendChild(selInd);
         wrapper.appendChild(grpInd);
 
-        // 2. Grupo Marcadores
+        // Grupo Marcadores
         if (typeof siarheData !== 'undefined' && siarheData.markers) {
             const grpMarc = document.createElement('div');
             grpMarc.className = 'siarhe-control-group';
@@ -433,42 +452,81 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!state.csvData.length) return;
         const { thead, tbody } = state.tableElements;
         const mKey = state.currentMetric;
-        const pKey = METRICAS[mKey].pair || mKey;
+        
+        // --- LÓGICA ESTRICTA DE COLUMNAS ---
+        let enfKey, tasaKey;
+        const isPob = (mKey === 'poblacion');
+
+        if (isPob) {
+            enfKey = null; // No aplica
+            tasaKey = null; // No aplica
+        } else {
+            // Buscamos el sufijo (ej: "_primer", "_total")
+            const suffix = mKey.replace('tasa_', '').replace('enfermeras_', '');
+            enfKey = `enfermeras_${suffix}`;
+            tasaKey = `tasa_${suffix}`;
+        }
+
         const cols = [
-            { key: 'estado', label: 'Entidad', isNum: false },
-            { key: 'poblacion', label: 'Población', isNum: true },
-            { key: pKey, label: METRICAS[pKey].label, isNum: true },
-            { key: mKey, label: METRICAS[mKey].label, isNum: true }
+            { id: 'estado', label: 'Entidad', isNum: false },
+            { id: 'poblacion', label: 'Población', isNum: true },
+            { id: 'enfermeras', label: 'Enfermeras', isNum: true, dataKey: enfKey, dash: isPob },
+            { id: 'tasa', label: 'Tasa', isNum: true, dataKey: tasaKey, dash: isPob }
         ];
+
         thead.innerHTML = ''; const tr = document.createElement('tr');
         cols.forEach(c => {
             const th = document.createElement('th');
-            let arrow = sortConfig.key === (c.key === 'estado' ? c.key : (c.isNum ? (c.key === mKey ? 'metric' : c.key) : c.key)) 
-                ? (sortConfig.direction==='asc'?'▲':'▼') : '↕';
+            // Mapear sort config local a columna
+            let arrow = '↕';
+            if (sortConfig.key === c.id) {
+                arrow = sortConfig.direction === 'asc' ? '▲' : '▼';
+            }
             th.innerHTML = `${c.label} <small>${arrow}</small>`;
             th.onclick = () => {
-                const targetKey = (c.key === mKey) ? 'metric' : c.key;
-                if(sortConfig.key === targetKey) sortConfig.direction = sortConfig.direction==='asc'?'desc':'asc';
-                else { sortConfig.key = targetKey; sortConfig.direction = c.isNum ? 'desc':'asc'; }
+                if (sortConfig.key === c.id) sortConfig.direction = sortConfig.direction==='asc'?'desc':'asc';
+                else { sortConfig.key = c.id; sortConfig.direction = c.isNum ? 'desc':'asc'; }
                 updateTable(container, state);
             };
             tr.appendChild(th);
         });
         thead.appendChild(tr);
-        const activeKey = sortConfig.key === 'metric' ? mKey : sortConfig.key;
+
+        // --- ORDENAMIENTO ---
+        const getVal = (r, colId) => {
+            if (colId === 'estado') return r.estado;
+            if (colId === 'poblacion') return r.poblacion;
+            if (colId === 'enfermeras') return isPob ? 0 : (r[enfKey] || 0);
+            if (colId === 'tasa') return isPob ? 0 : (r[tasaKey] || 0);
+            return 0;
+        };
+
         const rows = state.csvData.filter(r => !r.isTotal && !r.isSpecial).sort((a,b) => {
-            const va = a[activeKey], vb = b[activeKey];
-            return (va < vb ? -1 : 1) * (sortConfig.direction==='asc'?1:-1);
+            const va = getVal(a, sortConfig.key);
+            const vb = getVal(b, sortConfig.key);
+            if (va < vb) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (va > vb) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
         });
         const fixed = state.csvData.filter(r => r.isTotal || r.isSpecial);
+
         tbody.innerHTML = '';
         [...rows, ...fixed].forEach(r => {
             const row = document.createElement('tr');
             if(r.isTotal) row.className = 'siarhe-row-total';
+            
             cols.forEach(c => {
                 const td = document.createElement('td');
-                const v = r[c.key];
-                td.innerHTML = c.key==='estado' && !r.isTotal ? `<strong>${v}</strong>` : (c.isNum ? (c.key.includes('tasa') ? v.toFixed(2) : v.toLocaleString('es-MX')) : v);
+                if (c.id === 'estado') {
+                    td.innerHTML = !r.isTotal ? `<strong>${r.estado}</strong>` : r.estado;
+                } else if (c.dash) {
+                    td.textContent = '—'; // Guion para población
+                } else {
+                    const v = (c.id === 'poblacion') ? r.poblacion : (r[c.dataKey] || 0);
+                    // Formato
+                    if (c.id === 'tasa') td.textContent = v.toFixed(2);
+                    else td.textContent = v.toLocaleString('es-MX');
+                }
                 row.appendChild(td);
             });
             tbody.appendChild(row);
