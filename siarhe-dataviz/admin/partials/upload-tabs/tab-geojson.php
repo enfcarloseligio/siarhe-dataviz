@@ -31,9 +31,9 @@ if ( isset($_GET['status']) ) {
     <div class="notice notice-info inline" style="margin: 10px 0 20px 0;">
         <p><strong>Política de Archivos Únicos:</strong></p>
         <ul style="list-style: disc; margin-left: 20px;">
-            <li>El archivo se guardará estrictamente como <code>{entidad}.geojson</code> (sin año).</li>
-            <li>Esto permite actualizar la geometría de un estado sin romper los mapas ya publicados.</li>
-            <li>El "Año" y "Fecha de Corte" son solo informativos para la base de datos.</li>
+            <li><strong>Formatos admitidos:</strong> Archivos .json o .geojson.</li>
+            <li><strong>Nomenclatura:</strong> El archivo se guardará automáticamente con el nombre estándar <code>{entidad}.geojson</code> (ej. aguascalientes.geojson).</li>
+            <li><strong>Proyección:</strong> Es obligatorio que el mapa esté exportado en formato <strong>WGS84 (EPSG:4326)</strong> para que los trazos coincidan correctamente.</li>
         </ul>
     </div>
     
@@ -56,19 +56,20 @@ if ( isset($_GET['status']) ) {
                 </td>
             </tr>
             <tr>
-                <th scope="row"><label for="siarhe_file">Archivo GeoJSON</label></th>
+                <th scope="row"><label for="siarhe_file">Archivo GeoEspacial</label></th>
                 <td>
                     <input type="file" name="siarhe_file" id="siarhe_file" accept=".json,.geojson" required>
-                    <p class="description">
-                        Se renombrará automáticamente a <code>entidad.geojson</code>.<br>
-                        <em>Asegúrate de usar proyección WGS84 (EPSG:4326).</em>
-                    </p>
                 </td>
             </tr>
             <tr>
-                <th scope="row"><label for="anio_reporte">Año de Referencia</label></th>
+                <th scope="row"><label for="anio_reporte">Año de los Datos</label></th>
                 <td>
                     <input type="number" name="anio_reporte" placeholder="Ej: 2026" class="small-text" required min="2000" max="2100">
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="fecha_corte">Fecha de Corte</label></th>
+                <td>
                     <input type="date" name="fecha_corte" required>
                 </td>
             </tr>
@@ -79,14 +80,14 @@ if ( isset($_GET['status']) ) {
                 </td>
             </tr>
             <tr>
-                <th scope="row"><label for="comentarios">Comentarios</label></th>
+                <th scope="row"><label for="comentarios">Comentarios Internos</label></th>
                 <td>
                     <textarea name="comentarios" id="comentarios" rows="2" class="large-text" placeholder="Notas sobre la simplificación del mapa..."></textarea>
                 </td>
             </tr>
         </table>
         <p class="submit">
-            <input type="submit" name="submit" id="submit" class="button button-primary" value="Subir y Reemplazar GeoJSON">
+            <input type="submit" name="submit" id="submit" class="button button-primary" value="Subir / Reemplazar">
         </p>
     </form>
 </div>
@@ -100,7 +101,7 @@ if ( isset($_GET['status']) ) {
                 <th style="width: 20%;">Entidad</th>
                 <th style="width: 5%;">CVE</th>
                 <th style="width: 10%;">Estado</th>
-                <th style="width: 20%;">Archivo Sistema</th>
+                <th style="width: 20%;">Archivo del Sistema</th>
                 <th style="width: 10%;">Fecha de Corte</th>
                 <th style="width: 15%;">Última Modificación</th>
                 <th style="width: 5%;">Tamaño</th>
@@ -110,8 +111,6 @@ if ( isset($_GET['status']) ) {
         <tbody>
             <?php 
             $rows = [];
-            
-            // Obtener directorio base para comprobar archivos físicos
             $upload_base = defined('SIARHE_UPLOAD_DIR') ? SIARHE_UPLOAD_DIR : wp_upload_dir()['basedir'] . '/siarhe-data/';
 
             foreach ($entidades_data as $slug => $data) {
@@ -119,8 +118,7 @@ if ( isset($_GET['status']) ) {
                 $cve_ent = $data['CVE_ENT'];
                 $archivo = isset($files_by_slug[$slug]) ? $files_by_slug[$slug] : null;
                 
-                // Comprobación física
-                $ruta_fisica = $archivo ? $upload_base . $archivo->ruta_archivo : '';
+                $ruta_fisica = $archivo ? $upload_base . ltrim($archivo->ruta_archivo, '/') : '';
                 $existe_fisico = $archivo && file_exists($ruta_fisica);
 
                 $sort_key = (int)$cve_ent;
@@ -146,7 +144,7 @@ if ( isset($_GET['status']) ) {
                 $exists = $row['existe_fisico'];
             ?>
             <tr>
-                <td data-label="Entidad">
+                <td data-label="Entidad" data-mobile-role="primary">
                     <strong><?php echo esc_html($nombre); ?></strong>
                 </td>
                 
@@ -154,23 +152,23 @@ if ( isset($_GET['status']) ) {
                     <span class="siarhe-badge neutral"><?php echo esc_html($cve_ent); ?></span>
                 </td>
                 
-                <td data-label="Estado">
+                <td data-label="Estado" data-mobile-role="secondary">
                     <?php if ($exists) : ?>
                         <span class="dashicons dashicons-location" style="color: #46b450;"></span> <strong style="color:#46b450">Mapeado</strong>
                     <?php else : ?>
-                        <span class="dashicons dashicons-minus" style="color: #ccc;"></span> - Sin Mapa
+                        <span class="dashicons dashicons-minus" style="color: #ccc;"></span> <span style="color:#777;">Sin Mapa</span>
                     <?php endif; ?>
                 </td>
 
-                <td data-label="Archivo Sistema">
+                <td data-label="Archivo del Sistema">
                     <?php if ($exists) : ?>
                         <code style="font-size:11px;"><?php echo esc_html(basename($archivo->ruta_archivo)); ?></code>
                     <?php else : ?>—<?php endif; ?>
                 </td>
 
                 <td data-label="Fecha de Corte">
-                    <?php if ($exists) : ?>
-                        <?php echo date_i18n('d/M/y', strtotime($archivo->fecha_corte)); ?>
+                    <?php if ($archivo && $archivo->fecha_corte) : ?>
+                        <?php echo date_i18n('d/m/Y', strtotime($archivo->fecha_corte)); ?>
                     <?php else : ?>—<?php endif; ?>
                 </td>
 
@@ -189,7 +187,7 @@ if ( isset($_GET['status']) ) {
                 <td data-label="Acciones">
                     <?php if ($exists) : ?>
                         <button type="button" class="button button-small copy-url-btn" 
-                                data-url="<?php echo esc_url(SIARHE_UPLOAD_URL . $archivo->ruta_archivo); ?>" title="Copiar URL">
+                                data-url="<?php echo esc_url(SIARHE_UPLOAD_URL . $archivo->ruta_archivo); ?>" title="Copiar Enlace">
                             <span class="dashicons dashicons-admin-links"></span>
                         </button>
                         
@@ -204,7 +202,7 @@ if ( isset($_GET['status']) ) {
                             <span class="dashicons dashicons-edit"></span>
                         </button>
                         
-                        <a href="<?php echo esc_url(SIARHE_UPLOAD_URL . $archivo->ruta_archivo); ?>" target="_blank" class="button button-small" title="Ver/Descargar">
+                        <a href="<?php echo esc_url(SIARHE_UPLOAD_URL . $archivo->ruta_archivo); ?>" target="_blank" class="button button-small" title="Descargar">
                             <span class="dashicons dashicons-download"></span>
                         </a>
 
@@ -233,10 +231,10 @@ if ( isset($_GET['status']) ) {
             <?php wp_nonce_field( 'siarhe_update_meta_nonce', 'siarhe_meta_nonce' ); ?>
 
             <table class="form-table">
-                <tr><th><label>Año</label></th><td><input type="number" name="anio_reporte" id="modal-anio" class="regular-text" required></td></tr>
-                <tr><th><label>Corte</label></th><td><input type="date" name="fecha_corte" id="modal-corte" class="regular-text" required></td></tr>
-                <tr><th><label>Referencia</label></th><td><textarea name="referencia" id="modal-ref" rows="3" class="large-text"></textarea></td></tr>
-                <tr><th><label>Comentarios</label></th><td><textarea name="comentarios" id="modal-notes" rows="3" class="large-text"></textarea></td></tr>
+                <tr><th><label>Año de los Datos</label></th><td><input type="number" name="anio_reporte" id="modal-anio" class="regular-text" required></td></tr>
+                <tr><th><label>Fecha de Corte</label></th><td><input type="date" name="fecha_corte" id="modal-corte" class="regular-text" required></td></tr>
+                <tr><th><label>Fuente / Referencia</label></th><td><textarea name="referencia" id="modal-ref" rows="3" class="large-text"></textarea></td></tr>
+                <tr><th><label>Comentarios Internos</label></th><td><textarea name="comentarios" id="modal-notes" rows="3" class="large-text"></textarea></td></tr>
             </table>
             <div style="text-align:right; margin-top:20px; border-top: 1px solid #eee; padding-top: 15px;">
                 <button type="button" class="button button-secondary" id="close-modal-btn">Cancelar</button>
@@ -248,6 +246,20 @@ if ( isset($_GET['status']) ) {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    
+    // 1. Acordeón Móvil Restaurado
+    const table = document.getElementById('siarhe-geojson-table');
+    if(table) {
+        table.querySelectorAll('tbody tr').forEach(row => {
+            row.addEventListener('click', function(e) {
+                if (window.innerWidth > 767) return;
+                if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) return;
+                this.classList.toggle('is-open');
+            });
+        });
+    }
+
+    // 2. Funcionalidad Modal
     const modal = document.getElementById('siarhe-edit-modal');
     const closeBtn = document.getElementById('close-modal-btn');
     if(modal) {
@@ -267,6 +279,7 @@ document.addEventListener('DOMContentLoaded', function() {
         window.onclick = function(event) { if (event.target == modal) { modal.style.display = 'none'; } }
     }
     
+    // 3. Copiar URL
     document.querySelectorAll('.copy-url-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.preventDefault(); e.stopPropagation();
