@@ -1,5 +1,5 @@
 // 📢 LOG INICIAL
-console.log("%c 🚀 SIARHE JS V18: Exportación PNG Legacy, Capas Z-Index y Texto Dinámico", "background: #222; color: #bada55");
+console.log("%c 🚀 SIARHE JS V19: Diseño Intacto, 1 Etiqueta por Estado y Sin Disclaimer", "background: #222; color: #bada55");
 
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function() {
             geoData: null, csvData: [], dataMap: new Map(),
             currentMetric: 'tasa_total',
             zoom: null, gLegend: null, gradientId: null,
-            svg: null, gMain: null, gPaths: null, gLabels: null, gMarkers: null, // 🌟 Sub-capas
+            svg: null, gMain: null, gPaths: null, gLabels: null, gMarkers: null, 
             activeMarkers: new Set(),
             markersData: {},
             tooltip: null,
@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ==========================================
-    // 4. MAPA Y ORDEN DE CAPAS (Z-INDEX)
+    // 4. MAPA
     // ==========================================
     function renderMap(container, state, cveEnt) {
         const mapDiv = container.querySelector('.siarhe-map-container');
@@ -191,7 +191,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const gMain = svg.append("g").attr("class", "map-layer");
         state.gMain = gMain;
         
-        // 🌟 CREACIÓN DE CAPAS EN ORDEN ESTRICTO (El que está más abajo se dibuja encima)
         state.gPaths = gMain.append("g").attr("class", "paths-layer");
         state.gLabels = gMain.append("g").attr("class", "labels-layer").style("display", "none").style("pointer-events", "none");
         state.gMarkers = gMain.append("g").attr("class", "markers-layer");
@@ -210,7 +209,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .style("opacity", 0) 
             .style("display", "none");
 
-        // 🌟 AGREGAR LOS POLÍGONOS A LA CAPA gPaths
         state.gPaths.selectAll("path.siarhe-feature")
             .data(state.geoData.features).enter().append("path")
             .attr("d", path).attr("class", "siarhe-feature")
@@ -240,7 +238,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ==========================================
-    // 5. EXPORTACIÓN PNG (LEGACY MODE)
+    // 5. EXPORTACIÓN PNG
     // ==========================================
     function setupActionButtons(container, state) {
         const btnLabels = container.querySelector('.siarhe-btn-toggle-labels');
@@ -260,7 +258,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Helper para auto-ajustar texto largo en Canvas
     function wrapText(context, text, x, y, maxWidth, lineHeight) {
         let words = text.split(' '), line = '';
         for(let n = 0; n < words.length; n++) {
@@ -283,12 +280,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const svgNode = mapDiv.querySelector('svg');
         if (!svgNode) return;
 
-        // Resetear zoom antes de tomar la foto para que se vea completo
         if(state.zoom && state.svg) state.svg.call(state.zoom.transform, d3.zoomIdentity);
 
         if (withLabels) state.gLabels.style("display", "block");
 
-        // Retardo para asegurar renderizado SVG
         setTimeout(() => {
             const clone = svgNode.cloneNode(true);
             const { width, height } = svgNode.getBoundingClientRect();
@@ -298,9 +293,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const svgData = new XMLSerializer().serializeToString(clone);
             const canvas = document.createElement("canvas");
             
-            const scale = 2; // Alta resolución
-            const headerHeight = 60; // Franja superior blanca
-            const footerHeight = 80; // Franja inferior blanca
+            const scale = 2; 
+            const headerHeight = 60; 
+            const footerHeight = 80; 
             
             canvas.width = width * scale;
             canvas.height = (height + headerHeight + footerHeight) * scale;
@@ -310,19 +305,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const img = new Image();
             img.onload = function() {
-                // 1. Fondo de agua del mapa
+                // Fondo
                 ctx.fillStyle = "#e6f0f8";
                 ctx.fillRect(0, 0, width, height + headerHeight + footerHeight);
                 
-                // 2. Franjas Blancas (Legacy Style)
+                // Franjas Blancas
                 ctx.fillStyle = "#ffffff";
-                ctx.fillRect(0, 0, width, headerHeight); // Header
-                ctx.fillRect(0, headerHeight + height, width, footerHeight); // Footer
+                ctx.fillRect(0, 0, width, headerHeight); 
+                ctx.fillRect(0, headerHeight + height, width, footerHeight); 
                 
-                // 3. Dibujar Mapa
+                // Dibujar Mapa
                 ctx.drawImage(img, 0, headerHeight);
                 
-                // 4. Titulo Dinámico
+                // Titulo Dinámico
                 const metricInfo = METRICAS[state.currentMetric];
                 const anioNode = document.querySelector('.siarhe-dynamic-year');
                 const anio = anioNode ? anioNode.innerText : new Date().getFullYear();
@@ -335,7 +330,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 ctx.textAlign = "center";
                 ctx.fillText(titleText, width / 2, 38);
                 
-                // 5. Referencias y Disclaimer
+                // Referencias
                 let refText = "Fuente de Datos: SIARHE.";
                 const refNodes = container.querySelectorAll('.siarhe-ref-col p');
                 if(refNodes.length > 0) {
@@ -346,14 +341,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 ctx.font = "12px Arial, sans-serif";
                 ctx.textAlign = "center";
                 
-                // Ajustar texto si es muy largo
-                wrapText(ctx, refText, width / 2, height + headerHeight + 30, width - 40, 16);
-
-                ctx.fillStyle = "#888888";
-                ctx.font = "italic 10px Arial, sans-serif";
-                ctx.fillText("* Generado desde plataforma SIARHE. Información sujeta a validación oficial.", width / 2, height + headerHeight + 65);
+                // Centrado (el Y ahora es 40 para que quede en medio al no haber otra nota abajo)
+                wrapText(ctx, refText, width / 2, height + headerHeight + 40, width - 40, 16);
                 
-                // 6. Nombre de Archivo y Descarga
+                // Descarga
                 const slug = container.dataset.slug || 'mapa';
                 const metricSlug = state.currentMetric.replace(/_/g, '-');
                 const nombreArchivo = `${slug}-${metricSlug}-${anio}${withLabels ? '-etiquetas' : ''}.png`;
@@ -408,8 +399,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 return colorScale(row[metric]);
             });
 
-        // 🌟 ETIQUETAS CON ESTILO LEGACY (Trazo blanco por debajo de la letra negra)
-        const labels = state.gLabels.selectAll("text.siarhe-label").data(state.geoData.features);
+        // 🌟 FILTRO ANTI-ISLAS: Calcular el área y quedarse con el polígono más grande de cada estado
+        const maxAreaFeatures = new Map();
+        state.geoData.features.forEach(d => {
+            let cve = getGeoKey(d.properties);
+            let area = d3.geoArea(d);
+            if (!maxAreaFeatures.has(cve) || area > maxAreaFeatures.get(cve).area) {
+                maxAreaFeatures.set(cve, { feature: d, area: area });
+            }
+        });
+        const featuresUnicas = Array.from(maxAreaFeatures.values()).map(item => item.feature);
+
+        const labels = state.gLabels.selectAll("text.siarhe-label").data(featuresUnicas);
         labels.exit().remove();
         labels.enter().append("text")
             .attr("class", "siarhe-label")
@@ -417,10 +418,10 @@ document.addEventListener('DOMContentLoaded', function() {
             .attr("x", d => { const c = state.path.centroid(d); return isNaN(c[0]) ? 0 : c[0]; })
             .attr("y", d => { const c = state.path.centroid(d); return isNaN(c[1]) ? 0 : c[1]; })
             .attr("text-anchor", "middle")
-            .attr("fill", "#000000") // Letra negra
-            .attr("stroke", "#ffffff") // Contorno blanco
+            .attr("fill", "#000000") 
+            .attr("stroke", "#ffffff") 
             .attr("stroke-width", 2.5) 
-            .attr("paint-order", "stroke fill") // MAGIA: El contorno se dibuja por debajo del relleno
+            .attr("paint-order", "stroke fill") 
             .attr("stroke-linejoin", "round")
             .style("font-size", "10px") 
             .style("font-weight", "bold")
