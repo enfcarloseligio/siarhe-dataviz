@@ -1,5 +1,5 @@
 // 📢 LOG INICIAL
-console.log("%c 🚀 SIARHE JS V15: Tabla Estricta, Marcadores Dinámicos y Tooltip Compacto", "background: #222; color: #bada55");
+console.log("%c 🚀 SIARHE JS V18: Exportación PNG Legacy, Capas Z-Index y Texto Dinámico", "background: #222; color: #bada55");
 
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -9,24 +9,23 @@ document.addEventListener('DOMContentLoaded', function() {
     // 1. CONFIGURACIÓN
     // ==========================================
     const METRICAS = {
-        'tasa_total':             { label: 'Tasa Total', fullLabel: 'Tasa Total (x 1,000 hab)', tipo: 'tasa', pair: 'enfermeras_total' },
-        'enfermeras_total':       { label: 'Total Enf.', fullLabel: 'Total de Enfermeras',      tipo: 'absoluto', pair: 'enfermeras_total' },
+        'tasa_total':             { label: 'Tasa Total', fullLabel: 'Tasa de enfermeras por cada mil habitantes', tipo: 'tasa', pair: 'enfermeras_total' },
+        'enfermeras_total':       { label: 'Total Enf.', fullLabel: 'Total de profesionales de enfermería',      tipo: 'absoluto', pair: 'enfermeras_total' },
         'poblacion':              { label: 'Población',  fullLabel: 'Población Total',          tipo: 'absoluto', pair: 'poblacion' },
         
-        'tasa_primer':            { label: 'Tasa 1er Nivel', fullLabel: 'Tasa 1er Nivel',       tipo: 'tasa', pair: 'enfermeras_primer' },
-        'enfermeras_primer':      { label: 'Enf. 1er Nivel', fullLabel: 'Enfermeras 1er Nivel', tipo: 'absoluto', pair: 'enfermeras_primer' },
+        'tasa_primer':            { label: 'Tasa 1er Nivel', fullLabel: 'Tasa de enfermeras (1er Nivel) por mil hab.',       tipo: 'tasa', pair: 'enfermeras_primer' },
+        'enfermeras_primer':      { label: 'Enf. 1er Nivel', fullLabel: 'Enfermeras en 1er Nivel de Atención', tipo: 'absoluto', pair: 'enfermeras_primer' },
         
-        'tasa_segundo':           { label: 'Tasa 2do Nivel', fullLabel: 'Tasa 2do Nivel',       tipo: 'tasa', pair: 'enfermeras_segundo' },
-        'enfermeras_segundo':     { label: 'Enf. 2do Nivel', fullLabel: 'Enfermeras 2do Nivel', tipo: 'absoluto', pair: 'enfermeras_segundo' },
+        'tasa_segundo':           { label: 'Tasa 2do Nivel', fullLabel: 'Tasa de enfermeras (2do Nivel) por mil hab.',       tipo: 'tasa', pair: 'enfermeras_segundo' },
+        'enfermeras_segundo':     { label: 'Enf. 2do Nivel', fullLabel: 'Enfermeras en 2do Nivel de Atención', tipo: 'absoluto', pair: 'enfermeras_segundo' },
         
-        'tasa_tercer':            { label: 'Tasa 3er Nivel', fullLabel: 'Tasa 3er Nivel',       tipo: 'tasa', pair: 'enfermeras_tercer' },
-        'enfermeras_tercer':      { label: 'Enf. 3er Nivel', fullLabel: 'Enfermeras 3er Nivel', tipo: 'absoluto', pair: 'enfermeras_tercer' },
+        'tasa_tercer':            { label: 'Tasa 3er Nivel', fullLabel: 'Tasa de enfermeras (3er Nivel) por mil hab.',       tipo: 'tasa', pair: 'enfermeras_tercer' },
+        'enfermeras_tercer':      { label: 'Enf. 3er Nivel', fullLabel: 'Enfermeras en 3er Nivel de Atención', tipo: 'absoluto', pair: 'enfermeras_tercer' },
         
-        'tasa_administrativas':   { label: 'Tasa Admin.', fullLabel: 'Tasa Administrativas',     tipo: 'tasa', pair: 'enfermeras_administrativas' },
-        'enfermeras_administrativas': { label: 'Enf. Admin.', fullLabel: 'Enfermeras Administrativas', tipo: 'absoluto', pair: 'enfermeras_administrativas' }
+        'tasa_administrativas':   { label: 'Tasa Admin.', fullLabel: 'Tasa de enfermeras administrativas',     tipo: 'tasa', pair: 'enfermeras_administrativas' },
+        'enfermeras_administrativas': { label: 'Enf. Admin.', fullLabel: 'Enfermeras con funciones Administrativas', tipo: 'absoluto', pair: 'enfermeras_administrativas' }
     };
 
-    // Estilos Legacy para marcadores (Hardcoded por ahora, luego pueden venir de PHP)
     const MARCADOR_ESTILOS = { 
         'CATETER': { fill: "#1E5B4F", stroke: "#ffffff" }, 
         'HERIDAS': { fill: "#9B2247", stroke: "#ffffff" } 
@@ -39,7 +38,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const COLOR_ZERO = getVar('--s-map-zero', '#d9d9d9'); 
     const COLOR_NULL = getVar('--s-map-null', '#000000'); 
 
-    // Orden inicial: Tasa de Mayor a Menor
     let sortConfig = { key: 'tasa', direction: 'desc' };
 
     // ==========================================
@@ -70,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function() {
             geoData: null, csvData: [], dataMap: new Map(),
             currentMetric: 'tasa_total',
             zoom: null, gLegend: null, gradientId: null,
-            svg: null, gMain: null, gMarkers: null,
+            svg: null, gMain: null, gPaths: null, gLabels: null, gMarkers: null, // 🌟 Sub-capas
             activeMarkers: new Set(),
             markersData: {},
             tooltip: null,
@@ -83,22 +81,32 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(([geo, csv]) => {
                 if(loading) loading.style.display = 'none';
                 state.geoData = geo;
+                
                 if (csv) {
                     state.csvData = processCSV(csv);
                     state.csvData.forEach(row => { if (row.CVE_ENT) state.dataMap.set(row.CVE_ENT, row); });
+                    
+                    calcularSumaExactaEnfermeras(container, state);
                     calcularTotalHeader(container, state);
                 }
 
-                if (csv && mode.includes('M')) {
-                    renderMainControls(container, state, () => {
-                        updateMapVisuals(container, state);
-                        calcularTotalHeader(container, state);
-                        if (mode.includes('T')) updateTable(container, state);
-                    });
+                if (mode.includes('M')) {
+                    renderMap(container, state, cveEnt);
+                    
+                    if (csv) {
+                        renderMainControls(container, state, () => {
+                            updateMapVisuals(container, state);
+                            calcularTotalHeader(container, state);
+                            if (mode.includes('T')) updateTable(container, state);
+                        });
+                    }
+                    
+                    setupActionButtons(container, state);
                 }
                 
-                if (mode.includes('M')) renderMap(container, state, cveEnt);
-                if (mode.includes('T')) initTableStructure(container, state);
+                if (mode.includes('T') && csv) {
+                    initTableStructure(container, state);
+                }
             })
             .catch(err => { console.error(err); if(loading) loading.innerHTML = "❌ Error: " + err.message; });
     }
@@ -116,6 +124,21 @@ document.addEventListener('DOMContentLoaded', function() {
             row.isSpecial = (row.id_legacy === '8888' || row.CVE_ENT === '34' || row.CVE_ENT === '88');
             return row;
         });
+    }
+
+    function calcularSumaExactaEnfermeras(container, state) {
+        const sumNode = container.querySelector('.siarhe-dynamic-nurses-sum');
+        if (!sumNode) return;
+        let sumaTotal = 0;
+        state.csvData.forEach(row => {
+            const cve = parseInt(row.CVE_ENT, 10);
+            const isLegacy8888 = (row.id_legacy === '8888' || row.CVE_ENT === '8888' || row.CVE_ENT === '88');
+            const isExtranjero = (cve === 34);
+            if ((cve >= 1 && cve <= 32) || isExtranjero || isLegacy8888) {
+                sumaTotal += (row.enfermeras_total || 0);
+            }
+        });
+        sumNode.textContent = sumaTotal.toLocaleString('es-MX');
     }
 
     function calcularTotalHeader(container, state) {
@@ -142,7 +165,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ==========================================
-    // 4. MAPA (NO DBLCLICK ZOOM + MARCADORES RESIZE)
+    // 4. MAPA Y ORDEN DE CAPAS (Z-INDEX)
     // ==========================================
     function renderMap(container, state, cveEnt) {
         const mapDiv = container.querySelector('.siarhe-map-container');
@@ -153,7 +176,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const svg = d3.select(mapDiv).append("svg")
             .attr("width", "100%").attr("height", height)
             .attr("viewBox", `0 0 ${width} ${height}`)
-            .style("background-color", "#e6f0f8");
+            .style("background-color", "#e6f0f8")
+            .style("font-family", "Arial, sans-serif"); 
+        
         state.svg = svg;
 
         const defs = svg.append("defs");
@@ -165,12 +190,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const gMain = svg.append("g").attr("class", "map-layer");
         state.gMain = gMain;
+        
+        // 🌟 CREACIÓN DE CAPAS EN ORDEN ESTRICTO (El que está más abajo se dibuja encima)
+        state.gPaths = gMain.append("g").attr("class", "paths-layer");
+        state.gLabels = gMain.append("g").attr("class", "labels-layer").style("display", "none").style("pointer-events", "none");
         state.gMarkers = gMain.append("g").attr("class", "markers-layer");
+        
         state.gLegend = svg.append("g").attr("class", "siarhe-legend-group").attr("transform", `translate(30, 40)`); 
 
         const projection = d3.geoMercator().fitSize([width, height], state.geoData);
         state.projection = projection;
         const path = d3.geoPath().projection(projection);
+        state.path = path; 
 
         d3.selectAll("#siarhe-global-tooltip").remove();
         state.tooltip = d3.select("body").append("div")
@@ -179,7 +210,8 @@ document.addEventListener('DOMContentLoaded', function() {
             .style("opacity", 0) 
             .style("display", "none");
 
-        gMain.selectAll("path.siarhe-feature")
+        // 🌟 AGREGAR LOS POLÍGONOS A LA CAPA gPaths
+        state.gPaths.selectAll("path.siarhe-feature")
             .data(state.geoData.features).enter().append("path")
             .attr("d", path).attr("class", "siarhe-feature")
             .attr("stroke", "#fff").attr("stroke-width", "0.5").style("fill", COLOR_NULL)
@@ -188,70 +220,249 @@ document.addEventListener('DOMContentLoaded', function() {
                 state.tooltip.style("left", (e.pageX+15)+"px").style("top", (e.pageY-28)+"px");
             })
             .on("mouseout", () => { 
-                d3.selectAll("path.siarhe-feature").style("stroke", "#fff").style("stroke-width", "0.5"); 
+                state.gPaths.selectAll("path.siarhe-feature").style("stroke", "#fff").style("stroke-width", "0.5"); 
                 state.tooltip.style("opacity", 0).style("display", "none"); 
             })
             .on("click", (e, d) => handleMapClick(d, state));
 
-        // ZOOM (DESACTIVAR DOBLE CLIC)
         const zoom = d3.zoom()
             .scaleExtent([1, 8])
             .on("zoom", (e) => {
                 gMain.attr("transform", e.transform);
-                // Re-escalar marcadores: se hacen más chicos al hacer zoom in para no estorbar
-                // Base radio: 5. Al zoom 2x -> radio visual 2.5
-                gMain.selectAll("circle")
-                    .attr("r", 5 / e.transform.k)
-                    .attr("stroke-width", 1 / e.transform.k);
+                state.gMarkers.selectAll("circle").attr("r", 5 / e.transform.k).attr("stroke-width", 1 / e.transform.k);
+                state.gLabels.selectAll("text.siarhe-label").style("font-size", `${10 / e.transform.k}px`);
             });
         
-        svg.call(zoom).on("dblclick.zoom", null); // <--- ESTO DESACTIVA EL ZOOM AL DOBLE CLIC
-
+        svg.call(zoom).on("dblclick.zoom", null);
         state.zoom = zoom;
         renderZoomButtons(mapDiv, svg, zoom, cveEnt);
         updateMapVisuals(container, state);
     }
 
     // ==========================================
-    // 5. TOOLTIP (COMPACTO)
+    // 5. EXPORTACIÓN PNG (LEGACY MODE)
+    // ==========================================
+    function setupActionButtons(container, state) {
+        const btnLabels = container.querySelector('.siarhe-btn-toggle-labels');
+        const btnPng = container.querySelector('.siarhe-btn-download-png');
+
+        if (btnPng) {
+            btnPng.addEventListener('click', (e) => {
+                e.preventDefault();
+                downloadMapAsPNG(container, state, false); 
+            });
+        }
+        if (btnLabels) {
+            btnLabels.addEventListener('click', (e) => {
+                e.preventDefault();
+                downloadMapAsPNG(container, state, true); 
+            });
+        }
+    }
+
+    // Helper para auto-ajustar texto largo en Canvas
+    function wrapText(context, text, x, y, maxWidth, lineHeight) {
+        let words = text.split(' '), line = '';
+        for(let n = 0; n < words.length; n++) {
+          let testLine = line + words[n] + ' ';
+          let metrics = context.measureText(testLine);
+          let testWidth = metrics.width;
+          if (testWidth > maxWidth && n > 0) {
+            context.fillText(line, x, y);
+            line = words[n] + ' ';
+            y += lineHeight;
+          } else {
+            line = testLine;
+          }
+        }
+        context.fillText(line, x, y);
+    }
+
+    function downloadMapAsPNG(container, state, withLabels) {
+        const mapDiv = container.querySelector('.siarhe-map-container');
+        const svgNode = mapDiv.querySelector('svg');
+        if (!svgNode) return;
+
+        // Resetear zoom antes de tomar la foto para que se vea completo
+        if(state.zoom && state.svg) state.svg.call(state.zoom.transform, d3.zoomIdentity);
+
+        if (withLabels) state.gLabels.style("display", "block");
+
+        // Retardo para asegurar renderizado SVG
+        setTimeout(() => {
+            const clone = svgNode.cloneNode(true);
+            const { width, height } = svgNode.getBoundingClientRect();
+            clone.setAttribute('width', width);
+            clone.setAttribute('height', height);
+
+            const svgData = new XMLSerializer().serializeToString(clone);
+            const canvas = document.createElement("canvas");
+            
+            const scale = 2; // Alta resolución
+            const headerHeight = 60; // Franja superior blanca
+            const footerHeight = 80; // Franja inferior blanca
+            
+            canvas.width = width * scale;
+            canvas.height = (height + headerHeight + footerHeight) * scale;
+            
+            const ctx = canvas.getContext("2d");
+            ctx.scale(scale, scale);
+
+            const img = new Image();
+            img.onload = function() {
+                // 1. Fondo de agua del mapa
+                ctx.fillStyle = "#e6f0f8";
+                ctx.fillRect(0, 0, width, height + headerHeight + footerHeight);
+                
+                // 2. Franjas Blancas (Legacy Style)
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, width, headerHeight); // Header
+                ctx.fillRect(0, headerHeight + height, width, footerHeight); // Footer
+                
+                // 3. Dibujar Mapa
+                ctx.drawImage(img, 0, headerHeight);
+                
+                // 4. Titulo Dinámico
+                const metricInfo = METRICAS[state.currentMetric];
+                const anioNode = document.querySelector('.siarhe-dynamic-year');
+                const anio = anioNode ? anioNode.innerText : new Date().getFullYear();
+                const titleNode = container.querySelector('h2.siarhe-title');
+                const entidadNombre = titleNode ? titleNode.innerText.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '').trim() : "México";
+                
+                const titleText = `${metricInfo.fullLabel} en ${entidadNombre} (${anio})`;
+                ctx.fillStyle = "#111111";
+                ctx.font = "bold 20px Arial, sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText(titleText, width / 2, 38);
+                
+                // 5. Referencias y Disclaimer
+                let refText = "Fuente de Datos: SIARHE.";
+                const refNodes = container.querySelectorAll('.siarhe-ref-col p');
+                if(refNodes.length > 0) {
+                    refText = refNodes[0].innerText.replace(/\n/g, ' | '); 
+                }
+
+                ctx.fillStyle = "#444444";
+                ctx.font = "12px Arial, sans-serif";
+                ctx.textAlign = "center";
+                
+                // Ajustar texto si es muy largo
+                wrapText(ctx, refText, width / 2, height + headerHeight + 30, width - 40, 16);
+
+                ctx.fillStyle = "#888888";
+                ctx.font = "italic 10px Arial, sans-serif";
+                ctx.fillText("* Generado desde plataforma SIARHE. Información sujeta a validación oficial.", width / 2, height + headerHeight + 65);
+                
+                // 6. Nombre de Archivo y Descarga
+                const slug = container.dataset.slug || 'mapa';
+                const metricSlug = state.currentMetric.replace(/_/g, '-');
+                const nombreArchivo = `${slug}-${metricSlug}-${anio}${withLabels ? '-etiquetas' : ''}.png`;
+                
+                const a = document.createElement("a");
+                a.download = nombreArchivo;
+                a.href = canvas.toDataURL("image/png");
+                a.click();
+
+                if (withLabels) state.gLabels.style("display", "none");
+            };
+            img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+        }, 150);
+    }
+
+    // ==========================================
+    // 6. TOOLTIP Y ACTUALIZACIÓN VISUAL
     // ==========================================
     function showTooltip(event, d, state) {
         let cve = getGeoKey(d.properties);
         const row = state.dataMap.get(cve);
-        const nombre = row ? row.estado : (d.properties.NOM_ENT || "Sin Datos");
+        const nombre = row ? row.estado : (d.properties.NOM_ENT || d.properties.NOMGEO || "Sin Datos");
         
-        // Estilo compacto para el título
         let html = `<div style="font-weight:bold; border-bottom:1px solid #555; padding-bottom:3px; margin-bottom:4px; font-size:13px;">${nombre}</div>`;
         
         if (row) {
             const mKey = state.currentMetric;
-            // Si es poblacion, pairKey es poblacion
             const pKey = METRICAS[mKey].pair || mKey; 
-            
             html += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span style="color:#ccc">Población:</span> <b>${row.poblacion.toLocaleString('es-MX')}</b></div>`;
-            
-            // Si no es solo población, mostrar datos de enfermería
             if (mKey !== 'poblacion') {
-                const labelAbs = METRICAS[pKey].label.replace('Total ',''); // Limpiar etiqueta
-                
-                // Mostrar Absoluto
+                const labelAbs = METRICAS[pKey].label.replace('Total ','');
                 html += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span style="color:#ccc">${labelAbs}:</span> <b>${row[pKey].toLocaleString('es-MX')}</b></div>`;
-                
-                // Mostrar Tasa (con separador)
                 html += `<div style="display:flex; justify-content:space-between; margin-top:4px; padding-top:4px; border-top:1px dashed #555; color:#ffcc00;"><span>${METRICAS[mKey].tipo === 'tasa' ? METRICAS[mKey].label : 'Tasa'}:</span> <b>${(METRICAS[mKey].tipo === 'tasa' ? row[mKey] : (row['tasa_'+mKey.replace('enfermeras_','')] || 0)).toFixed(2)}</b></div>`;
             }
         }
+        state.tooltip.html(html).style("display", "block").style("opacity", 1).style("left", (event.pageX+15)+"px").style("top", (event.pageY-28)+"px");
+    }
+
+    function updateMapVisuals(container, state) {
+        const metric = state.currentMetric;
+        const values = state.csvData.filter(d => !d.isTotal && !d.isSpecial && d[metric] > 0).map(d => d[metric]).sort(d3.ascending);
+        if(values.length === 0) return;
+
+        const min = d3.min(values); const max = d3.max(values);
+        const q1 = d3.quantile(values, 0.25); const q2 = d3.quantile(values, 0.50); const q3 = d3.quantile(values, 0.75);
+        const colorScale = d3.scaleLinear().domain([min, q1, q2, q3, max]).range(COLOR_RANGE).clamp(true);
+
+        state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
+            .style("fill", d => {
+                let cve = getGeoKey(d.properties); const row = state.dataMap.get(cve);
+                if (!row) return COLOR_NULL; if (row[metric] === 0) return COLOR_ZERO;
+                return colorScale(row[metric]);
+            });
+
+        // 🌟 ETIQUETAS CON ESTILO LEGACY (Trazo blanco por debajo de la letra negra)
+        const labels = state.gLabels.selectAll("text.siarhe-label").data(state.geoData.features);
+        labels.exit().remove();
+        labels.enter().append("text")
+            .attr("class", "siarhe-label")
+            .merge(labels)
+            .attr("x", d => { const c = state.path.centroid(d); return isNaN(c[0]) ? 0 : c[0]; })
+            .attr("y", d => { const c = state.path.centroid(d); return isNaN(c[1]) ? 0 : c[1]; })
+            .attr("text-anchor", "middle")
+            .attr("fill", "#000000") // Letra negra
+            .attr("stroke", "#ffffff") // Contorno blanco
+            .attr("stroke-width", 2.5) 
+            .attr("paint-order", "stroke fill") // MAGIA: El contorno se dibuja por debajo del relleno
+            .attr("stroke-linejoin", "round")
+            .style("font-size", "10px") 
+            .style("font-weight", "bold")
+            .text(d => {
+                let cve = getGeoKey(d.properties);
+                const row = state.dataMap.get(cve);
+                return row ? row.estado : (d.properties.NOM_ENT || d.properties.NOMGEO || "");
+            });
+
+        renderLegend(state, {min, q1, q2, q3, max});
+    }
+
+    function renderLegend(state, stats) {
+        const g = state.gLegend; g.html("");
+        const label = METRICAS[state.currentMetric].label;
+        const domain = [stats.min, stats.q1, stats.q2, stats.q3, stats.max];
+
+        g.append("rect").attr("x", -10).attr("y", -25).attr("width", 130).attr("height", 260)
+         .attr("fill", "rgba(255,255,255,0.85)").attr("rx", 5).style("filter", "drop-shadow(2px 2px 2px rgba(0,0,0,0.1))");
+        g.append("text").attr("x", 0).attr("y", -10).text(label).style("font-size", "11px").style("font-weight", "bold");
         
-        state.tooltip
-            .html(html)
-            .style("display", "block")
-            .style("opacity", 1) 
-            .style("left", (event.pageX+15)+"px")
-            .style("top", (event.pageY-28)+"px");
+        const h = 150, w = 15, step = h/4;
+        g.append("rect").attr("x", 0).attr("y", 10).attr("width", w).attr("height", h)
+         .style("fill", `url(#${state.gradientId})`).style("stroke", "#ccc");
+
+        domain.forEach((v, i) => {
+            const y = 10 + h - (i * step);
+            g.append("line").attr("x1", w).attr("x2", w+5).attr("y1", y).attr("y2", y).style("stroke", "#666");
+            g.append("text").attr("x", w+8).attr("y", y+4).text(v.toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})).style("font-size", "10px");
+        });
+
+        const g0 = g.append("g").attr("transform", `translate(0, ${h+35})`);
+        g0.append("rect").attr("width", 12).attr("height", 12).style("fill", COLOR_ZERO);
+        g0.append("text").attr("x", 18).attr("y", 10).text("0.00").style("font-size", "11px");
+
+        const gN = g.append("g").attr("transform", `translate(0, ${h+60})`);
+        gN.append("rect").attr("width", 12).attr("height", 12).style("fill", COLOR_NULL);
+        gN.append("text").attr("x", 18).attr("y", 10).text("S/D").style("font-size", "11px");
     }
 
     // ==========================================
-    // 6. CONTROLES Y MARCADORES
+    // 7. CONTROLES Y MARCADORES
     // ==========================================
     function renderMainControls(container, state, onUpdate) {
         const ph = container.querySelector('.siarhe-controls-placeholder');
@@ -261,7 +472,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const wrapper = document.createElement('div');
         wrapper.className = 'siarhe-controls'; 
 
-        // Grupo Indicador
         const grpInd = document.createElement('div');
         grpInd.className = 'siarhe-control-group';
         grpInd.innerHTML = `<label>Indicador</label>`;
@@ -269,20 +479,18 @@ document.addEventListener('DOMContentLoaded', function() {
         selInd.className = 'siarhe-metric-select'; 
         Object.entries(METRICAS).forEach(([key, info]) => {
             const opt = document.createElement('option');
-            opt.value = key; opt.textContent = info.fullLabel;
+            opt.value = key; opt.textContent = info.fullLabel; // Usar label completo
             if (key === state.currentMetric) opt.selected = true;
             selInd.appendChild(opt);
         });
         selInd.onchange = (e) => { 
             state.currentMetric = e.target.value; 
-            // Resetear orden de tabla al cambiar métrica
             sortConfig = { key: 'tasa', direction: 'desc' };
             onUpdate(); 
         };
         grpInd.appendChild(selInd);
         wrapper.appendChild(grpInd);
 
-        // Grupo Marcadores
         if (typeof siarheData !== 'undefined' && siarheData.markers) {
             const grpMarc = document.createElement('div');
             grpMarc.className = 'siarhe-control-group';
@@ -328,7 +536,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 if(url) {
                     try {
                         const raw = await d3.csv(url);
-                        // Normalización exacta según tus CSVs de clínicas
                         state.markersData[type] = raw.map(d => ({
                             clues: d.CLUES || d.clues,
                             institucion: d.Institucion || d.institucion,
@@ -366,7 +573,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const circles = state.gMarkers.selectAll("circle").data(allPoints);
         circles.exit().remove();
         circles.enter().append("circle")
-            .attr("r", 5) // Radio inicial (se ajusta con el zoom)
+            .attr("r", 5)
             .merge(circles)
             .attr("cx", d => state.projection([d.lon, d.lat])[0])
             .attr("cy", d => state.projection([d.lon, d.lat])[1])
@@ -374,7 +581,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .attr("stroke", "#fff").attr("stroke-width", 1)
             .style("cursor", "pointer")
             .on("mouseover", (e, d) => {
-                // Tooltip de Clínica
                 let html = `<strong>${d.tipo === 'CATETER' ? 'Clínica de Catéter' : 'Clínica de Heridas'}</strong>`;
                 html += `<div style="font-size:12px; margin-top:4px;">
                     <div>${d.nombre}</div>
@@ -382,72 +588,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div style="color:#ccc; font-size:11px;">${d.municipio || ''}</div>
                     <div style="font-size:10px; margin-top:2px;">CLUES: ${d.clues}</div>
                 </div>`;
-                
-                state.tooltip.html(html)
-                 .style("display", "block").style("opacity", 1)
-                 .style("left", (e.pageX+10)+"px").style("top", (e.pageY-20)+"px");
+                state.tooltip.html(html).style("display", "block").style("opacity", 1).style("left", (e.pageX+10)+"px").style("top", (e.pageY-20)+"px");
             })
             .on("mouseout", () => state.tooltip.style("display", "none"));
-            
-        // Aplicar escala de zoom actual si ya hubo zoom
-        if(state.zoom) {
-            // Truco: invocar transform actual
-            // Pero como es complejo acceder al transform d3, esperamos al próximo evento zoom
-            // O podemos resetear a radio base si k=1.
-        }
     }
 
     // ==========================================
-    // 7. VISUALIZACIÓN CORE
-    // ==========================================
-    function updateMapVisuals(container, state) {
-        const metric = state.currentMetric;
-        const values = state.csvData.filter(d => !d.isTotal && !d.isSpecial && d[metric] > 0).map(d => d[metric]).sort(d3.ascending);
-        if(values.length === 0) return;
-
-        const min = d3.min(values); const max = d3.max(values);
-        const q1 = d3.quantile(values, 0.25); const q2 = d3.quantile(values, 0.50); const q3 = d3.quantile(values, 0.75);
-        const colorScale = d3.scaleLinear().domain([min, q1, q2, q3, max]).range(COLOR_RANGE).clamp(true);
-
-        state.gMain.selectAll("path.siarhe-feature").transition().duration(500)
-            .style("fill", d => {
-                let cve = getGeoKey(d.properties); const row = state.dataMap.get(cve);
-                if (!row) return COLOR_NULL; if (row[metric] === 0) return COLOR_ZERO;
-                return colorScale(row[metric]);
-            });
-        renderLegend(state, {min, q1, q2, q3, max});
-    }
-
-    function renderLegend(state, stats) {
-        const g = state.gLegend; g.html("");
-        const label = METRICAS[state.currentMetric].label;
-        const domain = [stats.min, stats.q1, stats.q2, stats.q3, stats.max];
-
-        g.append("rect").attr("x", -10).attr("y", -25).attr("width", 130).attr("height", 260)
-         .attr("fill", "rgba(255,255,255,0.85)").attr("rx", 5).style("filter", "drop-shadow(2px 2px 2px rgba(0,0,0,0.1))");
-        g.append("text").attr("x", 0).attr("y", -10).text(label).style("font-size", "11px").style("font-weight", "bold");
-        
-        const h = 150, w = 15, step = h/4;
-        g.append("rect").attr("x", 0).attr("y", 10).attr("width", w).attr("height", h)
-         .style("fill", `url(#${state.gradientId})`).style("stroke", "#ccc");
-
-        domain.forEach((v, i) => {
-            const y = 10 + h - (i * step);
-            g.append("line").attr("x1", w).attr("x2", w+5).attr("y1", y).attr("y2", y).style("stroke", "#666");
-            g.append("text").attr("x", w+8).attr("y", y+4).text(v.toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})).style("font-size", "10px");
-        });
-
-        const g0 = g.append("g").attr("transform", `translate(0, ${h+35})`);
-        g0.append("rect").attr("width", 12).attr("height", 12).style("fill", COLOR_ZERO);
-        g0.append("text").attr("x", 18).attr("y", 10).text("0.00").style("font-size", "11px");
-
-        const gN = g.append("g").attr("transform", `translate(0, ${h+60})`);
-        gN.append("rect").attr("width", 12).attr("height", 12).style("fill", COLOR_NULL);
-        gN.append("text").attr("x", 18).attr("y", 10).text("S/D").style("font-size", "11px");
-    }
-
-    // ==========================================
-    // 8. OTROS (ZOOM, NAV, TABLA)
+    // 8. TABLA DE DATOS
     // ==========================================
     function handleMapClick(d, state) {
         let cve = getGeoKey(d.properties);
@@ -481,16 +628,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const { thead, tbody } = state.tableElements;
         const mKey = state.currentMetric;
         const pKey = METRICAS[mKey].pair || mKey;
-        
-        // --- COLUMNAS FIJAS: Entidad, Población, Enfermeras, Tasa ---
         const isPob = (mKey === 'poblacion');
         
-        // Datos a mostrar en columna "Enfermeras" y "Tasa"
-        const enfDataKey = isPob ? null : pKey; // Si es poblacion, es null
+        const enfDataKey = isPob ? null : pKey; 
         const tasaDataKey = isPob ? null : mKey; 
 
         const cols = [
-            { id: 'estado', label: 'Entidad', isNum: false },
+            { id: 'estado', label: 'Entidad / Mpio.', isNum: false },
             { id: 'poblacion', label: 'Población', isNum: true },
             { id: 'enfermeras', label: 'Enfermeras', isNum: true, dataKey: enfDataKey, dash: isPob },
             { id: 'tasa', label: 'Tasa', isNum: true, dataKey: tasaDataKey, dash: isPob }
@@ -499,10 +643,8 @@ document.addEventListener('DOMContentLoaded', function() {
         thead.innerHTML = ''; const tr = document.createElement('tr');
         cols.forEach(c => {
             const th = document.createElement('th');
-            // Mapeo del sort config a columnas fijas
             let arrow = '↕';
             if (sortConfig.key === c.id) arrow = sortConfig.direction === 'asc' ? '▲' : '▼';
-            
             th.innerHTML = `${c.label} <small>${arrow}</small>`;
             th.onclick = () => {
                 if (sortConfig.key === c.id) sortConfig.direction = sortConfig.direction==='asc'?'desc':'asc';
@@ -513,7 +655,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         thead.appendChild(tr);
 
-        // Función para obtener valor de ordenamiento
         const getVal = (r, colId) => {
             if (colId === 'estado') return r.estado;
             if (colId === 'poblacion') return r.poblacion;
@@ -523,8 +664,7 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         const rows = state.csvData.filter(r => !r.isTotal && !r.isSpecial).sort((a,b) => {
-            const va = getVal(a, sortConfig.key);
-            const vb = getVal(b, sortConfig.key);
+            const va = getVal(a, sortConfig.key); const vb = getVal(b, sortConfig.key);
             if (va < vb) return sortConfig.direction === 'asc' ? -1 : 1;
             if (va > vb) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
@@ -541,7 +681,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (c.id === 'estado') {
                     td.innerHTML = !r.isTotal ? `<strong>${r.estado}</strong>` : r.estado;
                 } else if (c.dash) {
-                    td.textContent = '—'; // Guion si es población
+                    td.textContent = '—';
                 } else {
                     const v = (c.id === 'poblacion') ? r.poblacion : (r[c.dataKey] || 0);
                     if (c.id === 'tasa') td.textContent = v.toFixed(2);

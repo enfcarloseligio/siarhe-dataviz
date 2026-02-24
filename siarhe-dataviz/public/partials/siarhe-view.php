@@ -1,5 +1,20 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
+
+// año de los metadatos de la Base Estática (CSV)
+global $wpdb;
+$table_assets = $wpdb->prefix . 'siarhe_static_assets';
+$csv_meta = $wpdb->get_row( $wpdb->prepare( "SELECT anio_reporte FROM $table_assets WHERE entidad_slug = %s AND tipo_archivo = 'static_min' AND es_activo = 1", $slug ) );
+
+if ( $csv_meta && !empty($csv_meta->anio_reporte) ) {
+    $anio = $csv_meta->anio_reporte; // Sobrescribe el 2020 del GeoJSON por el año real de tu CSV
+}
+
+// Lógica adaptativa: Detecta si es el mapa nacional o estatal para ajustar los textos
+$es_nacional = ($slug === 'republica-mexicana' || $cve_ent === '33');
+$lugar_texto = $es_nacional ? 'México' : esc_html($nombre_entidad);
+$distribucion_texto = $es_nacional ? 'las entidades federativas' : 'sus municipios';
+$doble_clic_texto = $es_nacional ? 'estado para ir a su mapa municipal' : 'municipio para ver sus detalles';
 ?>
 
 <div class="siarhe-viz-wrapper" 
@@ -10,8 +25,33 @@ if ( ! defined( 'ABSPATH' ) ) exit;
      data-geojson="<?php echo esc_url($geojson_url); ?>"
      data-csv="<?php echo esc_url($csv_url); ?>">
 
+    <h1 class="siarhe-main-title" style="font-size: 2.2em; margin-bottom: 15px; color: #2271b1;">
+        ¿Cuántas enfermeras hay en <?php echo $lugar_texto; ?> en <span class="siarhe-dynamic-year"><?php echo esc_html($anio); ?></span>?
+    </h1>
+
+    <div class="siarhe-intro-text" style="font-size: 1.1em; line-height: 1.6; margin-bottom: 20px;">
+        <p>
+            En el año <strong><?php echo esc_html($anio); ?></strong>, <?php echo $lugar_texto; ?> cuenta con un total de <strong style="color: #d63638; font-size: 1.1em;"><span class="siarhe-dynamic-nurses-sum">...</span></strong> profesionales de enfermería distribuidos en <?php echo $distribucion_texto; ?>, según el último corte estadístico del SIARHE y proyecciones INEGI.
+        </p>
+        <p>
+            Contar con información actualizada y geolocalizada sobre la distribución del capital humano es fundamental para identificar brechas de atención, planificar recursos estratégicos y fortalecer el sistema de salud estatal, asegurando una cobertura equitativa para la población. Esta herramienta permite visualizar las disparidades regionales en la cobertura de salud. Haz doble clic en cualquier <?php echo ($es_nacional ? 'estado' : 'municipio'); ?> para consultar el desglose detallado.
+        </p>
+    </div>
+
+    <details class="siarhe-nav-guide" style="margin-bottom: 30px; background: #f0f6fc; padding: 15px; border-radius: 6px; border: 1px solid #c3c4c7;">
+        <summary style="font-weight: bold; cursor: pointer; color: #1d2327; font-size: 1.1em;">
+            <span class="dashicons dashicons-lightbulb" style="color:#d63638;"></span> Guía de navegación del mapa
+        </summary>
+        <ul style="margin-top: 15px; padding-left: 20px; line-height: 1.6; margin-bottom: 0;">
+            <li><strong>Navega:</strong> Haz doble clic en un <?php echo $doble_clic_texto; ?>. En celular, toca dos veces seguidas.</li>
+            <li><strong>Compara Regiones:</strong> Usa el selector "Indicador" (arriba del mapa) para visualizar tasas o totales.</li>
+            <li><strong>Localiza Unidades:</strong> Activa "Marcadores" para ver Unidades Especiales o información epidemiológica.</li>
+            <li><strong>Descarga:</strong> Utiliza los botones debajo del mapa para obtener imágenes o descarga la tabla en Excel.</li>
+        </ul>
+    </details>
+
     <header class="siarhe-header">
-        <h2 class="siarhe-title">
+        <h2 class="siarhe-title" style="font-size: 1.8em; margin-bottom: 5px;">
             <span class="dashicons dashicons-location"></span> 
             <?php echo esc_html($nombre_entidad); ?>
         </h2>
@@ -24,21 +64,31 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             
             <div class="siarhe-controls-placeholder"></div>
 
-            <div class="siarhe-map-container">
+            <div class="siarhe-map-container" style="position: relative;">
                 <div class="siarhe-loading-overlay">
                     <div class="spinner"></div>
                     <p>Cargando mapa interactivo...</p>
                 </div>
             </div>
 
-            <div class="siarhe-map-footer">
-                <small>💡 Tip: Doble clic para hacer zoom. Pasa el cursor para ver detalles.</small>
+            <div class="siarhe-map-footer" style="text-align: center; margin-top: 10px;">
+                <small>💡 Tip: Usa los controles para hacer zoom +/- o resetear. Pasa el cursor para ver detalles.</small>
             </div>
+
+            <div class="siarhe-map-actions" style="display: flex; justify-content: center; gap: 15px; margin-top: 20px;">
+                <button class="button button-secondary siarhe-btn-download-png">
+                    <span class="dashicons dashicons-camera" style="margin-top: 3px;"></span> 🗺️ Mapa PNG
+                </button>
+                <button class="button button-secondary siarhe-btn-toggle-labels">
+                    <span class="dashicons dashicons-tag" style="margin-top: 3px;"></span> 📝 Mapa con Etiquetas
+                </button>
+            </div>
+
         </section>
     <?php endif; ?>
 
     <?php if ( strpos($mode, 'T') !== false ) : ?>
-        <section class="siarhe-section-table">
+        <section class="siarhe-section-table" style="margin-top: 40px;">
             <h3>📊 Datos Detallados</h3>
             <div class="siarhe-table-container">
                 <p>Cargando tabla...</p>
@@ -46,8 +96,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         </section>
     <?php endif; ?>
 
-    <footer class="siarhe-footer" style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; font-size: 0.9em; color: #666;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+    <footer class="siarhe-footer" style="margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px; font-size: 0.9em; color: #666;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
             
             <div class="siarhe-ref-col">
                 <strong style="color: #2271b1;"><span class="dashicons dashicons-groups"></span> Datos de Enfermería</strong>
@@ -68,7 +118,11 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         </div>
         
         <p class="siarhe-disclaimer" style="margin-top: 15px; font-style: italic; font-size: 0.85em;">
-            * El total nacional se calcula sumando las 32 entidades federativas más los registros clasificados como "No Disponible" o "No Asignado".
+            * El total nacional se calcula sumando las 32 entidades federativas más los registros clasificados como "No Disponible" o "Extranjero".
+        </p>
+
+        <p class="siarhe-legal-disclaimer" style="margin-top: 20px; font-size: 0.85em; border-top: 1px dashed #ccc; padding-top: 15px; color: #888;">
+            Toda la información fue obtenida de fuentes oficiales a través de sus portales de datos abiertos; sin embargo, este análisis no representa una postura oficial de dichas instituciones. Recomendamos revisar nuestros <a href="https://enfcarloseligio.com/terminos-y-condiciones/" target="_blank" style="color:#2271b1; text-decoration:underline;">Términos y Condiciones</a> y el <a href="https://enfcarloseligio.com/descargo-de-responsabilidades/" target="_blank" style="color:#2271b1; text-decoration:underline;">Aviso Legal</a> para más detalles.
         </p>
     </footer>
 
