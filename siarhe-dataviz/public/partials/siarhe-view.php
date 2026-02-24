@@ -72,7 +72,7 @@ $doble_clic_texto = $es_nacional ? 'estado para ir a su mapa municipal' : 'munic
             </div>
 
             <div class="siarhe-map-footer" style="text-align: center; margin-top: 10px;">
-                <small>💡 Tip: Usa los controles para hacer zoom +/- o resetear. Pasa el cursor para ver detalles.</small>
+                <small>💡 Tip: Usa los controles para hacer zoom +/- o ⟳ para resetear. Pasa el cursor para ver detalles.</small>
             </div>
 
             <div class="siarhe-map-actions" style="display: flex; justify-content: center; gap: 15px; margin-top: 20px;">

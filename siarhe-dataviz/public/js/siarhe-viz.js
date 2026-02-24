@@ -1,5 +1,5 @@
 // 📢 LOG INICIAL
-console.log("%c 🚀 SIARHE JS V19: Diseño Intacto, 1 Etiqueta por Estado y Sin Disclaimer", "background: #222; color: #bada55");
+console.log("%c 🚀 SIARHE JS V20: Zoom Exportable, Etiquetas Auto-Escalables y Sin Disclaimer", "background: #222; color: #bada55");
 
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ==========================================
-    // 4. MAPA
+    // 4. MAPA Y ZOOM ESCALABLE
     // ==========================================
     function renderMap(container, state, cveEnt) {
         const mapDiv = container.querySelector('.siarhe-map-container');
@@ -223,12 +223,19 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .on("click", (e, d) => handleMapClick(d, state));
 
+        // 🌟 MAGIA DEL ZOOM: Achicamos el tamaño de la letra y el contorno conforme nos acercamos
         const zoom = d3.zoom()
             .scaleExtent([1, 8])
             .on("zoom", (e) => {
                 gMain.attr("transform", e.transform);
-                state.gMarkers.selectAll("circle").attr("r", 5 / e.transform.k).attr("stroke-width", 1 / e.transform.k);
-                state.gLabels.selectAll("text.siarhe-label").style("font-size", `${10 / e.transform.k}px`);
+                state.gMarkers.selectAll("circle")
+                    .attr("r", 5 / e.transform.k)
+                    .attr("stroke-width", 1 / e.transform.k);
+                
+                // Reducir la letra y el halo de las etiquetas para que no estorben
+                state.gLabels.selectAll("text.siarhe-label")
+                    .style("font-size", `${10 / e.transform.k}px`)
+                    .attr("stroke-width", 2.5 / e.transform.k);
             });
         
         svg.call(zoom).on("dblclick.zoom", null);
@@ -280,7 +287,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const svgNode = mapDiv.querySelector('svg');
         if (!svgNode) return;
 
-        if(state.zoom && state.svg) state.svg.call(state.zoom.transform, d3.zoomIdentity);
+        // 🌟 SE ELIMINÓ EL RESETEO DEL ZOOM (state.svg.call...)
+        // Ahora tomará captura exactamente de lo que el usuario esté viendo
 
         if (withLabels) state.gLabels.style("display", "block");
 
@@ -341,7 +349,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 ctx.font = "12px Arial, sans-serif";
                 ctx.textAlign = "center";
                 
-                // Centrado (el Y ahora es 40 para que quede en medio al no haber otra nota abajo)
+                // 🌟 Centrado vertical de la referencia y sin disclaimer inferior
                 wrapText(ctx, refText, width / 2, height + headerHeight + 40, width - 40, 16);
                 
                 // Descarga
@@ -399,7 +407,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 return colorScale(row[metric]);
             });
 
-        // 🌟 FILTRO ANTI-ISLAS: Calcular el área y quedarse con el polígono más grande de cada estado
+        // 🌟 OBTENER ZOOM ACTUAL (Para que las etiquetas nuevas nazcan con el tamaño correcto)
+        let currentK = 1;
+        if (state.svg) {
+            try { currentK = d3.zoomTransform(state.svg.node()).k; } catch(e) {}
+        }
+
+        // FILTRO ANTI-ISLAS
         const maxAreaFeatures = new Map();
         state.geoData.features.forEach(d => {
             let cve = getGeoKey(d.properties);
@@ -420,10 +434,10 @@ document.addEventListener('DOMContentLoaded', function() {
             .attr("text-anchor", "middle")
             .attr("fill", "#000000") 
             .attr("stroke", "#ffffff") 
-            .attr("stroke-width", 2.5) 
+            .attr("stroke-width", 2.5 / currentK) // Dinámico al zoom
             .attr("paint-order", "stroke fill") 
             .attr("stroke-linejoin", "round")
-            .style("font-size", "10px") 
+            .style("font-size", `${10 / currentK}px`) // Dinámico al zoom
             .style("font-weight", "bold")
             .text(d => {
                 let cve = getGeoKey(d.properties);
