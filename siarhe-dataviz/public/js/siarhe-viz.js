@@ -1,5 +1,5 @@
 // 📢 LOG INICIAL
-console.log("%c 🚀 SIARHE JS V20: Zoom Exportable, Etiquetas Auto-Escalables y Sin Disclaimer", "background: #222; color: #bada55");
+console.log("%c 🚀 SIARHE JS V21: Tabla Alineada, Tasas Reparadas y Exportación Excel", "background: #222; color: #bada55");
 
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -106,6 +106,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (mode.includes('T') && csv) {
                     initTableStructure(container, state);
+                    setupExcelExport(container, state); // 🌟 NUEVO: Botón de Excel
                 }
             })
             .catch(err => { console.error(err); if(loading) loading.innerHTML = "❌ Error: " + err.message; });
@@ -223,19 +224,12 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .on("click", (e, d) => handleMapClick(d, state));
 
-        // 🌟 MAGIA DEL ZOOM: Achicamos el tamaño de la letra y el contorno conforme nos acercamos
         const zoom = d3.zoom()
             .scaleExtent([1, 8])
             .on("zoom", (e) => {
                 gMain.attr("transform", e.transform);
-                state.gMarkers.selectAll("circle")
-                    .attr("r", 5 / e.transform.k)
-                    .attr("stroke-width", 1 / e.transform.k);
-                
-                // Reducir la letra y el halo de las etiquetas para que no estorben
-                state.gLabels.selectAll("text.siarhe-label")
-                    .style("font-size", `${10 / e.transform.k}px`)
-                    .attr("stroke-width", 2.5 / e.transform.k);
+                state.gMarkers.selectAll("circle").attr("r", 5 / e.transform.k).attr("stroke-width", 1 / e.transform.k);
+                state.gLabels.selectAll("text.siarhe-label").style("font-size", `${10 / e.transform.k}px`).attr("stroke-width", 2.5 / e.transform.k);
             });
         
         svg.call(zoom).on("dblclick.zoom", null);
@@ -245,7 +239,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ==========================================
-    // 5. EXPORTACIÓN PNG
+    // 5. EXPORTACIÓN PNG Y EXCEL
     // ==========================================
     function setupActionButtons(container, state) {
         const btnLabels = container.querySelector('.siarhe-btn-toggle-labels');
@@ -263,6 +257,75 @@ document.addEventListener('DOMContentLoaded', function() {
                 downloadMapAsPNG(container, state, true); 
             });
         }
+    }
+
+    function setupExcelExport(container, state) {
+        const btnExcel = container.querySelector('.siarhe-btn-download-excel');
+        if (!btnExcel) return;
+
+        btnExcel.addEventListener('click', (e) => {
+            e.preventDefault();
+
+            // 🌟 BOM para asegurar que Excel reconozca el UTF-8 (Acentos y Ñ)
+            let csvContent = '\uFEFF'; 
+            
+            const isNacional = (container.dataset.cveEnt === '33' || container.dataset.slug === 'republica-mexicana');
+            const colEntidad = isNacional ? 'Entidad Federativa' : 'Municipio';
+            
+            // Encabezados
+            csvContent += `${colEntidad},Población,Enfermeras,Tasa\n`;
+            
+            // Cálculo de llaves de datos
+            const mKey = state.currentMetric;
+            const pKey = METRICAS[mKey].pair || mKey;
+            const isPob = (mKey === 'poblacion');
+            
+            const enfDataKey = isPob ? null : pKey; 
+            const tasaDataKey = isPob ? null : (METRICAS[mKey].tipo === 'tasa' ? mKey : pKey.replace('enfermeras_', 'tasa_'));
+            
+            const getVal = (r, colId) => {
+                if (colId === 'estado') return r.estado;
+                if (colId === 'poblacion') return r.poblacion;
+                if (colId === 'enfermeras') return isPob ? 0 : (r[enfDataKey] || 0);
+                if (colId === 'tasa') return isPob ? 0 : (r[tasaDataKey] || 0);
+                return 0;
+            };
+
+            const rows = state.csvData.filter(r => !r.isTotal && !r.isSpecial).sort((a,b) => {
+                const va = getVal(a, sortConfig.key); const vb = getVal(b, sortConfig.key);
+                if (va < vb) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (va > vb) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+            const fixed = state.csvData.filter(r => r.isTotal || r.isSpecial);
+            
+            // Generar filas
+            [...rows, ...fixed].forEach(r => {
+                const estado = `"${r.estado}"`; // Entre comillas por si tiene comas
+                const pob = r.poblacion || 0;
+                const enf = isPob ? '-' : (r[enfDataKey] || 0);
+                const tasa = isPob ? '-' : (r[tasaDataKey] || 0).toFixed(2);
+                
+                csvContent += `${estado},${pob},${enf},${tasa}\n`;
+            });
+            
+            // Descargar Archivo
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            
+            const anioNode = document.querySelector('.siarhe-dynamic-year');
+            const anio = anioNode ? anioNode.innerText : new Date().getFullYear();
+            const slug = container.dataset.slug || 'datos';
+            const metricSlug = state.currentMetric.replace(/_/g, '-');
+            
+            a.download = `SIARHE_${slug}_${metricSlug}_${anio}.csv`;
+            a.href = url;
+            a.style.display = "none";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
     }
 
     function wrapText(context, text, x, y, maxWidth, lineHeight) {
@@ -287,9 +350,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const svgNode = mapDiv.querySelector('svg');
         if (!svgNode) return;
 
-        // 🌟 SE ELIMINÓ EL RESETEO DEL ZOOM (state.svg.call...)
-        // Ahora tomará captura exactamente de lo que el usuario esté viendo
-
         if (withLabels) state.gLabels.style("display", "block");
 
         setTimeout(() => {
@@ -313,19 +373,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const img = new Image();
             img.onload = function() {
-                // Fondo
                 ctx.fillStyle = "#e6f0f8";
                 ctx.fillRect(0, 0, width, height + headerHeight + footerHeight);
-                
-                // Franjas Blancas
                 ctx.fillStyle = "#ffffff";
                 ctx.fillRect(0, 0, width, headerHeight); 
                 ctx.fillRect(0, headerHeight + height, width, footerHeight); 
                 
-                // Dibujar Mapa
                 ctx.drawImage(img, 0, headerHeight);
                 
-                // Titulo Dinámico
                 const metricInfo = METRICAS[state.currentMetric];
                 const anioNode = document.querySelector('.siarhe-dynamic-year');
                 const anio = anioNode ? anioNode.innerText : new Date().getFullYear();
@@ -338,21 +393,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 ctx.textAlign = "center";
                 ctx.fillText(titleText, width / 2, 38);
                 
-                // Referencias
                 let refText = "Fuente de Datos: SIARHE.";
                 const refNodes = container.querySelectorAll('.siarhe-ref-col p');
-                if(refNodes.length > 0) {
-                    refText = refNodes[0].innerText.replace(/\n/g, ' | '); 
-                }
+                if(refNodes.length > 0) { refText = refNodes[0].innerText.replace(/\n/g, ' | '); }
 
                 ctx.fillStyle = "#444444";
                 ctx.font = "12px Arial, sans-serif";
                 ctx.textAlign = "center";
-                
-                // 🌟 Centrado vertical de la referencia y sin disclaimer inferior
                 wrapText(ctx, refText, width / 2, height + headerHeight + 40, width - 40, 16);
                 
-                // Descarga
                 const slug = container.dataset.slug || 'mapa';
                 const metricSlug = state.currentMetric.replace(/_/g, '-');
                 const nombreArchivo = `${slug}-${metricSlug}-${anio}${withLabels ? '-etiquetas' : ''}.png`;
@@ -407,13 +456,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 return colorScale(row[metric]);
             });
 
-        // 🌟 OBTENER ZOOM ACTUAL (Para que las etiquetas nuevas nazcan con el tamaño correcto)
         let currentK = 1;
         if (state.svg) {
             try { currentK = d3.zoomTransform(state.svg.node()).k; } catch(e) {}
         }
 
-        // FILTRO ANTI-ISLAS
         const maxAreaFeatures = new Map();
         state.geoData.features.forEach(d => {
             let cve = getGeoKey(d.properties);
@@ -434,10 +481,10 @@ document.addEventListener('DOMContentLoaded', function() {
             .attr("text-anchor", "middle")
             .attr("fill", "#000000") 
             .attr("stroke", "#ffffff") 
-            .attr("stroke-width", 2.5 / currentK) // Dinámico al zoom
+            .attr("stroke-width", 2.5 / currentK) 
             .attr("paint-order", "stroke fill") 
             .attr("stroke-linejoin", "round")
-            .style("font-size", `${10 / currentK}px`) // Dinámico al zoom
+            .style("font-size", `${10 / currentK}px`) 
             .style("font-weight", "bold")
             .text(d => {
                 let cve = getGeoKey(d.properties);
@@ -494,7 +541,7 @@ document.addEventListener('DOMContentLoaded', function() {
         selInd.className = 'siarhe-metric-select'; 
         Object.entries(METRICAS).forEach(([key, info]) => {
             const opt = document.createElement('option');
-            opt.value = key; opt.textContent = info.fullLabel; // Usar label completo
+            opt.value = key; opt.textContent = info.fullLabel; 
             if (key === state.currentMetric) opt.selected = true;
             selInd.appendChild(opt);
         });
@@ -609,7 +656,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ==========================================
-    // 8. TABLA DE DATOS
+    // 8. TABLA DE DATOS ALINEADA
     // ==========================================
     function handleMapClick(d, state) {
         let cve = getGeoKey(d.properties);
@@ -645,19 +692,26 @@ document.addEventListener('DOMContentLoaded', function() {
         const pKey = METRICAS[mKey].pair || mKey;
         const isPob = (mKey === 'poblacion');
         
+        // 🌟 REPARACIÓN DE LLAVES PARA LA TABLA
         const enfDataKey = isPob ? null : pKey; 
-        const tasaDataKey = isPob ? null : mKey; 
+        const tasaDataKey = isPob ? null : (METRICAS[mKey].tipo === 'tasa' ? mKey : pKey.replace('enfermeras_', 'tasa_'));
 
+        const isNacional = (container.dataset.cveEnt === '33' || container.dataset.slug === 'republica-mexicana');
+        const labelEntidad = isNacional ? 'Entidad Federativa' : 'Municipio';
+
+        // 🌟 ALINEACIÓN A LA DERECHA (align: 'right') PARA NÚMEROS
         const cols = [
-            { id: 'estado', label: 'Entidad / Mpio.', isNum: false },
-            { id: 'poblacion', label: 'Población', isNum: true },
-            { id: 'enfermeras', label: 'Enfermeras', isNum: true, dataKey: enfDataKey, dash: isPob },
-            { id: 'tasa', label: 'Tasa', isNum: true, dataKey: tasaDataKey, dash: isPob }
+            { id: 'estado', label: labelEntidad, isNum: false, align: 'left' },
+            { id: 'poblacion', label: 'Población', isNum: true, align: 'right' },
+            { id: 'enfermeras', label: 'Enfermeras', isNum: true, dataKey: enfDataKey, dash: isPob, align: 'right' },
+            { id: 'tasa', label: 'Tasa', isNum: true, dataKey: tasaDataKey, dash: isPob, align: 'right' }
         ];
 
         thead.innerHTML = ''; const tr = document.createElement('tr');
         cols.forEach(c => {
             const th = document.createElement('th');
+            th.style.textAlign = c.align; // Asignar alineación al header
+            
             let arrow = '↕';
             if (sortConfig.key === c.id) arrow = sortConfig.direction === 'asc' ? '▲' : '▼';
             th.innerHTML = `${c.label} <small>${arrow}</small>`;
@@ -693,6 +747,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             cols.forEach(c => {
                 const td = document.createElement('td');
+                td.style.textAlign = c.align; // Asignar alineación a las celdas numéricas
+
                 if (c.id === 'estado') {
                     td.innerHTML = !r.isTotal ? `<strong>${r.estado}</strong>` : r.estado;
                 } else if (c.dash) {
