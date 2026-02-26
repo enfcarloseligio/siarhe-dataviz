@@ -15,18 +15,46 @@ $es_nacional = ($slug === 'republica-mexicana' || $cve_ent === '33');
 $lugar_texto = $es_nacional ? 'México' : esc_html($nombre_entidad);
 $distribucion_texto = $es_nacional ? 'las entidades federativas' : 'sus municipios';
 $doble_clic_texto = $es_nacional ? 'estado para ir a su mapa municipal' : 'municipio para ver sus detalles';
+
+// Obtener opciones guardadas de colores y marcadores
+$map_options = get_option( 'siarhe_map_options', [] );
+$defaults = [
+    'm_cateter_shape'  => 'circle', 'm_cateter_fill'   => '#1E5B4F', 'm_cateter_stroke' => '#ffffff',
+    'm_heridas_shape'  => 'square', 'm_heridas_fill'   => '#9B2247', 'm_heridas_stroke' => '#ffffff',
+    'm_estab_shape'    => 'cross',  'm_estab_fill'     => '#2271b1', 'm_estab_stroke'   => '#ffffff',
+];
+$opts = wp_parse_args( $map_options, $defaults );
+
+// Empaquetar configuraciones de marcadores para JS
+$marker_config = [
+    'CATETER' => ['shape' => $opts['m_cateter_shape'], 'fill' => $opts['m_cateter_fill'], 'stroke' => $opts['m_cateter_stroke']],
+    'HERIDAS' => ['shape' => $opts['m_heridas_shape'], 'fill' => $opts['m_heridas_fill'], 'stroke' => $opts['m_heridas_stroke']],
+    'ESTAB'   => ['shape' => $opts['m_estab_shape'],   'fill' => $opts['m_estab_fill'],   'stroke' => $opts['m_estab_stroke']],
+];
 ?>
 
 <style>
-    /* 🌟 REGLAS DE RESPONSIVIDAD PARA EL VISOR SIARHE */
+    /* 🌟 REGLAS DE RESPONSIVIDAD Y Z-INDEX PARA EL VISOR SIARHE */
     .siarhe-viz-wrapper {
         width: 100%;
         max-width: 100%;
         box-sizing: border-box;
+        position: relative;
+        z-index: 1; /* Mantiene el mapa por debajo del menú móvil del tema */
     }
     
     .siarhe-viz-wrapper * {
         box-sizing: inherit;
+    }
+
+    /* Diseño en Bloques (Cards) para separar Mapa y Tabla */
+    .siarhe-block-card {
+        background: #ffffff;
+        border: 1px solid #dcdcde;
+        border-radius: 8px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
 
     /* Evita que los enlaces o textos largos rompan el diseño */
@@ -61,7 +89,7 @@ $doble_clic_texto = $es_nacional ? 'estado para ir a su mapa municipal' : 'munic
         gap: 20px;
     }
 
-    /* 🌟 Especificidad alta SOLO para las 3 notas pequeñas y sus enlaces (SIN usar !important) */
+    /* Especificidad alta SOLO para las 3 notas pequeñas y sus enlaces */
     .siarhe-viz-wrapper .siarhe-map-footer,
     .siarhe-viz-wrapper .siarhe-disclaimer,
     .siarhe-viz-wrapper .siarhe-legal-disclaimer,
@@ -71,9 +99,8 @@ $doble_clic_texto = $es_nacional ? 'estado para ir a su mapa municipal' : 'munic
 
     /* 📱 MÓVIL (<= 767px) */
     @media (max-width: 767px) {
-        .siarhe-map-actions button { 
-            width: 100%; 
-        }
+        .siarhe-block-card { padding: 15px; } /* Menos padding en móvil */
+        .siarhe-map-actions button { width: 100%; }
     }
 
     /* 💻 TABLET Y DESKTOP (>= 768px) */
@@ -89,13 +116,14 @@ $doble_clic_texto = $es_nacional ? 'estado para ir a su mapa municipal' : 'munic
      data-slug="<?php echo esc_attr($slug); ?>"
      data-mode="<?php echo esc_attr($mode); ?>"
      data-geojson="<?php echo esc_url($geojson_url); ?>"
-     data-csv="<?php echo esc_url($csv_url); ?>">
+     data-csv="<?php echo esc_url($csv_url); ?>"
+     data-marker-config='<?php echo esc_attr(wp_json_encode($marker_config)); ?>'>
 
     <h1 class="siarhe-main-title" style="text-align: center; margin-bottom: 15px; color: #2271b1;">
         ¿Cuántas enfermeras hay en <?php echo $lugar_texto; ?> en <span class="siarhe-dynamic-year"><?php echo esc_html($anio); ?></span>?
     </h1>
 
-    <div class="siarhe-intro-text" style="line-height: 1.6; margin-bottom: 20px;">
+    <div class="siarhe-intro-text" style="line-height: 1.6; margin-bottom: 25px;">
         <p>
             En el año <strong><?php echo esc_html($anio); ?></strong>, <?php echo $lugar_texto; ?> cuenta con un total de <strong style="color: #d63638;"><span class="siarhe-dynamic-nurses-sum">...</span></strong> profesionales de enfermería distribuidos en <?php echo $distribucion_texto; ?>, según el último corte estadístico del SIARHE y proyecciones INEGI.
         </p>
@@ -104,30 +132,29 @@ $doble_clic_texto = $es_nacional ? 'estado para ir a su mapa municipal' : 'munic
         </p>
     </div>
 
-    <details class="siarhe-nav-guide" style="margin-bottom: 30px; background: #f0f6fc; padding: 15px; border-radius: 6px; border: 1px solid #c3c4c7;">
-        <summary style="font-weight: bold; cursor: pointer; color: #1d2327;">
-            <span class="dashicons dashicons-lightbulb" style="color:#d63638;"></span> Guía de navegación del mapa
-        </summary>
-        <ul style="margin-top: 15px; padding-left: 20px; line-height: 1.6; margin-bottom: 0;">
-            <li><strong>Navega:</strong> Haz doble clic en un <?php echo $doble_clic_texto; ?>. En celular, toca dos veces seguidas.</li>
-            <li><strong>Compara Regiones:</strong> Usa el selector "Indicador" (arriba del mapa) para visualizar tasas o totales.</li>
-            <li><strong>Localiza Unidades:</strong> Activa "Marcadores" para ver Unidades Especiales o información epidemiológica.</li>
-            <li><strong>Descarga:</strong> Utiliza los botones debajo del mapa para obtener imágenes o descarga la tabla en Excel.</li>
-        </ul>
-    </details>
-
-    <header class="siarhe-header">
-        <h2 class="siarhe-title" style="margin-bottom: 5px;">
-            <span class="dashicons dashicons-location"></span> 
-            <?php echo esc_html($nombre_entidad); ?>
-        </h2>
-        <div class="siarhe-dynamic-total" style="color: #444; margin-top:5px;">
-            </div>
-    </header>
-
     <?php if ( strpos($mode, 'M') !== false ) : ?>
-        <section class="siarhe-section-map">
+        <section class="siarhe-section-map siarhe-block-card">
             
+            <header class="siarhe-header" style="margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
+                <h2 class="siarhe-title" style="margin-bottom: 5px; margin-top: 0;">
+                    <span class="dashicons dashicons-location"></span> 
+                    <?php echo esc_html($nombre_entidad); ?>
+                </h2>
+                <div class="siarhe-dynamic-total" style="color: #444; margin-top:5px;"></div>
+            </header>
+
+            <details class="siarhe-nav-guide" style="margin-bottom: 20px; background: #f0f6fc; padding: 15px; border-radius: 6px; border: 1px solid #c3c4c7;">
+                <summary style="font-weight: bold; cursor: pointer; color: #1d2327;">
+                    <span class="dashicons dashicons-lightbulb" style="color:#d63638;"></span> Guía de navegación del mapa
+                </summary>
+                <ul style="margin-top: 15px; padding-left: 20px; line-height: 1.6; margin-bottom: 0;">
+                    <li><strong>Navega:</strong> Haz doble clic en un <?php echo $doble_clic_texto; ?>. En celular, toca dos veces seguidas.</li>
+                    <li><strong>Compara Regiones:</strong> Usa el selector "Indicador" (arriba del mapa) para visualizar tasas o totales.</li>
+                    <li><strong>Localiza Unidades:</strong> Activa "Marcadores" para ver Unidades Especiales o información epidemiológica.</li>
+                    <li><strong>Descarga:</strong> Utiliza los botones debajo del mapa para obtener imágenes o descarga la tabla en Excel.</li>
+                </ul>
+            </details>
+
             <div class="siarhe-controls-placeholder"></div>
 
             <div class="siarhe-map-container" style="position: relative;">
@@ -154,8 +181,8 @@ $doble_clic_texto = $es_nacional ? 'estado para ir a su mapa municipal' : 'munic
     <?php endif; ?>
 
     <?php if ( strpos($mode, 'T') !== false ) : ?>
-        <section class="siarhe-section-table" style="margin-top: 40px;">
-            <h2 style="margin-bottom: 10px;">📊 Tasas y totales de profesionales de enfermería por <?php echo $es_nacional ? 'Entidad Federativa' : 'Municipio'; ?></h2>
+        <section class="siarhe-section-table siarhe-block-card">
+            <h2 style="margin-top: 0; margin-bottom: 10px;">📊 Tasas y totales de profesionales de enfermería por <?php echo $es_nacional ? 'Entidad Federativa' : 'Municipio'; ?></h2>
             <p style="margin-bottom: 20px; color: #555; line-height: 1.5;">
                 La siguiente tabla muestra el concentrado estadístico por <?php echo $es_nacional ? 'estado' : 'municipio'; ?>. Puede ordenar los datos para identificar rápidamente qué <?php echo $es_nacional ? 'entidades' : 'municipios'; ?> tienen la mayor o menor densidad de enfermeras por habitante.
             </p>
@@ -174,7 +201,7 @@ $doble_clic_texto = $es_nacional ? 'estado para ir a su mapa municipal' : 'munic
         </section>
     <?php endif; ?>
 
-    <footer class="siarhe-footer" style="margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px; color: #666;">
+    <footer class="siarhe-footer" style="border-top: 1px solid #eee; padding-top: 20px; color: #666;">
         <div class="siarhe-footer-grid">
             
             <div class="siarhe-ref-col">
