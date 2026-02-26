@@ -29,7 +29,15 @@ $opts = wp_parse_args( $map_options, $defaults );
 $marker_config = [
     'CATETER' => ['shape' => $opts['m_cateter_shape'], 'fill' => $opts['m_cateter_fill'], 'stroke' => $opts['m_cateter_stroke']],
     'HERIDAS' => ['shape' => $opts['m_heridas_shape'], 'fill' => $opts['m_heridas_fill'], 'stroke' => $opts['m_heridas_stroke']],
-    'ESTAB'   => ['shape' => $opts['m_estab_shape'],   'fill' => $opts['m_estab_fill'],   'stroke' => $opts['m_estab_stroke']],
+    'ESTABLECIMIENTOS'   => ['shape' => $opts['m_estab_shape'],   'fill' => $opts['m_estab_fill'],   'stroke' => $opts['m_estab_stroke']],
+];
+
+// 🌟 NUEVO: Generar URLs absolutas a los CSV de la carpeta /markers/
+$upload_url = defined('SIARHE_UPLOAD_URL') ? SIARHE_UPLOAD_URL : wp_upload_dir()['baseurl'] . '/siarhe-data/';
+$marker_urls = [
+    'CATETER' => $upload_url . 'markers/clinicas-cateteres.csv',
+    'HERIDAS' => $upload_url . 'markers/clinicas-heridas.csv',
+    'ESTABLECIMIENTOS' => $upload_url . 'markers/establecimientos-salud.csv'
 ];
 ?>
 
@@ -117,7 +125,8 @@ $marker_config = [
      data-mode="<?php echo esc_attr($mode); ?>"
      data-geojson="<?php echo esc_url($geojson_url); ?>"
      data-csv="<?php echo esc_url($csv_url); ?>"
-     data-marker-config='<?php echo esc_attr(wp_json_encode($marker_config)); ?>'>
+     data-marker-config='<?php echo esc_attr(wp_json_encode($marker_config)); ?>'
+     data-marker-urls='<?php echo esc_attr(wp_json_encode($marker_urls)); ?>'>
 
     <h1 class="siarhe-main-title" style="text-align: center; margin-bottom: 15px; color: #2271b1;">
         ¿Cuántas enfermeras hay en <?php echo $lugar_texto; ?> en <span class="siarhe-dynamic-year"><?php echo esc_html($anio); ?></span>?
