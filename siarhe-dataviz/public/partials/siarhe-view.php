@@ -21,97 +21,63 @@ $map_options = get_option( 'siarhe_map_options', [] );
 $defaults = [
     'm_cateter_shape'  => 'circle', 'm_cateter_fill'   => '#1E5B4F', 'm_cateter_stroke' => '#ffffff',
     'm_heridas_shape'  => 'square', 'm_heridas_fill'   => '#9B2247', 'm_heridas_stroke' => '#ffffff',
-    'm_estab_shape'    => 'cross',  'm_estab_fill'     => '#2271b1', 'm_estab_stroke'   => '#ffffff',
+    'm_estab1_shape'   => 'circle', 'm_estab1_fill'    => '#4daf4a', 'm_estab1_stroke'  => '#ffffff', 
+    'm_estab2_shape'   => 'square', 'm_estab2_fill'    => '#377eb8', 'm_estab2_stroke'  => '#ffffff', 
+    'm_estab3_shape'   => 'star',   'm_estab3_fill'    => '#e41a1c', 'm_estab3_stroke'  => '#ffffff', 
+    'm_estab6_shape'   => 'cross',  'm_estab6_fill'    => '#984ea3', 'm_estab6_stroke'  => '#ffffff', 
 ];
 $opts = wp_parse_args( $map_options, $defaults );
 
-// Empaquetar configuraciones de marcadores para JS
+// 🌟 EMPAQUETADO PARA EL FRONTEND (6 MARCADORES)
 $marker_config = [
     'CATETER' => ['shape' => $opts['m_cateter_shape'], 'fill' => $opts['m_cateter_fill'], 'stroke' => $opts['m_cateter_stroke']],
     'HERIDAS' => ['shape' => $opts['m_heridas_shape'], 'fill' => $opts['m_heridas_fill'], 'stroke' => $opts['m_heridas_stroke']],
-    'ESTABLECIMIENTOS'   => ['shape' => $opts['m_estab_shape'],   'fill' => $opts['m_estab_fill'],   'stroke' => $opts['m_estab_stroke']],
+    'ESTAB_1' => ['shape' => $opts['m_estab1_shape'],  'fill' => $opts['m_estab1_fill'],  'stroke' => $opts['m_estab1_stroke']],
+    'ESTAB_2' => ['shape' => $opts['m_estab2_shape'],  'fill' => $opts['m_estab2_fill'],  'stroke' => $opts['m_estab2_stroke']],
+    'ESTAB_3' => ['shape' => $opts['m_estab3_shape'],  'fill' => $opts['m_estab3_fill'],  'stroke' => $opts['m_estab3_stroke']],
+    'ESTAB_6' => ['shape' => $opts['m_estab6_shape'],  'fill' => $opts['m_estab6_fill'],  'stroke' => $opts['m_estab6_stroke']],
 ];
 
-// 🌟 NUEVO: Generar URLs absolutas a los CSV de la carpeta /markers/
+// 🌟 MAPEO DE URLs (Los 4 niveles apuntan a la misma base física para aprovechar el caché)
 $upload_url = defined('SIARHE_UPLOAD_URL') ? SIARHE_UPLOAD_URL : wp_upload_dir()['baseurl'] . '/siarhe-data/';
 $marker_urls = [
     'CATETER' => $upload_url . 'markers/clinicas-cateteres.csv',
     'HERIDAS' => $upload_url . 'markers/clinicas-heridas.csv',
-    'ESTABLECIMIENTOS' => $upload_url . 'markers/establecimientos-salud.csv'
+    'ESTAB_1' => $upload_url . 'markers/establecimientos-salud.csv',
+    'ESTAB_2' => $upload_url . 'markers/establecimientos-salud.csv',
+    'ESTAB_3' => $upload_url . 'markers/establecimientos-salud.csv',
+    'ESTAB_6' => $upload_url . 'markers/establecimientos-salud.csv',
 ];
 ?>
 
 <style>
-    /* 🌟 REGLAS DE RESPONSIVIDAD Y Z-INDEX PARA EL VISOR SIARHE */
+    /* REGLAS DE RESPONSIVIDAD Y Z-INDEX PARA EL VISOR SIARHE */
     .siarhe-viz-wrapper {
-        width: 100%;
-        max-width: 100%;
-        box-sizing: border-box;
-        position: relative;
-        z-index: 1; /* Mantiene el mapa por debajo del menú móvil del tema */
+        width: 100%; max-width: 100%; box-sizing: border-box; position: relative; z-index: 1;
     }
-    
-    .siarhe-viz-wrapper * {
-        box-sizing: inherit;
-    }
+    .siarhe-viz-wrapper * { box-sizing: inherit; }
 
-    /* Diseño en Bloques (Cards) para separar Mapa y Tabla */
+    /* Diseño en Bloques (Cards) */
     .siarhe-block-card {
-        background: #ffffff;
-        border: 1px solid #dcdcde;
-        border-radius: 8px;
-        padding: 25px;
-        margin-bottom: 30px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        background: #ffffff; border: 1px solid #dcdcde; border-radius: 8px;
+        padding: 25px; margin-bottom: 30px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
 
-    /* Evita que los enlaces o textos largos rompan el diseño */
-    .siarhe-break-text {
-        overflow-wrap: break-word;
-        word-wrap: break-word;
-        word-break: break-word;
-        hyphens: auto;
-    }
+    .siarhe-break-text { overflow-wrap: break-word; word-wrap: break-word; word-break: break-word; hyphens: auto; }
+    .siarhe-map-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-top: 20px; }
+    .siarhe-table-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 15px; }
+    .siarhe-footer-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
 
-    /* Contenedor de botones adaptativo */
-    .siarhe-map-actions {
-        display: flex;
-        flex-wrap: wrap; 
-        justify-content: center;
-        gap: 15px;
-        margin-top: 20px;
-    }
-
-    /* Hace que la tabla se pueda deslizar en horizontal en móviles */
-    .siarhe-table-wrapper {
-        width: 100%;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        margin-bottom: 15px;
-    }
-
-    /* Grid para el footer */
-    .siarhe-footer-grid {
-        display: grid;
-        grid-template-columns: 1fr; 
-        gap: 20px;
-    }
-
-    /* Especificidad alta SOLO para las 3 notas pequeñas y sus enlaces */
     .siarhe-viz-wrapper .siarhe-map-footer,
     .siarhe-viz-wrapper .siarhe-disclaimer,
     .siarhe-viz-wrapper .siarhe-legal-disclaimer,
-    .siarhe-viz-wrapper .siarhe-legal-disclaimer a {
-        font-size: 0.85em; 
-    }
+    .siarhe-viz-wrapper .siarhe-legal-disclaimer a { font-size: 0.85em; }
 
-    /* 📱 MÓVIL (<= 767px) */
     @media (max-width: 767px) {
-        .siarhe-block-card { padding: 15px; } /* Menos padding en móvil */
+        .siarhe-block-card { padding: 15px; }
         .siarhe-map-actions button { width: 100%; }
     }
 
-    /* 💻 TABLET Y DESKTOP (>= 768px) */
     @media (min-width: 768px) {
         .siarhe-footer-grid { grid-template-columns: 1fr 1fr; }
         .siarhe-map-actions button { width: auto; }

@@ -1,5 +1,5 @@
 // 📢 LOG INICIAL
-console.log("%c 🚀 SIARHE JS V25: Rutas Absolutas Resueltas, Independencia de siarheData", "background: #222; color: #bada55");
+console.log("%c 🚀 SIARHE JS V27: Niveles de Atención, Caché Masiva y Render Progresivo", "background: #222; color: #bada55");
 
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -22,11 +22,14 @@ document.addEventListener('DOMContentLoaded', function() {
         'enfermeras_administrativas': { label: 'Enf. Admin.', fullLabel: 'Enfermeras con funciones Administrativas', tipo: 'absoluto', pair: 'enfermeras_administrativas' }
     };
 
+    // 🌟 NUEVOS NOMBRES PARA EL MENÚ Y TOOLTIPS
     const MARCADOR_NOMBRES = { 
         'CATETER': "Clínicas de catéteres", 
         'HERIDAS': "Clínicas de heridas",
-        'ESTABLECIMIENTOS': "Establecimientos de Salud",
-        'ESTAB': "Establecimientos de Salud" 
+        'ESTAB_1': "Establecimientos (1er Nivel)",
+        'ESTAB_2': "Establecimientos (2do Nivel)",
+        'ESTAB_3': "Establecimientos (3er Nivel)",
+        'ESTAB_6': "Establecimientos (No Aplica)"
     };
 
     const styles = getComputedStyle(document.documentElement);
@@ -38,7 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let sortConfig = { key: 'tasa', direction: 'desc' };
 
     // ==========================================
-    // 2. HELPERS (D3 SHAPES, NÚMEROS Y EXTRACCIÓN DE CSV)
+    // 2. HELPERS 
     // ==========================================
     function cleanKey(val) { return (val === undefined || val === null) ? "" : val.toString().trim(); }
     function getGeoKey(props) { return cleanKey(props.ID || props.CVE_ENT || props.cve_ent || props.id); }
@@ -53,10 +56,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     function getMarkerStyle(type, state) {
         if (state.markerStyles[type]) return state.markerStyles[type];
-        if (type === 'ESTABLECIMIENTOS' && state.markerStyles['ESTAB']) return state.markerStyles['ESTAB'];
         return { shape: 'circle', fill: '#000000', stroke: '#ffffff' }; 
     }
-
+    
+    // Extractor de columnas dinámico
     function getColValue(row, possibleNames) {
         const keys = Object.keys(row);
         for (let name of possibleNames) {
@@ -80,23 +83,21 @@ document.addEventListener('DOMContentLoaded', function() {
         const mode = container.dataset.mode;
         const loading = container.querySelector('.siarhe-loading-overlay');
 
-        // 🌟 LECTURA DE CONFIGURACIONES INYECTADAS DESDE PHP
         let MARCADOR_ESTILOS = {};
         try { MARCADOR_ESTILOS = JSON.parse(container.dataset.markerConfig || '{}'); } catch(e) {}
 
         let MARCADOR_URLS = {};
-        try { MARCADOR_URLS = JSON.parse(container.dataset.markerUrls || '{}'); } catch(e) { console.error("[SIARHE] Error leyendo URLs", e); }
+        try { MARCADOR_URLS = JSON.parse(container.dataset.markerUrls || '{}'); } catch(e) {}
 
-        // 🌟 AGREGAMOS markerUrls AL ESTADO GLOBAL PARA QUE TODAS LAS FUNCIONES PUEDAN VERLO
         let state = {
             geoData: null, csvData: [], dataMap: new Map(),
             currentMetric: 'tasa_total',
             zoom: null, gLegend: null, gMarkerLegend: null, gradientId: null,
             svg: null, gMain: null, gPaths: null, gLabels: null, gMarkers: null, 
             activeMarkers: new Set(), markersData: {}, 
-            markerStyles: MARCADOR_ESTILOS,
-            markerUrls: MARCADOR_URLS, // <-- AQUÍ ESTÁ LA MAGIA
-            tooltip: null, markerTrigger: null, lastClickTime: 0 
+            markerStyles: MARCADOR_ESTILOS, markerUrls: MARCADOR_URLS,
+            tooltip: null, markerTrigger: null, lastClickTime: 0,
+            rawEstabData: null // 🌟 CACHÉ EN RAM PARA LA BASE GIGANTE DE ESTABLECIMIENTOS
         };
 
         if (!geojsonUrl) return;
@@ -182,14 +183,23 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ==========================================
-    // 4. MAPA Y EVENTOS
+    // 4. MAPA Y RESPONSIVIDAD ELÁSTICA
     // ==========================================
     function renderMap(container, state, cveEnt) {
         const mapDiv = container.querySelector('.siarhe-map-container');
-        const width = mapDiv.clientWidth || 800; const height = 600; 
         mapDiv.innerHTML = '';
 
-        const svg = d3.select(mapDiv).append("svg").attr("width", "100%").attr("height", height).attr("viewBox", `0 0 ${width} ${height}`).style("background-color", "#e6f0f8").style("font-family", "Arial, sans-serif"); 
+        const width = 800; 
+        const height = 600; 
+
+        const svg = d3.select(mapDiv).append("svg")
+            .attr("viewBox", `0 0 ${width} ${height}`)
+            .attr("preserveAspectRatio", "xMidYMid meet")
+            .style("width", "100%")
+            .style("height", "auto")
+            .style("background-color", "#e6f0f8")
+            .style("font-family", "Arial, sans-serif"); 
+        
         state.svg = svg;
 
         const defs = svg.append("defs");
@@ -203,7 +213,7 @@ document.addEventListener('DOMContentLoaded', function() {
         state.gMarkers = gMain.append("g").attr("class", "markers-layer");
         
         state.gLegend = svg.append("g").attr("class", "siarhe-legend-group").attr("transform", `translate(30, 40)`); 
-        state.gMarkerLegend = svg.append("g").attr("class", "siarhe-marker-legend-group").attr("transform", `translate(30, ${height - 150})`);
+        state.gMarkerLegend = svg.append("g").attr("class", "siarhe-marker-legend-group").attr("transform", `translate(30, ${height - 180})`);
 
         const projection = d3.geoMercator().fitSize([width, height], state.geoData); state.projection = projection;
         const path = d3.geoPath().projection(projection); state.path = path; 
@@ -232,13 +242,21 @@ document.addEventListener('DOMContentLoaded', function() {
             .scaleExtent([1, 8])
             .on("zoom", (e) => {
                 gMain.attr("transform", e.transform);
-                state.gLabels.selectAll("text.siarhe-label").style("font-size", `${10 / e.transform.k}px`).attr("stroke-width", 2.5 / e.transform.k);
+                const k = e.transform.k;
+
+                state.gLabels.selectAll("text.siarhe-label")
+                    .style("font-size", `${10 / k}px`)
+                    .attr("stroke-width", 2.5 / k);
+                
+                const symbolCache = {};
+                state.activeMarkers.forEach(type => {
+                    const styleCfg = getMarkerStyle(type, state);
+                    symbolCache[type] = d3.symbol().type(getD3Shape(styleCfg.shape)).size(100 / (k * k))();
+                });
+
                 state.gMarkers.selectAll("path.siarhe-marker")
-                    .attr("d", d => {
-                        const styleCfg = getMarkerStyle(d.tipo, state);
-                        return d3.symbol().type(getD3Shape(styleCfg.shape)).size(100 / (e.transform.k * e.transform.k))();
-                    })
-                    .attr("stroke-width", 1.5 / e.transform.k);
+                    .attr("d", d => symbolCache[d.tipo])
+                    .attr("stroke-width", 1.5 / k);
             });
         
         svg.call(zoom).on("dblclick.zoom", null);
@@ -453,7 +471,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ==========================================
-    // 7. CONTROLES Y MARCADORES 
+    // 7. CONTROLES Y MARCADORES (LÓGICA BLINDADA Y PROGRESIVA)
     // ==========================================
     function renderMainControls(container, state, onUpdate) {
         const ph = container.querySelector('.siarhe-controls-placeholder');
@@ -469,7 +487,6 @@ document.addEventListener('DOMContentLoaded', function() {
         selInd.onchange = (e) => { state.currentMetric = e.target.value; sortConfig = { key: 'tasa', direction: 'desc' }; onUpdate(); };
         grpInd.appendChild(selInd); wrapper.appendChild(grpInd);
 
-        // 🌟 CREACIÓN DEL MENÚ BASADO EN LAS URLs QUE PASÓ PHP (Ignorando siarheData)
         const validMarkers = Object.keys(state.markerUrls).filter(k => state.markerUrls[k]);
         
         if (validMarkers.length > 0) {
@@ -485,10 +502,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 opt.innerHTML = `<input type="checkbox" class="mc-check" value="${key}"> ${label}`;
                 opt.addEventListener('click', (e) => {
                     if (e.target.tagName !== 'INPUT') {
-                        const chk = opt.querySelector('input'); chk.checked = !chk.checked; toggleMarker(key, state);
+                        const chk = opt.querySelector('input'); chk.checked = !chk.checked; toggleMarker(key, state, container);
                     }
                 });
-                opt.querySelector('input').addEventListener('click', (e) => { e.stopPropagation(); toggleMarker(key, state); });
+                opt.querySelector('input').addEventListener('click', (e) => { e.stopPropagation(); toggleMarker(key, state, container); });
                 menu.appendChild(opt);
             });
             trigger.onclick = (e) => { e.stopPropagation(); menu.classList.toggle('open'); };
@@ -498,27 +515,54 @@ document.addEventListener('DOMContentLoaded', function() {
         ph.appendChild(wrapper);
     }
 
-    async function toggleMarker(type, state) {
-        console.log(`[SIARHE] Activando marcador: ${type}`);
+    async function toggleMarker(type, state, container) {
+        const loading = container.querySelector('.siarhe-loading-overlay');
+        if (loading) {
+            loading.querySelector('p').textContent = `Procesando ${MARCADOR_NOMBRES[type]}...`;
+            loading.style.position = 'absolute'; loading.style.top = '0'; loading.style.left = '0';
+            loading.style.width = '100%'; loading.style.height = '100%';
+            loading.style.background = 'rgba(255,255,255,0.85)';
+            loading.style.display = 'flex'; loading.style.flexDirection = 'column';
+            loading.style.justifyContent = 'center'; loading.style.alignItems = 'center';
+            loading.style.zIndex = '100';
+        }
+
+        // 🌟 Yield al navegador para que muestre el texto de carga antes de procesar 30,000 filas
+        await new Promise(r => setTimeout(r, 80)); 
+
         if (state.activeMarkers.has(type)) { 
             state.activeMarkers.delete(type); 
-            console.log(`[SIARHE] Marcador desactivado. Restantes:`, Array.from(state.activeMarkers));
         } else {
             state.activeMarkers.add(type);
+            
             if (!state.markersData[type]) {
-                
-                // 🌟 LECTURA DE LA URL CORRECTA DESDE EL ESTADO (Enviada por PHP)
                 const url = state.markerUrls[type];
-                
-                console.log(`[SIARHE] Descargando CSV desde: ${url}`);
-                if(url) {
+                if (url) {
                     try {
-                        const raw = await d3.csv(url);
-                        console.log(`[SIARHE] Éxito. Filas crudas en CSV: ${raw.length}`);
+                        let rawData = state.rawEstabData;
 
-                        state.markersData[type] = raw.map(d => {
+                        // 🌟 SISTEMA DE CACHÉ INTELIGENTE 🌟
+                        // Si es un nivel de establecimiento y AÚN NO lo hemos descargado, lo bajamos y guardamos en RAM.
+                        if (type.startsWith('ESTAB_') && !rawData) {
+                            console.log(`[SIARHE] Descargando base masiva de establecimientos por primera vez...`);
+                            rawData = await d3.csv(url);
+                            state.rawEstabData = rawData; // Guardado en RAM para futuras consultas
+                        } else if (!type.startsWith('ESTAB_')) {
+                            // Clínicas normales (Catéter / Heridas)
+                            rawData = await d3.csv(url);
+                        } else {
+                            console.log(`[SIARHE] Usando base de establecimientos desde Caché RAM.`);
+                        }
+
+                        // ¿Qué nivel de atención buscamos? (ej. "1", "2", "3", "6")
+                        const nivelTarget = type.replace('ESTAB_', ''); 
+
+                        state.markersData[type] = rawData.map(d => {
                             const latText = getColValue(d, ['latitud', 'lat']);
                             const lonText = getColValue(d, ['longitud', 'lon']);
+                            
+                            // 🌟 EXTRAER CLAVE DE NIVEL PARA FILTRADO 🌟
+                            const cveNivel = getColValue(d, ['cve_n_atencion', 'cve_ n_atencion', 'cve n atencion']);
                             
                             return {
                                 clues: getColValue(d, ['clues']),
@@ -530,25 +574,33 @@ document.addEventListener('DOMContentLoaded', function() {
                                 tipo_estab: getColValue(d, ['tipo_establecimiento', 'tipo establecimiento']),
                                 tipologia: getColValue(d, ['nombre_tipologia', 'nombre tipologia']),
                                 nivel_atencion: getColValue(d, ['nivel_atencion', 'nivel atencion']),
+                                cve_nivel: cveNivel,
                                 jurisdiccion: getColValue(d, ['jurisdiccion', 'jurisdicción']),
                                 estrato: getColValue(d, ['estrato_unidad', 'estrato unidad']),
                                 tipo: type
                             };
                         }).filter(d => {
-                            const esValido = !isNaN(d.lat) && !isNaN(d.lon) && d.lat !== 0 && d.lon !== 0;
-                            if (!esValido) console.warn(`[SIARHE] Se descartó una fila por coordenadas inválidas:`, d.clues);
-                            return esValido;
+                            const isValidCoord = !isNaN(d.lat) && !isNaN(d.lon) && d.lat !== 0 && d.lon !== 0;
+                            if (!isValidCoord) return false;
+                            
+                            // Si es un nivel de establecimiento, filtrar solo el nivel que corresponde
+                            if (type.startsWith('ESTAB_')) {
+                                return d.cve_nivel === nivelTarget;
+                            }
+                            return true; // Si es catéter o heridas, pasan todos
                         });
                         
-                        console.log(`[SIARHE] Puntos finales válidos para dibujar: ${state.markersData[type].length}`);
                     } catch(e) { console.error(`[SIARHE] Error cargando marcadores ${type}:`, e); }
-                } else {
-                    console.error(`[SIARHE] URL no encontrada para el marcador tipo: ${type}`);
                 }
             }
         }
+        
         updateMarkers(state);
         updateMarkerDropdownText(state);
+
+        // Darle tiempo a D3 de inyectar el SVG en el DOM antes de quitar la pantalla de carga
+        await new Promise(r => setTimeout(r, 100)); 
+        if (loading) loading.style.display = 'none';
     }
 
     function updateMarkerDropdownText(state) {
@@ -563,12 +615,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateMarkers(state) {
         let allPoints = [];
-        
         state.activeMarkers.forEach(type => { if(state.markersData[type]) allPoints = allPoints.concat(state.markersData[type]); });
 
         let currentK = 1; if (state.svg) { try { currentK = d3.zoomTransform(state.svg.node()).k; } catch(e) {} }
 
-        const markers = state.gMarkers.selectAll("path.siarhe-marker").data(allPoints, (d, i) => `${d.clues}-${d.tipo}-${i}`);
+        // Quitar la función Key acelera brutalmente el renderizado de D3 con miles de nodos
+        const markers = state.gMarkers.selectAll("path.siarhe-marker").data(allPoints);
         
         markers.exit().remove();
         
@@ -601,7 +653,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if(d.tipo_estab) html += `<div style="color:#ffcc00; font-size:11px;"><strong>Tipo:</strong> ${d.tipo_estab}</div>`;
                     if(d.tipologia) html += `<div style="color:#a1d99b; font-size:11px;"><strong>Tipología:</strong> ${d.tipologia}</div>`;
                     if(d.nivel_atencion) html += `<div style="color:#6baed6; font-size:11px;"><strong>Nivel:</strong> ${d.nivel_atencion}</div>`;
-                    if(d.jurisdiccion) html += `<div style="color:#ccc; font-size:10px;"><strong>Jur:</strong> ${d.jurisdiccion}</div>`;
+                    if(d.jurisdiccion) html += `<div style="color:#ccc; font-size:10px;"><strong>Jurisdicción:</strong> ${d.jurisdiccion}</div>`;
                     html += `</div>`;
                 }
                 html += `</div>`;
@@ -625,7 +677,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         g.append("rect")
             .attr("x", -10).attr("y", -20)
-            .attr("width", 195)
+            .attr("width", 220) // Ensanchado para nombres largos
             .attr("height", (actives.length * 20) + 30)
             .attr("fill", "rgba(255,255,255,0.85)")
             .attr("rx", 5)
