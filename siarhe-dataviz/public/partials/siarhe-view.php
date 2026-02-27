@@ -38,15 +38,17 @@ $marker_config = [
     'ESTAB_6' => ['shape' => $opts['m_estab6_shape'],  'fill' => $opts['m_estab6_fill'],  'stroke' => $opts['m_estab6_stroke']],
 ];
 
-// 🌟 MAPEO DE URLs (Los 4 niveles apuntan a la misma base física para aprovechar el caché)
+// 🌟 MAPEO DE URLs CON ROMPE-CACHÉ
 $upload_url = defined('SIARHE_UPLOAD_URL') ? SIARHE_UPLOAD_URL : wp_upload_dir()['baseurl'] . '/siarhe-data/';
+$v = time(); // Genera un sello de tiempo único
+
 $marker_urls = [
-    'CATETER' => $upload_url . 'markers/clinicas-cateteres.csv',
-    'HERIDAS' => $upload_url . 'markers/clinicas-heridas.csv',
-    'ESTAB_1' => $upload_url . 'markers/establecimientos-salud.csv',
-    'ESTAB_2' => $upload_url . 'markers/establecimientos-salud.csv',
-    'ESTAB_3' => $upload_url . 'markers/establecimientos-salud.csv',
-    'ESTAB_6' => $upload_url . 'markers/establecimientos-salud.csv',
+    'CATETER' => $upload_url . 'markers/clinicas-cateteres.csv?v=' . $v,
+    'HERIDAS' => $upload_url . 'markers/clinicas-heridas.csv?v=' . $v,
+    'ESTAB_1' => $upload_url . 'markers/establecimientos-salud.csv?v=' . $v,
+    'ESTAB_2' => $upload_url . 'markers/establecimientos-salud.csv?v=' . $v,
+    'ESTAB_3' => $upload_url . 'markers/establecimientos-salud.csv?v=' . $v,
+    'ESTAB_6' => $upload_url . 'markers/establecimientos-salud.csv?v=' . $v,
 ];
 ?>
 

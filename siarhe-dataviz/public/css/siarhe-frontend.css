@@ -191,13 +191,13 @@
 }
 
 /* =========================================
-   4. MAPA INTERACTIVO (Responsivo 4:3)
+   4. MAPA INTERACTIVO (Proporción 16:9)
    ========================================= */
 .siarhe-map-container {
     position: relative;
     width: 100%;
-    /* Truco para mantener proporción 4:3 en cualquier dispositivo */
-    padding-bottom: 75%; 
+    /* 🌟 Proporción 16:9 (9 / 16 = 0.5625) 🌟 */
+    padding-bottom: 56.25%; 
     height: 0;
     background-color: #F8FAFC; /* Mismo fondo suave de identidad */
     border: 1px solid #ccc;
@@ -434,7 +434,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 .siarhe-map-actions {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center; /* RESTAURADO: Botones centrados */
+    justify-content: center; /* 🌟 RESTAURADO: Botones centrados */
     gap: 15px;
     margin-top: 20px;
 }
@@ -481,7 +481,8 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 .zoom-controles {
     position: absolute;
     top: 20px; /* RESTAURADO A 20px */
-    right: 20px; /* RESTAURADO A LA DERECHA (Right) COMO EN TU IMAGEN */
+    right: 20px; /* 🌟 RESTAURADO A LA DERECHA (Right) COMO EN TU IMAGEN */
+    left: auto;  /* Aseguramos que no herede el left anterior */
     display: flex;
     flex-direction: column;
     gap: 5px;
@@ -524,7 +525,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     margin-top: 40px;
 }
 
-/* GRILLA DE 2 COLUMNAS RESTAURADA */
+/* 🌟 GRILLA DE 2 COLUMNAS RESTAURADA */
 .siarhe-footer-grid {
     display: grid;
     grid-template-columns: 1fr; /* Móvil: 1 columna por defecto */
@@ -550,7 +551,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     line-height: 1.5;
 }
 
-/* ESPECIFICIDAD PARA ENLACES (Vence a Elementor sin usar !important) */
+/* 🌟 ESPECIFICIDAD PARA ENLACES (Vence a Elementor sin usar !important) */
 .siarhe-viz-wrapper .siarhe-legal-disclaimer a,
 .siarhe-viz-wrapper .siarhe-footer a {
     font-family: inherit; /* Hereda Roboto */
