@@ -73,6 +73,29 @@ class Siarhe_Admin {
     }
 
     // -------------------------------------------------------------------------
+    // 🌟 NUEVO: UTILIDAD PARA FORZAR UTF-8 EN ARCHIVOS CSV
+    // -------------------------------------------------------------------------
+    private function ensure_utf8_csv( $filepath ) {
+        if ( ! file_exists( $filepath ) ) return;
+        
+        $content = file_get_contents( $filepath );
+        if ( $content === false ) return;
+
+        // Comprobar si el archivo NO es UTF-8 válido (típico de Excel en Windows / ISO-8859-1)
+        if ( ! mb_check_encoding( $content, 'UTF-8' ) ) {
+            $content = mb_convert_encoding( $content, 'UTF-8', 'ISO-8859-1' );
+            file_put_contents( $filepath, $content );
+        } else {
+            // Si ya es UTF-8, revisamos si tiene un BOM (Byte Order Mark) y se lo quitamos
+            $bom = pack('H*','EFBBBF');
+            if ( preg_match( "/^$bom/", $content ) ) {
+                $content = preg_replace( "/^$bom/", '', $content );
+                file_put_contents( $filepath, $content );
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // HANDLERS: GEOJSON
     // -------------------------------------------------------------------------
     public function handle_geojson_upload() { 
@@ -178,6 +201,10 @@ class Siarhe_Admin {
             $target_file = $target_dir . $new_filename;
 
             if ( move_uploaded_file( $_FILES['siarhe_file']['tmp_name'], $target_file ) ) {
+                
+                // 🌟 APLICAMOS LA CORRECCIÓN DE ACENTOS AQUÍ
+                $this->ensure_utf8_csv( $target_file );
+
                 global $wpdb;
                 $table_name = $wpdb->prefix . 'siarhe_static_assets';
                 
@@ -294,6 +321,10 @@ class Siarhe_Admin {
                 $dest_path = $dest_dir . $nombre_final;
 
                 if ( copy($source, $dest_path) ) {
+                    
+                    // 🌟 APLICAMOS LA CORRECCIÓN DE ACENTOS AQUÍ TAMBIÉN
+                    $this->ensure_utf8_csv( $dest_path );
+                    
                     unlink($source);
                     
                     // GUARDAR EN BD

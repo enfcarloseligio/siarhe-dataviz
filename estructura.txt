@@ -3,6 +3,7 @@ estructura.bat
 estructura.txt
 LICENSE
 README.md
+siarhe-dataviz.zip
 
 ================================
  siarhe-dataviz
@@ -35,6 +36,7 @@ C:\USERS\ENFCA\DOCUMENTS\PROYECTOS\SIARHE-DATAVIZ\SIARHE-DATAVIZ
 ¦       ¦       
 ¦       +---upload-tabs
 ¦               tab-geojson.php
+¦               tab-marcadores.php
 ¦               tab-static.php
 ¦               
 +---includes

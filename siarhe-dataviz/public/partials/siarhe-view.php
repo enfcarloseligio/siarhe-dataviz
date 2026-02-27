@@ -51,37 +51,11 @@ $marker_urls = [
 ?>
 
 <style>
-    /* REGLAS DE RESPONSIVIDAD Y Z-INDEX PARA EL VISOR SIARHE */
     .siarhe-viz-wrapper {
         width: 100%; max-width: 100%; box-sizing: border-box; position: relative; z-index: 1;
     }
     .siarhe-viz-wrapper * { box-sizing: inherit; }
-
-    /* Diseño en Bloques (Cards) */
-    .siarhe-block-card {
-        background: #ffffff; border: 1px solid #dcdcde; border-radius: 8px;
-        padding: 25px; margin-bottom: 30px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    }
-
     .siarhe-break-text { overflow-wrap: break-word; word-wrap: break-word; word-break: break-word; hyphens: auto; }
-    .siarhe-map-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-top: 20px; }
-    .siarhe-table-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 15px; }
-    .siarhe-footer-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
-
-    .siarhe-viz-wrapper .siarhe-map-footer,
-    .siarhe-viz-wrapper .siarhe-disclaimer,
-    .siarhe-viz-wrapper .siarhe-legal-disclaimer,
-    .siarhe-viz-wrapper .siarhe-legal-disclaimer a { font-size: 0.85em; }
-
-    @media (max-width: 767px) {
-        .siarhe-block-card { padding: 15px; }
-        .siarhe-map-actions button { width: 100%; }
-    }
-
-    @media (min-width: 768px) {
-        .siarhe-footer-grid { grid-template-columns: 1fr 1fr; }
-        .siarhe-map-actions button { width: auto; }
-    }
 </style>
 
 <div class="siarhe-viz-wrapper" 
@@ -94,13 +68,15 @@ $marker_urls = [
      data-marker-config='<?php echo esc_attr(wp_json_encode($marker_config)); ?>'
      data-marker-urls='<?php echo esc_attr(wp_json_encode($marker_urls)); ?>'>
 
-    <h1 class="siarhe-main-title" style="text-align: center; margin-bottom: 15px; color: #2271b1;">
+    <h1 class="siarhe-main-title" style="text-align: center; margin-bottom: 15px;">
         ¿Cuántas enfermeras hay en <?php echo $lugar_texto; ?> en <span class="siarhe-dynamic-year"><?php echo esc_html($anio); ?></span>?
     </h1>
 
     <div class="siarhe-intro-text" style="line-height: 1.6; margin-bottom: 25px;">
         <p>
-            En el año <strong><?php echo esc_html($anio); ?></strong>, <?php echo $lugar_texto; ?> cuenta con un total de <strong style="color: #d63638;"><span class="siarhe-dynamic-nurses-sum">...</span></strong> profesionales de enfermería distribuidos en <?php echo $distribucion_texto; ?>, según el último corte estadístico del SIARHE y proyecciones INEGI.
+            En el año <strong><?php echo esc_html($anio); ?></strong>, <?php echo $lugar_texto; ?> cuenta con un total de 
+            <strong style="color: #06B6D4;"><span class="siarhe-dynamic-nurses-sum">...</span></strong> 
+            profesionales de enfermería distribuidos en <?php echo $distribucion_texto; ?>, según el último corte estadístico del SIARHE y proyecciones INEGI.
         </p>
         <p>
             Contar con información actualizada y geolocalizada sobre la distribución del capital humano es fundamental para identificar brechas de atención, planificar recursos estratégicos y fortalecer el sistema de salud estatal, asegurando una cobertura equitativa para la población. Esta herramienta permite visualizar las disparidades regionales en la cobertura de salud. Haz doble clic en cualquier <?php echo ($es_nacional ? 'estado' : 'municipio'); ?> para consultar el desglose detallado.
@@ -119,8 +95,8 @@ $marker_urls = [
             </header>
 
             <details class="siarhe-nav-guide" style="margin-bottom: 20px; background: #f0f6fc; padding: 15px; border-radius: 6px; border: 1px solid #c3c4c7;">
-                <summary style="font-weight: bold; cursor: pointer; color: #1d2327;">
-                    <span class="dashicons dashicons-lightbulb" style="color:#d63638;"></span> Guía de navegación del mapa
+                <summary style="font-weight: bold; cursor: pointer; color: #0F172A;">
+                    <span class="dashicons dashicons-lightbulb" style="color:#0A66C2;"></span> Guía de navegación del mapa
                 </summary>
                 <ul style="margin-top: 15px; padding-left: 20px; line-height: 1.6; margin-bottom: 0;">
                     <li><strong>Navega:</strong> Haz doble clic en un <?php echo $doble_clic_texto; ?>. En celular, toca dos veces seguidas.</li>
@@ -132,22 +108,22 @@ $marker_urls = [
 
             <div class="siarhe-controls-placeholder"></div>
 
-            <div class="siarhe-map-container" style="position: relative;">
+            <div class="siarhe-map-container">
                 <div class="siarhe-loading-overlay">
                     <div class="spinner"></div>
                     <p>Cargando mapa interactivo...</p>
                 </div>
             </div>
 
-            <div class="siarhe-map-footer" style="text-align: center; margin-top: 10px; color: #666;">
+            <div class="siarhe-map-footer">
                 💡 Tip: Usa los controles para hacer zoom +/- o ⟳ para resetear. Pasa el cursor para ver detalles.
             </div>
 
             <div class="siarhe-map-actions">
-                <button class="button button-secondary siarhe-btn-download-png">
+                <button class="button button-secondary btn-siarhe btn-download-map siarhe-btn-download-png">
                     <span class="dashicons dashicons-camera" style="margin-top: 3px;"></span> 🗺️ Mapa PNG
                 </button>
-                <button class="button button-secondary siarhe-btn-toggle-labels">
+                <button class="button button-secondary btn-siarhe btn-download-map siarhe-btn-toggle-labels">
                     <span class="dashicons dashicons-tag" style="margin-top: 3px;"></span> 📝 Mapa con Etiquetas
                 </button>
             </div>
@@ -169,27 +145,27 @@ $marker_urls = [
             </div>
 
             <div style="text-align: center; margin-top: 15px;">
-                <button class="button button-primary siarhe-btn-download-excel">
+                <button class="button button-primary btn-siarhe btn-primary siarhe-btn-download-excel">
                     <span class="dashicons dashicons-media-spreadsheet" style="margin-top: 3px;"></span> 📥 Descargar Excel <?php echo $es_nacional ? 'Nacional' : 'Estatal'; ?>
                 </button>
             </div>
         </section>
     <?php endif; ?>
 
-    <footer class="siarhe-footer" style="border-top: 1px solid #eee; padding-top: 20px; color: #666;">
+    <footer class="siarhe-footer">
         <div class="siarhe-footer-grid">
             
             <div class="siarhe-ref-col">
-                <strong style="color: #2271b1;"><span class="dashicons dashicons-groups"></span> Datos de Enfermería</strong>
-                <p class="siarhe-break-text" style="margin: 5px 0;">
+                <strong><span class="dashicons dashicons-groups"></span> Datos de Enfermería</strong>
+                <p class="siarhe-break-text">
                     <strong>Fuente:</strong> <?php echo esc_html($csv_ref); ?><br>
                     <strong>Fecha de corte:</strong> <?php echo esc_html($csv_date); ?>
                 </p>
             </div>
 
             <div class="siarhe-ref-col">
-                <strong style="color: #2271b1;"><span class="dashicons dashicons-admin-site"></span> Datos Espaciales</strong>
-                <p class="siarhe-break-text" style="margin: 5px 0;">
+                <strong><span class="dashicons dashicons-admin-site"></span> Datos Espaciales</strong>
+                <p class="siarhe-break-text">
                     <strong>Fuente:</strong> <?php echo esc_html($geo_ref); ?><br>
                     <strong>Fecha de corte:</strong> <?php echo esc_html($geo_date); ?>
                 </p>
@@ -197,12 +173,12 @@ $marker_urls = [
 
         </div>
         
-        <p class="siarhe-disclaimer siarhe-break-text" style="margin-top: 15px; font-style: italic;">
+        <p class="siarhe-disclaimer siarhe-break-text">
             * El total nacional se calcula sumando las 32 entidades federativas más los registros clasificados como "No Disponible" o "Extranjero".
         </p>
 
-        <p class="siarhe-legal-disclaimer siarhe-break-text" style="margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 15px; color: #888; line-height: 1.5;">
-            Toda la información fue obtenida de fuentes oficiales a través de sus portales de datos abiertos; sin embargo, este análisis no representa una postura oficial de dichas instituciones. Recomendamos revisar nuestros <a href="https://enfcarloseligio.com/terminos-y-condiciones/" target="_blank" style="color:#2271b1; text-decoration:underline;">Términos y Condiciones</a> y el <a href="https://enfcarloseligio.com/descargo-de-responsabilidades/" target="_blank" style="color:#2271b1; text-decoration:underline;">Aviso Legal</a> para más detalles.
+        <p class="siarhe-legal-disclaimer siarhe-break-text">
+            Toda la información fue obtenida de fuentes oficiales a través de sus portales de datos abiertos; sin embargo, este análisis no representa una postura oficial de dichas instituciones. Recomendamos revisar nuestros <a href="https://enfcarloseligio.com/terminos-y-condiciones/" target="_blank">Términos y Condiciones</a> y el <a href="https://enfcarloseligio.com/descargo-de-responsabilidades/" target="_blank">Aviso Legal</a> para más detalles.
         </p>
     </footer>
 
