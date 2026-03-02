@@ -589,10 +589,20 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     .siarhe-map-actions { flex-direction: column; align-items: stretch; }
     .siarhe-map-actions button { width: 100%; }
     
-    /* Touch Targets accesibles para botones */
+    /* 🌟 BOTONES DE ZOOM MÓVIL: Abajo, en medio, horizontales y más pequeños 🌟 */
+    .zoom-controles {
+        top: auto;
+        bottom: 10px;
+        right: auto;
+        left: 50%;
+        transform: translateX(-50%);
+        flex-direction: row;
+        gap: 10px;
+    }
+
     .zoom-controles .boton {
-        width: 44px;
-        height: 44px;
-        font-size: 20px;
+        width: 32px;
+        height: 32px;
+        font-size: 16px;
     }
 }
