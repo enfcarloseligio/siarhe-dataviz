@@ -1,22 +1,42 @@
 // 📢 LOG INICIAL
-console.log("%c 🚀 SIARHE JS V29: Proporción 16:9, Bug Fullscreen Corregido y Color Océano", "background: #222; color: #bada55");
+console.log("%c 🚀 SIARHE JS V30: Nuevos Indicadores Agregados", "background: #222; color: #bada55");
 
 document.addEventListener('DOMContentLoaded', function() {
 
     if (typeof d3 === 'undefined') { console.error("❌ ERROR: D3.js no cargó."); return; }
 
+    // ==========================================
+    // 1. CONFIGURACIÓN (Actualizada con nuevos indicadores)
+    // ==========================================
     const METRICAS = {
-        'tasa_total':             { label: 'Tasa Total', fullLabel: 'Tasa de enfermeras por cada mil habitantes', tipo: 'tasa', pair: 'enfermeras_total' },
-        'enfermeras_total':       { label: 'Total Enf.', fullLabel: 'Total de profesionales de enfermería',      tipo: 'absoluto', pair: 'enfermeras_total' },
-        'poblacion':              { label: 'Población',  fullLabel: 'Población Total',          tipo: 'absoluto', pair: 'poblacion' },
-        'tasa_primer':            { label: 'Tasa 1er Nivel', fullLabel: 'Tasa de enfermeras (1er Nivel) por mil hab.',       tipo: 'tasa', pair: 'enfermeras_primer' },
-        'enfermeras_primer':      { label: 'Enf. 1er Nivel', fullLabel: 'Enfermeras en 1er Nivel de Atención', tipo: 'absoluto', pair: 'enfermeras_primer' },
-        'tasa_segundo':           { label: 'Tasa 2do Nivel', fullLabel: 'Tasa de enfermeras (2do Nivel) por mil hab.',       tipo: 'tasa', pair: 'enfermeras_segundo' },
-        'enfermeras_segundo':     { label: 'Enf. 2do Nivel', fullLabel: 'Enfermeras en 2do Nivel de Atención', tipo: 'absoluto', pair: 'enfermeras_segundo' },
-        'tasa_tercer':            { label: 'Tasa 3er Nivel', fullLabel: 'Tasa de enfermeras (3er Nivel) por mil hab.',       tipo: 'tasa', pair: 'enfermeras_tercer' },
-        'enfermeras_tercer':      { label: 'Enf. 3er Nivel', fullLabel: 'Enfermeras en 3er Nivel de Atención', tipo: 'absoluto', pair: 'enfermeras_tercer' },
-        'tasa_administrativas':   { label: 'Tasa Admin.', fullLabel: 'Tasa de enfermeras administrativas',     tipo: 'tasa', pair: 'enfermeras_administrativas' },
-        'enfermeras_administrativas': { label: 'Enf. Admin.', fullLabel: 'Enfermeras con funciones Administrativas', tipo: 'absoluto', pair: 'enfermeras_administrativas' }
+        'tasa_total':                 { label: 'Tasa Total', fullLabel: 'Tasa de enfermeras por cada mil habitantes', tipo: 'tasa', pair: 'enfermeras_total' },
+        'enfermeras_total':           { label: 'Total Enf.', fullLabel: 'Total de profesionales de enfermería',      tipo: 'absoluto', pair: 'enfermeras_total' },
+        
+        'tasa_primer':                { label: 'Tasa 1er Nivel', fullLabel: 'Tasa de enfermeras en 1er Nivel de Atención',       tipo: 'tasa', pair: 'enfermeras_primer' },
+        'enfermeras_primer':          { label: 'Enf. 1er Nivel', fullLabel: 'Enfermeras en 1er Nivel de Atención', tipo: 'absoluto', pair: 'enfermeras_primer' },
+        
+        'tasa_segundo':               { label: 'Tasa 2do Nivel', fullLabel: 'Tasa de enfermeras en 2dor Nivel de Atención',       tipo: 'tasa', pair: 'enfermeras_segundo' },
+        'enfermeras_segundo':         { label: 'Enf. 2do Nivel', fullLabel: 'Enfermeras en 2do Nivel de Atención', tipo: 'absoluto', pair: 'enfermeras_segundo' },
+        
+        'tasa_tercer':                { label: 'Tasa 3er Nivel', fullLabel: 'Tasa de enfermeras en 3er Nivel de Atención',       tipo: 'tasa', pair: 'enfermeras_tercer' },
+        'enfermeras_tercer':          { label: 'Enf. 3er Nivel', fullLabel: 'Enfermeras en 3er Nivel de Atención', tipo: 'absoluto', pair: 'enfermeras_tercer' },
+        
+        'tasa_apoyo':                 { label: 'Tasa Apoyo', fullLabel: 'Tasa de enfermeras en establecimientos de apoyo',       tipo: 'tasa', pair: 'enfermeras_apoyo' },
+        'enfermeras_apoyo':           { label: 'Enf. Apoyo', fullLabel: 'Enfermeras en establecimientos de apoyo', tipo: 'absoluto', pair: 'enfermeras_apoyo' },
+        
+        'tasa_administrativas':       { label: 'Tasa Admin.', fullLabel: 'Tasa de enfermeras con funciones administrativas',     tipo: 'tasa', pair: 'enfermeras_administrativas' },
+        'enfermeras_administrativas': { label: 'Enf. Admin.', fullLabel: 'Enfermeras con funciones administrativas', tipo: 'absoluto', pair: 'enfermeras_administrativas' },
+        
+        'tasa_escuelas':              { label: 'Tasa Escuelas', fullLabel: 'Tasa de enfermeras en escuelas de enfermería',       tipo: 'tasa', pair: 'enfermeras_escuelas' },
+        'enfermeras_escuelas':        { label: 'Enf. Escuelas', fullLabel: 'Enfermeras en escuelas de enfermería', tipo: 'absoluto', pair: 'enfermeras_escuelas' },
+        
+        'tasa_no_aplica':             { label: 'Tasa Otros Est.', fullLabel: 'Tasa de enfermeras en otros establecimientos',       tipo: 'tasa', pair: 'enfermeras_no_aplica' },
+        'enfermeras_no_aplica':       { label: 'Enf. Otros Est.', fullLabel: 'Enfermeras en otros establecimientos', tipo: 'absoluto', pair: 'enfermeras_no_aplica' },
+        
+        'tasa_no_asignado':           { label: 'Tasa No Asignado', fullLabel: 'Tasa de enfermeras con funciones no asignadas',       tipo: 'tasa', pair: 'enfermeras_no_asignado' },
+        'enfermeras_no_asignado':     { label: 'Enf. No Asignado', fullLabel: 'Enfermeras con funciones no asignadas', tipo: 'absoluto', pair: 'enfermeras_no_asignado' },
+        
+        'poblacion':                  { label: 'Población',  fullLabel: 'Población total',          tipo: 'absoluto', pair: 'poblacion' }
     };
 
     const MARCADOR_NOMBRES = { 
@@ -182,7 +202,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .attr("preserveAspectRatio", "xMidYMid meet")
             .style("width", "100%")
             .style("height", "auto")
-            .style("background-color", "#e6f0f8") // 🌟 RESTAURADO: Azul Océano
+            .style("background-color", "#e6f0f8") 
             .style("font-family", "'Roboto', Arial, sans-serif"); 
         
         state.svg = svg;
@@ -335,7 +355,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const img = new Image();
             img.onload = function() {
-                // 🌟 RESTAURADO: Fondo Azul Océano para la imagen exportada
                 ctx.fillStyle = "#e6f0f8"; ctx.fillRect(0, 0, 1920, 1080); 
                 ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, 1920, 120); 
                 ctx.fillRect(0, 940, 1920, 140); 
