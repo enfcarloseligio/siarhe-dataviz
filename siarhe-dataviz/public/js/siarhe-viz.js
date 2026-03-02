@@ -1,12 +1,12 @@
 // 📢 LOG INICIAL
-console.log("%c 🚀 SIARHE JS V30: Nuevos Indicadores Agregados", "background: #222; color: #bada55");
+console.log("%c 🚀 SIARHE JS V31: Tooltip en Pantalla Completa Reparado", "background: #222; color: #bada55");
 
 document.addEventListener('DOMContentLoaded', function() {
 
     if (typeof d3 === 'undefined') { console.error("❌ ERROR: D3.js no cargó."); return; }
 
     // ==========================================
-    // 1. CONFIGURACIÓN (Actualizada con nuevos indicadores)
+    // 1. CONFIGURACIÓN
     // ==========================================
     const METRICAS = {
         'tasa_total':                 { label: 'Tasa Total', fullLabel: 'Tasa de enfermeras por cada mil habitantes', tipo: 'tasa', pair: 'enfermeras_total' },
@@ -223,15 +223,24 @@ document.addEventListener('DOMContentLoaded', function() {
         const projection = d3.geoMercator().fitSize([width, height], state.geoData); state.projection = projection;
         const path = d3.geoPath().projection(projection); state.path = path; 
 
-        d3.selectAll("#siarhe-global-tooltip").remove();
-        state.tooltip = d3.select("body").append("div").attr("id", "siarhe-global-tooltip").attr("class", "siarhe-tooltip").style("opacity", 0).style("display", "none");
+        // 🌟 SOLUCIÓN TOOLTIP EN PANTALLA COMPLETA 🌟
+        // En lugar de pegarlo en el body, lo pegamos adentro de la caja del mapa
+        d3.selectAll(mapDiv.querySelectorAll(".siarhe-tooltip")).remove(); 
+        state.tooltip = d3.select(mapDiv).append("div")
+            .attr("class", "siarhe-tooltip")
+            .style("opacity", 0)
+            .style("display", "none");
 
         state.gPaths.selectAll("path.siarhe-feature")
             .data(state.geoData.features).enter().append("path")
             .attr("d", path).attr("class", "siarhe-feature")
             .attr("stroke", "#fff").attr("stroke-width", "0.5").style("fill", COLOR_NULL)
             .on("mouseover", (e, d) => showTooltip(e, d, state)) 
-            .on("mousemove", (e) => state.tooltip.style("left", (e.pageX+15)+"px").style("top", (e.pageY-28)+"px"))
+            .on("mousemove", (e) => {
+                // Las coordenadas ahora son relativas a mapDiv, no a la página entera
+                const [mx, my] = d3.pointer(e, mapDiv);
+                state.tooltip.style("left", (mx + 15) + "px").style("top", (my - 28) + "px");
+            })
             .on("mouseout", () => { 
                 state.gPaths.selectAll("path.siarhe-feature").style("stroke", "#fff").style("stroke-width", "0.5"); 
                 state.tooltip.style("opacity", 0).style("display", "none"); 
@@ -411,7 +420,18 @@ document.addEventListener('DOMContentLoaded', function() {
                          </div>`;
             }
         }
-        state.tooltip.html(html).style("display", "block").style("opacity", 1).style("left", (event.pageX+15)+"px").style("top", (event.pageY-28)+"px");
+        
+        // 🌟 SOLUCIÓN TOOLTIP EN PANTALLA COMPLETA 🌟
+        // Extraemos el contenedor mapDiv que es el padre del SVG (donde ocurre el evento e)
+        // d3.pointer devuelve [x, y] relativos al mapDiv
+        const mapDiv = document.querySelector('.siarhe-map-container');
+        const [mx, my] = d3.pointer(event, mapDiv);
+
+        state.tooltip.html(html)
+            .style("display", "block")
+            .style("opacity", 1)
+            .style("left", (mx + 15) + "px")
+            .style("top", (my - 28) + "px");
     }
 
     function updateMapVisuals(container, state) {
@@ -656,7 +676,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 html += `</div>`;
 
-                state.tooltip.html(html).style("display", "block").style("opacity", 1).style("left", (e.pageX+10)+"px").style("top", (e.pageY-20)+"px");
+                // 🌟 SOLUCIÓN TOOLTIP MARCADORES EN PANTALLA COMPLETA 🌟
+                const mapDiv = document.querySelector('.siarhe-map-container');
+                const [mx, my] = d3.pointer(e, mapDiv);
+
+                state.tooltip.html(html)
+                    .style("display", "block")
+                    .style("opacity", 1)
+                    .style("left", (mx + 10) + "px")
+                    .style("top", (my - 20) + "px");
             })
             .on("mouseout", function(e, d) {
                 d3.select(this).attr("stroke-width", 1.5 / currentK); 
@@ -706,7 +734,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 🌟 BUG CORREGIDO EN BOTÓN FULLSCREEN 
     function renderZoomButtons(mapDiv, svg, zoom, cveEnt) {
         const ctrlDiv = document.createElement('div'); ctrlDiv.className = 'zoom-controles'; mapDiv.appendChild(ctrlDiv);
         const createBtn = (l, t, cb) => { const b = document.createElement('button'); b.className = 'boton'; b.innerHTML = l; b.title = t; b.onclick = cb; ctrlDiv.appendChild(b); };
