@@ -1,5 +1,5 @@
 // 📢 LOG INICIAL
-console.log("%c 🚀 SIARHE JS V31: Tooltip en Pantalla Completa Reparado", "background: #222; color: #bada55");
+console.log("%c 🚀 SIARHE JS V32: Navegación por Enlaces Dinámicos Integrada", "background: #222; color: #bada55");
 
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -97,6 +97,11 @@ document.addEventListener('DOMContentLoaded', function() {
         let MARCADOR_URLS = {};
         try { MARCADOR_URLS = JSON.parse(container.dataset.markerUrls || '{}'); } catch(e) {}
 
+        // 🌟 NUEVO: Leer Enlaces de Entidades
+        let ENTITY_URLS = {};
+        try { ENTITY_URLS = JSON.parse(container.dataset.entityUrls || '{}'); } catch(e) {}
+        const HOME_URL = container.dataset.homeUrl || '';
+
         let state = {
             geoData: null, csvData: [], dataMap: new Map(),
             currentMetric: 'tasa_total',
@@ -104,6 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
             svg: null, gMain: null, gPaths: null, gLabels: null, gMarkers: null, 
             activeMarkers: new Set(), markersData: {}, 
             markerStyles: MARCADOR_ESTILOS, markerUrls: MARCADOR_URLS,
+            entityUrls: ENTITY_URLS, homeUrl: HOME_URL, // 🌟 Agregar al estado
             tooltip: null, markerTrigger: null, lastClickTime: 0,
             rawEstabData: null 
         };
@@ -223,8 +229,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const projection = d3.geoMercator().fitSize([width, height], state.geoData); state.projection = projection;
         const path = d3.geoPath().projection(projection); state.path = path; 
 
-        // 🌟 SOLUCIÓN TOOLTIP EN PANTALLA COMPLETA 🌟
-        // En lugar de pegarlo en el body, lo pegamos adentro de la caja del mapa
         d3.selectAll(mapDiv.querySelectorAll(".siarhe-tooltip")).remove(); 
         state.tooltip = d3.select(mapDiv).append("div")
             .attr("class", "siarhe-tooltip")
@@ -237,7 +241,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .attr("stroke", "#fff").attr("stroke-width", "0.5").style("fill", COLOR_NULL)
             .on("mouseover", (e, d) => showTooltip(e, d, state)) 
             .on("mousemove", (e) => {
-                // Las coordenadas ahora son relativas a mapDiv, no a la página entera
                 const [mx, my] = d3.pointer(e, mapDiv);
                 state.tooltip.style("left", (mx + 15) + "px").style("top", (my - 28) + "px");
             })
@@ -421,9 +424,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // 🌟 SOLUCIÓN TOOLTIP EN PANTALLA COMPLETA 🌟
-        // Extraemos el contenedor mapDiv que es el padre del SVG (donde ocurre el evento e)
-        // d3.pointer devuelve [x, y] relativos al mapDiv
         const mapDiv = document.querySelector('.siarhe-map-container');
         const [mx, my] = d3.pointer(event, mapDiv);
 
@@ -676,7 +676,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 html += `</div>`;
 
-                // 🌟 SOLUCIÓN TOOLTIP MARCADORES EN PANTALLA COMPLETA 🌟
                 const mapDiv = document.querySelector('.siarhe-map-container');
                 const [mx, my] = d3.pointer(e, mapDiv);
 
@@ -727,10 +726,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // 🌟 NUEVO: Función de Clic en el Mapa para usar Enlaces
     function handleMapClick(d, state) {
         let cve = getGeoKey(d.properties);
-        if (typeof siarheData !== 'undefined' && siarheData.entity_urls && siarheData.entity_urls[cve]) {
-            window.location.href = siarheData.entity_urls[cve];
+        
+        if (state.entityUrls && state.entityUrls[cve]) {
+            window.location.href = state.entityUrls[cve];
         }
     }
 
@@ -747,7 +748,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btnFullscreen.innerHTML = '⛶'; 
         btnFullscreen.title = 'Pantalla Completa';
         
-        const mapContainer = mapDiv; // La caja que vamos a expandir es mapDiv
+        const mapContainer = mapDiv; 
         
         btnFullscreen.onclick = (e) => {
             e.preventDefault();
@@ -766,7 +767,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         };
 
-        // Si el usuario sale con la tecla ESC, actualizamos el botón
         document.addEventListener('fullscreenchange', () => {
             if (!document.fullscreenElement) {
                 btnFullscreen.innerHTML = '⛶';
@@ -776,9 +776,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         ctrlDiv.appendChild(btnFullscreen);
 
+        // 🌟 NUEVO: Botón Home usa la URL configurada en el panel
         const isNational = (cveEnt === '33' || cveEnt === '00'); 
-        if (!isNational && typeof siarheData !== 'undefined' && siarheData.home_url) {
-            createBtn('🏠', 'Ir a Nacional', (e) => { e.preventDefault(); window.location.href = siarheData.home_url; });
+        if (!isNational && state.homeUrl) {
+            createBtn('🏠', 'Ir a Nacional', (e) => { 
+                e.preventDefault(); 
+                window.location.href = state.homeUrl; 
+            });
         }
     }
 

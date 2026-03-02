@@ -50,6 +50,55 @@ $marker_urls = [
     'ESTAB_3' => $upload_url . 'markers/establecimientos-salud.csv?v=' . $v,
     'ESTAB_6' => $upload_url . 'markers/establecimientos-salud.csv?v=' . $v,
 ];
+
+// ======================================================================
+// 🌟 NUEVO: PROCESAMIENTO DE ENLACES DE NAVEGACIÓN (DOBLE CLIC Y HOME)
+// ======================================================================
+$siarhe_links_raw = get_option( 'siarhe_links_map', [] );
+$entity_urls = [];
+$home_url = '';
+
+// Mapeo interno de Claves INEGI a Slugs de configuración
+$entidades_mapa = [
+    '01' => 'aguascalientes', '02' => 'baja-california', '03' => 'baja-california-sur', '04' => 'campeche',
+    '05' => 'coahuila', '06' => 'colima', '07' => 'chiapas', '08' => 'chihuahua', '09' => 'ciudad-de-mexico',
+    '10' => 'durango', '11' => 'guanajuato', '12' => 'guerrero', '13' => 'hidalgo', '14' => 'jalisco',
+    '15' => 'mexico', '16' => 'michoacan', '17' => 'morelos', '18' => 'nayarit', '19' => 'nuevo-leon',
+    '20' => 'oaxaca', '21' => 'puebla', '22' => 'queretaro', '23' => 'quintana-roo', '24' => 'san-luis-potosi',
+    '25' => 'sinaloa', '26' => 'sonora', '27' => 'tabasco', '28' => 'tamaulipas', '29' => 'tlaxcala',
+    '30' => 'veracruz', '31' => 'yucatan', '32' => 'zacatecas'
+];
+
+foreach ($entidades_mapa as $cve => $estado_slug) {
+    if ( !empty($siarhe_links_raw[$estado_slug]) ) {
+        $val = $siarhe_links_raw[$estado_slug];
+        if ( strpos((string)$val, 'cat_') === 0 ) {
+            $cat_id = (int) str_replace('cat_', '', $val);
+            $url = get_term_link($cat_id, 'category');
+        } else {
+            $url = get_permalink((int)$val);
+        }
+        if ( !is_wp_error($url) && !empty($url) ) {
+            $entity_urls[strval($cve)] = $url; // Guardamos con la clave '01', '02', etc. (Que usa D3.js)
+        }
+    }
+}
+
+// Procesar el enlace especial "Home" (República Mexicana)
+if ( !empty($siarhe_links_raw['republica-mexicana']) ) {
+    $val = $siarhe_links_raw['republica-mexicana'];
+    if ( strpos((string)$val, 'cat_') === 0 ) {
+        $cat_id = (int) str_replace('cat_', '', $val);
+        $url = get_term_link($cat_id, 'category');
+    } else {
+        $url = get_permalink((int)$val);
+    }
+    if ( !is_wp_error($url) && !empty($url) ) {
+        $home_url = $url;
+    }
+}
+// ======================================================================
+
 ?>
 
 <style>
@@ -68,9 +117,9 @@ $marker_urls = [
      data-geojson="<?php echo esc_url($geojson_url); ?>"
      data-csv="<?php echo esc_url($csv_url); ?>"
      data-marker-config='<?php echo esc_attr(wp_json_encode($marker_config)); ?>'
-     data-marker-urls='<?php echo esc_attr(wp_json_encode($marker_urls)); ?>'>
-
-    <h1 class="siarhe-main-title" style="text-align: center; margin-bottom: 15px;">
+     data-marker-urls='<?php echo esc_attr(wp_json_encode($marker_urls)); ?>'
+     data-entity-urls='<?php echo esc_attr(wp_json_encode($entity_urls)); ?>' 
+     data-home-url="<?php echo esc_url($home_url); ?>"> <h1 class="siarhe-main-title" style="text-align: center; margin-bottom: 15px;">
         ¿Cuántas enfermeras hay en <?php echo $lugar_texto; ?> en <span class="siarhe-dynamic-year"><?php echo esc_html($anio); ?></span>?
     </h1>
 
@@ -102,7 +151,7 @@ $marker_urls = [
                 </summary>
                 <ul style="margin-top: 15px; padding-left: 20px; line-height: 1.6; margin-bottom: 0;">
                     <li><strong>Navega:</strong> Haz doble clic en un <?php echo $doble_clic_texto; ?>. En celular, toca dos veces seguidas.</li>
-                    <li><strong>Compara Regiones:</strong> Usa el selector "Indicador" (arriba del mapa) para visualizar tasas o totales.</li>
+                    <li><strong>Compara Regiones:</strong> Usa el selector "Indicador" (arriba del mapa) para visualizar tasas o totales. La tasa mostrada se calcula <strong>por cada mil habitantes</strong>.</li>
                     <li><strong>Localiza Unidades:</strong> Activa "Marcadores" para ver Unidades Especiales o información epidemiológica.</li>
                     <li><strong>Descarga:</strong> Utiliza los botones debajo del mapa para obtener imágenes o descarga la tabla en Excel.</li>
                 </ul>
