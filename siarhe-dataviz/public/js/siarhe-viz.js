@@ -1,5 +1,5 @@
 // 📢 LOG INICIAL
-console.log("%c 🚀 SIARHE JS V33: Lógica de Sumas y Conteo de Municipios por Estado", "background: #222; color: #bada55");
+console.log("%c 🚀 SIARHE JS V35: Bug de Renderizado de Controles Solucionado", "background: #222; color: #bada55");
 
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -57,20 +57,30 @@ document.addEventListener('DOMContentLoaded', function() {
     let sortConfig = { key: 'tasa', direction: 'desc' };
 
     function cleanKey(val) { return (val === undefined || val === null) ? "" : val.toString().trim(); }
-    function getGeoKey(props) { return cleanKey(props.ID || props.CVE_ENT || props.cve_ent || props.id); }
+    
+    function getGeoKey(props, isNacional) { 
+        if (!isNacional) {
+            return cleanKey(props.CVE_MUN || props.cve_mun || props.ID || props.id);
+        }
+        return cleanKey(props.CVE_ENT || props.cve_ent || props.ID || props.id); 
+    }
+    
     function parseNum(val) {
         if (!val) return 0;
         const n = parseFloat(val.toString().replace(/,/g, '').replace(/\s/g, ''));
         return isNaN(n) ? 0 : n;
     }
+    
     function getD3Shape(shapeName) {
         const shapes = { 'circle': d3.symbolCircle, 'square': d3.symbolSquare, 'triangle': d3.symbolTriangle, 'diamond': d3.symbolDiamond, 'star': d3.symbolStar, 'cross': d3.symbolCross };
         return shapes[shapeName] || d3.symbolCircle;
     }
+    
     function getMarkerStyle(type, state) {
         if (state.markerStyles[type]) return state.markerStyles[type];
         return { shape: 'circle', fill: '#000000', stroke: '#ffffff' }; 
     }
+    
     function getColValue(row, possibleNames) {
         const keys = Object.keys(row);
         for (let name of possibleNames) {
@@ -89,6 +99,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const geojsonUrl = container.dataset.geojson;
         const csvUrl = container.dataset.csv;
         const mode = container.dataset.mode;
+        const isNacional = (cveEnt === '33' || container.dataset.slug === 'republica-mexicana');
         const loading = container.querySelector('.siarhe-loading-overlay');
 
         let MARCADOR_ESTILOS = {};
@@ -109,6 +120,7 @@ document.addEventListener('DOMContentLoaded', function() {
             activeMarkers: new Set(), markersData: {}, 
             markerStyles: MARCADOR_ESTILOS, markerUrls: MARCADOR_URLS,
             entityUrls: ENTITY_URLS, homeUrl: HOME_URL, 
+            isNacional: isNacional, 
             tooltip: null, markerTrigger: null, lastClickTime: 0,
             rawEstabData: null 
         };
@@ -122,7 +134,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (csv) {
                     state.csvData = processCSV(csv);
-                    state.csvData.forEach(row => { if (row.CVE_ENT) state.dataMap.set(row.CVE_ENT, row); });
+                    
+                    state.csvData.forEach(row => { 
+                        let targetKey = state.isNacional ? row.CVE_ENT : row.CVE_MUN;
+                        if (!state.isNacional && !targetKey) targetKey = row.CVE_ENT; 
+                        
+                        if (targetKey) state.dataMap.set(targetKey, row); 
+                    });
+
                     calcularSumaExactaEnfermeras(container, state);
                     calcularTotalHeader(container, state);
                 }
@@ -147,60 +166,54 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(err => { console.error(err); if(loading) loading.innerHTML = "❌ Error: " + err.message; });
     }
 
-    // 🌟 REVISADO: Asignación estricta de Totales y Especiales
     function processCSV(data) {
         return data.map(d => {
             const row = {};
             row.CVE_ENT = cleanKey(d.CVE_ENT || d.cve_ent || d.mapa || d.id);
+            row.CVE_MUN = cleanKey(d.CVE_MUN || d.cve_mun); 
+            
             row.id_legacy = (d.id || "").toString().trim();
             row.estado = (d.estado || d.Entidad || d.municipio || "").trim();
+            
             const keyPob = Object.keys(d).find(k => k.toLowerCase().startsWith('pob'));
             row.poblacion = parseNum(d[keyPob]);
+            
             Object.keys(METRICAS).forEach(k => { if (k !== 'poblacion') row[k] = parseNum(d[k]); });
             
             row.isTotal = (row.id_legacy === '9999' || row.CVE_ENT === '9999' || row.CVE_ENT === '33' || row.estado.toLowerCase().includes('total'));
-            row.isSpecial = (row.id_legacy === '8888' || row.CVE_ENT === '8888' || row.CVE_ENT === '34' || row.CVE_ENT === '88');
+            row.isSpecial = (row.id_legacy === '8888' || row.CVE_ENT === '8888' || row.CVE_ENT === '34' || row.CVE_ENT === '88' || row.CVE_MUN === '8888');
             
             return row;
         });
     }
 
-    // 🌟 NUEVO: Lógica Matemática para sumas Nacionales y Estatales + Conteo de Municipios
     function calcularSumaExactaEnfermeras(container, state) {
         const sumNode = container.querySelector('.siarhe-dynamic-nurses-sum');
-        const countNodes = container.querySelectorAll('.siarhe-dynamic-mun-count'); // Busca todos los span de conteo
-        const isNacional = (container.dataset.cveEnt === '33' || container.dataset.slug === 'republica-mexicana');
+        const countNodes = container.querySelectorAll('.siarhe-dynamic-mun-count'); 
         
         let sumaTotal = 0;
         let munCount = 0;
 
         state.csvData.forEach(row => {
-            // Ignoramos la fila 9999 (Total) siempre para no duplicar sumas
             if (row.isTotal) return;
 
-            if (isNacional) {
-                // LÓGICA NACIONAL: Sumar Estados (01 al 32) + Extranjero + No Disponible
+            if (state.isNacional) {
                 const cveNum = parseInt(row.CVE_ENT, 10);
                 const isEstado = (cveNum >= 1 && cveNum <= 32);
                 if (isEstado || row.isSpecial) {
                     sumaTotal += (row.enfermeras_total || 0);
                 }
             } else {
-                // LÓGICA ESTATAL: Sumar todos los municipios + No Disponible
                 sumaTotal += (row.enfermeras_total || 0);
-                
-                // Contar municipios reales (Excluir "No Disponible" y "Extranjero")
                 if (!row.isSpecial) {
                     munCount++;
                 }
             }
         });
 
-        // Actualizar el número de enfermeras sumadas
         if (sumNode) sumNode.textContent = sumaTotal.toLocaleString('es-MX');
         
-        // Actualizar el conteo de municipios en el texto (Solo si es mapa estatal)
-        if (!isNacional && countNodes.length > 0) {
+        if (!state.isNacional && countNodes.length > 0) {
             countNodes.forEach(node => {
                 node.textContent = munCount;
             });
@@ -215,11 +228,18 @@ document.addEventListener('DOMContentLoaded', function() {
         let totalAbs = 0, valorMuestra = 0;
         
         const rowTotal = state.csvData.find(r => r.isTotal);
-        if (rowTotal) { totalAbs = rowTotal[pairKey]; valorMuestra = rowTotal[state.currentMetric]; } 
-        else {
-            state.csvData.forEach(row => { if (!row.isTotal && !row.isSpecial && METRICAS[pairKey].tipo === 'absoluto') totalAbs += row[pairKey]; });
+        if (rowTotal) { 
+            totalAbs = rowTotal[pairKey]; 
+            valorMuestra = rowTotal[state.currentMetric]; 
+        } else {
+            state.csvData.forEach(row => { 
+                if (!row.isTotal && !row.isSpecial && METRICAS[pairKey].tipo === 'absoluto') {
+                    totalAbs += row[pairKey]; 
+                }
+            });
             valorMuestra = (info.tipo === 'tasa') ? 0 : totalAbs;
         }
+        
         const absFmt = totalAbs.toLocaleString('es-MX');
         const valFmt = valorMuestra.toLocaleString('es-MX', { maximumFractionDigits: 2 });
         headerDiv.innerHTML = info.tipo === 'tasa' 
@@ -309,7 +329,10 @@ document.addEventListener('DOMContentLoaded', function() {
         
         svg.call(zoom).on("dblclick.zoom", null);
         state.zoom = zoom;
-        renderZoomButtons(mapDiv, svg, zoom, cveEnt);
+        
+        // 🌟 SOLUCIÓN: Agregada la variable `state` al final de la llamada
+        renderZoomButtons(mapDiv, svg, zoom, cveEnt, state); 
+        
         updateMapVisuals(container, state);
     }
 
@@ -327,8 +350,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btnExcel.addEventListener('click', (e) => {
             e.preventDefault();
             let csvContent = '\uFEFF'; 
-            const isNacional = (container.dataset.cveEnt === '33' || container.dataset.slug === 'republica-mexicana');
-            const colEntidad = isNacional ? 'Entidad Federativa' : 'Municipio';
+            const colEntidad = state.isNacional ? 'Entidad Federativa' : 'Municipio';
             csvContent += `${colEntidad},Población,Enfermeras,Tasa\n`;
             
             const mKey = state.currentMetric; const pKey = METRICAS[mKey].pair || mKey; const isPob = (mKey === 'poblacion');
@@ -437,9 +459,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showTooltip(event, d, state) {
-        let cve = getGeoKey(d.properties);
+        let cve = getGeoKey(d.properties, state.isNacional);
         const row = state.dataMap.get(cve);
-        const nombre = row ? row.estado : (d.properties.NOM_ENT || d.properties.NOMGEO || "Sin Datos");
+        const nombre = row ? row.estado : (d.properties.NOMGEO || d.properties.NOM_ENT || "Sin Datos");
         
         let html = `<div class="tooltip-header">${nombre}</div>`;
         if (row) {
@@ -476,7 +498,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
             .style("fill", d => {
-                let cve = getGeoKey(d.properties); const row = state.dataMap.get(cve);
+                let cve = getGeoKey(d.properties, state.isNacional);
+                const row = state.dataMap.get(cve);
                 if (!row) return COLOR_NULL; if (row[metric] === 0) return COLOR_ZERO;
                 return colorScale(row[metric]);
             });
@@ -485,7 +508,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const maxAreaFeatures = new Map();
         state.geoData.features.forEach(d => {
-            let cve = getGeoKey(d.properties); let area = d3.geoArea(d);
+            let cve = getGeoKey(d.properties, state.isNacional); 
+            let area = d3.geoArea(d);
             if (!maxAreaFeatures.has(cve) || area > maxAreaFeatures.get(cve).area) { maxAreaFeatures.set(cve, { feature: d, area: area }); }
         });
         const featuresUnicas = Array.from(maxAreaFeatures.values()).map(item => item.feature);
@@ -500,7 +524,11 @@ document.addEventListener('DOMContentLoaded', function() {
             .attr("text-anchor", "middle")
             .attr("fill", "#0F172A").attr("stroke", "#ffffff").attr("stroke-width", 2.5 / currentK).attr("paint-order", "stroke fill").attr("stroke-linejoin", "round")
             .style("font-size", `${14 / currentK}px`).style("font-weight", "bold")
-            .text(d => { let cve = getGeoKey(d.properties); const row = state.dataMap.get(cve); return row ? row.estado : (d.properties.NOM_ENT || d.properties.NOMGEO || ""); });
+            .text(d => { 
+                let cve = getGeoKey(d.properties, state.isNacional); 
+                const row = state.dataMap.get(cve); 
+                return row ? row.estado : (d.properties.NOMGEO || d.properties.NOM_ENT || ""); 
+            });
 
         renderLegend(state, {min, q1, q2, q3, max});
     }
@@ -758,14 +786,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function handleMapClick(d, state) {
-        let cve = getGeoKey(d.properties);
+        let cve = getGeoKey(d.properties, state.isNacional);
         
         if (state.entityUrls && state.entityUrls[cve]) {
             window.location.href = state.entityUrls[cve];
         }
     }
 
-    function renderZoomButtons(mapDiv, svg, zoom, cveEnt) {
+    // 🌟 SOLUCIÓN: Agregada la variable `state` a la firma de la función
+    function renderZoomButtons(mapDiv, svg, zoom, cveEnt, state) {
         const ctrlDiv = document.createElement('div'); ctrlDiv.className = 'zoom-controles'; mapDiv.appendChild(ctrlDiv);
         const createBtn = (l, t, cb) => { const b = document.createElement('button'); b.className = 'boton'; b.innerHTML = l; b.title = t; b.onclick = cb; ctrlDiv.appendChild(b); };
         
@@ -806,8 +835,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         ctrlDiv.appendChild(btnFullscreen);
 
-        const isNational = (cveEnt === '33' || cveEnt === '00'); 
-        if (!isNational && state.homeUrl) {
+        if (!state.isNacional && state.homeUrl) {
             createBtn('🏠', 'Ir a Nacional', (e) => { 
                 e.preventDefault(); 
                 window.location.href = state.homeUrl; 
@@ -833,8 +861,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const enfDataKey = isPob ? null : pKey; 
         const tasaDataKey = isPob ? null : (METRICAS[mKey].tipo === 'tasa' ? mKey : pKey.replace('enfermeras_', 'tasa_'));
 
-        const isNacional = (container.dataset.cveEnt === '33' || container.dataset.slug === 'republica-mexicana');
-        const labelEntidad = isNacional ? 'Entidad Federativa' : 'Municipio';
+        const labelEntidad = state.isNacional ? 'Entidad Federativa' : 'Municipio';
 
         const cols = [
             { id: 'estado', label: labelEntidad, isNum: false, align: 'left' },
