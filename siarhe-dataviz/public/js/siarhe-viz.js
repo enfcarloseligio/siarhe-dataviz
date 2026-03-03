@@ -1,5 +1,5 @@
 // 📢 LOG INICIAL
-console.log("%c 🚀 SIARHE JS V32: Navegación por Enlaces Dinámicos Integrada", "background: #222; color: #bada55");
+console.log("%c 🚀 SIARHE JS V33: Lógica de Sumas y Conteo de Municipios por Estado", "background: #222; color: #bada55");
 
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -97,7 +97,6 @@ document.addEventListener('DOMContentLoaded', function() {
         let MARCADOR_URLS = {};
         try { MARCADOR_URLS = JSON.parse(container.dataset.markerUrls || '{}'); } catch(e) {}
 
-        // 🌟 NUEVO: Leer Enlaces de Entidades
         let ENTITY_URLS = {};
         try { ENTITY_URLS = JSON.parse(container.dataset.entityUrls || '{}'); } catch(e) {}
         const HOME_URL = container.dataset.homeUrl || '';
@@ -109,7 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
             svg: null, gMain: null, gPaths: null, gLabels: null, gMarkers: null, 
             activeMarkers: new Set(), markersData: {}, 
             markerStyles: MARCADOR_ESTILOS, markerUrls: MARCADOR_URLS,
-            entityUrls: ENTITY_URLS, homeUrl: HOME_URL, // 🌟 Agregar al estado
+            entityUrls: ENTITY_URLS, homeUrl: HOME_URL, 
             tooltip: null, markerTrigger: null, lastClickTime: 0,
             rawEstabData: null 
         };
@@ -148,6 +147,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(err => { console.error(err); if(loading) loading.innerHTML = "❌ Error: " + err.message; });
     }
 
+    // 🌟 REVISADO: Asignación estricta de Totales y Especiales
     function processCSV(data) {
         return data.map(d => {
             const row = {};
@@ -157,23 +157,54 @@ document.addEventListener('DOMContentLoaded', function() {
             const keyPob = Object.keys(d).find(k => k.toLowerCase().startsWith('pob'));
             row.poblacion = parseNum(d[keyPob]);
             Object.keys(METRICAS).forEach(k => { if (k !== 'poblacion') row[k] = parseNum(d[k]); });
-            row.isTotal = (row.id_legacy === '9999' || row.CVE_ENT === '33' || row.estado.toLowerCase().includes('total'));
-            row.isSpecial = (row.id_legacy === '8888' || row.CVE_ENT === '34' || row.CVE_ENT === '88');
+            
+            row.isTotal = (row.id_legacy === '9999' || row.CVE_ENT === '9999' || row.CVE_ENT === '33' || row.estado.toLowerCase().includes('total'));
+            row.isSpecial = (row.id_legacy === '8888' || row.CVE_ENT === '8888' || row.CVE_ENT === '34' || row.CVE_ENT === '88');
+            
             return row;
         });
     }
 
+    // 🌟 NUEVO: Lógica Matemática para sumas Nacionales y Estatales + Conteo de Municipios
     function calcularSumaExactaEnfermeras(container, state) {
         const sumNode = container.querySelector('.siarhe-dynamic-nurses-sum');
-        if (!sumNode) return;
+        const countNodes = container.querySelectorAll('.siarhe-dynamic-mun-count'); // Busca todos los span de conteo
+        const isNacional = (container.dataset.cveEnt === '33' || container.dataset.slug === 'republica-mexicana');
+        
         let sumaTotal = 0;
+        let munCount = 0;
+
         state.csvData.forEach(row => {
-            const cve = parseInt(row.CVE_ENT, 10);
-            const isLegacy8888 = (row.id_legacy === '8888' || row.CVE_ENT === '8888' || row.CVE_ENT === '88');
-            const isExtranjero = (cve === 34);
-            if ((cve >= 1 && cve <= 32) || isExtranjero || isLegacy8888) { sumaTotal += (row.enfermeras_total || 0); }
+            // Ignoramos la fila 9999 (Total) siempre para no duplicar sumas
+            if (row.isTotal) return;
+
+            if (isNacional) {
+                // LÓGICA NACIONAL: Sumar Estados (01 al 32) + Extranjero + No Disponible
+                const cveNum = parseInt(row.CVE_ENT, 10);
+                const isEstado = (cveNum >= 1 && cveNum <= 32);
+                if (isEstado || row.isSpecial) {
+                    sumaTotal += (row.enfermeras_total || 0);
+                }
+            } else {
+                // LÓGICA ESTATAL: Sumar todos los municipios + No Disponible
+                sumaTotal += (row.enfermeras_total || 0);
+                
+                // Contar municipios reales (Excluir "No Disponible" y "Extranjero")
+                if (!row.isSpecial) {
+                    munCount++;
+                }
+            }
         });
-        sumNode.textContent = sumaTotal.toLocaleString('es-MX');
+
+        // Actualizar el número de enfermeras sumadas
+        if (sumNode) sumNode.textContent = sumaTotal.toLocaleString('es-MX');
+        
+        // Actualizar el conteo de municipios en el texto (Solo si es mapa estatal)
+        if (!isNacional && countNodes.length > 0) {
+            countNodes.forEach(node => {
+                node.textContent = munCount;
+            });
+        }
     }
 
     function calcularTotalHeader(container, state) {
@@ -726,7 +757,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 🌟 NUEVO: Función de Clic en el Mapa para usar Enlaces
     function handleMapClick(d, state) {
         let cve = getGeoKey(d.properties);
         
@@ -776,7 +806,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         ctrlDiv.appendChild(btnFullscreen);
 
-        // 🌟 NUEVO: Botón Home usa la URL configurada en el panel
         const isNational = (cveEnt === '33' || cveEnt === '00'); 
         if (!isNational && state.homeUrl) {
             createBtn('🏠', 'Ir a Nacional', (e) => { 

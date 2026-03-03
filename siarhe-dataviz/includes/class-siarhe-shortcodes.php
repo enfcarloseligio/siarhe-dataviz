@@ -74,11 +74,19 @@ class Siarhe_Shortcodes {
         $csv_date    = $csv ? date_i18n('d/M/Y', strtotime($csv->fecha_corte)) : '';
 
         // VALIDACIÓN DE ERRORES VISIBLES
-        if ( empty($geojson_url) ) {
+        if ( empty($geojson_url) && strpos($mode, 'M') !== false ) {
             return "<div style='background:#fff5f5; border:1px solid #fc8181; padding:20px; color:#c53030; border-radius:4px; margin:20px 0;'>
-                        <strong>⚠️ Configuración Incompleta:</strong><br>
+                        <strong>⚠️ Configuración Incompleta (Mapa):</strong><br>
                         No se encontró un archivo GeoJSON activo para <em>$nombre_entidad ($slug)</em>.<br>
                         <small>Ve al Admin > SIARHE > Carga de Datos y sube el mapa correspondiente.</small>
+                   </div>";
+        }
+        
+        if ( empty($csv_url) && strpos($mode, 'T') !== false ) {
+            return "<div style='background:#fff5f5; border:1px solid #fc8181; padding:20px; color:#c53030; border-radius:4px; margin:20px 0;'>
+                        <strong>⚠️ Configuración Incompleta (Datos):</strong><br>
+                        No se encontró un archivo CSV activo para <em>$nombre_entidad ($slug)</em>.<br>
+                        <small>Ve al Admin > SIARHE > Carga de Datos y sube la base estática correspondiente.</small>
                    </div>";
         }
 
@@ -155,24 +163,18 @@ class Siarhe_Shortcodes {
         // 4. Cargar nuestro Script Principal (Depende de D3.js)
         wp_enqueue_script( 'siarhe-viz-js', SIARHE_URL . 'public/js/siarhe-viz.js', array('d3-js'), SIARHE_VERSION, true );
 
-        // 5. INYECTAR DATOS DINÁMICOS A JS (Marcadores, URLs, Home)
-        // Esto permite que el JS sepa a dónde navegar y dónde están los CSVs de marcadores
+        // 5. INYECTAR DATOS DINÁMICOS A JS (Legacy support)
+        // Aunque ahora pasamos la info vía data-attributes en el HTML, mantenemos esto por retrocompatibilidad.
         $entities = siarhe_get_entities();
         $urls_map = [];
         foreach ( $entities as $slug => $data ) {
-            // Estructura de URL: /entidad/nombre-entidad/
             $urls_map[$data['CVE_ENT']] = home_url( "/entidad/$slug/" );
         }
 
         $siarhe_data = [
             'entity_urls' => $urls_map,
-            'home_url'    => home_url( '/mapa-nacional/' ), // URL del mapa principal
-            'markers'     => [
-                // Rutas a los CSV de marcadores (subidos en la carpeta de uploads del plugin)
-                'CATETER'          => SIARHE_UPLOAD_URL . 'clinicas-cateteres.csv',
-                'HERIDAS'          => SIARHE_UPLOAD_URL . 'clinicas-heridas.csv',
-                'ESTABLECIMIENTOS' => SIARHE_UPLOAD_URL . 'establecimientos-salud.csv' // <--- AGREGADO
-            ]
+            'home_url'    => home_url( '/mapa-nacional/' ),
+            'markers'     => [] 
         ];
 
         wp_localize_script( 'siarhe-viz-js', 'siarheData', $siarhe_data );
