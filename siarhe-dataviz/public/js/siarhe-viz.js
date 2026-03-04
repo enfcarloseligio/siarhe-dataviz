@@ -1,5 +1,5 @@
 // 📢 LOG INICIAL
-console.log("%c 🚀 SIARHE JS V35: Bug de Renderizado de Controles Solucionado", "background: #222; color: #bada55");
+console.log("%c 🚀 SIARHE JS V36: Filtro de Marcadores Estatales y Fix de Colores/Cuartiles", "background: #222; color: #bada55");
 
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -330,7 +330,6 @@ document.addEventListener('DOMContentLoaded', function() {
         svg.call(zoom).on("dblclick.zoom", null);
         state.zoom = zoom;
         
-        // 🌟 SOLUCIÓN: Agregada la variable `state` al final de la llamada
         renderZoomButtons(mapDiv, svg, zoom, cveEnt, state); 
         
         updateMapVisuals(container, state);
@@ -487,23 +486,51 @@ document.addEventListener('DOMContentLoaded', function() {
             .style("top", (my - 28) + "px");
     }
 
+    // 🌟 REVISIÓN: Lógica anti-crashes para escalas de color con puros Ceros o datos únicos
     function updateMapVisuals(container, state) {
         const metric = state.currentMetric;
         const values = state.csvData.filter(d => !d.isTotal && !d.isSpecial && d[metric] > 0).map(d => d[metric]).sort(d3.ascending);
-        if(values.length === 0) return;
+        
+        // Si todos los valores de este indicador son cero o no existen, pintamos todo de gris (0) y renderizamos etiquetas
+        if (values.length === 0) {
+            state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
+                .style("fill", d => {
+                    let cve = getGeoKey(d.properties, state.isNacional);
+                    const row = state.dataMap.get(cve);
+                    return (!row) ? COLOR_NULL : COLOR_ZERO;
+                });
+            renderLegend(state, {min: 0, q1: 0, q2: 0, q3: 0, max: 0});
+        } else {
+            // Si hay datos, procedemos con los cuartiles
+            const min = d3.min(values); const max = d3.max(values);
+            let q1 = d3.quantile(values, 0.25); let q2 = d3.quantile(values, 0.50); let q3 = d3.quantile(values, 0.75);
+            
+            let domain = [min, q1, q2, q3, max];
+            
+            // Si solo hay 1 dato único o los valores son tan cerrados que los cuartiles son idénticos,
+            // forzamos una separación matemática minúscula para que la escala no explote.
+            if (min === max) {
+                domain = [min * 0.2, min * 0.4, min * 0.6, min * 0.8, max];
+            } else {
+                for (let i = 1; i < domain.length; i++) {
+                    if (domain[i] <= domain[i-1]) domain[i] = domain[i-1] + 0.000001; 
+                }
+            }
+            
+            const colorScale = d3.scaleLinear().domain(domain).range(COLOR_RANGE).clamp(true);
 
-        const min = d3.min(values); const max = d3.max(values);
-        const q1 = d3.quantile(values, 0.25); const q2 = d3.quantile(values, 0.50); const q3 = d3.quantile(values, 0.75);
-        const colorScale = d3.scaleLinear().domain([min, q1, q2, q3, max]).range(COLOR_RANGE).clamp(true);
+            state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
+                .style("fill", d => {
+                    let cve = getGeoKey(d.properties, state.isNacional);
+                    const row = state.dataMap.get(cve);
+                    if (!row) return COLOR_NULL; if (row[metric] === 0) return COLOR_ZERO;
+                    return colorScale(row[metric]);
+                });
 
-        state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
-            .style("fill", d => {
-                let cve = getGeoKey(d.properties, state.isNacional);
-                const row = state.dataMap.get(cve);
-                if (!row) return COLOR_NULL; if (row[metric] === 0) return COLOR_ZERO;
-                return colorScale(row[metric]);
-            });
+            renderLegend(state, {min, q1, q2, q3, max});
+        }
 
+        // Siempre renderizamos las etiquetas al final
         let currentK = 1; if (state.svg) { try { currentK = d3.zoomTransform(state.svg.node()).k; } catch(e) {} }
 
         const maxAreaFeatures = new Map();
@@ -529,8 +556,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const row = state.dataMap.get(cve); 
                 return row ? row.estado : (d.properties.NOMGEO || d.properties.NOM_ENT || ""); 
             });
-
-        renderLegend(state, {min, q1, q2, q3, max});
     }
 
     function renderLegend(state, stats) {
@@ -644,6 +669,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             const lonText = getColValue(d, ['longitud', 'lon']);
                             const cveNivel = getColValue(d, ['cve_n_atencion', 'cve_ n_atencion', 'cve n atencion']);
                             
+                            // 🌟 EXTRAEMOS LA ENTIDAD DEL MARCADOR PARA FILTRAR LUEGO
+                            const cveEntMarker = getColValue(d, ['cve_ent', 'cve ent', 'entidad', 'clave_entidad']);
+                            
                             return {
                                 clues: getColValue(d, ['clues']),
                                 institucion: getColValue(d, ['institución', 'institucion']),
@@ -651,6 +679,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 municipio: getColValue(d, ['municipio']),
                                 lat: parseFloat(latText),
                                 lon: parseFloat(lonText),
+                                cve_ent: cveEntMarker, // Guardamos la entidad del marcador
                                 tipo_estab: getColValue(d, ['tipo_establecimiento', 'tipo establecimiento']),
                                 tipologia: getColValue(d, ['nombre_tipologia', 'nombre tipologia']),
                                 nivel_atencion: getColValue(d, ['nivel_atencion', 'nivel atencion']),
@@ -662,6 +691,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         }).filter(d => {
                             const isValidCoord = !isNaN(d.lat) && !isNaN(d.lon) && d.lat !== 0 && d.lon !== 0;
                             if (!isValidCoord) return false;
+                            
+                            // 🌟 FILTRO ESTATAL: Si no es el mapa nacional, excluir marcadores que no sean del estado actual
+                            if (!state.isNacional && d.cve_ent) {
+                                let markerEnt = d.cve_ent.toString().padStart(2, '0');
+                                let currentEnt = container.dataset.cveEnt.toString().padStart(2, '0');
+                                if (markerEnt !== currentEnt) return false; // Descartar clínicas de otros estados
+                            }
                             
                             if (type.startsWith('ESTAB_')) {
                                 return d.cve_nivel === nivelTarget;
@@ -793,7 +829,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 🌟 SOLUCIÓN: Agregada la variable `state` a la firma de la función
     function renderZoomButtons(mapDiv, svg, zoom, cveEnt, state) {
         const ctrlDiv = document.createElement('div'); ctrlDiv.className = 'zoom-controles'; mapDiv.appendChild(ctrlDiv);
         const createBtn = (l, t, cb) => { const b = document.createElement('button'); b.className = 'boton'; b.innerHTML = l; b.title = t; b.onclick = cb; ctrlDiv.appendChild(b); };
