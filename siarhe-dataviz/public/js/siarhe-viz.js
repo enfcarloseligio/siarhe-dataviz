@@ -1,5 +1,5 @@
 // 📢 LOG INICIAL
-console.log("%c 🚀 SIARHE JS V36: Filtro de Marcadores Estatales y Fix de Colores/Cuartiles", "background: #222; color: #bada55");
+console.log("%c 🚀 SIARHE JS V38: Calidad de Vida - Límites de Zoom Dinámicos Homologados", "background: #222; color: #bada55");
 
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -122,7 +122,8 @@ document.addEventListener('DOMContentLoaded', function() {
             entityUrls: ENTITY_URLS, homeUrl: HOME_URL, 
             isNacional: isNacional, 
             tooltip: null, markerTrigger: null, lastClickTime: 0,
-            rawEstabData: null 
+            rawEstabData: null,
+            initialTransform: d3.zoomIdentity 
         };
 
         if (!geojsonUrl) return;
@@ -280,6 +281,38 @@ document.addEventListener('DOMContentLoaded', function() {
         const projection = d3.geoMercator().fitSize([width, height], state.geoData); state.projection = projection;
         const path = d3.geoPath().projection(projection); state.path = path; 
 
+        // 🌟 Lógica de Centrado Continental
+        let initialTransform = d3.zoomIdentity;
+        if (cveEnt === '06' || cveEnt === '31') {
+            let lons = [], lats = [];
+            
+            state.geoData.features.forEach(f => {
+                let center = d3.geoCentroid(f);
+                if (!isNaN(center[0]) && !isNaN(center[1])) {
+                    lons.push(center[0]);
+                    lats.push(center[1]);
+                }
+            });
+            
+            lons.sort(d3.ascending);
+            lats.sort(d3.ascending);
+            
+            if (lons.length > 0 && lats.length > 0) {
+                let medianLon = lons[Math.floor(lons.length / 2)];
+                let medianLat = lats[Math.floor(lats.length / 2)];
+                
+                let targetK = cveEnt === '06' ? 5.5 : 1.6; 
+                
+                let [x, y] = projection([medianLon, medianLat]);
+                
+                let tx = width / 2 - x * targetK;
+                let ty = height / 2 - y * targetK;
+                
+                initialTransform = d3.zoomIdentity.translate(tx, ty).scale(targetK);
+            }
+        }
+        state.initialTransform = initialTransform;
+
         d3.selectAll(mapDiv.querySelectorAll(".siarhe-tooltip")).remove(); 
         state.tooltip = d3.select(mapDiv).append("div")
             .attr("class", "siarhe-tooltip")
@@ -306,8 +339,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 state.lastClickTime = ahora;
             });
 
+        // 🌟 LÍMITES DINÁMICOS DE ZOOM HOMOLOGADOS
+        let maxZoom = state.initialTransform.k * 8; // 8 veces más de acercamiento desde la posición inicial
+        if (maxZoom < 12) maxZoom = 12; // Mínimo de 12x para estados estándar
+
         const zoom = d3.zoom()
-            .scaleExtent([1, 8])
+            .scaleExtent([1, maxZoom]) // Mínimo 1 (islas visibles), Máximo dinámico
             .on("zoom", (e) => {
                 gMain.attr("transform", e.transform);
                 const k = e.transform.k;
@@ -329,6 +366,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         svg.call(zoom).on("dblclick.zoom", null);
         state.zoom = zoom;
+        
+        // Aplicar la vista inicial
+        svg.call(zoom.transform, state.initialTransform);
         
         renderZoomButtons(mapDiv, svg, zoom, cveEnt, state); 
         
@@ -486,12 +526,10 @@ document.addEventListener('DOMContentLoaded', function() {
             .style("top", (my - 28) + "px");
     }
 
-    // 🌟 REVISIÓN: Lógica anti-crashes para escalas de color con puros Ceros o datos únicos
     function updateMapVisuals(container, state) {
         const metric = state.currentMetric;
         const values = state.csvData.filter(d => !d.isTotal && !d.isSpecial && d[metric] > 0).map(d => d[metric]).sort(d3.ascending);
         
-        // Si todos los valores de este indicador son cero o no existen, pintamos todo de gris (0) y renderizamos etiquetas
         if (values.length === 0) {
             state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
                 .style("fill", d => {
@@ -501,14 +539,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             renderLegend(state, {min: 0, q1: 0, q2: 0, q3: 0, max: 0});
         } else {
-            // Si hay datos, procedemos con los cuartiles
             const min = d3.min(values); const max = d3.max(values);
             let q1 = d3.quantile(values, 0.25); let q2 = d3.quantile(values, 0.50); let q3 = d3.quantile(values, 0.75);
             
             let domain = [min, q1, q2, q3, max];
             
-            // Si solo hay 1 dato único o los valores son tan cerrados que los cuartiles son idénticos,
-            // forzamos una separación matemática minúscula para que la escala no explote.
             if (min === max) {
                 domain = [min * 0.2, min * 0.4, min * 0.6, min * 0.8, max];
             } else {
@@ -530,7 +565,6 @@ document.addEventListener('DOMContentLoaded', function() {
             renderLegend(state, {min, q1, q2, q3, max});
         }
 
-        // Siempre renderizamos las etiquetas al final
         let currentK = 1; if (state.svg) { try { currentK = d3.zoomTransform(state.svg.node()).k; } catch(e) {} }
 
         const maxAreaFeatures = new Map();
@@ -669,7 +703,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             const lonText = getColValue(d, ['longitud', 'lon']);
                             const cveNivel = getColValue(d, ['cve_n_atencion', 'cve_ n_atencion', 'cve n atencion']);
                             
-                            // 🌟 EXTRAEMOS LA ENTIDAD DEL MARCADOR PARA FILTRAR LUEGO
                             const cveEntMarker = getColValue(d, ['cve_ent', 'cve ent', 'entidad', 'clave_entidad']);
                             
                             return {
@@ -679,7 +712,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 municipio: getColValue(d, ['municipio']),
                                 lat: parseFloat(latText),
                                 lon: parseFloat(lonText),
-                                cve_ent: cveEntMarker, // Guardamos la entidad del marcador
+                                cve_ent: cveEntMarker, 
                                 tipo_estab: getColValue(d, ['tipo_establecimiento', 'tipo establecimiento']),
                                 tipologia: getColValue(d, ['nombre_tipologia', 'nombre tipologia']),
                                 nivel_atencion: getColValue(d, ['nivel_atencion', 'nivel atencion']),
@@ -692,11 +725,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             const isValidCoord = !isNaN(d.lat) && !isNaN(d.lon) && d.lat !== 0 && d.lon !== 0;
                             if (!isValidCoord) return false;
                             
-                            // 🌟 FILTRO ESTATAL: Si no es el mapa nacional, excluir marcadores que no sean del estado actual
                             if (!state.isNacional && d.cve_ent) {
                                 let markerEnt = d.cve_ent.toString().padStart(2, '0');
                                 let currentEnt = container.dataset.cveEnt.toString().padStart(2, '0');
-                                if (markerEnt !== currentEnt) return false; // Descartar clínicas de otros estados
+                                if (markerEnt !== currentEnt) return false; 
                             }
                             
                             if (type.startsWith('ESTAB_')) {
@@ -835,7 +867,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         createBtn('+', 'Acercar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 1.5); });
         createBtn('–', 'Alejar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 0.6); });
-        createBtn('⟳', 'Reset', (e) => { e.preventDefault(); svg.transition().call(zoom.transform, d3.zoomIdentity); });
+        
+        // 🌟 BOTÓN RESET AHORA VUELVE A LA VISTA INICIAL INTELIGENTE
+        createBtn('⟳', 'Reset', (e) => { 
+            e.preventDefault(); 
+            svg.transition().duration(750).call(zoom.transform, state.initialTransform); 
+        });
         
         const btnFullscreen = document.createElement('button');
         btnFullscreen.className = 'boton';
