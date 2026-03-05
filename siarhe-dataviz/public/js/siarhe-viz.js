@@ -1,5 +1,5 @@
 // 📢 LOG INICIAL
-console.log("%c 🚀 SIARHE JS V38: Calidad de Vida - Límites de Zoom Dinámicos Homologados", "background: #222; color: #bada55");
+console.log("%c 🚀 SIARHE JS V39: UX de Marcadores (Bug de Hover + Escala Móvil Inteligente)", "background: #222; color: #bada55");
 
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -281,7 +281,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const projection = d3.geoMercator().fitSize([width, height], state.geoData); state.projection = projection;
         const path = d3.geoPath().projection(projection); state.path = path; 
 
-        // 🌟 Lógica de Centrado Continental
         let initialTransform = d3.zoomIdentity;
         if (cveEnt === '06' || cveEnt === '31') {
             let lons = [], lats = [];
@@ -339,15 +338,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 state.lastClickTime = ahora;
             });
 
-        // 🌟 LÍMITES DINÁMICOS DE ZOOM HOMOLOGADOS
-        let maxZoom = state.initialTransform.k * 8; // 8 veces más de acercamiento desde la posición inicial
-        if (maxZoom < 12) maxZoom = 12; // Mínimo de 12x para estados estándar
+        let maxZoom = state.initialTransform.k * 8; 
+        if (maxZoom < 12) maxZoom = 12; 
 
         const zoom = d3.zoom()
-            .scaleExtent([1, maxZoom]) // Mínimo 1 (islas visibles), Máximo dinámico
+            .scaleExtent([1, maxZoom]) 
             .on("zoom", (e) => {
                 gMain.attr("transform", e.transform);
                 const k = e.transform.k;
+                
+                // 🌟 LÓGICA MÓVIL: Protegemos el límite de escala de los marcadores en pantallas pequeñas
+                const isMobile = window.innerWidth <= 767;
+                const markerK = isMobile ? Math.min(k, 6) : k;
 
                 state.gLabels.selectAll("text.siarhe-label")
                     .style("font-size", `${14 / k}px`)
@@ -356,18 +358,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 const symbolCache = {};
                 state.activeMarkers.forEach(type => {
                     const styleCfg = getMarkerStyle(type, state);
-                    symbolCache[type] = d3.symbol().type(getD3Shape(styleCfg.shape)).size(150 / (k * k))();
+                    // 🌟 Aplicamos el multiplicador protegido al tamaño del marcador
+                    symbolCache[type] = d3.symbol().type(getD3Shape(styleCfg.shape)).size(150 / (markerK * markerK))();
                 });
 
                 state.gMarkers.selectAll("path.siarhe-marker")
                     .attr("d", d => symbolCache[d.tipo])
-                    .attr("stroke-width", 1.5 / k);
+                    // 🌟 Aplicamos el multiplicador protegido al borde del marcador
+                    .attr("stroke-width", 1.5 / markerK);
             });
         
         svg.call(zoom).on("dblclick.zoom", null);
         state.zoom = zoom;
         
-        // Aplicar la vista inicial
         svg.call(zoom.transform, state.initialTransform);
         
         renderZoomButtons(mapDiv, svg, zoom, cveEnt, state); 
@@ -764,6 +767,10 @@ document.addEventListener('DOMContentLoaded', function() {
         state.activeMarkers.forEach(type => { if(state.markersData[type]) allPoints = allPoints.concat(state.markersData[type]); });
 
         let currentK = 1; if (state.svg) { try { currentK = d3.zoomTransform(state.svg.node()).k; } catch(e) {} }
+        
+        // 🌟 CALCULAMOS LA ESCALA PROTEGIDA PARA MÓVILES
+        const isMobile = window.innerWidth <= 767;
+        const markerK = isMobile ? Math.min(currentK, 6) : currentK;
 
         const markers = state.gMarkers.selectAll("path.siarhe-marker").data(allPoints);
         
@@ -774,7 +781,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .merge(markers)
             .attr("d", d => {
                 const styleCfg = getMarkerStyle(d.tipo, state);
-                return d3.symbol().type(getD3Shape(styleCfg.shape)).size(150 / (currentK * currentK))();
+                return d3.symbol().type(getD3Shape(styleCfg.shape)).size(150 / (markerK * markerK))();
             })
             .attr("transform", d => {
                 const coords = state.projection([d.lon, d.lat]);
@@ -782,10 +789,14 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .attr("fill", d => getMarkerStyle(d.tipo, state).fill)
             .attr("stroke", d => getMarkerStyle(d.tipo, state).stroke)
-            .attr("stroke-width", 1.5 / currentK)
+            .attr("stroke-width", 1.5 / markerK)
             .style("cursor", "pointer")
             .on("mouseover", function(e, d) {
-                d3.select(this).attr("stroke-width", 3 / currentK).raise(); 
+                // 🌟 FIX HOVER BUG: Consultamos el nivel de zoom real en este preciso instante
+                let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
+                let mK = (window.innerWidth <= 767) ? Math.min(k, 6) : k;
+                
+                d3.select(this).attr("stroke-width", 3 / mK).raise(); 
 
                 let html = `<div class="tooltip-header" style="color: #06B6D4;">${MARCADOR_NOMBRES[d.tipo] || 'Unidad de Salud'}</div>`;
                 html += `<div style="font-size:12px; margin-top:4px;">
@@ -813,7 +824,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     .style("top", (my - 20) + "px");
             })
             .on("mouseout", function(e, d) {
-                d3.select(this).attr("stroke-width", 1.5 / currentK); 
+                // 🌟 FIX HOVER BUG: Restablecemos basándonos en el zoom actual, no en el histórico
+                let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
+                let mK = (window.innerWidth <= 767) ? Math.min(k, 6) : k;
+                
+                d3.select(this).attr("stroke-width", 1.5 / mK); 
                 state.tooltip.style("display", "none");
             });
 
@@ -868,7 +883,6 @@ document.addEventListener('DOMContentLoaded', function() {
         createBtn('+', 'Acercar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 1.5); });
         createBtn('–', 'Alejar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 0.6); });
         
-        // 🌟 BOTÓN RESET AHORA VUELVE A LA VISTA INICIAL INTELIGENTE
         createBtn('⟳', 'Reset', (e) => { 
             e.preventDefault(); 
             svg.transition().duration(750).call(zoom.transform, state.initialTransform); 
