@@ -1,6 +1,23 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+// 🌟 CARGA INTELIGENTE DE MÓDULOS JAVASCRIPT SEGÚN EL MODO 🌟
+$v_js = time(); // Rompe-caché para desarrollo
+
+// 1. Core y Controles (Siempre se necesitan para leer datos y selectores)
+wp_enqueue_script( 'siarhe-core-js', SIARHE_URL . 'public/js/siarhe-core.js', array(), $v_js, true );
+wp_enqueue_script( 'siarhe-controls-js', SIARHE_URL . 'public/js/siarhe-controls.js', array('siarhe-core-js'), $v_js, true );
+
+// 2. Mapa (Solo si el shortcode incluye la letra 'M')
+if ( strpos( strtoupper($mode), 'M' ) !== false ) {
+    wp_enqueue_script( 'siarhe-map-js', SIARHE_URL . 'public/js/siarhe-map.js', array('siarhe-core-js', 'siarhe-controls-js'), $v_js, true );
+}
+
+// 3. Tabla (Solo si el shortcode incluye la letra 'T')
+if ( strpos( strtoupper($mode), 'T' ) !== false ) {
+    wp_enqueue_script( 'siarhe-table-js', SIARHE_URL . 'public/js/siarhe-table.js', array('siarhe-core-js', 'siarhe-controls-js'), $v_js, true );
+}
+
 // Año de los metadatos de la Base Estática (CSV)
 global $wpdb;
 $table_assets = $wpdb->prefix . 'siarhe_static_assets';
@@ -94,7 +111,6 @@ if ( empty($metricas_array) || !is_array($metricas_array) ) {
 
 // Codificamos de nuevo a JSON limpio
 $metricas_clean_json = wp_json_encode($metricas_array);
-
 
 // PROCESAMIENTO DE ENLACES DE NAVEGACIÓN
 $siarhe_links_raw = get_option( 'siarhe_links_map', [] );

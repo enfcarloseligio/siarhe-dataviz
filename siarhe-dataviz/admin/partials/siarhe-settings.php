@@ -1,8 +1,8 @@
 <?php 
 if ( ! defined( 'ABSPATH' ) ) exit; 
 
-// 1. Obtener pestaña actual (por defecto 'enlaces')
-$active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'enlaces';
+// 1. Obtener pestaña actual (por defecto 'Tema Admin')
+$active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'tema';
 
 // 2. Definir qué grupo de opciones se guarda en cada pestaña
 // Esto debe coincidir con lo que registramos en class-siarhe-admin.php
