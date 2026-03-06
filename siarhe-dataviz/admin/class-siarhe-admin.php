@@ -73,6 +73,9 @@ class Siarhe_Admin {
         
         // 🌟 NUEVO: REGISTRO PARA MÉTRICAS DINÁMICAS
         register_setting( 'siarhe_metricas_group', 'siarhe_metricas_config' );
+        
+        // 🌟 NUEVO: REGISTRO PARA TOOLTIPS
+        register_setting( 'siarhe_tooltip_group', 'siarhe_tooltip_config' );
     }
 
     // -------------------------------------------------------------------------

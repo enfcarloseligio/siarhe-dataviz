@@ -9,7 +9,8 @@ $active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'tema';
 $option_group = 'siarhe_links_group'; // Default
 if ( $active_tab == 'tema' ) $option_group = 'siarhe_theme_group';
 if ( $active_tab == 'mapa' ) $option_group = 'siarhe_map_group';
-if ( $active_tab == 'metricas' ) $option_group = 'siarhe_metricas_group'; // 🌟 NUEVO GRUPO
+if ( $active_tab == 'tooltip' ) $option_group = 'siarhe_tooltip_group'; // 🌟 AÑADIDO GRUPO TOOLTIP
+if ( $active_tab == 'metricas' ) $option_group = 'siarhe_metricas_group'; 
 ?>
 
 <div class="wrap">
