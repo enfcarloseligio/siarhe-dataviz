@@ -70,6 +70,9 @@ class Siarhe_Admin {
         register_setting( 'siarhe_links_group', 'siarhe_links_map' );
         register_setting( 'siarhe_theme_group', 'siarhe_theme_options' );
         register_setting( 'siarhe_map_group', 'siarhe_map_options' );
+        
+        // 🌟 NUEVO: REGISTRO PARA MÉTRICAS DINÁMICAS
+        register_setting( 'siarhe_metricas_group', 'siarhe_metricas_config' );
     }
 
     // -------------------------------------------------------------------------

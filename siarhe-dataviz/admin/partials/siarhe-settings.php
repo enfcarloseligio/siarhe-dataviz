@@ -9,6 +9,7 @@ $active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'enlaces';
 $option_group = 'siarhe_links_group'; // Default
 if ( $active_tab == 'tema' ) $option_group = 'siarhe_theme_group';
 if ( $active_tab == 'mapa' ) $option_group = 'siarhe_map_group';
+if ( $active_tab == 'metricas' ) $option_group = 'siarhe_metricas_group'; // 🌟 NUEVO GRUPO
 ?>
 
 <div class="wrap">
@@ -27,6 +28,9 @@ if ( $active_tab == 'mapa' ) $option_group = 'siarhe_map_group';
         </a>
         <a href="?page=siarhe-settings&tab=tooltip" class="nav-tab <?php echo $active_tab == 'tooltip' ? 'nav-tab-active' : ''; ?>">
             <span class="dashicons dashicons-info"></span> Tooltips
+        </a>
+        <a href="?page=siarhe-settings&tab=metricas" class="nav-tab <?php echo $active_tab == 'metricas' ? 'nav-tab-active' : ''; ?>">
+            <span class="dashicons dashicons-chart-bar"></span> Métricas (CSV)
         </a>
     </nav>
 

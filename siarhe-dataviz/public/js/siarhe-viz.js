@@ -1,5 +1,5 @@
 // 📢 LOG INICIAL
-console.log("%c 🚀 SIARHE JS V40: Control Independiente para Tablas (Modo T) Integrado", "background: #222; color: #bada55");
+console.log("%c 🚀 SIARHE JS V42: Soporte para valores nulos (Sin Datos) y Búsqueda Dinámica de Pares", "background: #222; color: #bada55");
 
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -8,37 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ==========================================
     // 1. CONFIGURACIÓN
     // ==========================================
-    const METRICAS = {
-        'tasa_total':                 { label: 'Tasa Total', fullLabel: 'Tasa de enfermeras por cada mil habitantes', tipo: 'tasa', pair: 'enfermeras_total' },
-        'enfermeras_total':           { label: 'Total Enf.', fullLabel: 'Total de profesionales de enfermería',      tipo: 'absoluto', pair: 'enfermeras_total' },
-        
-        'tasa_primer':                { label: 'Tasa 1er Nivel', fullLabel: 'Tasa de enfermeras en 1er Nivel de Atención',       tipo: 'tasa', pair: 'enfermeras_primer' },
-        'enfermeras_primer':          { label: 'Enf. 1er Nivel', fullLabel: 'Enfermeras en 1er Nivel de Atención', tipo: 'absoluto', pair: 'enfermeras_primer' },
-        
-        'tasa_segundo':               { label: 'Tasa 2do Nivel', fullLabel: 'Tasa de enfermeras en 2dor Nivel de Atención',       tipo: 'tasa', pair: 'enfermeras_segundo' },
-        'enfermeras_segundo':         { label: 'Enf. 2do Nivel', fullLabel: 'Enfermeras en 2do Nivel de Atención', tipo: 'absoluto', pair: 'enfermeras_segundo' },
-        
-        'tasa_tercer':                { label: 'Tasa 3er Nivel', fullLabel: 'Tasa de enfermeras en 3er Nivel de Atención',       tipo: 'tasa', pair: 'enfermeras_tercer' },
-        'enfermeras_tercer':          { label: 'Enf. 3er Nivel', fullLabel: 'Enfermeras en 3er Nivel de Atención', tipo: 'absoluto', pair: 'enfermeras_tercer' },
-        
-        'tasa_apoyo':                 { label: 'Tasa Apoyo', fullLabel: 'Tasa de enfermeras en establecimientos de apoyo',       tipo: 'tasa', pair: 'enfermeras_apoyo' },
-        'enfermeras_apoyo':           { label: 'Enf. Apoyo', fullLabel: 'Enfermeras en establecimientos de apoyo', tipo: 'absoluto', pair: 'enfermeras_apoyo' },
-        
-        'tasa_administrativas':       { label: 'Tasa Admin.', fullLabel: 'Tasa de enfermeras con funciones administrativas',     tipo: 'tasa', pair: 'enfermeras_administrativas' },
-        'enfermeras_administrativas': { label: 'Enf. Admin.', fullLabel: 'Enfermeras con funciones administrativas', tipo: 'absoluto', pair: 'enfermeras_administrativas' },
-        
-        'tasa_escuelas':              { label: 'Tasa Escuelas', fullLabel: 'Tasa de enfermeras en escuelas de enfermería',       tipo: 'tasa', pair: 'enfermeras_escuelas' },
-        'enfermeras_escuelas':        { label: 'Enf. Escuelas', fullLabel: 'Enfermeras en escuelas de enfermería', tipo: 'absoluto', pair: 'enfermeras_escuelas' },
-        
-        'tasa_no_aplica':             { label: 'Tasa Otros Est.', fullLabel: 'Tasa de enfermeras en otros establecimientos',       tipo: 'tasa', pair: 'enfermeras_no_aplica' },
-        'enfermeras_no_aplica':       { label: 'Enf. Otros Est.', fullLabel: 'Enfermeras en otros establecimientos', tipo: 'absoluto', pair: 'enfermeras_no_aplica' },
-        
-        'tasa_no_asignado':           { label: 'Tasa No Asignado', fullLabel: 'Tasa de enfermeras con funciones no asignadas',       tipo: 'tasa', pair: 'enfermeras_no_asignado' },
-        'enfermeras_no_asignado':     { label: 'Enf. No Asignado', fullLabel: 'Enfermeras con funciones no asignadas', tipo: 'absoluto', pair: 'enfermeras_no_asignado' },
-        
-        'poblacion':                  { label: 'Población',  fullLabel: 'Población total',          tipo: 'absoluto', pair: 'poblacion' }
-    };
-
+    
     const MARCADOR_NOMBRES = { 
         'CATETER': "Clínicas de catéteres", 
         'HERIDAS': "Clínicas de heridas",
@@ -56,6 +26,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let sortConfig = { key: 'tasa', direction: 'desc' };
 
+    // ==========================================
+    // 2. UTILIDADES Y PARSERS
+    // ==========================================
+
     function cleanKey(val) { return (val === undefined || val === null) ? "" : val.toString().trim(); }
     
     function getGeoKey(props, isNacional) { 
@@ -65,10 +39,16 @@ document.addEventListener('DOMContentLoaded', function() {
         return cleanKey(props.CVE_ENT || props.cve_ent || props.ID || props.id); 
     }
     
+    /**
+     * Extrae el valor numérico. Si la celda está vacía o la columna no existe, devuelve null (Sin Datos).
+     * Si contiene un 0 textual, devuelve un 0 numérico (Valor Cero).
+     */
     function parseNum(val) {
-        if (!val) return 0;
+        if (val === undefined || val === null || val.toString().trim() === "" || val.toString().trim().toUpperCase() === "S/D") {
+            return null;
+        }
         const n = parseFloat(val.toString().replace(/,/g, '').replace(/\s/g, ''));
-        return isNaN(n) ? 0 : n;
+        return isNaN(n) ? null : n;
     }
     
     function getD3Shape(shapeName) {
@@ -91,6 +71,21 @@ document.addEventListener('DOMContentLoaded', function() {
         return "";
     }
 
+    /**
+     * Búsqueda Dinámica: Localiza la clave "Tasa" que le corresponde a un valor "Absoluto"
+     * escaneando el diccionario de métricas provisto por PHP, sin depender de textos quemados.
+     */
+    function findRateKeyForAbsolute(absKey, metricasConfig) {
+        const foundRate = Object.keys(metricasConfig).find(k => 
+            metricasConfig[k].pair === absKey && metricasConfig[k].tipo === 'tasa'
+        );
+        return foundRate || null;
+    }
+
+    // ==========================================
+    // 3. INICIALIZACIÓN
+    // ==========================================
+
     const wrappers = document.querySelectorAll('.siarhe-viz-wrapper');
     wrappers.forEach(initVisualization);
 
@@ -98,7 +93,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const cveEnt = container.dataset.cveEnt;
         const geojsonUrl = container.dataset.geojson;
         const csvUrl = container.dataset.csv;
-        const mode = (container.dataset.mode || '').trim(); // 🌟 Limpiamos el modo por seguridad (M, T, MT)
+        const mode = (container.dataset.mode || '').trim();
         const isNacional = (cveEnt === '33' || container.dataset.slug === 'republica-mexicana');
         const loading = container.querySelector('.siarhe-loading-overlay');
 
@@ -110,10 +105,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let ENTITY_URLS = {};
         try { ENTITY_URLS = JSON.parse(container.dataset.entityUrls || '{}'); } catch(e) {}
+        
+        let METRICAS_CONFIG = {};
+        try { METRICAS_CONFIG = JSON.parse(container.dataset.metricas || '{}'); } catch(e) { console.error("[SIARHE] Error leyendo métricas", e); }
+        
         const HOME_URL = container.dataset.homeUrl || '';
 
         let state = {
             geoData: null, csvData: [], dataMap: new Map(),
+            metricas: METRICAS_CONFIG,
             currentMetric: 'tasa_total',
             zoom: null, gLegend: null, gMarkerLegend: null, gradientId: null,
             svg: null, gMain: null, gPaths: null, gLabels: null, gMarkers: null, 
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 state.geoData = geo;
                 
                 if (csv) {
-                    state.csvData = processCSV(csv);
+                    state.csvData = processCSV(csv, state.metricas);
                     
                     state.csvData.forEach(row => { 
                         let targetKey = state.isNacional ? row.CVE_ENT : row.CVE_MUN;
@@ -147,11 +147,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     calcularTotalHeader(container, state);
                 }
 
-                // 🌟 LÓGICA DE MODOS ACTUALIZADA (MAPA O TABLA) 🌟
                 if (mode.includes('M')) {
                     renderMap(container, state, cveEnt);
                     if (csv) {
-                        // Si hay mapa, el selector de métrica y marcadores se ponen arriba del mapa
                         renderMainControls(container, state, () => {
                             updateMapVisuals(container, state);
                             calcularTotalHeader(container, state);
@@ -160,7 +158,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     setupActionButtons(container, state);
                 } else if (mode === 'T' && csv) {
-                    // Si es SOLO TABLA ("T"), el selector de métrica se pone arriba de la tabla (sin marcadores)
                     renderMainControls(container, state, () => {
                         calcularTotalHeader(container, state);
                         updateTable(container, state);
@@ -175,7 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(err => { console.error(err); if(loading) loading.innerHTML = "❌ Error: " + err.message; });
     }
 
-    function processCSV(data) {
+    function processCSV(data, metricasConfig) {
         return data.map(d => {
             const row = {};
             row.CVE_ENT = cleanKey(d.CVE_ENT || d.cve_ent || d.mapa || d.id);
@@ -187,7 +184,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const keyPob = Object.keys(d).find(k => k.toLowerCase().startsWith('pob'));
             row.poblacion = parseNum(d[keyPob]);
             
-            Object.keys(METRICAS).forEach(k => { if (k !== 'poblacion') row[k] = parseNum(d[k]); });
+            // Procesa cualquier métrica definida, asignando null a las columnas faltantes o vacías
+            Object.keys(metricasConfig).forEach(k => { 
+                if (k !== 'poblacion') row[k] = parseNum(d[k]); 
+            });
             
             row.isTotal = (row.id_legacy === '9999' || row.CVE_ENT === '9999' || row.CVE_ENT === '33' || row.estado.toLowerCase().includes('total'));
             row.isSpecial = (row.id_legacy === '8888' || row.CVE_ENT === '8888' || row.CVE_ENT === '34' || row.CVE_ENT === '88' || row.CVE_MUN === '8888');
@@ -195,6 +195,10 @@ document.addEventListener('DOMContentLoaded', function() {
             return row;
         });
     }
+
+    // ==========================================
+    // 4. LÓGICA DE HEADER Y CÁLCULOS
+    // ==========================================
 
     function calcularSumaExactaEnfermeras(container, state) {
         const sumNode = container.querySelector('.siarhe-dynamic-nurses-sum');
@@ -210,7 +214,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const cveNum = parseInt(row.CVE_ENT, 10);
                 const isEstado = (cveNum >= 1 && cveNum <= 32);
                 if (isEstado || row.isSpecial) {
-                    sumaTotal += (row.enfermeras_total || 0);
+                    sumaTotal += (row.enfermeras_total || 0); // null || 0 previene sumar NaNs
                 }
             } else {
                 sumaTotal += (row.enfermeras_total || 0);
@@ -223,45 +227,48 @@ document.addEventListener('DOMContentLoaded', function() {
         if (sumNode) sumNode.textContent = sumaTotal.toLocaleString('es-MX');
         
         if (!state.isNacional && countNodes.length > 0) {
-            countNodes.forEach(node => {
-                node.textContent = munCount;
-            });
+            countNodes.forEach(node => { node.textContent = munCount; });
         }
     }
 
     function calcularTotalHeader(container, state) {
         const headerDiv = container.querySelector('.siarhe-dynamic-total');
         if (!headerDiv) return;
-        const info = METRICAS[state.currentMetric];
+        
+        const info = state.metricas[state.currentMetric];
         const pairKey = info.pair || state.currentMetric;
-        let totalAbs = 0, valorMuestra = 0;
+        let totalAbs = 0, valorMuestra = null;
         
         const rowTotal = state.csvData.find(r => r.isTotal);
         if (rowTotal) { 
-            totalAbs = rowTotal[pairKey]; 
+            totalAbs = rowTotal[pairKey] || 0; 
             valorMuestra = rowTotal[state.currentMetric]; 
         } else {
             state.csvData.forEach(row => { 
-                if (!row.isTotal && !row.isSpecial && METRICAS[pairKey].tipo === 'absoluto') {
-                    totalAbs += row[pairKey]; 
+                if (!row.isTotal && !row.isSpecial && state.metricas[pairKey] && state.metricas[pairKey].tipo === 'absoluto') {
+                    totalAbs += (row[pairKey] || 0); 
                 }
             });
-            valorMuestra = (info.tipo === 'tasa') ? 0 : totalAbs;
+            valorMuestra = (info.tipo === 'tasa') ? null : totalAbs;
         }
         
         const absFmt = totalAbs.toLocaleString('es-MX');
-        const valFmt = valorMuestra.toLocaleString('es-MX', { maximumFractionDigits: 2 });
+        const valFmt = (valorMuestra === null || valorMuestra === undefined) ? '—' : valorMuestra.toLocaleString('es-MX', { maximumFractionDigits: 2 });
+        
         headerDiv.innerHTML = info.tipo === 'tasa' 
             ? `<span style="margin-right:15px;">${info.fullLabel}: <strong style="color:#0A66C2; font-size:1.2em;">${valFmt}</strong></span><span>Enfermeras: <strong style="color:#0A66C2; font-size:1.2em;">${absFmt}</strong></span>`
             : `<span>${info.fullLabel}: <strong style="color:#0A66C2; font-size:1.2em;">${valFmt}</strong></span>`;
     }
 
+    // ==========================================
+    // 5. RENDER DE MAPA Y ZOOM
+    // ==========================================
+
     function renderMap(container, state, cveEnt) {
         const mapDiv = container.querySelector('.siarhe-map-container');
         mapDiv.innerHTML = '';
 
-        const width = 1600; 
-        const height = 900; 
+        const width = 1600; const height = 900; 
 
         const svg = d3.select(mapDiv).append("svg")
             .attr("viewBox", `0 0 ${width} ${height}`)
@@ -292,39 +299,26 @@ document.addEventListener('DOMContentLoaded', function() {
         let initialTransform = d3.zoomIdentity;
         if (cveEnt === '06' || cveEnt === '31') {
             let lons = [], lats = [];
-            
             state.geoData.features.forEach(f => {
                 let center = d3.geoCentroid(f);
-                if (!isNaN(center[0]) && !isNaN(center[1])) {
-                    lons.push(center[0]);
-                    lats.push(center[1]);
-                }
+                if (!isNaN(center[0]) && !isNaN(center[1])) { lons.push(center[0]); lats.push(center[1]); }
             });
-            
-            lons.sort(d3.ascending);
-            lats.sort(d3.ascending);
+            lons.sort(d3.ascending); lats.sort(d3.ascending);
             
             if (lons.length > 0 && lats.length > 0) {
                 let medianLon = lons[Math.floor(lons.length / 2)];
                 let medianLat = lats[Math.floor(lats.length / 2)];
-                
                 let targetK = cveEnt === '06' ? 5.5 : 1.6; 
-                
                 let [x, y] = projection([medianLon, medianLat]);
-                
                 let tx = width / 2 - x * targetK;
                 let ty = height / 2 - y * targetK;
-                
                 initialTransform = d3.zoomIdentity.translate(tx, ty).scale(targetK);
             }
         }
         state.initialTransform = initialTransform;
 
         d3.selectAll(mapDiv.querySelectorAll(".siarhe-tooltip")).remove(); 
-        state.tooltip = d3.select(mapDiv).append("div")
-            .attr("class", "siarhe-tooltip")
-            .style("opacity", 0)
-            .style("display", "none");
+        state.tooltip = d3.select(mapDiv).append("div").attr("class", "siarhe-tooltip").style("opacity", 0).style("display", "none");
 
         state.gPaths.selectAll("path.siarhe-feature")
             .data(state.geoData.features).enter().append("path")
@@ -354,7 +348,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .on("zoom", (e) => {
                 gMain.attr("transform", e.transform);
                 const k = e.transform.k;
-                
                 const isMobile = window.innerWidth <= 767;
                 const markerK = isMobile ? Math.min(k, 6) : k;
 
@@ -375,13 +368,278 @@ document.addEventListener('DOMContentLoaded', function() {
         
         svg.call(zoom).on("dblclick.zoom", null);
         state.zoom = zoom;
-        
         svg.call(zoom.transform, state.initialTransform);
-        
         renderZoomButtons(mapDiv, svg, zoom, cveEnt, state); 
-        
         updateMapVisuals(container, state);
     }
+
+    // ==========================================
+    // 6. ACTUALIZACIÓN VISUAL Y COLORES
+    // ==========================================
+
+    function updateMapVisuals(container, state) {
+        const metric = state.currentMetric;
+        
+        // El cálculo de cuartiles ignora estrictamente los valores Nulos y Cero (> 0)
+        const values = state.csvData
+            .filter(d => !d.isTotal && !d.isSpecial && d[metric] !== null && d[metric] > 0)
+            .map(d => d[metric])
+            .sort(d3.ascending);
+        
+        if (values.length === 0) {
+            state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
+                .style("fill", d => {
+                    let cve = getGeoKey(d.properties, state.isNacional);
+                    const row = state.dataMap.get(cve);
+                    // Si el registro no existe o el valor de la métrica es null, pintamos COLOR_NULL
+                    if (!row || row[metric] === null || row[metric] === undefined) return COLOR_NULL;
+                    return COLOR_ZERO;
+                });
+            renderLegend(state, {min: 0, q1: 0, q2: 0, q3: 0, max: 0});
+        } else {
+            const min = d3.min(values); const max = d3.max(values);
+            let q1 = d3.quantile(values, 0.25); let q2 = d3.quantile(values, 0.50); let q3 = d3.quantile(values, 0.75);
+            
+            let domain = [min, q1, q2, q3, max];
+            
+            if (min === max) {
+                domain = [min * 0.2, min * 0.4, min * 0.6, min * 0.8, max];
+            } else {
+                for (let i = 1; i < domain.length; i++) {
+                    if (domain[i] <= domain[i-1]) domain[i] = domain[i-1] + 0.000001; 
+                }
+            }
+            
+            const colorScale = d3.scaleLinear().domain(domain).range(COLOR_RANGE).clamp(true);
+
+            state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
+                .style("fill", d => {
+                    let cve = getGeoKey(d.properties, state.isNacional);
+                    const row = state.dataMap.get(cve);
+                    
+                    // 🌟 Lógica estricta de protección de color 🌟
+                    if (!row) return COLOR_NULL; 
+                    if (row[metric] === null || row[metric] === undefined) return COLOR_NULL; // Columna vacía o S/D
+                    if (row[metric] === 0) return COLOR_ZERO; // Columna declarada expresamente en 0
+                    
+                    return colorScale(row[metric]);
+                });
+
+            renderLegend(state, {min, q1, q2, q3, max});
+        }
+
+        let currentK = 1; if (state.svg) { try { currentK = d3.zoomTransform(state.svg.node()).k; } catch(e) {} }
+
+        const maxAreaFeatures = new Map();
+        state.geoData.features.forEach(d => {
+            let cve = getGeoKey(d.properties, state.isNacional); 
+            let area = d3.geoArea(d);
+            if (!maxAreaFeatures.has(cve) || area > maxAreaFeatures.get(cve).area) { maxAreaFeatures.set(cve, { feature: d, area: area }); }
+        });
+        const featuresUnicas = Array.from(maxAreaFeatures.values()).map(item => item.feature);
+
+        const labels = state.gLabels.selectAll("text.siarhe-label").data(featuresUnicas);
+        labels.exit().remove();
+        labels.enter().append("text")
+            .attr("class", "siarhe-label")
+            .merge(labels)
+            .attr("x", d => { const c = state.path.centroid(d); return isNaN(c[0]) ? 0 : c[0]; })
+            .attr("y", d => { const c = state.path.centroid(d); return isNaN(c[1]) ? 0 : c[1]; })
+            .attr("text-anchor", "middle")
+            .attr("fill", "#0F172A").attr("stroke", "#ffffff").attr("stroke-width", 2.5 / currentK).attr("paint-order", "stroke fill").attr("stroke-linejoin", "round")
+            .style("font-size", `${14 / currentK}px`).style("font-weight", "bold")
+            .text(d => { 
+                let cve = getGeoKey(d.properties, state.isNacional); 
+                const row = state.dataMap.get(cve); 
+                return row ? row.estado : (d.properties.NOMGEO || d.properties.NOM_ENT || ""); 
+            });
+    }
+
+    function renderLegend(state, stats) {
+        const g = state.gLegend; g.html("");
+        const label = state.metricas[state.currentMetric].label;
+        const domain = [stats.min, stats.q1, stats.q2, stats.q3, stats.max];
+
+        g.append("rect").attr("x", -10).attr("y", -25).attr("width", 140).attr("height", 270)
+         .attr("fill", "rgba(255,255,255,0.9)").attr("rx", 5).style("filter", "drop-shadow(2px 2px 2px rgba(0,0,0,0.1))");
+        g.append("text").attr("x", 0).attr("y", -10).text(label).style("font-size", "12px").style("font-weight", "bold").style("fill", "#0F172A");
+        
+        const h = 150, w = 15, step = h/4;
+        g.append("rect").attr("x", 0).attr("y", 10).attr("width", w).attr("height", h).style("fill", `url(#${state.gradientId})`).style("stroke", "#ccc");
+
+        domain.forEach((v, i) => {
+            const y = 10 + h - (i * step);
+            g.append("line").attr("x1", w).attr("x2", w+5).attr("y1", y).attr("y2", y).style("stroke", "#666");
+            g.append("text").attr("x", w+8).attr("y", y+4).text(v.toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})).style("font-size", "11px").style("fill", "#475569");
+        });
+
+        const g0 = g.append("g").attr("transform", `translate(0, ${h+40})`);
+        g0.append("rect").attr("width", 12).attr("height", 12).style("fill", COLOR_ZERO);
+        g0.append("text").attr("x", 18).attr("y", 10).text("0.00").style("font-size", "11px").style("fill", "#475569");
+
+        const gN = g.append("g").attr("transform", `translate(0, ${h+65})`);
+        gN.append("rect").attr("width", 12).attr("height", 12).style("fill", COLOR_NULL);
+        gN.append("text").attr("x", 18).attr("y", 10).text("S/D").style("font-size", "11px").style("fill", "#475569");
+    }
+
+    // ==========================================
+    // 7. TOOLTIP
+    // ==========================================
+
+    function showTooltip(event, d, state) {
+        let cve = getGeoKey(d.properties, state.isNacional);
+        const row = state.dataMap.get(cve);
+        const nombre = row ? row.estado : (d.properties.NOMGEO || d.properties.NOM_ENT || "Sin Datos");
+        
+        let html = `<div class="tooltip-header">${nombre}</div>`;
+        if (row) {
+            const mKey = state.currentMetric; 
+            const pKey = state.metricas[mKey].pair || mKey; 
+            html += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span style="color:#A5B4C3">Población:</span> <b>${row.poblacion.toLocaleString('es-MX')}</b></div>`;
+            
+            if (mKey !== 'poblacion') {
+                const labelAbs = state.metricas[pKey] ? state.metricas[pKey].label.replace('Total ','') : pKey;
+                
+                // Si el absoluto es nulo, pintamos "—"
+                const valAbs = (row[pKey] !== null && row[pKey] !== undefined) ? row[pKey].toLocaleString('es-MX') : '—';
+                html += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span style="color:#A5B4C3">${labelAbs}:</span> <b>${valAbs}</b></div>`;
+                
+                // Encontrar la llave de la Tasa usando el diccionario (Búsqueda Dinámica)
+                let tasaKey = (state.metricas[mKey].tipo === 'tasa') ? mKey : findRateKeyForAbsolute(pKey, state.metricas);
+                let valTasa = tasaKey ? row[tasaKey] : null;
+                
+                // Si la tasa es nula, pintamos "—"
+                const valTasaFmt = (valTasa !== null && valTasa !== undefined) ? valTasa.toFixed(2) : '—';
+                const labelTasa = (state.metricas[mKey].tipo === 'tasa') ? state.metricas[mKey].label : 'Tasa';
+
+                html += `<div style="display:flex; justify-content:space-between; margin-top:6px; padding-top:6px; border-top:1px solid #475569;">
+                            <span style="color:#F8FAFC">${labelTasa}:</span> 
+                            <strong>${valTasaFmt}</strong>
+                         </div>`;
+            }
+        }
+        
+        const mapDiv = document.querySelector('.siarhe-map-container');
+        if (mapDiv) {
+            const [mx, my] = d3.pointer(event, mapDiv);
+            state.tooltip.html(html)
+                .style("display", "block")
+                .style("opacity", 1)
+                .style("left", (mx + 15) + "px")
+                .style("top", (my - 28) + "px");
+        }
+    }
+
+    // ==========================================
+    // 8. TABLA DE DATOS
+    // ==========================================
+
+    function initTableStructure(container, state) {
+        const div = container.querySelector('.siarhe-table-container'); div.innerHTML = '';
+        const table = document.createElement('table'); table.className = 'siarhe-data-table';
+        state.tableElements = { table, thead: table.createTHead(), tbody: table.createTBody() };
+        div.appendChild(table);
+        updateTable(container, state);
+    }
+
+    function updateTable(container, state) {
+        if (!state.csvData.length) return;
+        const { thead, tbody } = state.tableElements;
+        const mKey = state.currentMetric;
+        const pKey = state.metricas[mKey].pair || mKey;
+        const isPob = (mKey === 'poblacion');
+        
+        const enfDataKey = isPob ? null : pKey; 
+        
+        // Búsqueda dinámica de la columna Tasa
+        let tasaDataKey = null;
+        if (!isPob) {
+            tasaDataKey = (state.metricas[mKey].tipo === 'tasa') ? mKey : findRateKeyForAbsolute(pKey, state.metricas);
+        }
+
+        const labelEntidad = state.isNacional ? 'Entidad Federativa' : 'Municipio';
+
+        const cols = [
+            { id: 'estado', label: labelEntidad, isNum: false, align: 'left' },
+            { id: 'poblacion', label: 'Población', isNum: true, align: 'right' },
+            { id: 'enfermeras', label: 'Enfermeras', isNum: true, dataKey: enfDataKey, dash: isPob, align: 'right' },
+            { id: 'tasa', label: 'Tasa', isNum: true, dataKey: tasaDataKey, dash: isPob, align: 'right' }
+        ];
+
+        thead.innerHTML = ''; const tr = document.createElement('tr');
+        cols.forEach(c => {
+            const th = document.createElement('th');
+            th.style.textAlign = c.align;
+            let arrow = '↕';
+            if (sortConfig.key === c.id) arrow = sortConfig.direction === 'asc' ? '▲' : '▼';
+            th.innerHTML = `${c.label} <small>${arrow}</small>`;
+            th.onclick = () => {
+                if (sortConfig.key === c.id) sortConfig.direction = sortConfig.direction==='asc'?'desc':'asc';
+                else { sortConfig.key = c.id; sortConfig.direction = c.isNum ? 'desc':'asc'; }
+                updateTable(container, state);
+            };
+            tr.appendChild(th);
+        });
+        thead.appendChild(tr);
+
+        const getVal = (r, colId) => {
+            if (colId === 'estado') return r.estado;
+            if (colId === 'poblacion') return r.poblacion;
+            if (colId === 'enfermeras') return isPob ? null : r[enfDataKey];
+            if (colId === 'tasa') return isPob ? null : r[tasaDataKey];
+            return null;
+        };
+
+        const rows = state.csvData.filter(r => !r.isTotal && !r.isSpecial).sort((a,b) => {
+            const va = getVal(a, sortConfig.key); 
+            const vb = getVal(b, sortConfig.key);
+            
+            // Tratamiento de los Nulos para evitar que rompan el ordenamiento
+            if (va === null && vb !== null) return 1; 
+            if (vb === null && va !== null) return -1;
+            if (va === null && vb === null) return 0;
+            
+            if (va < vb) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (va > vb) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+        
+        const fixed = state.csvData.filter(r => r.isTotal || r.isSpecial);
+
+        tbody.innerHTML = '';
+        [...rows, ...fixed].forEach(r => {
+            const row = document.createElement('tr');
+            if(r.isTotal) row.className = 'siarhe-row-total';
+            
+            cols.forEach(c => {
+                const td = document.createElement('td');
+                td.style.textAlign = c.align; 
+                if (c.id === 'estado') { 
+                    td.innerHTML = !r.isTotal ? `<strong>${r.estado}</strong>` : r.estado; 
+                } 
+                else if (c.dash) { 
+                    td.textContent = '—'; 
+                } 
+                else {
+                    const v = (c.id === 'poblacion') ? r.poblacion : r[c.dataKey];
+                    
+                    // 🌟 Si el valor es null (celda vacía), pintar el guión. 
+                    if (v === null || v === undefined) {
+                        td.textContent = '—';
+                    } else {
+                        if (c.id === 'tasa') td.textContent = v.toFixed(2);
+                        else td.textContent = v.toLocaleString('es-MX');
+                    }
+                }
+                row.appendChild(td);
+            });
+            tbody.appendChild(row);
+        });
+    }
+
+    // ==========================================
+    // 9. EXPORTACIONES Y DESCARGAS
+    // ==========================================
 
     function setupActionButtons(container, state) {
         const btnLabels = container.querySelector('.siarhe-btn-toggle-labels');
@@ -400,19 +658,28 @@ document.addEventListener('DOMContentLoaded', function() {
             const colEntidad = state.isNacional ? 'Entidad Federativa' : 'Municipio';
             csvContent += `${colEntidad},Población,Enfermeras,Tasa\n`;
             
-            const mKey = state.currentMetric; const pKey = METRICAS[mKey].pair || mKey; const isPob = (mKey === 'poblacion');
-            const enfDataKey = isPob ? null : pKey; const tasaDataKey = isPob ? null : (METRICAS[mKey].tipo === 'tasa' ? mKey : pKey.replace('enfermeras_', 'tasa_'));
+            const mKey = state.currentMetric; 
+            const pKey = state.metricas[mKey].pair || mKey; 
+            const isPob = (mKey === 'poblacion');
+            
+            const enfDataKey = isPob ? null : pKey; 
+            const tasaDataKey = isPob ? null : ((state.metricas[mKey].tipo === 'tasa') ? mKey : findRateKeyForAbsolute(pKey, state.metricas));
             
             const getVal = (r, colId) => {
                 if (colId === 'estado') return r.estado;
                 if (colId === 'poblacion') return r.poblacion;
-                if (colId === 'enfermeras') return isPob ? 0 : (r[enfDataKey] || 0);
-                if (colId === 'tasa') return isPob ? 0 : (r[tasaDataKey] || 0);
-                return 0;
+                if (colId === 'enfermeras') return isPob ? null : r[enfDataKey];
+                if (colId === 'tasa') return isPob ? null : r[tasaDataKey];
+                return null;
             };
 
             const rows = state.csvData.filter(r => !r.isTotal && !r.isSpecial).sort((a,b) => {
-                const va = getVal(a, sortConfig.key); const vb = getVal(b, sortConfig.key);
+                const va = getVal(a, sortConfig.key); 
+                const vb = getVal(b, sortConfig.key);
+                if (va === null && vb !== null) return 1; 
+                if (vb === null && va !== null) return -1;
+                if (va === null && vb === null) return 0;
+                
                 if (va < vb) return sortConfig.direction === 'asc' ? -1 : 1;
                 if (va > vb) return sortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
@@ -420,9 +687,21 @@ document.addEventListener('DOMContentLoaded', function() {
             const fixed = state.csvData.filter(r => r.isTotal || r.isSpecial);
             
             [...rows, ...fixed].forEach(r => {
-                const estado = `"${r.estado}"`; const pob = r.poblacion || 0;
-                const enf = isPob ? '-' : (r[enfDataKey] || 0); const tasa = isPob ? '-' : (r[tasaDataKey] || 0).toFixed(2);
-                csvContent += `${estado},${pob},${enf},${tasa}\n`;
+                const estado = `"${r.estado}"`; 
+                const pob = r.poblacion || 0;
+                
+                // Formateo seguro para la exportación de Nulos
+                let enfStr = '-';
+                if (!isPob && r[enfDataKey] !== null && r[enfDataKey] !== undefined) {
+                    enfStr = r[enfDataKey];
+                }
+                
+                let tasaStr = '-';
+                if (!isPob && r[tasaDataKey] !== null && r[tasaDataKey] !== undefined) {
+                    tasaStr = r[tasaDataKey].toFixed(2);
+                }
+                
+                csvContent += `${estado},${pob},${enfStr},${tasaStr}\n`;
             });
             
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -473,7 +752,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 ctx.drawImage(img, 160, 120, 1600, 820); 
                 
-                const metricInfo = METRICAS[state.currentMetric];
+                const metricInfo = state.metricas[state.currentMetric];
                 const anioNode = document.querySelector('.siarhe-dynamic-year'); 
                 const anio = anioNode ? anioNode.innerText : new Date().getFullYear();
                 const titleNode = container.querySelector('h2.siarhe-title'); 
@@ -505,130 +784,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 150);
     }
 
-    function showTooltip(event, d, state) {
-        let cve = getGeoKey(d.properties, state.isNacional);
-        const row = state.dataMap.get(cve);
-        const nombre = row ? row.estado : (d.properties.NOMGEO || d.properties.NOM_ENT || "Sin Datos");
-        
-        let html = `<div class="tooltip-header">${nombre}</div>`;
-        if (row) {
-            const mKey = state.currentMetric; const pKey = METRICAS[mKey].pair || mKey; 
-            html += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span style="color:#A5B4C3">Población:</span> <b>${row.poblacion.toLocaleString('es-MX')}</b></div>`;
-            if (mKey !== 'poblacion') {
-                const labelAbs = METRICAS[pKey].label.replace('Total ','');
-                html += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span style="color:#A5B4C3">${labelAbs}:</span> <b>${row[pKey].toLocaleString('es-MX')}</b></div>`;
-                html += `<div style="display:flex; justify-content:space-between; margin-top:6px; padding-top:6px; border-top:1px solid #475569;">
-                            <span style="color:#F8FAFC">${METRICAS[mKey].tipo === 'tasa' ? METRICAS[mKey].label : 'Tasa'}:</span> 
-                            <strong>${(METRICAS[mKey].tipo === 'tasa' ? row[mKey] : (row['tasa_'+mKey.replace('enfermeras_','')] || 0)).toFixed(2)}</strong>
-                         </div>`;
-            }
-        }
-        
-        const mapDiv = document.querySelector('.siarhe-map-container');
-        if (mapDiv) {
-            const [mx, my] = d3.pointer(event, mapDiv);
-            state.tooltip.html(html)
-                .style("display", "block")
-                .style("opacity", 1)
-                .style("left", (mx + 15) + "px")
-                .style("top", (my - 28) + "px");
-        }
-    }
+    // ==========================================
+    // 10. MARCADORES Y CONTROLES UI
+    // ==========================================
 
-    function updateMapVisuals(container, state) {
-        const metric = state.currentMetric;
-        const values = state.csvData.filter(d => !d.isTotal && !d.isSpecial && d[metric] > 0).map(d => d[metric]).sort(d3.ascending);
-        
-        if (values.length === 0) {
-            state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
-                .style("fill", d => {
-                    let cve = getGeoKey(d.properties, state.isNacional);
-                    const row = state.dataMap.get(cve);
-                    return (!row) ? COLOR_NULL : COLOR_ZERO;
-                });
-            renderLegend(state, {min: 0, q1: 0, q2: 0, q3: 0, max: 0});
-        } else {
-            const min = d3.min(values); const max = d3.max(values);
-            let q1 = d3.quantile(values, 0.25); let q2 = d3.quantile(values, 0.50); let q3 = d3.quantile(values, 0.75);
-            
-            let domain = [min, q1, q2, q3, max];
-            
-            if (min === max) {
-                domain = [min * 0.2, min * 0.4, min * 0.6, min * 0.8, max];
-            } else {
-                for (let i = 1; i < domain.length; i++) {
-                    if (domain[i] <= domain[i-1]) domain[i] = domain[i-1] + 0.000001; 
-                }
-            }
-            
-            const colorScale = d3.scaleLinear().domain(domain).range(COLOR_RANGE).clamp(true);
-
-            state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
-                .style("fill", d => {
-                    let cve = getGeoKey(d.properties, state.isNacional);
-                    const row = state.dataMap.get(cve);
-                    if (!row) return COLOR_NULL; if (row[metric] === 0) return COLOR_ZERO;
-                    return colorScale(row[metric]);
-                });
-
-            renderLegend(state, {min, q1, q2, q3, max});
-        }
-
-        let currentK = 1; if (state.svg) { try { currentK = d3.zoomTransform(state.svg.node()).k; } catch(e) {} }
-
-        const maxAreaFeatures = new Map();
-        state.geoData.features.forEach(d => {
-            let cve = getGeoKey(d.properties, state.isNacional); 
-            let area = d3.geoArea(d);
-            if (!maxAreaFeatures.has(cve) || area > maxAreaFeatures.get(cve).area) { maxAreaFeatures.set(cve, { feature: d, area: area }); }
-        });
-        const featuresUnicas = Array.from(maxAreaFeatures.values()).map(item => item.feature);
-
-        const labels = state.gLabels.selectAll("text.siarhe-label").data(featuresUnicas);
-        labels.exit().remove();
-        labels.enter().append("text")
-            .attr("class", "siarhe-label")
-            .merge(labels)
-            .attr("x", d => { const c = state.path.centroid(d); return isNaN(c[0]) ? 0 : c[0]; })
-            .attr("y", d => { const c = state.path.centroid(d); return isNaN(c[1]) ? 0 : c[1]; })
-            .attr("text-anchor", "middle")
-            .attr("fill", "#0F172A").attr("stroke", "#ffffff").attr("stroke-width", 2.5 / currentK).attr("paint-order", "stroke fill").attr("stroke-linejoin", "round")
-            .style("font-size", `${14 / currentK}px`).style("font-weight", "bold")
-            .text(d => { 
-                let cve = getGeoKey(d.properties, state.isNacional); 
-                const row = state.dataMap.get(cve); 
-                return row ? row.estado : (d.properties.NOMGEO || d.properties.NOM_ENT || ""); 
-            });
-    }
-
-    function renderLegend(state, stats) {
-        const g = state.gLegend; g.html("");
-        const label = METRICAS[state.currentMetric].label;
-        const domain = [stats.min, stats.q1, stats.q2, stats.q3, stats.max];
-
-        g.append("rect").attr("x", -10).attr("y", -25).attr("width", 140).attr("height", 270)
-         .attr("fill", "rgba(255,255,255,0.9)").attr("rx", 5).style("filter", "drop-shadow(2px 2px 2px rgba(0,0,0,0.1))");
-        g.append("text").attr("x", 0).attr("y", -10).text(label).style("font-size", "12px").style("font-weight", "bold").style("fill", "#0F172A");
-        
-        const h = 150, w = 15, step = h/4;
-        g.append("rect").attr("x", 0).attr("y", 10).attr("width", w).attr("height", h).style("fill", `url(#${state.gradientId})`).style("stroke", "#ccc");
-
-        domain.forEach((v, i) => {
-            const y = 10 + h - (i * step);
-            g.append("line").attr("x1", w).attr("x2", w+5).attr("y1", y).attr("y2", y).style("stroke", "#666");
-            g.append("text").attr("x", w+8).attr("y", y+4).text(v.toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})).style("font-size", "11px").style("fill", "#475569");
-        });
-
-        const g0 = g.append("g").attr("transform", `translate(0, ${h+40})`);
-        g0.append("rect").attr("width", 12).attr("height", 12).style("fill", COLOR_ZERO);
-        g0.append("text").attr("x", 18).attr("y", 10).text("0.00").style("font-size", "11px").style("fill", "#475569");
-
-        const gN = g.append("g").attr("transform", `translate(0, ${h+65})`);
-        gN.append("rect").attr("width", 12).attr("height", 12).style("fill", COLOR_NULL);
-        gN.append("text").attr("x", 18).attr("y", 10).text("S/D").style("font-size", "11px").style("fill", "#475569");
-    }
-
-    // 🌟 RENDER DE CONTROLES: ACTUALIZADO PARA RECIBIR OPCIONES Y CONDICIONAR MARCADORES 🌟
     function renderMainControls(container, state, onUpdate, opts = { targetSelector: '.siarhe-controls-placeholder', showMarkers: true }) {
         const ph = container.querySelector(opts.targetSelector);
         if (!ph) return; ph.innerHTML = '';
@@ -636,14 +795,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const grpInd = document.createElement('div'); grpInd.className = 'siarhe-control-group'; grpInd.innerHTML = `<label>Indicador</label>`;
         const selInd = document.createElement('select'); selInd.className = 'siarhe-metric-select'; 
-        Object.entries(METRICAS).forEach(([key, info]) => {
+        
+        Object.entries(state.metricas).forEach(([key, info]) => {
             const opt = document.createElement('option'); opt.value = key; opt.textContent = info.fullLabel; 
             if (key === state.currentMetric) opt.selected = true; selInd.appendChild(opt);
         });
+        
         selInd.onchange = (e) => { state.currentMetric = e.target.value; sortConfig = { key: 'tasa', direction: 'desc' }; onUpdate(); };
         grpInd.appendChild(selInd); wrapper.appendChild(grpInd);
 
-        // 🌟 CONDICIONAL DE MARCADORES (Si estamos en Solo Tabla, no dibujamos este menú)
         if (opts.showMarkers) {
             const validMarkers = Object.keys(state.markerUrls).filter(k => state.markerUrls[k]);
             
@@ -700,13 +860,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         let rawData = state.rawEstabData;
 
                         if (type.startsWith('ESTAB_') && !rawData) {
-                            console.log(`[SIARHE] Descargando base masiva de establecimientos por primera vez...`);
                             rawData = await d3.csv(url);
                             state.rawEstabData = rawData; 
                         } else if (!type.startsWith('ESTAB_')) {
                             rawData = await d3.csv(url);
-                        } else {
-                            console.log(`[SIARHE] Usando base de establecimientos desde Caché RAM.`);
                         }
 
                         const nivelTarget = type.replace('ESTAB_', ''); 
@@ -715,7 +872,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             const latText = getColValue(d, ['latitud', 'lat']);
                             const lonText = getColValue(d, ['longitud', 'lon']);
                             const cveNivel = getColValue(d, ['cve_n_atencion', 'cve_ n_atencion', 'cve n atencion']);
-                            
                             const cveEntMarker = getColValue(d, ['cve_ent', 'cve ent', 'entidad', 'clave_entidad']);
                             
                             return {
@@ -842,42 +998,8 @@ document.addEventListener('DOMContentLoaded', function() {
         renderMarkerLegend(state);
     }
 
-    function renderMarkerLegend(state) {
-        const g = state.gMarkerLegend;
-        g.html(""); 
-
-        const actives = Array.from(state.activeMarkers);
-        if (actives.length === 0) return; 
-
-        g.append("rect")
-            .attr("x", -10).attr("y", -20)
-            .attr("width", 230) 
-            .attr("height", (actives.length * 20) + 30)
-            .attr("fill", "rgba(255,255,255,0.9)")
-            .attr("rx", 5)
-            .style("filter", "drop-shadow(2px 2px 2px rgba(0,0,0,0.1))");
-        
-        g.append("text").attr("x", 0).attr("y", -5).text("Marcadores Activos").style("font-size", "12px").style("font-weight", "bold").style("fill", "#0F172A");
-
-        actives.forEach((tipo, i) => {
-            const yPos = 12 + (i * 20);
-            const styleCfg = getMarkerStyle(tipo, state);
-            const nombre = MARCADOR_NOMBRES[tipo] || tipo;
-
-            g.append("path")
-                .attr("d", d3.symbol().type(getD3Shape(styleCfg.shape)).size(50)())
-                .attr("transform", `translate(5, ${yPos})`)
-                .attr("fill", styleCfg.fill)
-                .attr("stroke", styleCfg.stroke)
-                .attr("stroke-width", 1);
-            
-            g.append("text").attr("x", 15).attr("y", yPos + 4).text(nombre).style("font-size", "11px").style("fill", "#475569");
-        });
-    }
-
     function handleMapClick(d, state) {
         let cve = getGeoKey(d.properties, state.isNacional);
-        
         if (state.entityUrls && state.entityUrls[cve]) {
             window.location.href = state.entityUrls[cve];
         }
@@ -889,17 +1011,10 @@ document.addEventListener('DOMContentLoaded', function() {
         
         createBtn('+', 'Acercar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 1.5); });
         createBtn('–', 'Alejar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 0.6); });
-        
-        createBtn('⟳', 'Reset', (e) => { 
-            e.preventDefault(); 
-            svg.transition().duration(750).call(zoom.transform, state.initialTransform); 
-        });
+        createBtn('⟳', 'Reset', (e) => { e.preventDefault(); svg.transition().duration(750).call(zoom.transform, state.initialTransform); });
         
         const btnFullscreen = document.createElement('button');
-        btnFullscreen.className = 'boton';
-        btnFullscreen.innerHTML = '⛶'; 
-        btnFullscreen.title = 'Pantalla Completa';
-        
+        btnFullscreen.className = 'boton'; btnFullscreen.innerHTML = '⛶'; btnFullscreen.title = 'Pantalla Completa';
         const mapContainer = mapDiv; 
         
         btnFullscreen.onclick = (e) => {
@@ -908,111 +1023,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (mapContainer.requestFullscreen) { mapContainer.requestFullscreen(); } 
                 else if (mapContainer.webkitRequestFullscreen) { mapContainer.webkitRequestFullscreen(); } 
                 else if (mapContainer.msRequestFullscreen) { mapContainer.msRequestFullscreen(); }
-                btnFullscreen.innerHTML = '🗗'; 
-                mapContainer.classList.add('is-fullscreen');
+                btnFullscreen.innerHTML = '🗗'; mapContainer.classList.add('is-fullscreen');
             } else {
                 if (document.exitFullscreen) { document.exitFullscreen(); } 
                 else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); }
                 else if (document.msExitFullscreen) { document.msExitFullscreen(); }
-                btnFullscreen.innerHTML = '⛶';
-                mapContainer.classList.remove('is-fullscreen');
+                btnFullscreen.innerHTML = '⛶'; mapContainer.classList.remove('is-fullscreen');
             }
         };
 
         document.addEventListener('fullscreenchange', () => {
             if (!document.fullscreenElement) {
-                btnFullscreen.innerHTML = '⛶';
-                mapContainer.classList.remove('is-fullscreen');
+                btnFullscreen.innerHTML = '⛶'; mapContainer.classList.remove('is-fullscreen');
             }
         });
-
         ctrlDiv.appendChild(btnFullscreen);
 
         if (!state.isNacional && state.homeUrl) {
-            createBtn('🏠', 'Ir a Nacional', (e) => { 
-                e.preventDefault(); 
-                window.location.href = state.homeUrl; 
-            });
+            createBtn('🏠', 'Ir a Nacional', (e) => { e.preventDefault(); window.location.href = state.homeUrl; });
         }
-    }
-
-    function initTableStructure(container, state) {
-        const div = container.querySelector('.siarhe-table-container'); div.innerHTML = '';
-        const table = document.createElement('table'); table.className = 'siarhe-data-table';
-        state.tableElements = { table, thead: table.createTHead(), tbody: table.createTBody() };
-        div.appendChild(table);
-        updateTable(container, state);
-    }
-
-    function updateTable(container, state) {
-        if (!state.csvData.length) return;
-        const { thead, tbody } = state.tableElements;
-        const mKey = state.currentMetric;
-        const pKey = METRICAS[mKey].pair || mKey;
-        const isPob = (mKey === 'poblacion');
-        
-        const enfDataKey = isPob ? null : pKey; 
-        const tasaDataKey = isPob ? null : (METRICAS[mKey].tipo === 'tasa' ? mKey : pKey.replace('enfermeras_', 'tasa_'));
-
-        const labelEntidad = state.isNacional ? 'Entidad Federativa' : 'Municipio';
-
-        const cols = [
-            { id: 'estado', label: labelEntidad, isNum: false, align: 'left' },
-            { id: 'poblacion', label: 'Población', isNum: true, align: 'right' },
-            { id: 'enfermeras', label: 'Enfermeras', isNum: true, dataKey: enfDataKey, dash: isPob, align: 'right' },
-            { id: 'tasa', label: 'Tasa', isNum: true, dataKey: tasaDataKey, dash: isPob, align: 'right' }
-        ];
-
-        thead.innerHTML = ''; const tr = document.createElement('tr');
-        cols.forEach(c => {
-            const th = document.createElement('th');
-            th.style.textAlign = c.align;
-            let arrow = '↕';
-            if (sortConfig.key === c.id) arrow = sortConfig.direction === 'asc' ? '▲' : '▼';
-            th.innerHTML = `${c.label} <small>${arrow}</small>`;
-            th.onclick = () => {
-                if (sortConfig.key === c.id) sortConfig.direction = sortConfig.direction==='asc'?'desc':'asc';
-                else { sortConfig.key = c.id; sortConfig.direction = c.isNum ? 'desc':'asc'; }
-                updateTable(container, state);
-            };
-            tr.appendChild(th);
-        });
-        thead.appendChild(tr);
-
-        const getVal = (r, colId) => {
-            if (colId === 'estado') return r.estado;
-            if (colId === 'poblacion') return r.poblacion;
-            if (colId === 'enfermeras') return isPob ? 0 : (r[enfDataKey] || 0);
-            if (colId === 'tasa') return isPob ? 0 : (r[tasaDataKey] || 0);
-            return 0;
-        };
-
-        const rows = state.csvData.filter(r => !r.isTotal && !r.isSpecial).sort((a,b) => {
-            const va = getVal(a, sortConfig.key); const vb = getVal(b, sortConfig.key);
-            if (va < vb) return sortConfig.direction === 'asc' ? -1 : 1;
-            if (va > vb) return sortConfig.direction === 'asc' ? 1 : -1;
-            return 0;
-        });
-        const fixed = state.csvData.filter(r => r.isTotal || r.isSpecial);
-
-        tbody.innerHTML = '';
-        [...rows, ...fixed].forEach(r => {
-            const row = document.createElement('tr');
-            if(r.isTotal) row.className = 'siarhe-row-total';
-            
-            cols.forEach(c => {
-                const td = document.createElement('td');
-                td.style.textAlign = c.align; 
-                if (c.id === 'estado') { td.innerHTML = !r.isTotal ? `<strong>${r.estado}</strong>` : r.estado; } 
-                else if (c.dash) { td.textContent = '—'; } 
-                else {
-                    const v = (c.id === 'poblacion') ? r.poblacion : (r[c.dataKey] || 0);
-                    if (c.id === 'tasa') td.textContent = v.toFixed(2);
-                    else td.textContent = v.toLocaleString('es-MX');
-                }
-                row.appendChild(td);
-            });
-            tbody.appendChild(row);
-        });
     }
 });

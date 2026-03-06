@@ -62,6 +62,40 @@ $marker_urls = [
     'ESTAB_6' => $upload_url . 'markers/establecimientos-salud.csv?v=' . $v,
 ];
 
+// 🌟 LECTURA DINÁMICA DE MÉTRICAS DESDE LA BASE DE DATOS 🌟
+// Usamos wp_unslash para limpiar la basura que WP le pone a las comillas del JSON al guardar
+$metricas_json = get_option( 'siarhe_metricas_config', '' );
+$metricas_array = json_decode( wp_unslash( $metricas_json ), true );
+
+if ( empty($metricas_array) || !is_array($metricas_array) ) {
+    // Fallback de seguridad si aún no se ha guardado nada
+    $metricas_array = [
+        'tasa_total'                 => ['label' => 'Tasa Total', 'fullLabel' => 'Tasa de enfermeras por cada mil habitantes', 'tipo' => 'tasa', 'pair' => 'enfermeras_total'],
+        'enfermeras_total'           => ['label' => 'Total Enf.', 'fullLabel' => 'Total de profesionales de enfermería', 'tipo' => 'absoluto', 'pair' => 'enfermeras_total'],
+        'tasa_primer'                => ['label' => 'Tasa 1er Nivel', 'fullLabel' => 'Tasa de enfermeras en 1er Nivel de Atención', 'tipo' => 'tasa', 'pair' => 'enfermeras_primer'],
+        'enfermeras_primer'          => ['label' => 'Enf. 1er Nivel', 'fullLabel' => 'Enfermeras en 1er Nivel de Atención', 'tipo' => 'absoluto', 'pair' => 'enfermeras_primer'],
+        'tasa_segundo'               => ['label' => 'Tasa 2do Nivel', 'fullLabel' => 'Tasa de enfermeras en 2do Nivel de Atención', 'tipo' => 'tasa', 'pair' => 'enfermeras_segundo'],
+        'enfermeras_segundo'         => ['label' => 'Enf. 2do Nivel', 'fullLabel' => 'Enfermeras en 2do Nivel de Atención', 'tipo' => 'absoluto', 'pair' => 'enfermeras_segundo'],
+        'tasa_tercer'                => ['label' => 'Tasa 3er Nivel', 'fullLabel' => 'Tasa de enfermeras en 3er Nivel de Atención', 'tipo' => 'tasa', 'pair' => 'enfermeras_tercer'],
+        'enfermeras_tercer'          => ['label' => 'Enf. 3er Nivel', 'fullLabel' => 'Enfermeras en 3er Nivel de Atención', 'tipo' => 'absoluto', 'pair' => 'enfermeras_tercer'],
+        'tasa_apoyo'                 => ['label' => 'Tasa Apoyo', 'fullLabel' => 'Tasa de enfermeras en establecimientos de apoyo', 'tipo' => 'tasa', 'pair' => 'enfermeras_apoyo'],
+        'enfermeras_apoyo'           => ['label' => 'Enf. Apoyo', 'fullLabel' => 'Enfermeras en establecimientos de apoyo', 'tipo' => 'absoluto', 'pair' => 'enfermeras_apoyo'],
+        'tasa_administrativas'       => ['label' => 'Tasa Admin.', 'fullLabel' => 'Tasa de enfermeras con funciones administrativas', 'tipo' => 'tasa', 'pair' => 'enfermeras_administrativas'],
+        'enfermeras_administrativas' => ['label' => 'Enf. Admin.', 'fullLabel' => 'Enfermeras con funciones administrativas', 'tipo' => 'absoluto', 'pair' => 'enfermeras_administrativas'],
+        'tasa_escuelas'              => ['label' => 'Tasa Escuelas', 'fullLabel' => 'Tasa de enfermeras en escuelas de enfermería', 'tipo' => 'tasa', 'pair' => 'enfermeras_escuelas'],
+        'enfermeras_escuelas'        => ['label' => 'Enf. Escuelas', 'fullLabel' => 'Enfermeras en escuelas de enfermería', 'tipo' => 'absoluto', 'pair' => 'enfermeras_escuelas'],
+        'tasa_no_aplica'             => ['label' => 'Tasa Otros Est.', 'fullLabel' => 'Tasa de enfermeras en otros establecimientos', 'tipo' => 'tasa', 'pair' => 'enfermeras_no_aplica'],
+        'enfermeras_no_aplica'       => ['label' => 'Enf. Otros Est.', 'fullLabel' => 'Enfermeras en otros establecimientos', 'tipo' => 'absoluto', 'pair' => 'enfermeras_no_aplica'],
+        'tasa_no_asignado'           => ['label' => 'Tasa No Asignado', 'fullLabel' => 'Tasa de enfermeras con funciones no asignadas', 'tipo' => 'tasa', 'pair' => 'enfermeras_no_asignado'],
+        'enfermeras_no_asignado'     => ['label' => 'Enf. No Asignado', 'fullLabel' => 'Enfermeras con funciones no asignadas', 'tipo' => 'absoluto', 'pair' => 'enfermeras_no_asignado'],
+        'poblacion'                  => ['label' => 'Población', 'fullLabel' => 'Población total', 'tipo' => 'absoluto', 'pair' => 'poblacion']
+    ];
+}
+
+// Codificamos de nuevo a JSON limpio
+$metricas_clean_json = wp_json_encode($metricas_array);
+
+
 // PROCESAMIENTO DE ENLACES DE NAVEGACIÓN
 $siarhe_links_raw = get_option( 'siarhe_links_map', [] );
 $entity_urls = [];
@@ -118,10 +152,10 @@ if ( !empty($siarhe_links_raw['republica-mexicana']) ) {
      data-marker-config='<?php echo esc_attr(wp_json_encode($marker_config)); ?>'
      data-marker-urls='<?php echo esc_attr(wp_json_encode($marker_urls)); ?>'
      data-entity-urls='<?php echo esc_attr(wp_json_encode($entity_urls)); ?>' 
+     data-metricas='<?php echo esc_attr($metricas_clean_json); ?>' 
      data-home-url="<?php echo esc_url($home_url); ?>"> 
 
     <?php 
-    // 🌟 MOSTRAR H1 Y DESCRIPCIÓN SOLO SI EL MODO ES "MT" (Completo) 🌟
     if ( strpos($mode, 'M') !== false && strpos($mode, 'T') !== false ) : 
     ?>
     <h1 class="siarhe-main-title" style="text-align: center; margin-bottom: 15px;">
@@ -198,7 +232,6 @@ if ( !empty($siarhe_links_raw['republica-mexicana']) ) {
             </p>
 
             <?php 
-            // 🌟 CONTENEDOR EXCLUSIVO PARA CUANDO EL MODO ES "SOLO TABLA" (T)
             if ( trim($mode) === 'T' ) : 
             ?>
                 <div class="siarhe-table-controls-placeholder" style="margin-bottom: 20px;"></div>
