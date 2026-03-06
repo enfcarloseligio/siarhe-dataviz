@@ -10,7 +10,7 @@ if ( $csv_meta && !empty($csv_meta->anio_reporte) ) {
     $anio = $csv_meta->anio_reporte; 
 }
 
-// 🌟 NUEVO: Catálogo Oficial INEGI (Basado en tu tabla exacta)
+// Catálogo de Entidades Federativas (INEGI)
 $catalogo_oficial = [
     '01' => 'Aguascalientes', '02' => 'Baja California', '03' => 'Baja California Sur', '04' => 'Campeche',
     '05' => 'Coahuila de Zaragoza', '06' => 'Colima', '07' => 'Chiapas', '08' => 'Chihuahua', '09' => 'Ciudad de México',
@@ -24,7 +24,7 @@ $catalogo_oficial = [
 // Lógica adaptativa: Detecta si es el mapa nacional o estatal para ajustar los textos
 $es_nacional = ($slug === 'republica-mexicana' || $cve_ent === '33');
 
-// 🌟 Nombre Oficial Inyectado
+// Nombre Oficial Inyectado
 $lugar_texto = isset($catalogo_oficial[$cve_ent]) ? $catalogo_oficial[$cve_ent] : esc_html($nombre_entidad);
 
 // Obtener opciones guardadas de colores y marcadores
@@ -120,6 +120,10 @@ if ( !empty($siarhe_links_raw['republica-mexicana']) ) {
      data-entity-urls='<?php echo esc_attr(wp_json_encode($entity_urls)); ?>' 
      data-home-url="<?php echo esc_url($home_url); ?>"> 
 
+    <?php 
+    // 🌟 MOSTRAR H1 Y DESCRIPCIÓN SOLO SI EL MODO ES "MT" (Completo) 🌟
+    if ( strpos($mode, 'M') !== false && strpos($mode, 'T') !== false ) : 
+    ?>
     <h1 class="siarhe-main-title" style="text-align: center; margin-bottom: 15px;">
         ¿Cuántas enfermeras hay en <?php echo $lugar_texto; ?> en <span class="siarhe-dynamic-year"><?php echo esc_html($anio); ?></span>?
     </h1>
@@ -134,6 +138,7 @@ if ( !empty($siarhe_links_raw['republica-mexicana']) ) {
             Contar con información actualizada y geolocalizada sobre la distribución del capital humano es fundamental para identificar brechas de atención, planificar recursos estratégicos y fortalecer el sistema de salud estatal, asegurando una cobertura equitativa para la población. Esta herramienta permite visualizar las disparidades regionales en la cobertura de salud. Haz doble clic en cualquier <?php echo $es_nacional ? 'estado' : 'municipio'; ?> para consultar el desglose detallado.
         </p>
     </div>
+    <?php endif; ?>
 
     <?php if ( strpos($mode, 'M') !== false ) : ?>
         <section id="siarhe-map-section" class="siarhe-section-map siarhe-block-card">
@@ -185,10 +190,19 @@ if ( !empty($siarhe_links_raw['republica-mexicana']) ) {
 
     <?php if ( strpos($mode, 'T') !== false ) : ?>
         <section id="siarhe-table-section" class="siarhe-section-table siarhe-block-card">
-            <h2 style="margin-top: 0; margin-bottom: 10px;">📊 Tasas y totales de profesionales de enfermería por <?php echo $es_nacional ? 'Entidad Federativa' : 'Municipio'; ?></h2>
+            <h2 style="margin-top: 0; margin-bottom: 10px;">
+                📊 Tasas y totales de profesionales de enfermería por <?php echo $es_nacional ? 'Entidad Federativa' : 'Municipio'; ?> en <?php echo $lugar_texto; ?> en <span class="siarhe-dynamic-year"><?php echo esc_html($anio); ?></span>
+            </h2>
             <p style="margin-bottom: 20px; color: #555; line-height: 1.5;">
                 La siguiente tabla muestra el concentrado estadístico por <?php echo $es_nacional ? 'estado' : 'municipio'; ?>. Puede ordenar los datos para identificar rápidamente qué <?php echo $es_nacional ? 'entidades' : 'municipios'; ?> tienen la mayor o menor densidad de enfermeras por habitante.
             </p>
+
+            <?php 
+            // 🌟 CONTENEDOR EXCLUSIVO PARA CUANDO EL MODO ES "SOLO TABLA" (T)
+            if ( trim($mode) === 'T' ) : 
+            ?>
+                <div class="siarhe-table-controls-placeholder" style="margin-bottom: 20px;"></div>
+            <?php endif; ?>
             
             <div class="siarhe-table-wrapper">
                 <div class="siarhe-table-container">

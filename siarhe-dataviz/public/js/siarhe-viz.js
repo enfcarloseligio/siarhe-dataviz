@@ -1,5 +1,5 @@
 // 📢 LOG INICIAL
-console.log("%c 🚀 SIARHE JS V39: UX de Marcadores (Bug de Hover + Escala Móvil Inteligente)", "background: #222; color: #bada55");
+console.log("%c 🚀 SIARHE JS V40: Control Independiente para Tablas (Modo T) Integrado", "background: #222; color: #bada55");
 
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const cveEnt = container.dataset.cveEnt;
         const geojsonUrl = container.dataset.geojson;
         const csvUrl = container.dataset.csv;
-        const mode = container.dataset.mode;
+        const mode = (container.dataset.mode || '').trim(); // 🌟 Limpiamos el modo por seguridad (M, T, MT)
         const isNacional = (cveEnt === '33' || container.dataset.slug === 'republica-mexicana');
         const loading = container.querySelector('.siarhe-loading-overlay');
 
@@ -147,16 +147,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     calcularTotalHeader(container, state);
                 }
 
+                // 🌟 LÓGICA DE MODOS ACTUALIZADA (MAPA O TABLA) 🌟
                 if (mode.includes('M')) {
                     renderMap(container, state, cveEnt);
                     if (csv) {
+                        // Si hay mapa, el selector de métrica y marcadores se ponen arriba del mapa
                         renderMainControls(container, state, () => {
                             updateMapVisuals(container, state);
                             calcularTotalHeader(container, state);
                             if (mode.includes('T')) updateTable(container, state);
-                        });
+                        }, { targetSelector: '.siarhe-controls-placeholder', showMarkers: true });
                     }
                     setupActionButtons(container, state);
+                } else if (mode === 'T' && csv) {
+                    // Si es SOLO TABLA ("T"), el selector de métrica se pone arriba de la tabla (sin marcadores)
+                    renderMainControls(container, state, () => {
+                        calcularTotalHeader(container, state);
+                        updateTable(container, state);
+                    }, { targetSelector: '.siarhe-table-controls-placeholder', showMarkers: false });
                 }
                 
                 if (mode.includes('T') && csv) {
@@ -347,7 +355,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 gMain.attr("transform", e.transform);
                 const k = e.transform.k;
                 
-                // 🌟 LÓGICA MÓVIL: Protegemos el límite de escala de los marcadores en pantallas pequeñas
                 const isMobile = window.innerWidth <= 767;
                 const markerK = isMobile ? Math.min(k, 6) : k;
 
@@ -358,13 +365,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const symbolCache = {};
                 state.activeMarkers.forEach(type => {
                     const styleCfg = getMarkerStyle(type, state);
-                    // 🌟 Aplicamos el multiplicador protegido al tamaño del marcador
                     symbolCache[type] = d3.symbol().type(getD3Shape(styleCfg.shape)).size(150 / (markerK * markerK))();
                 });
 
                 state.gMarkers.selectAll("path.siarhe-marker")
                     .attr("d", d => symbolCache[d.tipo])
-                    // 🌟 Aplicamos el multiplicador protegido al borde del marcador
                     .attr("stroke-width", 1.5 / markerK);
             });
         
@@ -520,13 +525,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         const mapDiv = document.querySelector('.siarhe-map-container');
-        const [mx, my] = d3.pointer(event, mapDiv);
-
-        state.tooltip.html(html)
-            .style("display", "block")
-            .style("opacity", 1)
-            .style("left", (mx + 15) + "px")
-            .style("top", (my - 28) + "px");
+        if (mapDiv) {
+            const [mx, my] = d3.pointer(event, mapDiv);
+            state.tooltip.html(html)
+                .style("display", "block")
+                .style("opacity", 1)
+                .style("left", (mx + 15) + "px")
+                .style("top", (my - 28) + "px");
+        }
     }
 
     function updateMapVisuals(container, state) {
@@ -622,8 +628,9 @@ document.addEventListener('DOMContentLoaded', function() {
         gN.append("text").attr("x", 18).attr("y", 10).text("S/D").style("font-size", "11px").style("fill", "#475569");
     }
 
-    function renderMainControls(container, state, onUpdate) {
-        const ph = container.querySelector('.siarhe-controls-placeholder');
+    // 🌟 RENDER DE CONTROLES: ACTUALIZADO PARA RECIBIR OPCIONES Y CONDICIONAR MARCADORES 🌟
+    function renderMainControls(container, state, onUpdate, opts = { targetSelector: '.siarhe-controls-placeholder', showMarkers: true }) {
+        const ph = container.querySelector(opts.targetSelector);
         if (!ph) return; ph.innerHTML = '';
         const wrapper = document.createElement('div'); wrapper.className = 'siarhe-controls'; 
 
@@ -636,30 +643,33 @@ document.addEventListener('DOMContentLoaded', function() {
         selInd.onchange = (e) => { state.currentMetric = e.target.value; sortConfig = { key: 'tasa', direction: 'desc' }; onUpdate(); };
         grpInd.appendChild(selInd); wrapper.appendChild(grpInd);
 
-        const validMarkers = Object.keys(state.markerUrls).filter(k => state.markerUrls[k]);
-        
-        if (validMarkers.length > 0) {
-            const grpMarc = document.createElement('div'); grpMarc.className = 'siarhe-control-group'; grpMarc.innerHTML = `<label>Marcadores</label>`;
-            const field = document.createElement('div'); field.className = 'mc-field';
-            const trigger = document.createElement('div'); trigger.className = 'mc-trigger is-placeholder'; trigger.textContent = 'Seleccionar...';
-            state.markerTrigger = trigger; 
-            const menu = document.createElement('div'); menu.className = 'mc-menu';
+        // 🌟 CONDICIONAL DE MARCADORES (Si estamos en Solo Tabla, no dibujamos este menú)
+        if (opts.showMarkers) {
+            const validMarkers = Object.keys(state.markerUrls).filter(k => state.markerUrls[k]);
             
-            validMarkers.forEach(key => {
-                const label = MARCADOR_NOMBRES[key] || key;
-                const opt = document.createElement('div'); opt.className = 'mc-option';
-                opt.innerHTML = `<input type="checkbox" class="mc-check" value="${key}"> ${label}`;
-                opt.addEventListener('click', (e) => {
-                    if (e.target.tagName !== 'INPUT') {
-                        const chk = opt.querySelector('input'); chk.checked = !chk.checked; toggleMarker(key, state, container);
-                    }
+            if (validMarkers.length > 0) {
+                const grpMarc = document.createElement('div'); grpMarc.className = 'siarhe-control-group'; grpMarc.innerHTML = `<label>Marcadores</label>`;
+                const field = document.createElement('div'); field.className = 'mc-field';
+                const trigger = document.createElement('div'); trigger.className = 'mc-trigger is-placeholder'; trigger.textContent = 'Seleccionar...';
+                state.markerTrigger = trigger; 
+                const menu = document.createElement('div'); menu.className = 'mc-menu';
+                
+                validMarkers.forEach(key => {
+                    const label = MARCADOR_NOMBRES[key] || key;
+                    const opt = document.createElement('div'); opt.className = 'mc-option';
+                    opt.innerHTML = `<input type="checkbox" class="mc-check" value="${key}"> ${label}`;
+                    opt.addEventListener('click', (e) => {
+                        if (e.target.tagName !== 'INPUT') {
+                            const chk = opt.querySelector('input'); chk.checked = !chk.checked; toggleMarker(key, state, container);
+                        }
+                    });
+                    opt.querySelector('input').addEventListener('click', (e) => { e.stopPropagation(); toggleMarker(key, state, container); });
+                    menu.appendChild(opt);
                 });
-                opt.querySelector('input').addEventListener('click', (e) => { e.stopPropagation(); toggleMarker(key, state, container); });
-                menu.appendChild(opt);
-            });
-            trigger.onclick = (e) => { e.stopPropagation(); menu.classList.toggle('open'); };
-            document.addEventListener('click', () => menu.classList.remove('open'));
-            field.append(trigger, menu); grpMarc.appendChild(field); wrapper.appendChild(grpMarc);
+                trigger.onclick = (e) => { e.stopPropagation(); menu.classList.toggle('open'); };
+                document.addEventListener('click', () => menu.classList.remove('open'));
+                field.append(trigger, menu); grpMarc.appendChild(field); wrapper.appendChild(grpMarc);
+            }
         }
         ph.appendChild(wrapper);
     }
@@ -768,7 +778,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let currentK = 1; if (state.svg) { try { currentK = d3.zoomTransform(state.svg.node()).k; } catch(e) {} }
         
-        // 🌟 CALCULAMOS LA ESCALA PROTEGIDA PARA MÓVILES
         const isMobile = window.innerWidth <= 767;
         const markerK = isMobile ? Math.min(currentK, 6) : currentK;
 
@@ -792,7 +801,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .attr("stroke-width", 1.5 / markerK)
             .style("cursor", "pointer")
             .on("mouseover", function(e, d) {
-                // 🌟 FIX HOVER BUG: Consultamos el nivel de zoom real en este preciso instante
                 let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
                 let mK = (window.innerWidth <= 767) ? Math.min(k, 6) : k;
                 
@@ -824,7 +832,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     .style("top", (my - 20) + "px");
             })
             .on("mouseout", function(e, d) {
-                // 🌟 FIX HOVER BUG: Restablecemos basándonos en el zoom actual, no en el histórico
                 let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
                 let mK = (window.innerWidth <= 767) ? Math.min(k, 6) : k;
                 
