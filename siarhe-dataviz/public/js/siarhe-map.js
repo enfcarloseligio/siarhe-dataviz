@@ -18,6 +18,44 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         // ==========================================
         
         render: function(container, state, cveEnt) {
+            
+            if (!document.getElementById('siarhe-fullscreen-styles')) {
+                const style = document.createElement('style');
+                style.id = 'siarhe-fullscreen-styles';
+                style.innerHTML = `
+                    .siarhe-controls.is-fullscreen-mode {
+                        position: absolute !important;
+                        top: 15px;
+                        left: 50%;
+                        transform: translateX(-50%) scale(0.85);
+                        background: rgba(255, 255, 255, 0.95);
+                        padding: 10px 25px;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                        z-index: 1000;
+                        display: flex;
+                        gap: 15px;
+                        transform-origin: center top;
+                        border: 1px solid #cbd5e1;
+                        width: max-content;
+                    }
+                    .siarhe-controls.is-fullscreen-mode .mc-menu, 
+                    .siarhe-controls.is-fullscreen-mode .siarhe-cs-menu {
+                        max-height: 50vh;
+                        overflow-y: auto;
+                    }
+                    @media (max-width: 767px) {
+                        .siarhe-controls.is-fullscreen-mode {
+                            flex-direction: column;
+                            gap: 10px;
+                            top: 10px;
+                            transform: translateX(-50%) scale(0.8);
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
             const mapDiv = container.querySelector('.siarhe-map-container');
             if (!mapDiv) return;
             mapDiv.innerHTML = '';
@@ -35,7 +73,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             
             state.svg = svg;
 
-            // Definición de Gradiente para la Leyenda
             const defs = svg.append("defs");
             state.gradientId = `grad-${Math.random().toString(36).substr(2, 5)}`;
             const linearGradient = defs.append("linearGradient")
@@ -49,7 +86,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .attr("offset", (d, i) => `${(i / (app.colors.RANGE.length - 1)) * 100}%`)
                 .attr("stop-color", d => d);
 
-            // Capas del Mapa
             const gMain = svg.append("g").attr("class", "map-layer"); 
             state.gMain = gMain;
             
@@ -60,14 +96,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             state.gLegend = svg.append("g").attr("class", "siarhe-legend-group").attr("transform", `translate(30, 40)`); 
             state.gMarkerLegend = svg.append("g").attr("class", "siarhe-marker-legend-group").attr("transform", `translate(30, ${height - 180})`);
 
-            // Proyección y Zoom Inicial
             const projection = d3.geoMercator().fitSize([width, height], state.geoData); 
             state.projection = projection;
             const path = d3.geoPath().projection(projection); 
             state.path = path; 
 
             let initialTransform = d3.zoomIdentity;
-            // 🌟 Excepción para estados muy anchos/altos que requieren zoom centrado específico
             if (cveEnt === '06' || cveEnt === '31') {
                 let lons = [], lats = [];
                 state.geoData.features.forEach(f => {
@@ -92,14 +126,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
             state.initialTransform = initialTransform;
 
-            // Inyección del Tooltip Global
             d3.selectAll(mapDiv.querySelectorAll(".siarhe-tooltip")).remove(); 
             state.tooltip = d3.select(mapDiv).append("div")
                 .attr("class", "siarhe-tooltip")
                 .style("opacity", 0)
                 .style("display", "none");
 
-            // Dibujo de Polígonos (Paths)
             state.gPaths.selectAll("path.siarhe-feature")
                 .data(state.geoData.features).enter().append("path")
                 .attr("d", path).attr("class", "siarhe-feature")
@@ -123,9 +155,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     state.lastClickTime = ahora;
                 });
 
-            // Configuración del Zoom
-            let maxZoom = state.initialTransform.k * 8; 
-            if (maxZoom < 12) maxZoom = 12; 
+            // 🌟 ZOOM EXTREMO PARA TODOS LOS MAPAS (PREPARACIÓN PARA LOCALIDADES)
+            // Permite hacer zoom hasta 25 veces el tamaño inicial de cualquier estado, con un mínimo garantizado de 50x.
+            let maxZoom = state.initialTransform.k * 25; 
+            if (maxZoom < 50) maxZoom = 50; 
 
             const zoom = d3.zoom()
                 .scaleExtent([1, maxZoom]) 
@@ -133,32 +166,34 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     gMain.attr("transform", e.transform);
                     const k = e.transform.k;
                     
-                    const isMobile = window.innerWidth <= 767;
-                    const markerK = isMobile ? Math.min(k, 6) : k;
-
-                    // Ajuste de tamaño de texto al hacer zoom
                     state.gLabels.selectAll("text.siarhe-label")
                         .style("font-size", `${14 / k}px`)
                         .attr("stroke-width", 2.5 / k);
                     
-                    // Ajuste de tamaño de marcadores al hacer zoom
+                    // 🌟 ALGORITMO DE REDUCCIÓN DE TAMAÑO PARA MARCADORES
+                    let shrinkFactor = 1;
+                    if (k > 8) shrinkFactor = 1 + ((k - 8) * 0.15); 
+                    
+                    const baseSize = window.innerWidth <= 767 ? 120 : 150;
+                    let symbolSize = (baseSize / shrinkFactor) / (k * k);
+                    if (symbolSize < 0.01) symbolSize = 0.01;
+
                     const symbolCache = {};
                     state.activeMarkers.forEach(type => {
                         const styleCfg = app.utils.getMarkerStyle(type, state);
-                        symbolCache[type] = d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)).size(150 / (markerK * markerK))();
+                        symbolCache[type] = d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)).size(symbolSize)();
                     });
 
                     state.gMarkers.selectAll("path.siarhe-marker")
                         .attr("d", d => symbolCache[d.tipo])
-                        .attr("stroke-width", 1.5 / markerK);
+                        .attr("stroke-width", 1.5 / k);
                 });
             
-            svg.call(zoom).on("dblclick.zoom", null); // Desactivar zoom nativo con doble clic
+            svg.call(zoom).on("dblclick.zoom", null); 
             state.zoom = zoom;
             svg.call(zoom.transform, state.initialTransform);
             
-            // Renderizado de elementos adicionales
-            app.map.renderZoomButtons(mapDiv, svg, zoom, state); 
+            app.map.renderZoomButtons(container, mapDiv, svg, zoom, state); 
             app.map.updateVisuals(container, state);
         },
 
@@ -169,14 +204,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         updateVisuals: function(container, state) {
             const metric = state.currentMetric;
             
-            // El cálculo de cuartiles ignora estrictamente los valores Nulos y Cero (> 0)
             const values = state.csvData
                 .filter(d => !d.isTotal && !d.isSpecial && d[metric] !== null && d[metric] > 0)
                 .map(d => d[metric])
                 .sort(d3.ascending);
             
             if (values.length === 0) {
-                // Modo sin datos o puro Cero
                 state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
                     .style("fill", d => {
                         let cve = app.utils.getGeoKey(d.properties, state.isNacional);
@@ -186,7 +219,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     });
                 app.map.renderLegend(state, {min: 0, q1: 0, q2: 0, q3: 0, max: 0});
             } else {
-                // Cálculo de Cuartiles y Escala de Color
                 const min = d3.min(values); const max = d3.max(values);
                 let q1 = d3.quantile(values, 0.25); 
                 let q2 = d3.quantile(values, 0.50); 
@@ -194,7 +226,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 
                 let domain = [min, q1, q2, q3, max];
                 
-                // Prevención de dominio plano
                 if (min === max) {
                     domain = [min * 0.2, min * 0.4, min * 0.6, min * 0.8, max];
                 } else {
@@ -205,7 +236,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 
                 const colorScale = d3.scaleLinear().domain(domain).range(app.colors.RANGE).clamp(true);
 
-                // Pintar el mapa con protección rigurosa de Nulos y Ceros
                 state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
                     .style("fill", d => {
                         let cve = app.utils.getGeoKey(d.properties, state.isNacional);
@@ -228,7 +258,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             let currentK = 1; 
             if (state.svg) { try { currentK = d3.zoomTransform(state.svg.node()).k; } catch(e) {} }
 
-            // Evitar etiquetas duplicadas en multipolígonos eligiendo el área más grande
             const maxAreaFeatures = new Map();
             state.geoData.features.forEach(d => {
                 let cve = app.utils.getGeoKey(d.properties, state.isNacional); 
@@ -342,10 +371,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
         },
 
-        // ==========================================
-        // 4. GESTIÓN DE MARCADORES (PUNTOS)
-        // ==========================================
-
         updateMarkers: function(state) {
             let allPoints = [];
             state.activeMarkers.forEach(type => { 
@@ -355,8 +380,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             let currentK = 1; 
             if (state.svg) { try { currentK = d3.zoomTransform(state.svg.node()).k; } catch(e) {} }
             
-            const isMobile = window.innerWidth <= 767;
-            const markerK = isMobile ? Math.min(currentK, 6) : currentK;
+            // 🌟 ALGORITMO DE REDUCCIÓN DE TAMAÑO PARA MARCADORES 🌟
+            let shrinkFactor = 1;
+            if (currentK > 8) shrinkFactor = 1 + ((currentK - 8) * 0.15); 
+            
+            const baseSize = window.innerWidth <= 767 ? 120 : 150;
+            let symbolSize = (baseSize / shrinkFactor) / (currentK * currentK);
+            if (symbolSize < 0.01) symbolSize = 0.01;
 
             const markers = state.gMarkers.selectAll("path.siarhe-marker").data(allPoints);
             markers.exit().remove();
@@ -366,7 +396,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .merge(markers)
                 .attr("d", d => {
                     const styleCfg = app.utils.getMarkerStyle(d.tipo, state);
-                    return d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)).size(150 / (markerK * markerK))();
+                    return d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)).size(symbolSize)();
                 })
                 .attr("transform", d => {
                     const coords = state.projection([d.lon, d.lat]);
@@ -374,13 +404,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 })
                 .attr("fill", d => app.utils.getMarkerStyle(d.tipo, state).fill)
                 .attr("stroke", d => app.utils.getMarkerStyle(d.tipo, state).stroke)
-                .attr("stroke-width", 1.5 / markerK)
+                .attr("stroke-width", 1.5 / currentK)
                 .style("cursor", "pointer")
                 .on("mouseover", function(e, d) {
                     let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
-                    let mK = (window.innerWidth <= 767) ? Math.min(k, 6) : k;
-                    
-                    d3.select(this).attr("stroke-width", 3 / mK).raise(); 
+                    d3.select(this).attr("stroke-width", 3 / k).raise(); 
 
                     let html = `<div class="tooltip-header" style="color: #06B6D4;">${app.constants.MARCADOR_NOMBRES[d.tipo] || 'Unidad de Salud'}</div>`;
                     html += `<div style="font-size:12px; margin-top:4px;">
@@ -409,9 +437,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 })
                 .on("mouseout", function(e, d) {
                     let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
-                    let mK = (window.innerWidth <= 767) ? Math.min(k, 6) : k;
-                    
-                    d3.select(this).attr("stroke-width", 1.5 / mK); 
+                    d3.select(this).attr("stroke-width", 1.5 / k); 
                     state.tooltip.style("display", "none");
                 });
 
@@ -451,11 +477,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             });
         },
 
-        // ==========================================
-        // 5. HERRAMIENTAS ADICIONALES (Zoom y Exportar PNG)
-        // ==========================================
-
-        renderZoomButtons: function(mapDiv, svg, zoom, state) {
+        renderZoomButtons: function(container, mapDiv, svg, zoom, state) {
             const ctrlDiv = document.createElement('div'); 
             ctrlDiv.className = 'zoom-controles'; 
             mapDiv.appendChild(ctrlDiv);
@@ -475,27 +497,55 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             btnFullscreen.innerHTML = '⛶'; 
             btnFullscreen.title = 'Pantalla Completa';
             const mapContainer = mapDiv; 
-            
+
             btnFullscreen.onclick = (e) => {
                 e.preventDefault();
+                
+                const controlsEl = container.querySelector('.siarhe-controls');
+                const controlsPlaceholder = container.querySelector('.siarhe-controls-placeholder');
+
                 if (!document.fullscreenElement && !document.webkitFullscreenElement) {
                     if (mapContainer.requestFullscreen) { mapContainer.requestFullscreen(); } 
                     else if (mapContainer.webkitRequestFullscreen) { mapContainer.webkitRequestFullscreen(); } 
                     else if (mapContainer.msRequestFullscreen) { mapContainer.msRequestFullscreen(); }
-                    btnFullscreen.innerHTML = '🗗'; mapContainer.classList.add('is-fullscreen');
+                    
+                    btnFullscreen.innerHTML = '🗗'; 
+                    mapContainer.classList.add('is-fullscreen');
+                    
+                    if (controlsEl) {
+                        mapContainer.appendChild(controlsEl);
+                        controlsEl.classList.add('is-fullscreen-mode');
+                    }
                 } else {
                     if (document.exitFullscreen) { document.exitFullscreen(); } 
                     else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); }
                     else if (document.msExitFullscreen) { document.msExitFullscreen(); }
-                    btnFullscreen.innerHTML = '⛶'; mapContainer.classList.remove('is-fullscreen');
+                    
+                    btnFullscreen.innerHTML = '⛶'; 
+                    mapContainer.classList.remove('is-fullscreen');
+                    
+                    if (controlsEl && controlsPlaceholder) {
+                        controlsPlaceholder.appendChild(controlsEl);
+                        controlsEl.classList.remove('is-fullscreen-mode');
+                    }
                 }
             };
 
             document.addEventListener('fullscreenchange', () => {
                 if (!document.fullscreenElement) {
-                    btnFullscreen.innerHTML = '⛶'; mapContainer.classList.remove('is-fullscreen');
+                    btnFullscreen.innerHTML = '⛶'; 
+                    mapContainer.classList.remove('is-fullscreen');
+                    
+                    const controlsEl = mapContainer.querySelector('.siarhe-controls');
+                    const controlsPlaceholder = container.querySelector('.siarhe-controls-placeholder');
+                    
+                    if (controlsEl && controlsPlaceholder) {
+                        controlsPlaceholder.appendChild(controlsEl);
+                        controlsEl.classList.remove('is-fullscreen-mode');
+                    }
                 }
             });
+            
             ctrlDiv.appendChild(btnFullscreen);
 
             if (!state.isNacional && state.homeUrl) {

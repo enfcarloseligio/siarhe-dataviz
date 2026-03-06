@@ -2,8 +2,8 @@
  * SIARHE DataViz - Módulo de Controles (Controls)
  * ------------------------------------------------------------------
  * Gestiona la interfaz de usuario (UI), como los selectores desplegables
- * de indicadores, la lógica de activación de marcadores en memoria RAM
- * y las funciones de exportación de datos (Excel y botones de PNG).
+ * de indicadores (ahora con buscador), la lógica de activación de marcadores 
+ * en memoria RAM y las funciones de exportación de datos (Excel y PNG).
  */
 
 window.SiarheDataViz = window.SiarheDataViz || {};
@@ -13,15 +13,31 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
     app.controls = {
         
-        // ==========================================
-        // 1. RENDERIZADO DE SELECTORES PRINCIPALES
-        // ==========================================
-        
-        /**
-         * Construye el menú de Indicadores y el de Marcadores (si aplica)
-         * y los inyecta en el contenedor designado.
-         */
         renderMain: function(container, state, onUpdate, opts = { targetSelector: '.siarhe-controls-placeholder', showMarkers: true }) {
+            
+            // 🌟 INYECCIÓN CSS: Estilos para los Dropdowns con Buscador Integrado
+            if (!document.getElementById('siarhe-search-dropdown-styles')) {
+                const style = document.createElement('style');
+                style.id = 'siarhe-search-dropdown-styles';
+                style.innerHTML = `
+                    .siarhe-custom-select, .mc-field { position: relative; width: 100%; min-width: 250px; font-family: 'Roboto', sans-serif; }
+                    .siarhe-cs-trigger, .mc-trigger { background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: #334155; min-height: 38px; box-sizing: border-box; font-size: 14px; transition: border-color 0.2s; }
+                    .siarhe-cs-trigger:hover, .mc-trigger:hover { border-color: #94a3b8; }
+                    .siarhe-cs-trigger::after { content: "▼"; font-size: 10px; color: #94a3b8; margin-left: 8px; }
+                    .siarhe-cs-menu, .mc-menu { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); margin-top: 5px; z-index: 9999; display: none; flex-direction: column; max-height: 350px; overflow: hidden; }
+                    .siarhe-cs-menu.open, .mc-menu.open { display: flex; }
+                    .siarhe-cs-search { padding: 10px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; z-index: 2; }
+                    .siarhe-cs-search input { width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; font-size: 13px; outline: none; transition: all 0.2s; }
+                    .siarhe-cs-search input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2); }
+                    .siarhe-cs-options { overflow-y: auto; padding: 4px 0; }
+                    .siarhe-cs-option, .mc-option { padding: 8px 12px; cursor: pointer; color: #475569; font-size: 13px; display: flex; align-items: center; gap: 8px; transition: background 0.2s; line-height: 1.3;}
+                    .siarhe-cs-option:hover, .mc-option:hover { background: #f1f5f9; color: #0f172a; }
+                    .siarhe-cs-option.selected { font-weight: bold; color: #0284c7; background: #f0f9ff; border-left: 3px solid #0284c7; padding-left: 9px; }
+                    .is-placeholder { color: #94a3b8 !important; }
+                `;
+                document.head.appendChild(style);
+            }
+
             const ph = container.querySelector(opts.targetSelector);
             if (!ph) return; 
             ph.innerHTML = '';
@@ -29,31 +45,95 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const wrapper = document.createElement('div'); 
             wrapper.className = 'siarhe-controls'; 
 
-            // --- Selector de Indicador (Métrica) ---
+            document.addEventListener('click', () => {
+                container.querySelectorAll('.siarhe-cs-menu, .mc-menu').forEach(m => m.classList.remove('open'));
+            });
+
+            // ====================================================
+            // A) CONSTRUCCIÓN DE "INDICADOR"
+            // ====================================================
             const grpInd = document.createElement('div'); 
             grpInd.className = 'siarhe-control-group'; 
             grpInd.innerHTML = `<label>Indicador</label>`;
-            const selInd = document.createElement('select'); 
-            selInd.className = 'siarhe-metric-select'; 
-            
+
+            const customSelectInd = document.createElement('div');
+            customSelectInd.className = 'siarhe-custom-select';
+
+            const triggerInd = document.createElement('div');
+            triggerInd.className = 'siarhe-cs-trigger';
+
+            const menuInd = document.createElement('div');
+            menuInd.className = 'siarhe-cs-menu';
+
+            const searchBoxInd = document.createElement('div');
+            searchBoxInd.className = 'siarhe-cs-search';
+            searchBoxInd.addEventListener('click', e => e.stopPropagation()); 
+            const searchInputInd = document.createElement('input');
+            searchInputInd.type = 'text';
+            searchInputInd.placeholder = '🔍 Buscar indicador...';
+            searchBoxInd.appendChild(searchInputInd);
+            menuInd.appendChild(searchBoxInd);
+
+            const optionsContainerInd = document.createElement('div');
+            optionsContainerInd.className = 'siarhe-cs-options';
+
             Object.entries(state.metricas).forEach(([key, info]) => {
-                const opt = document.createElement('option'); 
-                opt.value = key; 
-                opt.textContent = info.fullLabel; 
-                if (key === state.currentMetric) opt.selected = true; 
-                selInd.appendChild(opt);
+                const opt = document.createElement('div');
+                opt.className = 'siarhe-cs-option';
+                
+                if (key === state.currentMetric) {
+                    opt.classList.add('selected');
+                    triggerInd.innerHTML = `<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${info.fullLabel}</span>`;
+                }
+                
+                opt.textContent = info.fullLabel;
+                
+                opt.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    state.currentMetric = key;
+                    app.sortConfig = { key: 'tasa', direction: 'desc' };
+                    
+                    triggerInd.innerHTML = `<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${info.fullLabel}</span>`;
+                    optionsContainerInd.querySelectorAll('.siarhe-cs-option').forEach(o => o.classList.remove('selected'));
+                    opt.classList.add('selected');
+                    menuInd.classList.remove('open');
+                    
+                    onUpdate(); 
+                });
+                
+                optionsContainerInd.appendChild(opt);
             });
-            
-            selInd.onchange = (e) => { 
-                state.currentMetric = e.target.value; 
-                // Reiniciar ordenamiento al cambiar de métrica
-                app.sortConfig = { key: 'tasa', direction: 'desc' }; 
-                onUpdate(); 
-            };
-            grpInd.appendChild(selInd); 
+
+            menuInd.appendChild(optionsContainerInd);
+            customSelectInd.append(triggerInd, menuInd);
+            grpInd.appendChild(customSelectInd);
             wrapper.appendChild(grpInd);
 
-            // --- Selector de Marcadores Dinámico ---
+            searchInputInd.addEventListener('keyup', (e) => {
+                const val = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); 
+                optionsContainerInd.querySelectorAll('.siarhe-cs-option').forEach(o => {
+                    const text = o.textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    o.style.display = text.includes(val) ? '' : 'none';
+                });
+            });
+
+            triggerInd.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isOpen = menuInd.classList.contains('open');
+                container.querySelectorAll('.siarhe-cs-menu, .mc-menu').forEach(m => m.classList.remove('open'));
+                
+                if (!isOpen) {
+                    menuInd.classList.add('open');
+                    searchInputInd.value = '';
+                    optionsContainerInd.querySelectorAll('.siarhe-cs-option').forEach(o => o.style.display = '');
+                    setTimeout(() => searchInputInd.focus(), 50); 
+                }
+            });
+
+
+            // ====================================================
+            // B) CONSTRUCCIÓN DE "MARCADORES"
+            // ====================================================
             if (opts.showMarkers) {
                 const validMarkers = Object.keys(state.markerUrls).filter(k => state.markerUrls[k]);
                 
@@ -65,19 +145,32 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const field = document.createElement('div'); 
                     field.className = 'mc-field';
                     
-                    const trigger = document.createElement('div'); 
-                    trigger.className = 'mc-trigger is-placeholder'; 
-                    trigger.textContent = 'Seleccionar...';
-                    state.markerTrigger = trigger; 
+                    const triggerMc = document.createElement('div'); 
+                    triggerMc.className = 'mc-trigger is-placeholder'; 
+                    // Eliminada la flechita manual para que el CSS del tema actúe con naturalidad
+                    triggerMc.innerHTML = `<span>Seleccionar...</span>`;
+                    state.markerTrigger = triggerMc; 
                     
-                    const menu = document.createElement('div'); 
-                    menu.className = 'mc-menu';
+                    const menuMc = document.createElement('div'); 
+                    menuMc.className = 'mc-menu';
                     
+                    const searchBoxMc = document.createElement('div');
+                    searchBoxMc.className = 'siarhe-cs-search';
+                    searchBoxMc.addEventListener('click', e => e.stopPropagation());
+                    const searchInputMc = document.createElement('input');
+                    searchInputMc.type = 'text';
+                    searchInputMc.placeholder = '🔍 Buscar marcador...';
+                    searchBoxMc.appendChild(searchInputMc);
+                    menuMc.appendChild(searchBoxMc);
+
+                    const optionsContainerMc = document.createElement('div');
+                    optionsContainerMc.className = 'siarhe-cs-options';
+
                     validMarkers.forEach(key => {
                         const label = app.constants.MARCADOR_NOMBRES[key] || key;
                         const opt = document.createElement('div'); 
                         opt.className = 'mc-option';
-                        opt.innerHTML = `<input type="checkbox" class="mc-check" value="${key}"> ${label}`;
+                        opt.innerHTML = `<input type="checkbox" class="mc-check" value="${key}"> <span>${label}</span>`;
                         
                         opt.addEventListener('click', (e) => {
                             if (e.target.tagName !== 'INPUT') {
@@ -90,23 +183,41 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                             e.stopPropagation(); 
                             app.controls.toggleMarker(key, state, container); 
                         });
-                        menu.appendChild(opt);
+                        optionsContainerMc.appendChild(opt);
                     });
                     
-                    trigger.onclick = (e) => { e.stopPropagation(); menu.classList.toggle('open'); };
-                    document.addEventListener('click', () => menu.classList.remove('open'));
-                    field.append(trigger, menu); 
+                    menuMc.appendChild(optionsContainerMc);
+                    
+                    searchInputMc.addEventListener('keyup', (e) => {
+                        const val = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        optionsContainerMc.querySelectorAll('.mc-option').forEach(o => {
+                            const text = o.textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                            o.style.display = text.includes(val) ? '' : 'none';
+                        });
+                    });
+
+                    triggerMc.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const isOpen = menuMc.classList.contains('open');
+                        container.querySelectorAll('.siarhe-cs-menu, .mc-menu').forEach(m => m.classList.remove('open'));
+                        
+                        if (!isOpen) {
+                            menuMc.classList.add('open');
+                            searchInputMc.value = '';
+                            optionsContainerMc.querySelectorAll('.mc-option').forEach(o => o.style.display = '');
+                            setTimeout(() => searchInputMc.focus(), 50);
+                        }
+                    });
+
+                    field.append(triggerMc, menuMc); 
                     grpMarc.appendChild(field); 
                     wrapper.appendChild(grpMarc);
                 }
             }
+            
             ph.appendChild(wrapper);
         },
 
-        /**
-         * Descarga y cachea en RAM las bases masivas de establecimientos
-         * para evitar colapsar la red.
-         */
         toggleMarker: async function(type, state, container) {
             const loading = container.querySelector('.siarhe-loading-overlay');
             if (loading) {
@@ -119,7 +230,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 loading.style.zIndex = '100';
             }
 
-            // Pausa forzada para permitir que el DOM renderice el Overlay de Carga
             await new Promise(r => setTimeout(r, 80)); 
 
             if (state.activeMarkers.has(type)) { 
@@ -196,19 +306,15 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (!state.markerTrigger) return;
             const selected = Array.from(state.activeMarkers);
             if (selected.length === 0) { 
-                state.markerTrigger.textContent = 'Seleccionar...'; 
+                state.markerTrigger.innerHTML = `<span>Seleccionar...</span>`; 
                 state.markerTrigger.classList.add('is-placeholder'); 
             } else {
                 const labels = selected.map(k => app.constants.MARCADOR_NOMBRES[k] || k);
-                state.markerTrigger.textContent = labels.join(', '); 
+                state.markerTrigger.innerHTML = `<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${labels.join(', ')}</span>`; 
                 state.markerTrigger.classList.remove('is-placeholder');
             }
         },
 
-        // ==========================================
-        // 2. EVENTOS DE EXPORTACIÓN Y BOTONES
-        // ==========================================
-        
         setupActionButtons: function(container, state) {
             const btnLabels = container.querySelector('.siarhe-btn-toggle-labels');
             const btnPng = container.querySelector('.siarhe-btn-download-png');
@@ -233,7 +339,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             btnExcel.addEventListener('click', (e) => {
                 e.preventDefault();
-                let csvContent = '\uFEFF'; // BOM para forzar UTF-8 en Excel
+                let csvContent = '\uFEFF';
                 const colEntidad = state.isNacional ? 'Entidad Federativa' : 'Municipio';
                 csvContent += `${colEntidad},Población,Enfermeras,Tasa\n`;
                 
@@ -255,12 +361,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const rows = state.csvData.filter(r => !r.isTotal && !r.isSpecial).sort((a,b) => {
                     const va = getVal(a, app.sortConfig.key); 
                     const vb = getVal(b, app.sortConfig.key);
-                    
-                    // Ordenamiento seguro para Nulos
                     if (va === null && vb !== null) return 1; 
                     if (vb === null && va !== null) return -1;
                     if (va === null && vb === null) return 0;
-                    
                     if (va < vb) return app.sortConfig.direction === 'asc' ? -1 : 1;
                     if (va > vb) return app.sortConfig.direction === 'asc' ? 1 : -1;
                     return 0;
@@ -272,7 +375,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const estado = `"${r.estado}"`; 
                     const pob = r.poblacion || 0;
                     
-                    // Formateo para exportación de celdas nulas
                     let enfStr = '-';
                     if (!isPob && r[enfDataKey] !== null && r[enfDataKey] !== undefined) {
                         enfStr = r[enfDataKey];
@@ -286,7 +388,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     csvContent += `${estado},${pob},${enfStr},${tasaStr}\n`;
                 });
                 
-                // Creación y descarga del BLOB
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
