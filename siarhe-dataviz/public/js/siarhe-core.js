@@ -31,6 +31,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
     app.colors = {
         RANGE: [ getVar('--s-map-c1', '#eff3ff'), getVar('--s-map-c2', '#bdd7e7'), getVar('--s-map-c3', '#9ecae1'), getVar('--s-map-c4', '#6baed6'), getVar('--s-map-c5', '#08519c') ],
+        // 🌟 NUEVO: Variables para la escala monocromática
+        MONO: [ getVar('--s-map-mono-min', '#f0f9ff'), getVar('--s-map-mono-max', '#0369a1') ], 
         ZERO: getVar('--s-map-zero', '#d9d9d9'),
         NULL: getVar('--s-map-null', '#000000')
     };
@@ -205,12 +207,21 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         let MARCADOR_URLS = safeParseJSON(container.dataset.markerUrls, {});
         let ENTITY_URLS = safeParseJSON(container.dataset.entityUrls, {});
         let METRICAS_CONFIG = safeParseJSON(container.dataset.metricas, {});
+        
+        // 🌟 NUEVO: LECTURA DE CONFIGURACIÓN DE TOOLTIPS
+        let TOOLTIP_CONFIG = safeParseJSON(container.dataset.tooltips, {
+            geo_pob: true, geo_abs: true, geo_rate: true,
+            mk_inst: true, mk_mun: true, mk_clues: true,
+            mk_tipo: true, mk_nivel: true, mk_juris: true
+        });
 
         // Estado Global de la Instancia
         let state = {
             geoData: null, csvData: [], dataMap: new Map(),
             metricas: METRICAS_CONFIG,
+            tooltipConfig: TOOLTIP_CONFIG, // 🌟 GUARDADO EN EL ESTADO
             currentMetric: 'tasa_total',
+            colorMode: 'quartiles', // 🌟 NUEVO: Control del tipo de mapa (quartiles vs mono)
             zoom: null, gLegend: null, gMarkerLegend: null, gradientId: null,
             svg: null, gMain: null, gPaths: null, gLabels: null, gMarkers: null, 
             activeMarkers: new Set(), markersData: {}, 
@@ -281,7 +292,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 // 5. INYECCIÓN AL CARGAR EL DOM
 // ==========================================
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("%c 🚀 SIARHE Core V43: Arquitectura Modular Inicializada", "background: #1e40af; color: #ffffff; padding: 2px 6px; border-radius: 4px;");
+    console.log("%c 🚀 SIARHE Core V45: Monocromático y Tooltips Integrados", "background: #1e40af; color: #ffffff; padding: 2px 6px; border-radius: 4px;");
     
     const wrappers = document.querySelectorAll('.siarhe-viz-wrapper');
     wrappers.forEach(container => {

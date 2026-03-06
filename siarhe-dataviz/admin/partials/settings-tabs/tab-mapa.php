@@ -4,7 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 // 1. Obtener opciones guardadas
 $map_options = get_option( 'siarhe_map_options', [] );
 
-// 2. Valores por defecto (Actualizados con los 4 niveles)
+// 2. Valores por defecto (Actualizados con los 4 niveles y monocromático)
 $defaults = [
     // Mapa (Secuencial 5 pasos)
     'map_c1' => '#eff3ff', // Mínimo
@@ -12,6 +12,10 @@ $defaults = [
     'map_c3' => '#6baed6', // Q2 (50%)
     'map_c4' => '#3182bd', // Q3 (75%)
     'map_c5' => '#08519c', // Máximo
+    
+    // 🌟 NUEVO: Mapa (Secuencial Monocromático)
+    'mono_min' => '#f0f9ff', // Color más claro
+    'mono_max' => '#0369a1', // Color más oscuro
     
     // Casos Especiales
     'map_zero' => '#d9d9d9', // Valor es 0
@@ -82,7 +86,7 @@ $opts = wp_parse_args( $map_options, $defaults );
     
     <table class="form-table" role="presentation">
         <tr>
-            <th scope="row">Gradiente (Valores > 0)</th>
+            <th scope="row">Gradiente Cuartiles (Valores > 0)</th>
             <td>
                 <div class="siarhe-grad-row">
                     <div class="siarhe-color-box"><input type="text" name="siarhe_map_options[map_c1]" value="<?php echo esc_attr($opts['map_c1']); ?>" class="siarhe-color-field" data-alpha="true"><p class="description"><small>Mínimo</small></p></div>
@@ -97,12 +101,31 @@ $opts = wp_parse_args( $map_options, $defaults );
                 </div>
             </td>
         </tr>
+        
+        <tr>
+            <th scope="row">Gradiente Monocromático</th>
+            <td>
+                <p class="description" style="margin-top:0; margin-bottom:10px;">Esta escala se usa cuando el usuario activa la opción de ver el mapa sin cortes de cuartiles (escala lineal suave).</p>
+                <div class="siarhe-grad-row">
+                    <div class="siarhe-color-box">
+                        <input type="text" name="siarhe_map_options[mono_min]" value="<?php echo esc_attr($opts['mono_min']); ?>" class="siarhe-color-field">
+                        <p class="description"><small>Color Claro (Mínimo)</small></p>
+                    </div>
+                    <span class="dashicons dashicons-arrow-right-alt" style="color:#aaa;"></span>
+                    <div class="siarhe-color-box">
+                        <input type="text" name="siarhe_map_options[mono_max]" value="<?php echo esc_attr($opts['mono_max']); ?>" class="siarhe-color-field">
+                        <p class="description"><small>Color Oscuro (Máximo)</small></p>
+                    </div>
+                </div>
+            </td>
+        </tr>
+
         <tr>
             <th scope="row">Casos Especiales</th>
             <td>
                 <div class="siarhe-flex-row">
-                    <div><label><strong>Valor 0 (Gris)</strong></label><br><input type="text" name="siarhe_map_options[map_zero]" value="<?php echo esc_attr($opts['map_zero']); ?>" class="siarhe-color-field"></div>
-                    <div><label><strong>Sin Datos (Negro)</strong></label><br><input type="text" name="siarhe_map_options[map_null]" value="<?php echo esc_attr($opts['map_null']); ?>" class="siarhe-color-field"></div>
+                    <div><label><strong>Valor 0</strong></label><br><input type="text" name="siarhe_map_options[map_zero]" value="<?php echo esc_attr($opts['map_zero']); ?>" class="siarhe-color-field"></div>
+                    <div><label><strong>Sin Datos</strong></label><br><input type="text" name="siarhe_map_options[map_null]" value="<?php echo esc_attr($opts['map_null']); ?>" class="siarhe-color-field"></div>
                 </div>
             </td>
         </tr>
@@ -305,7 +328,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 🌟 AHORA INCLUIMOS LOS 6 MARCADORES EN LA VISTA PREVIA
     const types = ['cateter', 'heridas', 'estab1', 'estab2', 'estab3', 'estab6'];
 
     types.forEach(t => updatePreview(t));

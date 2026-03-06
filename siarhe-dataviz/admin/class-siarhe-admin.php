@@ -45,20 +45,31 @@ class Siarhe_Admin {
 
     public function inject_dynamic_css() {
         $options = get_option( 'siarhe_theme_options' );
-        if ( ! empty( $options ) ) {
-            ?>
-            <style type="text/css">
-                :root {
-                    <?php if(!empty($options['th_bg'])) echo '--siarhe-th-bg: ' . esc_attr($options['th_bg']) . ';'; ?>
-                    <?php if(!empty($options['th_text'])) echo '--siarhe-th-text: ' . esc_attr($options['th_text']) . ';'; ?>
-                    <?php if(!empty($options['odd_bg'])) echo '--siarhe-tr-odd-bg: ' . esc_attr($options['odd_bg']) . ';'; ?>
-                    <?php if(!empty($options['odd_text'])) echo '--siarhe-tr-odd-text: ' . esc_attr($options['odd_text']) . ';'; ?>
-                    <?php if(!empty($options['even_bg'])) echo '--siarhe-tr-even-bg: ' . esc_attr($options['even_bg']) . ';'; ?>
-                    <?php if(!empty($options['even_text'])) echo '--siarhe-tr-even-text: ' . esc_attr($options['even_text']) . ';'; ?>
+        // 🌟 NUEVO: Obtenemos también las opciones del mapa para inyectar los colores monocromáticos
+        $map_options = get_option( 'siarhe_map_options' ); 
+        
+        ?>
+        <style type="text/css">
+            :root {
+                <?php 
+                if ( ! empty( $options ) ) {
+                    if(!empty($options['th_bg'])) echo '--siarhe-th-bg: ' . esc_attr($options['th_bg']) . ';';
+                    if(!empty($options['th_text'])) echo '--siarhe-th-text: ' . esc_attr($options['th_text']) . ';';
+                    if(!empty($options['odd_bg'])) echo '--siarhe-tr-odd-bg: ' . esc_attr($options['odd_bg']) . ';';
+                    if(!empty($options['odd_text'])) echo '--siarhe-tr-odd-text: ' . esc_attr($options['odd_text']) . ';';
+                    if(!empty($options['even_bg'])) echo '--siarhe-tr-even-bg: ' . esc_attr($options['even_bg']) . ';';
+                    if(!empty($options['even_text'])) echo '--siarhe-tr-even-text: ' . esc_attr($options['even_text']) . ';';
                 }
-            </style>
-            <?php
-        }
+                
+                // 🌟 NUEVO: Inyección de variables CSS para la escala monocromática
+                if ( ! empty( $map_options ) ) {
+                    if(!empty($map_options['mono_min'])) echo '--s-map-mono-min: ' . esc_attr($map_options['mono_min']) . ';';
+                    if(!empty($map_options['mono_max'])) echo '--s-map-mono-max: ' . esc_attr($map_options['mono_max']) . ';';
+                }
+                ?>
+            }
+        </style>
+        <?php
     }
 
     public function display_dashboard() { include_once SIARHE_PATH . 'admin/partials/dashboard-home.php'; }

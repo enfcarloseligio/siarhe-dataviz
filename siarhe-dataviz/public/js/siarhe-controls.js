@@ -15,7 +15,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         
         renderMain: function(container, state, onUpdate, opts = { targetSelector: '.siarhe-controls-placeholder', showMarkers: true }) {
             
-            // 🌟 INYECCIÓN CSS: Estilos para los Dropdowns con Buscador Integrado
+            // 🌟 INYECCIÓN CSS: Estilos para los Dropdowns y el nuevo Toggle de Colores
             if (!document.getElementById('siarhe-search-dropdown-styles')) {
                 const style = document.createElement('style');
                 style.id = 'siarhe-search-dropdown-styles';
@@ -34,6 +34,16 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     .siarhe-cs-option:hover, .mc-option:hover { background: #f1f5f9; color: #0f172a; }
                     .siarhe-cs-option.selected { font-weight: bold; color: #0284c7; background: #f0f9ff; border-left: 3px solid #0284c7; padding-left: 9px; }
                     .is-placeholder { color: #94a3b8 !important; }
+                    
+                    /* 🌟 Estilos del Toggle Switch Monocromático */
+                    .siarhe-mode-toggle { display: flex; align-items: center; gap: 8px; margin-left: auto; font-family: 'Roboto', sans-serif; font-size: 13px; color: #475569; }
+                    .s-toggle-switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+                    .s-toggle-switch input { opacity: 0; width: 0; height: 0; }
+                    .s-toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .3s; border-radius: 20px; }
+                    .s-toggle-slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+                    .s-toggle-switch input:checked + .s-toggle-slider { background-color: #0284c7; }
+                    .s-toggle-switch input:checked + .s-toggle-slider:before { transform: translateX(20px); }
+                    @media (max-width: 767px) { .siarhe-mode-toggle { margin-left: 0; margin-top: 10px; width: 100%; justify-content: space-between; } }
                 `;
                 document.head.appendChild(style);
             }
@@ -147,7 +157,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     
                     const triggerMc = document.createElement('div'); 
                     triggerMc.className = 'mc-trigger is-placeholder'; 
-                    // Eliminada la flechita manual para que el CSS del tema actúe con naturalidad
                     triggerMc.innerHTML = `<span>Seleccionar...</span>`;
                     state.markerTrigger = triggerMc; 
                     
@@ -213,6 +222,31 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     grpMarc.appendChild(field); 
                     wrapper.appendChild(grpMarc);
                 }
+            }
+
+            // ====================================================
+            // C) 🌟 NUEVO: TOGGLE DE MODO DE COLOR (Monocromático vs Cuartiles)
+            // ====================================================
+            if (opts.targetSelector === '.siarhe-controls-placeholder') { // Solo lo mostramos si hay mapa
+                const colorToggleContainer = document.createElement('div');
+                colorToggleContainer.className = 'siarhe-mode-toggle';
+                
+                colorToggleContainer.innerHTML = `
+                    <span>Cuartiles</span>
+                    <label class="s-toggle-switch">
+                        <input type="checkbox" id="siarhe_color_mode_toggle" ${state.colorMode === 'mono' ? 'checked' : ''}>
+                        <span class="s-toggle-slider"></span>
+                    </label>
+                    <span>Monocromático</span>
+                `;
+
+                const checkbox = colorToggleContainer.querySelector('input');
+                checkbox.addEventListener('change', (e) => {
+                    state.colorMode = e.target.checked ? 'mono' : 'quartiles';
+                    if (app.map) app.map.updateVisuals(container, state);
+                });
+
+                wrapper.appendChild(colorToggleContainer);
             }
             
             ph.appendChild(wrapper);
