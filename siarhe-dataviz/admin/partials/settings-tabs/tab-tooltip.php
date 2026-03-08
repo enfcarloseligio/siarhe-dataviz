@@ -12,12 +12,20 @@ if ( empty($tooltip_json) ) {
         // Marcadores
         'mk_inst' => true, 'mk_mun' => true, 'mk_clues' => true,
         'mk_tipo' => true, 'mk_nivel' => true, 'mk_juris' => true,
-        // Diseño del Tooltip
+        // Diseño del Tooltip (Mapa)
         'bg_color' => '#0f172a',    // Fondo por defecto (Azul muy oscuro casi negro)
         'bg_opacity' => '90',       // Transparencia (90%)
         'text_color' => '#f8fafc',  // Texto por defecto (Blanco)
         'highlight_var' => 'rate',  // Qué variable destacar por defecto (La tasa)
-        'highlight_color' => '#06b6d4' // Color de la variable destacada (Cyan)
+        'highlight_color' => '#06b6d4', // Color de la variable destacada (Cyan)
+        
+        // Orden y Diseño del Tooltip (Marcadores)
+        'mk_order' => ['mk_inst', 'mk_clues', 'mk_tipo', 'mk_nivel', 'mk_separator', 'mk_juris', 'mk_mun'],
+        'mk_bg_color' => '#0f172a',
+        'mk_bg_opacity' => '90',
+        'mk_text_color' => '#f8fafc',
+        'mk_highlight_var' => 'none',
+        'mk_highlight_color' => '#06b6d4'
     ];
     $tooltip_json = wp_json_encode($defaults);
 } else {
@@ -27,13 +35,21 @@ if ( empty($tooltip_json) ) {
 // Extraer el objeto para pintar el HTML correctamente en la primera carga
 $configObj = json_decode($tooltip_json, true) ?: [];
 
-// Variables seguras para evitar errores de índice indefinido
+// Variables seguras para evitar errores de índice indefinido (Mapa)
 $bgColor = isset($configObj['bg_color']) ? $configObj['bg_color'] : '#0f172a';
 $bgOpacity = isset($configObj['bg_opacity']) ? $configObj['bg_opacity'] : '90';
 $textColor = isset($configObj['text_color']) ? $configObj['text_color'] : '#f8fafc';
 $hlVar = isset($configObj['highlight_var']) ? $configObj['highlight_var'] : 'rate';
 $hlColor = isset($configObj['highlight_color']) ? $configObj['highlight_color'] : '#06b6d4';
 $geoOrder = isset($configObj['geo_order']) && is_array($configObj['geo_order']) ? $configObj['geo_order'] : ['pob', 'abs', 'rate'];
+
+// Variables seguras (Marcadores)
+$mkBgColor = isset($configObj['mk_bg_color']) ? $configObj['mk_bg_color'] : '#0f172a';
+$mkBgOpacity = isset($configObj['mk_bg_opacity']) ? $configObj['mk_bg_opacity'] : '90';
+$mkTextColor = isset($configObj['mk_text_color']) ? $configObj['mk_text_color'] : '#f8fafc';
+$mkHlVar = isset($configObj['mk_highlight_var']) ? $configObj['mk_highlight_var'] : 'none';
+$mkHlColor = isset($configObj['mk_highlight_color']) ? $configObj['mk_highlight_color'] : '#06b6d4';
+$mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $configObj['mk_order'] : ['mk_inst', 'mk_clues', 'mk_tipo', 'mk_nivel', 'mk_separator', 'mk_juris', 'mk_mun'];
 
 ?>
 
@@ -50,10 +66,10 @@ $geoOrder = isset($configObj['geo_order']) && is_array($configObj['geo_order']) 
     .siarhe-tooltip-row:last-child { border-bottom: none; }
     
     /* Estilos para Drag & Drop */
-    .siarhe-draggable-list { border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
-    .siarhe-draggable-item { cursor: grab; transition: background 0.2s; display: flex; align-items: center; padding: 10px 15px; border-bottom: 1px solid #e2e8f0; background: #fff; }
+    .siarhe-draggable-list { border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; background: #f8fafc; }
+    .siarhe-draggable-item { cursor: grab; transition: background 0.2s; display: flex; align-items: center; padding: 10px 15px; border-bottom: 1px solid #e2e8f0; background: #fff; position: relative; }
     .siarhe-draggable-item:last-child { border-bottom: none; }
-    .siarhe-draggable-item:hover { background: #f8fafc; }
+    .siarhe-draggable-item:hover { background: #f1f5f9; }
     .siarhe-draggable-item:active { cursor: grabbing; }
     .siarhe-drag-handle { color: #cbd5e1; margin-right: 15px; cursor: grab; font-size: 20px; line-height: 1; }
     .siarhe-drag-ghost { opacity: 0.4; border: 2px dashed #94a3b8; }
@@ -64,7 +80,7 @@ $geoOrder = isset($configObj['geo_order']) && is_array($configObj['geo_order']) 
 
 <div class="card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
     <h2 style="margin-top: 0;">ℹ️ Gestor de Contenido y Diseño en Tooltips</h2>
-    <p style="margin-bottom: 0;">Personaliza la información, el orden y los colores de las tarjetas flotantes del mapa.</p>
+    <p style="margin-bottom: 0;">Personaliza la información, el orden y los colores de las tarjetas flotantes del mapa y de los marcadores. Arrastra desde el ícono <span class="dashicons dashicons-menu" style="font-size:16px; width:16px; height:16px;"></span> para ordenar.</p>
 </div>
 
 <input type="hidden" name="siarhe_tooltip_config" id="siarhe_tooltip_config" value="<?php echo esc_attr($tooltip_json); ?>">
@@ -73,9 +89,8 @@ $geoOrder = isset($configObj['geo_order']) && is_array($configObj['geo_order']) 
     <h3 style="margin-top: 0; border-bottom: 2px solid #0A66C2; padding-bottom: 10px; display: inline-block;">
         🗺️ Tooltip del Mapa (Regiones)
     </h3>
-    <p style="color: #64748b;">Enciende los datos que deseas mostrar. Arrastra desde el ícono <span class="dashicons dashicons-menu" style="font-size:16px; width:16px; height:16px;"></span> para ordenar cómo aparecerán en la caja.</p>
 
-    <div class="siarhe-draggable-list" id="geo-sortable-list">
+    <div class="siarhe-draggable-list" id="geo-sortable-list" style="margin-bottom: 25px;">
         <?php
         // Función auxiliar para imprimir las filas en el orden guardado
         $filas_html = [
@@ -116,13 +131,8 @@ $geoOrder = isset($configObj['geo_order']) && is_array($configObj['geo_order']) 
         }
         ?>
     </div>
-</div>
 
-<div class="card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
-    <h3 style="margin-top: 0; border-bottom: 2px solid #8b5cf6; padding-bottom: 10px; display: inline-block;">
-        🎨 Diseño y Colores
-    </h3>
-    
+    <h4 style="margin-top: 0; margin-bottom: 10px;">🎨 Diseño y Colores</h4>
     <div class="siarhe-design-grid">
         <div class="siarhe-design-box">
             <label><strong>Color de Fondo</strong></label><br>
@@ -140,7 +150,7 @@ $geoOrder = isset($configObj['geo_order']) && is_array($configObj['geo_order']) 
         </div>
     </div>
 
-    <h4 style="margin-top: 25px; margin-bottom: 10px;">🌟 Destacar una Variable</h4>
+    <h4 style="margin-top: 25px; margin-bottom: 10px;">Destacar una Variable</h4>
     <p style="color: #64748b; margin-top:0;">La variable destacada se colocará al final del tooltip, separada por una línea sutil, utilizando el color elegido.</p>
     
     <div style="display:flex; gap:20px; flex-wrap:wrap; background:#f0f9ff; padding:15px; border:1px dashed #bae6fd; border-radius:6px;">
@@ -164,54 +174,43 @@ $geoOrder = isset($configObj['geo_order']) && is_array($configObj['geo_order']) 
     <h3 style="margin-top: 0; border-bottom: 2px solid #06B6D4; padding-bottom: 10px; display: inline-block;">
         📍 Tooltip de Marcadores (Instituciones)
     </h3>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0;">
-        <div class="siarhe-tooltip-row">
-            <label class="siarhe-toggle"><input type="checkbox" id="tt_mk_inst"><span class="siarhe-slider"></span></label>
-            <div>
-                <strong>Institución a la que pertenece</strong><br>
-                <small style="color: #64748b;">Ej: "IMSS", "ISSSTE", "SSA".</small>
-            </div>
-        </div>
+    <p style="color: #64748b;">El título de la tarjeta será automático (Ej. "Establecimiento en Zona Urbana" + Nombre de la Unidad). Organiza aquí el resto de la información y arrastra la línea separadora a donde la necesites.</p>
 
-        <div class="siarhe-tooltip-row">
-            <label class="siarhe-toggle"><input type="checkbox" id="tt_mk_mun"><span class="siarhe-slider"></span></label>
-            <div>
-                <strong>Municipio de Ubicación</strong><br>
-                <small style="color: #64748b;">Muestra en qué municipio se encuentra la clínica.</small>
-            </div>
-        </div>
+    <div class="siarhe-draggable-list" id="mk-sortable-list" style="margin-bottom: 25px;">
+        <?php
+        $mk_html = [
+            'mk_inst' => '<div class="siarhe-draggable-item" data-id="mk_inst" draggable="true"><span class="dashicons dashicons-menu siarhe-drag-handle"></span><label class="siarhe-toggle"><input type="checkbox" id="tt_mk_inst"><span class="siarhe-slider"></span></label><div><strong>Institución a la que pertenece</strong><br><small style="color: #64748b;">Ej: "IMSS", "ISSSTE", "SSA".</small></div></div>',
+            'mk_clues' => '<div class="siarhe-draggable-item" data-id="mk_clues" draggable="true"><span class="dashicons dashicons-menu siarhe-drag-handle"></span><label class="siarhe-toggle"><input type="checkbox" id="tt_mk_clues"><span class="siarhe-slider"></span></label><div><strong>Clave CLUES</strong><br><small style="color: #64748b;">Identificador único oficial del establecimiento.</small></div></div>',
+            'mk_tipo' => '<div class="siarhe-draggable-item" data-id="mk_tipo" draggable="true"><span class="dashicons dashicons-menu siarhe-drag-handle"></span><label class="siarhe-toggle"><input type="checkbox" id="tt_mk_tipo"><span class="siarhe-slider"></span></label><div><strong>Tipo y Tipología del Establecimiento</strong><br><small style="color: #64748b;">Ej: "Hospital General", "Centro de Salud".</small></div></div>',
+            'mk_nivel' => '<div class="siarhe-draggable-item" data-id="mk_nivel" draggable="true"><span class="dashicons dashicons-menu siarhe-drag-handle"></span><label class="siarhe-toggle"><input type="checkbox" id="tt_mk_nivel"><span class="siarhe-slider"></span></label><div><strong>Nivel de Atención</strong><br><small style="color: #64748b;">Primer, Segundo o Tercer nivel.</small></div></div>',
+            'mk_juris' => '<div class="siarhe-draggable-item" data-id="mk_juris" draggable="true"><span class="dashicons dashicons-menu siarhe-drag-handle"></span><label class="siarhe-toggle"><input type="checkbox" id="tt_mk_juris"><span class="siarhe-slider"></span></label><div><strong>Jurisdicción Sanitaria</strong><br><small style="color: #64748b;">Muestra la jurisdicción que la regula.</small></div></div>',
+            'mk_mun' => '<div class="siarhe-draggable-item" data-id="mk_mun" draggable="true"><span class="dashicons dashicons-menu siarhe-drag-handle"></span><label class="siarhe-toggle"><input type="checkbox" id="tt_mk_mun"><span class="siarhe-slider"></span></label><div><strong>Ubicación Geográfica</strong><br><small style="color: #64748b;">Entidad, Municipio y Localidad.</small></div></div>',
+            
+            // ELEMENTO ESPECIAL: LÍNEA SEPARADORA
+            'mk_separator' => '<div class="siarhe-draggable-item" data-id="mk_separator" draggable="true" style="background: #f1f5f9; border: 1px dashed #cbd5e1; justify-content: center; color: #64748b; font-weight: bold; padding: 6px 15px;"><span class="dashicons dashicons-menu siarhe-drag-handle" style="position: absolute; left: 15px;"></span><span style="letter-spacing: 2px;">--- LÍNEA SEPARADORA ---</span></div>'
+        ];
+        foreach ($mkOrder as $item_id) { if (isset($mk_html[$item_id])) echo $mk_html[$item_id]; }
+        ?>
+    </div>
 
-        <div class="siarhe-tooltip-row">
-            <label class="siarhe-toggle"><input type="checkbox" id="tt_mk_clues"><span class="siarhe-slider"></span></label>
-            <div>
-                <strong>Clave CLUES</strong><br>
-                <small style="color: #64748b;">Identificador único oficial del establecimiento.</small>
-            </div>
-        </div>
+    <h4 style="margin-top: 0; margin-bottom: 10px;">🎨 Diseño y Colores (Marcadores)</h4>
+    <div class="siarhe-design-grid">
+        <div class="siarhe-design-box"><label><strong>Color de Fondo</strong></label><br><input type="text" id="tt_mk_bg_color" value="<?php echo esc_attr($mkBgColor); ?>" class="siarhe-color-field" style="margin-top:5px;"></div>
+        <div class="siarhe-design-box"><label><strong>Opacidad (Transparencia)</strong></label><br><input type="number" id="tt_mk_bg_opacity" value="<?php echo esc_attr($mkBgOpacity); ?>" min="10" max="100" style="width: 70px; margin-top:5px;"> %</div>
+        <div class="siarhe-design-box"><label><strong>Color del Texto Base</strong></label><br><input type="text" id="tt_mk_text_color" value="<?php echo esc_attr($mkTextColor); ?>" class="siarhe-color-field" style="margin-top:5px;"></div>
+    </div>
 
-        <div class="siarhe-tooltip-row">
-            <label class="siarhe-toggle"><input type="checkbox" id="tt_mk_tipo"><span class="siarhe-slider"></span></label>
-            <div>
-                <strong>Tipo y Tipología del Establecimiento</strong><br>
-                <small style="color: #64748b;">Ej: "Hospital General", "Centro de Salud".</small>
-            </div>
+    <div style="display:flex; gap:20px; flex-wrap:wrap; background:#faf5ff; padding:15px; border:1px dashed #d8b4fe; border-radius:6px; margin-top: 15px;">
+        <div>
+            <label><strong>¿Qué dato destacar?</strong></label><br>
+            <select id="tt_mk_highlight_var" style="margin-top:5px;">
+                <option value="none" <?php selected($mkHlVar, 'none'); ?>>Ninguno (Todo estándar)</option>
+                <option value="mk_clues" <?php selected($mkHlVar, 'mk_clues'); ?>>Clave CLUES</option>
+                <option value="mk_inst" <?php selected($mkHlVar, 'mk_inst'); ?>>Institución</option>
+                <option value="mk_tipo" <?php selected($mkHlVar, 'mk_tipo'); ?>>Tipo y Tipología</option>
+            </select>
         </div>
-
-        <div class="siarhe-tooltip-row">
-            <label class="siarhe-toggle"><input type="checkbox" id="tt_mk_nivel"><span class="siarhe-slider"></span></label>
-            <div>
-                <strong>Nivel de Atención</strong><br>
-                <small style="color: #64748b;">Primer, Segundo o Tercer nivel.</small>
-            </div>
-        </div>
-
-        <div class="siarhe-tooltip-row">
-            <label class="siarhe-toggle"><input type="checkbox" id="tt_mk_juris"><span class="siarhe-slider"></span></label>
-            <div>
-                <strong>Jurisdicción Sanitaria</strong><br>
-                <small style="color: #64748b;">Muestra la jurisdicción que la regula.</small>
-            </div>
-        </div>
+        <div><label><strong>Color del Texto Destacado</strong></label><br><input type="text" id="tt_mk_highlight_color" value="<?php echo esc_attr($mkHlColor); ?>" class="siarhe-color-field" style="margin-top:5px;"></div>
     </div>
 </div>
 
@@ -224,6 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Asegurar que exista el array de orden
     if(!configObj.geo_order) configObj.geo_order = ['pob', 'abs', 'rate'];
+    if(!configObj.mk_order) configObj.mk_order = ['mk_inst', 'mk_clues', 'mk_tipo', 'mk_nivel', 'mk_separator', 'mk_juris', 'mk_mun'];
 
     // Mapeo de IDs de HTML a Claves de Visibilidad del JSON
     const uiMap = {
@@ -260,11 +260,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 2. Inicializar Opciones de Diseño
     const designInputs = {
-        'tt_bg_color': 'bg_color',
-        'tt_bg_opacity': 'bg_opacity',
-        'tt_text_color': 'text_color',
-        'tt_highlight_var': 'highlight_var',
-        'tt_highlight_color': 'highlight_color'
+        'tt_bg_color': 'bg_color', 'tt_bg_opacity': 'bg_opacity', 'tt_text_color': 'text_color',
+        'tt_highlight_var': 'highlight_var', 'tt_highlight_color': 'highlight_color',
+        'tt_mk_bg_color': 'mk_bg_color', 'tt_mk_bg_opacity': 'mk_bg_opacity', 'tt_mk_text_color': 'mk_text_color',
+        'tt_mk_highlight_var': 'mk_highlight_var', 'tt_mk_highlight_color': 'mk_highlight_color'
     };
 
     for (const [uiId, jsonKey] of Object.entries(designInputs)) {
@@ -283,37 +282,45 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 3. LÓGICA DRAG & DROP PARA EL ORDEN
-    const list = document.getElementById('geo-sortable-list');
+    // 3. LÓGICA DRAG & DROP MULTIPLE (Mapa y Marcadores)
     let draggedItem = null;
 
-    list.addEventListener('dragstart', (e) => {
-        draggedItem = e.target.closest('.siarhe-draggable-item');
-        setTimeout(() => draggedItem.classList.add('siarhe-drag-ghost'), 0);
-    });
-
-    list.addEventListener('dragend', () => {
-        draggedItem.classList.remove('siarhe-drag-ghost');
-        draggedItem = null;
-        
-        // Extraer el nuevo orden
-        const newOrder = [];
-        list.querySelectorAll('.siarhe-draggable-item').forEach(item => {
-            newOrder.push(item.getAttribute('data-id'));
+    document.querySelectorAll('.siarhe-draggable-list').forEach(list => {
+        list.addEventListener('dragstart', (e) => {
+            draggedItem = e.target.closest('.siarhe-draggable-item');
+            setTimeout(() => draggedItem.classList.add('siarhe-drag-ghost'), 0);
         });
-        
-        configObj.geo_order = newOrder;
-        triggerSave();
-    });
 
-    list.addEventListener('dragover', (e) => {
-        e.preventDefault(); 
-        const afterElement = getDragAfterElement(list, e.clientY);
-        if (afterElement == null) {
-            list.appendChild(draggedItem);
-        } else {
-            list.insertBefore(draggedItem, afterElement);
-        }
+        list.addEventListener('dragend', () => {
+            if(!draggedItem) return;
+            draggedItem.classList.remove('siarhe-drag-ghost');
+            
+            // Determinar qué lista se modificó y guardar su orden
+            const listId = list.getAttribute('id');
+            const newOrder = [];
+            list.querySelectorAll('.siarhe-draggable-item').forEach(item => {
+                newOrder.push(item.getAttribute('data-id'));
+            });
+            
+            if (listId === 'geo-sortable-list') configObj.geo_order = newOrder;
+            if (listId === 'mk-sortable-list') configObj.mk_order = newOrder;
+            
+            draggedItem = null;
+            triggerSave();
+        });
+
+        list.addEventListener('dragover', (e) => {
+            e.preventDefault(); 
+            // Evitar que arrastren items de una lista a otra
+            if (draggedItem && draggedItem.parentElement !== list) return;
+
+            const afterElement = getDragAfterElement(list, e.clientY);
+            if (afterElement == null) {
+                list.appendChild(draggedItem);
+            } else {
+                list.insertBefore(draggedItem, afterElement);
+            }
+        });
     });
 
     // Función matemática para saber dónde soltar el elemento
