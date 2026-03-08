@@ -83,12 +83,10 @@ $marker_urls = [
 ];
 
 // LECTURA DINÁMICA DE MÉTRICAS DESDE LA BASE DE DATOS
-// Usamos wp_unslash para limpiar la basura que WP le pone a las comillas del JSON al guardar
 $metricas_json = get_option( 'siarhe_metricas_config', '' );
 $metricas_array = json_decode( wp_unslash( $metricas_json ), true );
 
 if ( empty($metricas_array) || !is_array($metricas_array) ) {
-    // Fallback de seguridad si aún no se ha guardado nada
     $metricas_array = [
         'tasa_total'                 => ['label' => 'Tasa Total', 'fullLabel' => 'Tasa de enfermeras por cada mil habitantes', 'tipo' => 'tasa', 'pair' => 'enfermeras_total'],
         'enfermeras_total'           => ['label' => 'Total Enf.', 'fullLabel' => 'Total de profesionales de enfermería', 'tipo' => 'absoluto', 'pair' => 'enfermeras_total'],
@@ -112,35 +110,40 @@ if ( empty($metricas_array) || !is_array($metricas_array) ) {
     ];
 }
 
-// NUEVO: MOTOR DE FILTRADO POR VISIBILIDAD (Seguridad Backend)
+// MOTOR DE FILTRADO POR VISIBILIDAD (Seguridad Backend)
 $metricas_filtradas = [];
-$is_user_logged_in = is_user_logged_in(); // Función nativa de WordPress
+$is_user_logged_in = is_user_logged_in();
 
 foreach ($metricas_array as $key => $metrica) {
-    // Si una métrica no tiene declarada la visibilidad, se asume pública por seguridad.
     $visibilidad = isset($metrica['visibilidad']) ? $metrica['visibilidad'] : 'publico';
     
-    // Regla 1: Si está oculta, la ignoramos completamente.
-    if ($visibilidad === 'oculto') {
-        continue; 
-    }
+    if ($visibilidad === 'oculto') { continue; }
+    if ($visibilidad === 'registrados' && !$is_user_logged_in) { continue; }
     
-    // Regla 2: Si es para registrados y el usuario no está logueado, la ignoramos.
-    if ($visibilidad === 'registrados' && !$is_user_logged_in) {
-        continue; 
-    }
-    
-    // Parche temporal de seguridad: Si la métrica no tiene abreviatura aún, le creamos una en vuelo.
     if (!isset($metrica['abrev']) || empty(trim($metrica['abrev']))) {
         $metrica['abrev'] = mb_substr($metrica['label'], 0, 8) . '.';
     }
     
-    // Si pasó los filtros, la añadimos al arreglo limpio que verá Javascript.
     $metricas_filtradas[$key] = $metrica;
 }
 
-// Codificamos de nuevo a JSON usando SOLO las métricas autorizadas para el usuario actual
 $metricas_clean_json = wp_json_encode($metricas_filtradas);
+
+// 🌟 LECTURA DE CONFIGURACIÓN DE TOOLTIPS (Actualizada con las nuevas variables)
+$tooltip_json = get_option( 'siarhe_tooltip_config', '' );
+if ( empty($tooltip_json) ) {
+    $defaults_tt = [
+        'geo_pob' => true, 'geo_abs' => true, 'geo_rate' => true,
+        'geo_order' => ['pob', 'abs', 'rate'],
+        'mk_inst' => true, 'mk_mun' => true, 'mk_clues' => true,
+        'mk_tipo' => true, 'mk_nivel' => true, 'mk_juris' => true,
+        'bg_color' => '#0f172a', 'bg_opacity' => '90', 'text_color' => '#f8fafc',
+        'highlight_var' => 'rate', 'highlight_color' => '#06b6d4'
+    ];
+    $tooltip_json = wp_json_encode($defaults_tt);
+} else {
+    $tooltip_json = wp_unslash($tooltip_json);
+}
 
 // PROCESAMIENTO DE ENLACES DE NAVEGACIÓN
 $siarhe_links_raw = get_option( 'siarhe_links_map', [] );
@@ -212,6 +215,7 @@ if ( !empty($siarhe_links_raw['republica-mexicana']) ) {
      data-marker-urls='<?php echo esc_attr(wp_json_encode($marker_urls)); ?>'
      data-entity-urls='<?php echo esc_attr(wp_json_encode($entity_urls)); ?>' 
      data-metricas='<?php echo esc_attr($metricas_clean_json); ?>' 
+     data-tooltips='<?php echo esc_attr($tooltip_json); ?>' 
      data-home-url="<?php echo esc_url($home_url); ?>"> 
 
     <?php 
@@ -228,7 +232,7 @@ if ( !empty($siarhe_links_raw['republica-mexicana']) ) {
             profesionales de enfermería distribuidos en <?php echo $es_nacional ? 'las 32 entidades federativas' : 'los <strong style="color: #0A66C2;"><span class="siarhe-dynamic-mun-count">...</span></strong> municipios'; ?>, según el último corte estadístico del SIARHE y proyecciones INEGI.
         </p>
         <p>
-            Contar con information actualizada y geolocalizada sobre la distribución del capital humano es fundamental para identificar brechas de atención, planificar recursos estratégicos y fortalecer el sistema de salud estatal, asegurando una cobertura equitativa para la población. Esta herramienta permite visualizar las disparidades regionales en la cobertura de salud. Haz doble clic en cualquier <?php echo $es_nacional ? 'estado' : 'municipio'; ?> para consultar el desglose detallado.
+            Contar con información actualizada y geolocalizada sobre la distribución del capital humano es fundamental para identificar brechas de atención, planificar recursos estratégicos y fortalecer el sistema de salud estatal, asegurando una cobertura equitativa para la población. Esta herramienta permite visualizar las disparidades regionales en la cobertura de salud. Haz doble clic en cualquier <?php echo $es_nacional ? 'estado' : 'municipio'; ?> para consultar el desglose detallado.
         </p>
     </div>
     <?php endif; ?>

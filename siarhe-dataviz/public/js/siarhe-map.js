@@ -13,6 +13,20 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
     app.map = {
         
+        // UTILIDAD: Convierte Hexadecimal a RGBA para aplicar la opacidad del tooltip
+        hexToRgba: function(hex, alpha) {
+            let c;
+            if(/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)){
+                c= hex.substring(1).split('');
+                if(c.length== 3){
+                    c= [c[0], c[0], c[1], c[1], c[2], c[2]];
+                }
+                c= '0x'+c.join('');
+                return 'rgba('+[(c>>16)&255, (c>>8)&255, c&255].join(',')+','+alpha+')';
+            }
+            return `rgba(15, 23, 42, ${alpha})`; // Fallback oscuro
+        },
+
         // ==========================================
         // 1. RENDERIZADO INICIAL DEL MAPA SVG
         // ==========================================
@@ -120,11 +134,15 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
             state.initialTransform = initialTransform;
 
+            // AÑADIDOS ESTILOS BASE AL TOOLTIP PRINCIPAL PARA EVITAR PARPADEOS
             d3.selectAll(mapDiv.querySelectorAll(".siarhe-tooltip")).remove(); 
             state.tooltip = d3.select(mapDiv).append("div")
                 .attr("class", "siarhe-tooltip")
                 .style("opacity", 0)
-                .style("display", "none");
+                .style("display", "none")
+                .style("position", "absolute")
+                .style("pointer-events", "none")
+                .style("z-index", "9999");
 
             state.gPaths.selectAll("path.siarhe-feature")
                 .data(state.geoData.features).enter().append("path")
@@ -306,7 +324,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const g = state.gLegend; 
             g.html("");
             
-            // USO DE ETIQUETA ABREVIADA PARA LA LEYENDA DEL MAPA
             const info = state.metricas[state.currentMetric] || {};
             const label = info.abrev || info.label || 'Indicador';
             const mode = state.colorMode || 'quartiles';
@@ -357,7 +374,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         },
 
         // ==========================================
-        // 3. TOOLTIPS Y EVENTOS 
+        // 3. TOOLTIPS Y EVENTOS (DISEÑO DINÁMICO)
         // ==========================================
 
         showTooltip: function(event, d, state, mapDiv) {
@@ -365,43 +382,89 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const row = state.dataMap.get(cve);
             const nombre = row ? row.estado : (d.properties.NOMGEO || d.properties.NOM_ENT || "Sin Datos");
             
+            // OBTENER CONFIGURACIONES DE DISEÑO Y ORDEN
             const tt = state.tooltipConfig || {}; 
+            const order = tt.geo_order || ['pob', 'abs', 'rate'];
+            const hlVar = tt.highlight_var || 'rate'; // 'none', 'pob', 'abs', 'rate'
+            const hlColor = tt.highlight_color || '#06b6d4';
+            const bgColor = tt.bg_color || '#0f172a';
+            const bgOpacity = (tt.bg_opacity !== undefined ? parseInt(tt.bg_opacity, 10) : 90) / 100;
+            const txtColor = tt.text_color || '#f8fafc';
             
-            let html = `<div class="tooltip-header">${nombre}</div>`;
-            if (row) {
-                const mKey = state.currentMetric; 
-                const pKey = state.metricas[mKey] ? state.metricas[mKey].pair : mKey; 
-                
-                if (tt.geo_pob !== false) {
-                    html += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span style="color:#A5B4C3">Población:</span> <b>${row.poblacion ? row.poblacion.toLocaleString('es-MX') : '—'}</b></div>`;
+            const finalBgColor = app.map.hexToRgba(bgColor, bgOpacity);
+            
+            const mKey = state.currentMetric; 
+            const pKey = state.metricas[mKey] ? state.metricas[mKey].pair : mKey; 
+            
+            // CONSTRUIR BLOQUES DE DATOS DISPONIBLES
+            let blocks = {};
+            
+            if (tt.geo_pob !== false) {
+                blocks['pob'] = {
+                    label: 'Población',
+                    value: row && row.poblacion ? row.poblacion.toLocaleString('es-MX') : '—'
+                };
+            }
+            
+            if (mKey !== 'poblacion') {
+                if (tt.geo_abs !== false) {
+                    const labelAbs = state.metricas[pKey] ? state.metricas[pKey].label : pKey;
+                    const valAbs = (row && row[pKey] !== null && row[pKey] !== undefined) ? row[pKey].toLocaleString('es-MX') : '—';
+                    blocks['abs'] = { label: labelAbs, value: valAbs };
                 }
                 
-                if (mKey !== 'poblacion') {
-                    if (tt.geo_abs !== false) {
-                        // USO DE ETIQUETA CORTA PARA EL TOOLTIP ABSOLUTO
-                        const labelAbs = state.metricas[pKey] ? state.metricas[pKey].label : pKey;
-                        const valAbs = (row[pKey] !== null && row[pKey] !== undefined) ? row[pKey].toLocaleString('es-MX') : '—';
-                        html += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span style="color:#A5B4C3">${labelAbs}:</span> <b>${valAbs}</b></div>`;
-                    }
-                    
-                    if (tt.geo_rate !== false) {
-                        let tasaKey = (state.metricas[mKey].tipo === 'tasa') ? mKey : app.utils.findRateKeyForAbsolute(pKey, state.metricas);
-                        let valTasa = tasaKey ? row[tasaKey] : null;
-                        const valTasaFmt = (valTasa !== null && valTasa !== undefined) ? valTasa.toFixed(2) : '—';
-                        // USO DE ETIQUETA CORTA PARA EL TOOLTIP RELATIVO
-                        const labelTasa = (state.metricas[mKey].tipo === 'tasa') ? state.metricas[mKey].label : 'Tasa';
-
-                        html += `<div style="display:flex; justify-content:space-between; margin-top:6px; padding-top:6px; border-top:1px solid #475569;">
-                                    <span style="color:#F8FAFC">${labelTasa}:</span> 
-                                    <strong>${valTasaFmt}</strong>
-                                 </div>`;
-                    }
+                if (tt.geo_rate !== false) {
+                    let tasaKey = (state.metricas[mKey].tipo === 'tasa') ? mKey : app.utils.findRateKeyForAbsolute(pKey, state.metricas);
+                    let valTasa = row && tasaKey ? row[tasaKey] : null;
+                    const valTasaFmt = (valTasa !== null && valTasa !== undefined) ? valTasa.toFixed(2) : '—';
+                    const labelTasa = state.metricas[mKey] ? state.metricas[mKey].label : 'Tasa';
+                    blocks['rate'] = { label: labelTasa, value: valTasaFmt };
                 }
             }
+
+            // ARMAR HTML SEGÚN EL ORDEN Y EL DESTACADO
+            let htmlStandard = '';
+            let htmlHighlight = '';
+
+            order.forEach(itemKey => {
+                if (!blocks[itemKey]) return; 
+                
+                const b = blocks[itemKey];
+
+                if (hlVar === itemKey) {
+                    htmlHighlight = `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.2);">
+                            <span style="font-size:12px; opacity:0.9;">${b.label}:</span> 
+                            <strong style="color:${hlColor}; font-size:14px; margin-left:15px;">${b.value}</strong>
+                        </div>`;
+                } else {
+                    htmlStandard += `
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px;">
+                            <span style="opacity:0.8; margin-right:15px;">${b.label}:</span> 
+                            <b>${b.value}</b>
+                        </div>`;
+                }
+            });
+
+            // Ensamblar caja final
+            let html = `
+                <div style="font-family:'Roboto', sans-serif;">
+                    <div style="font-weight:bold; font-size:14px; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:4px;">
+                        ${nombre}
+                    </div>
+                    ${htmlStandard}
+                    ${htmlHighlight}
+                </div>
+            `;
             
             if (mapDiv) {
                 const [mx, my] = d3.pointer(event, mapDiv);
                 state.tooltip.html(html)
+                    .style("background-color", finalBgColor)
+                    .style("color", txtColor)
+                    .style("border-radius", "6px")
+                    .style("padding", "10px 14px")
+                    .style("box-shadow", "0 4px 15px rgba(0,0,0,0.2)")
                     .style("display", "block")
                     .style("opacity", 1)
                     .style("left", (mx + 15) + "px")
@@ -458,39 +521,51 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
                     d3.select(this).attr("stroke-width", 3 / k).raise(); 
 
+                    // OBTENER DISEÑO PARA TOOLTIP DE MARCADORES
                     const tt = state.tooltipConfig || {}; 
+                    const hlColor = tt.highlight_color || '#06b6d4';
+                    const bgColor = tt.bg_color || '#0f172a';
+                    const bgOpacity = (tt.bg_opacity !== undefined ? parseInt(tt.bg_opacity, 10) : 90) / 100;
+                    const txtColor = tt.text_color || '#f8fafc';
+                    const finalBgColor = app.map.hexToRgba(bgColor, bgOpacity);
 
-                    let html = `<div class="tooltip-header" style="color: #06B6D4;">${app.constants.MARCADOR_NOMBRES[d.tipo] || 'Unidad de Salud'}</div>`;
+                    let html = `<div style="font-family:'Roboto', sans-serif; color:${txtColor};">`;
+                    html += `<div style="color: ${hlColor}; font-weight:bold; font-size:13px; margin-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:4px;">${app.constants.MARCADOR_NOMBRES[d.tipo] || 'Unidad de Salud'}</div>`;
                     html += `<div style="font-size:12px; margin-top:4px;">
-                        <div style="font-weight:bold; color:#F8FAFC; font-family:'IBM Plex Sans', sans-serif;">${d.nombre || 'Desconocido'}</div>`;
+                        <div style="font-weight:bold; font-family:'IBM Plex Sans', sans-serif;">${d.nombre || 'Desconocido'}</div>`;
                         
                     if (tt.mk_inst !== false || tt.mk_mun !== false) {
                         let instMun = [];
                         if (tt.mk_inst !== false && d.institucion) instMun.push(d.institucion);
                         if (tt.mk_mun !== false && d.municipio) instMun.push(d.municipio);
                         if (instMun.length > 0) {
-                            html += `<div style="color:#A5B4C3; font-size:11px;">${instMun.join(' - ')}</div>`;
+                            html += `<div style="opacity:0.8; font-size:11px; margin-top:2px;">${instMun.join(' - ')}</div>`;
                         }
                     }
                     
                     if (tt.mk_clues !== false) {
-                        html += `<div style="font-size:10px; margin-top:2px;">CLUES: ${d.clues}</div>`;
+                        html += `<div style="font-size:10px; margin-top:2px; opacity:0.6;">CLUES: ${d.clues}</div>`;
                     }
                     
                     if ((d.tipo_estab || d.nivel_atencion || d.jurisdiccion) && (tt.mk_tipo !== false || tt.mk_nivel !== false || tt.mk_juris !== false)) {
-                        html += `<div style="margin-top:5px; padding-top:4px; border-top:1px dashed #475569;">`;
-                        if(d.tipo_estab && tt.mk_tipo !== false) html += `<div style="color:#0A66C2; font-size:11px;"><strong>Tipo:</strong> ${d.tipo_estab}</div>`;
-                        if(d.tipologia && tt.mk_tipo !== false) html += `<div style="color:#06B6D4; font-size:11px;"><strong>Tipología:</strong> ${d.tipologia}</div>`;
-                        if(d.nivel_atencion && tt.mk_nivel !== false) html += `<div style="color:#F8FAFC; font-size:11px;"><strong>Nivel:</strong> ${d.nivel_atencion}</div>`;
-                        if(d.jurisdiccion && tt.mk_juris !== false) html += `<div style="color:#A5B4C3; font-size:10px;"><strong>Jurisdicción:</strong> ${d.jurisdiccion}</div>`;
+                        html += `<div style="margin-top:6px; padding-top:4px; border-top:1px dashed rgba(255,255,255,0.2); opacity:0.9;">`;
+                        if(d.tipo_estab && tt.mk_tipo !== false) html += `<div style="font-size:11px;"><strong style="opacity:0.7;">Tipo:</strong> ${d.tipo_estab}</div>`;
+                        if(d.tipologia && tt.mk_tipo !== false) html += `<div style="font-size:11px;"><strong style="opacity:0.7;">Tipología:</strong> ${d.tipologia}</div>`;
+                        if(d.nivel_atencion && tt.mk_nivel !== false) html += `<div style="font-size:11px;"><strong style="opacity:0.7;">Nivel:</strong> ${d.nivel_atencion}</div>`;
+                        if(d.jurisdiccion && tt.mk_juris !== false) html += `<div style="font-size:10px;"><strong style="opacity:0.7;">Jurisdicción:</strong> ${d.jurisdiccion}</div>`;
                         html += `</div>`;
                     }
-                    html += `</div>`;
+                    html += `</div></div>`; // Cerrar wrappers principales
 
                     const mapDiv = document.querySelector('.siarhe-map-container');
                     const [mx, my] = d3.pointer(e, mapDiv);
 
                     state.tooltip.html(html)
+                        .style("background-color", finalBgColor)
+                        .style("color", txtColor)
+                        .style("border-radius", "6px")
+                        .style("padding", "10px 14px")
+                        .style("box-shadow", "0 4px 15px rgba(0,0,0,0.2)")
                         .style("display", "block")
                         .style("opacity", 1)
                         .style("left", (mx + 10) + "px")
@@ -646,7 +721,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const titleNode = container.querySelector('h2.siarhe-title'); 
                     const entidadNombre = titleNode ? titleNode.innerText.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '').trim() : "México";
                     
-                    // 🌟 USO DE ETIQUETA LARGA PARA EL TÍTULO DEL PNG
+                    // USO DE ETIQUETA LARGA PARA EL TÍTULO DEL PNG
                     const titleText = `${metricInfo.fullLabel} en ${entidadNombre} (${anio})`;
                     ctx.fillStyle = "#0A66C2"; 
                     ctx.font = "bold 38px 'IBM Plex Sans', Arial, sans-serif"; 
