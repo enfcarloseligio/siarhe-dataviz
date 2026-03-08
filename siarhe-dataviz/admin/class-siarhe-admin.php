@@ -10,6 +10,9 @@ class Siarhe_Admin {
         add_action( 'admin_init', array( $this, 'register_plugin_settings' ) );
         add_action( 'admin_head', array( $this, 'inject_dynamic_css' ) );
 
+        // 🌟 Auto-Actualizador SQL (Añade las columnas de auditoría si no existen)
+        add_action( 'admin_init', array( $this, 'maybe_update_database' ) );
+
         // --- HANDLERS: GEOJSON ---
         add_action( 'admin_post_siarhe_upload_geojson', array( $this, 'handle_geojson_upload' ) );
         add_action( 'admin_post_siarhe_update_geojson_meta', array( $this, 'handle_geojson_meta_update' ) );
@@ -17,11 +20,20 @@ class Siarhe_Admin {
 
         // --- HANDLERS: BASES ESTÁTICAS Y MARCADORES (Comparten lógica de edición) ---
         add_action( 'admin_post_siarhe_upload_static', array( $this, 'handle_static_upload' ) );
-        add_action( 'admin_post_siarhe_update_static_meta', array( $this, 'handle_static_meta_update' ) ); // Inteligente: detecta si es static o marcador
+        add_action( 'admin_post_siarhe_update_static_meta', array( $this, 'handle_static_meta_update' ) ); 
         add_action( 'admin_post_siarhe_delete_static', array( $this, 'handle_static_delete' ) );
 
         // --- HANDLERS: MARCADORES (Subida Específica) ---
         add_action( 'admin_post_siarhe_upload_marker', array( $this, 'handle_marker_upload' ) );
+    }
+
+    public function maybe_update_database() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'siarhe_static_assets';
+        $row = $wpdb->get_results("SHOW COLUMNS FROM `$table` LIKE 'modificado_por'");
+        if(empty($row)) {
+            $wpdb->query("ALTER TABLE `$table` ADD `modificado_por` varchar(100) DEFAULT NULL, ADD `fecha_modificacion` datetime DEFAULT NULL;");
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -45,9 +57,7 @@ class Siarhe_Admin {
 
     public function inject_dynamic_css() {
         $options = get_option( 'siarhe_theme_options' );
-        // 🌟 NUEVO: Obtenemos también las opciones del mapa para inyectar los colores monocromáticos
         $map_options = get_option( 'siarhe_map_options' ); 
-        
         ?>
         <style type="text/css">
             :root {
@@ -60,8 +70,6 @@ class Siarhe_Admin {
                     if(!empty($options['even_bg'])) echo '--siarhe-tr-even-bg: ' . esc_attr($options['even_bg']) . ';';
                     if(!empty($options['even_text'])) echo '--siarhe-tr-even-text: ' . esc_attr($options['even_text']) . ';';
                 }
-                
-                // 🌟 NUEVO: Inyección de variables CSS para la escala monocromática
                 if ( ! empty( $map_options ) ) {
                     if(!empty($map_options['mono_min'])) echo '--s-map-mono-min: ' . esc_attr($map_options['mono_min']) . ';';
                     if(!empty($map_options['mono_max'])) echo '--s-map-mono-max: ' . esc_attr($map_options['mono_max']) . ';';
@@ -81,11 +89,8 @@ class Siarhe_Admin {
         register_setting( 'siarhe_links_group', 'siarhe_links_map' );
         register_setting( 'siarhe_theme_group', 'siarhe_theme_options' );
         register_setting( 'siarhe_map_group', 'siarhe_map_options' );
-        // REGISTRO PARA MÉTRICAS DINÁMICAS
         register_setting( 'siarhe_metricas_group', 'siarhe_metricas_config' );
-        // REGISTRO PARA TOOLTIPS
         register_setting( 'siarhe_tooltip_group', 'siarhe_tooltip_config' );
-        // REGISTRO PARA EL DICCIONARIO DE MARCADORES
         register_setting( 'siarhe_marcadores_group', 'siarhe_marcadores_config' );
     }
 
@@ -94,16 +99,13 @@ class Siarhe_Admin {
     // -------------------------------------------------------------------------
     private function ensure_utf8_csv( $filepath ) {
         if ( ! file_exists( $filepath ) ) return;
-        
         $content = file_get_contents( $filepath );
         if ( $content === false ) return;
 
-        // Comprobar si el archivo NO es UTF-8 válido (típico de Excel en Windows / ISO-8859-1)
         if ( ! mb_check_encoding( $content, 'UTF-8' ) ) {
             $content = mb_convert_encoding( $content, 'UTF-8', 'ISO-8859-1' );
             file_put_contents( $filepath, $content );
         } else {
-            // Si ya es UTF-8, revisamos si tiene un BOM (Byte Order Mark) y se lo quitamos
             $bom = pack('H*','EFBBBF');
             if ( preg_match( "/^$bom/", $content ) ) {
                 $content = preg_replace( "/^$bom/", '', $content );
@@ -137,29 +139,17 @@ class Siarhe_Admin {
                 global $wpdb;
                 $table_name = $wpdb->prefix . 'siarhe_static_assets';
                 
-                $existe = $wpdb->get_row( $wpdb->prepare(
-                    "SELECT id FROM $table_name WHERE entidad_slug = %s AND tipo_archivo = 'geojson'", 
-                    $entidad_slug
-                ));
+                $existe = $wpdb->get_row( $wpdb->prepare("SELECT id FROM $table_name WHERE entidad_slug = %s AND tipo_archivo = 'geojson'", $entidad_slug) );
 
                 $datos = array(
-                    'entidad_slug' => $entidad_slug,
-                    'tipo_archivo' => 'geojson',
-                    'ruta_archivo' => 'geojson/' . $new_filename,
-                    'anio_reporte' => $anio,
-                    'fecha_corte' => $fecha_corte,
-                    'referencia_bibliografica' => $referencia,
-                    'comentarios' => $comentarios,
-                    'es_activo' => 1,
-                    'fecha_subida' => current_time( 'mysql' )
+                    'entidad_slug' => $entidad_slug, 'tipo_archivo' => 'geojson', 'ruta_archivo' => 'geojson/' . $new_filename,
+                    'anio_reporte' => $anio, 'fecha_corte' => $fecha_corte, 'referencia_bibliografica' => $referencia,
+                    'comentarios' => $comentarios, 'es_activo' => 1, 'fecha_subida' => current_time( 'mysql' )
                 );
                 $formato = array( '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%d', '%s' );
 
-                if ($existe) {
-                    $wpdb->update( $table_name, $datos, array( 'id' => $existe->id ), $formato, array( '%d' ) );
-                } else {
-                    $wpdb->insert( $table_name, $datos, $formato );
-                }
+                if ($existe) { $wpdb->update( $table_name, $datos, array( 'id' => $existe->id ), $formato, array( '%d' ) ); } 
+                else { $wpdb->insert( $table_name, $datos, $formato ); }
 
                 wp_redirect( admin_url( 'admin.php?page=siarhe-uploader&tab=geojson&status=success' ) ); exit;
             } else { wp_die( 'Error mover.' ); }
@@ -185,10 +175,8 @@ class Siarhe_Admin {
         $file = $wpdb->get_row( $wpdb->prepare( "SELECT ruta_archivo FROM $table_name WHERE id = %d", $file_id ) );
         if ( $file ) {
             if ( defined('SIARHE_UPLOAD_DIR') ) { $filepath = SIARHE_UPLOAD_DIR . $file->ruta_archivo; if ( file_exists( $filepath ) ) unlink( $filepath ); }
-            // Fallback
             else { 
-                $ud = wp_upload_dir();
-                $filepath = $ud['basedir'] . '/siarhe-data/' . $file->ruta_archivo;
+                $ud = wp_upload_dir(); $filepath = $ud['basedir'] . '/siarhe-data/' . $file->ruta_archivo;
                 if ( file_exists( $filepath ) ) unlink( $filepath );
             }
             $wpdb->delete( $table_name, array( 'id' => $file_id ) );
@@ -197,7 +185,7 @@ class Siarhe_Admin {
     }
 
     // -------------------------------------------------------------------------
-    // HANDLERS: BASES ESTÁTICAS (CSV) Y METADATA INTELIGENTE
+    // HANDLERS: BASES ESTÁTICAS (CSV)
     // -------------------------------------------------------------------------
     public function handle_static_upload() {
         if ( ! isset( $_POST['siarhe_nonce'] ) || ! wp_verify_nonce( $_POST['siarhe_nonce'], 'siarhe_upload_static_nonce' ) ) wp_die( 'Error de seguridad.' );
@@ -210,6 +198,10 @@ class Siarhe_Admin {
             $referencia = wp_kses_post( $_POST['referencia'] ); 
             $comentarios = sanitize_textarea_field( $_POST['comentarios'] );
 
+            // Auditoría
+            $current_user = wp_get_current_user();
+            $editor_name = $current_user->display_name ?: $current_user->user_login;
+
             $upload_dir = wp_upload_dir();
             $target_dir = $upload_dir['basedir'] . '/siarhe-data/static-min/';
             if ( ! file_exists( $target_dir ) ) wp_mkdir_p( $target_dir );
@@ -218,58 +210,45 @@ class Siarhe_Admin {
             $target_file = $target_dir . $new_filename;
 
             if ( move_uploaded_file( $_FILES['siarhe_file']['tmp_name'], $target_file ) ) {
-                
-                // 🌟 APLICAMOS LA CORRECCIÓN DE ACENTOS AQUÍ
                 $this->ensure_utf8_csv( $target_file );
-
                 global $wpdb;
                 $table_name = $wpdb->prefix . 'siarhe_static_assets';
                 
-                $existe = $wpdb->get_row( $wpdb->prepare(
-                    "SELECT id FROM $table_name WHERE entidad_slug = %s AND tipo_archivo = 'static_min'", 
-                    $entidad_slug
-                ));
+                $existe = $wpdb->get_row( $wpdb->prepare("SELECT id FROM $table_name WHERE entidad_slug = %s AND tipo_archivo = 'static_min'", $entidad_slug) );
 
                 $datos = array( 
-                    'entidad_slug' => $entidad_slug,
-                    'tipo_archivo' => 'static_min',
-                    'ruta_archivo' => 'static-min/' . $new_filename, 
-                    'anio_reporte' => $anio,
-                    'fecha_corte' => $fecha_corte,
-                    'referencia_bibliografica' => $referencia,
-                    'comentarios' => $comentarios,
-                    'es_activo' => 1,
-                    'fecha_subida' => current_time( 'mysql' )
+                    'entidad_slug' => $entidad_slug, 'tipo_archivo' => 'static_min', 'ruta_archivo' => 'static-min/' . $new_filename, 
+                    'anio_reporte' => $anio, 'fecha_corte' => $fecha_corte, 'referencia_bibliografica' => $referencia,
+                    'comentarios' => $comentarios, 'es_activo' => 1, 'fecha_subida' => current_time( 'mysql' ),
+                    'modificado_por' => $editor_name, 'fecha_modificacion' => current_time('mysql')
                 );
-                $formato = array( '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%d', '%s' );
+                $formato = array( '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%d', '%s', '%s', '%s' );
 
-                if ($existe) {
-                    $wpdb->update( $table_name, $datos, array( 'id' => $existe->id ), $formato, array( '%d' ) );
-                } else {
-                    $wpdb->insert( $table_name, $datos, $formato );
-                }
+                if ($existe) { $wpdb->update( $table_name, $datos, array( 'id' => $existe->id ), $formato, array( '%d' ) ); } 
+                else { $wpdb->insert( $table_name, $datos, $formato ); }
 
                 wp_redirect( admin_url( 'admin.php?page=siarhe-uploader&tab=static&status=success' ) ); exit;
             } else { wp_die( 'Error mover.' ); }
         } else { wp_die( 'Error carga.' ); }
     }
 
-    // Esta función ahora es inteligente: detecta si editamos un Estático o un Marcador para redirigir bien
     public function handle_static_meta_update() {
         if ( ! isset( $_POST['siarhe_meta_nonce'] ) || ! wp_verify_nonce( $_POST['siarhe_meta_nonce'], 'siarhe_update_static_meta_nonce' ) ) wp_die( 'Error de seguridad.' );
         global $wpdb;
         $file_id = intval( $_POST['file_id'] );
         $table_name = $wpdb->prefix . 'siarhe_static_assets';
 
+        // Auditoría
+        $current_user = wp_get_current_user();
+        $editor_name = $current_user->display_name ?: $current_user->user_login;
+
         if ( $file_id > 0 ) {
-            // Actualizar datos
             $wpdb->update( 
                 $table_name, 
-                array( 'anio_reporte' => intval( $_POST['anio_reporte'] ), 'fecha_corte' => sanitize_text_field( $_POST['fecha_corte'] ), 'referencia_bibliografica' => wp_kses_post( $_POST['referencia'] ), 'comentarios' => sanitize_textarea_field( $_POST['comentarios'] ) ), 
+                array( 'anio_reporte' => intval( $_POST['anio_reporte'] ), 'fecha_corte' => sanitize_text_field( $_POST['fecha_corte'] ), 'referencia_bibliografica' => wp_kses_post( $_POST['referencia'] ), 'comentarios' => sanitize_textarea_field( $_POST['comentarios'] ), 'modificado_por' => $editor_name, 'fecha_modificacion' => current_time('mysql') ), 
                 array( 'id' => $file_id )
             );
 
-            // Verificar Tipo para redirección correcta
             $tipo = $wpdb->get_var( $wpdb->prepare( "SELECT tipo_archivo FROM $table_name WHERE id = %d", $file_id ) );
             $tab_destino = ($tipo === 'marcador') ? 'marcadores' : 'static';
 
@@ -286,40 +265,48 @@ class Siarhe_Admin {
         $table_name = $wpdb->prefix . 'siarhe_static_assets';
         $file = $wpdb->get_row( $wpdb->prepare( "SELECT ruta_archivo FROM $table_name WHERE id = %d", $file_id ) );
         if ( $file ) {
-            // Intentar borrar físico
             $upload_dir = wp_upload_dir();
             $filepath = $upload_dir['basedir'] . '/siarhe-data/' . $file->ruta_archivo;
             if ( file_exists( $filepath ) ) unlink( $filepath );
-            
             $wpdb->delete( $table_name, array( 'id' => $file_id ) );
         }
         wp_redirect( admin_url( 'admin.php?page=siarhe-uploader&tab=static&status=deleted' ) ); exit;
     }
 
     // -------------------------------------------------------------------------
-    // HANDLERS: MARCADORES (CLÍNICAS)
+    // HANDLERS: MARCADORES 
     // -------------------------------------------------------------------------
     public function handle_marker_upload() {
         if ( ! current_user_can( 'manage_options' ) ) wp_die( 'No tienes permisos.' );
         check_admin_referer( 'siarhe_upload_marker_nonce', 'marker_nonce' );
 
-        $nombres_fijos = [
-            'CATETER' => 'clinicas-cateteres.csv',
-            'HERIDAS' => 'clinicas-heridas.csv',
-            'ESTABLECIMIENTOS' => 'establecimientos-salud.csv'
-        ];
+        // 🌟 DINÁMICO: Leemos los marcadores de la BD en lugar del arreglo fijo
+        $archivos_json = get_option( 'siarhe_archivos_marcadores', '' );
+        $tipos_marcadores = json_decode( wp_unslash( $archivos_json ), true );
+
+        if (empty($tipos_marcadores)) {
+            $tipos_marcadores = [
+                'CATETER' => ['filename' => 'clinicas-cateteres.csv'],
+                'HERIDAS' => ['filename' => 'clinicas-heridas.csv'],
+                'ESTABLECIMIENTOS' => ['filename' => 'establecimientos-salud.csv']
+            ];
+        }
 
         $tipo = isset($_POST['marker_type']) ? sanitize_text_field($_POST['marker_type']) : '';
         
-        if ( ! array_key_exists($tipo, $nombres_fijos) ) wp_die('Tipo de marcador no válido.');
+        if ( ! array_key_exists($tipo, $tipos_marcadores) ) wp_die('Tipo de marcador no válido.');
 
-        $nombre_final = $nombres_fijos[$tipo];
+        $nombre_final = $tipos_marcadores[$tipo]['filename'];
 
         if ( isset($_FILES['marker_file']) && !empty($_FILES['marker_file']['name']) ) {
             $anio = intval( $_POST['anio_reporte'] );
             $fecha_corte = sanitize_text_field( $_POST['fecha_corte'] ); 
             $referencia = wp_kses_post( $_POST['referencia'] ); 
             $comentarios = sanitize_textarea_field( $_POST['comentarios'] );
+            
+            // Auditoría
+            $current_user = wp_get_current_user();
+            $editor_name = $current_user->display_name ?: $current_user->user_login;
 
             if ( ! function_exists( 'wp_handle_upload' ) ) require_once( ABSPATH . 'wp-admin/includes/file.php' );
 
@@ -330,7 +317,6 @@ class Siarhe_Admin {
             if ( $movefile && ! isset( $movefile['error'] ) ) {
                 $source = $movefile['file'];
                 
-                // Carpeta: siarhe-data/markers/
                 $upload_dir = wp_upload_dir();
                 $dest_dir = $upload_dir['basedir'] . '/siarhe-data/markers/';
                 if (!file_exists($dest_dir)) mkdir($dest_dir, 0755, true);
@@ -338,10 +324,7 @@ class Siarhe_Admin {
                 $dest_path = $dest_dir . $nombre_final;
 
                 if ( copy($source, $dest_path) ) {
-                    
-                    // 🌟 APLICAMOS LA CORRECCIÓN DE ACENTOS AQUÍ TAMBIÉN
                     $this->ensure_utf8_csv( $dest_path );
-                    
                     unlink($source);
                     
                     // GUARDAR EN BD
@@ -354,7 +337,7 @@ class Siarhe_Admin {
                     ));
 
                     $datos = [
-                        'entidad_slug' => $tipo, // Guardamos el KEY del tipo (CATETER, etc.)
+                        'entidad_slug' => $tipo, // Guardamos la KEY de la ranura
                         'tipo_archivo' => 'marcador',
                         'ruta_archivo' => 'markers/' . $nombre_final,
                         'anio_reporte' => $anio,
@@ -362,9 +345,11 @@ class Siarhe_Admin {
                         'referencia_bibliografica' => $referencia,
                         'comentarios'  => $comentarios,
                         'es_activo'    => 1,
-                        'fecha_subida' => current_time('mysql')
+                        'fecha_subida' => current_time('mysql'),
+                        'modificado_por' => $editor_name,
+                        'fecha_modificacion' => current_time('mysql')
                     ];
-                    $fmt = ['%s','%s','%s','%d','%s','%s','%s','%d','%s'];
+                    $fmt = ['%s','%s','%s','%d','%s','%s','%s','%d','%s','%s','%s'];
 
                     if ($existe) {
                         $wpdb->update($table_name, $datos, ['id' => $existe->id], $fmt, ['%d']);

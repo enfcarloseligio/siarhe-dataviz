@@ -1,21 +1,45 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// 1. Definir los tipos de marcadores y sus nombres de archivo esperados
-$tipos_marcadores = [
-    'CATETER' => [
-        'label'    => 'Clínicas de Catéteres',
-        'filename' => 'clinicas-cateteres.csv'
-    ],
-    'HERIDAS' => [
-        'label'    => 'Clínicas de Heridas',
-        'filename' => 'clinicas-heridas.csv'
-    ],
-    'ESTABLECIMIENTOS' => [
-        'label'    => 'Establecimientos de Salud (Todas)',
-        'filename' => 'establecimientos-salud.csv'
-    ]
-];
+// 🌟 1. GESTOR DINÁMICO DE DICCIONARIO DE ARCHIVOS
+$archivos_json = get_option( 'siarhe_archivos_marcadores', '' );
+$tipos_marcadores = json_decode( wp_unslash( $archivos_json ), true );
+
+// Auto-corrector por si la base de datos se corrompió con el error "u00ed" en las pruebas anteriores
+if ( empty($tipos_marcadores) || !is_array($tipos_marcadores) || (isset($tipos_marcadores['CATETER']['label']) && strpos($tipos_marcadores['CATETER']['label'], 'u00ed') !== false) ) {
+    $tipos_marcadores = [
+        'CATETER' => [ 'label' => 'Clínicas de Catéteres', 'filename' => 'clinicas-cateteres.csv', 'is_core' => true ],
+        'HERIDAS' => [ 'label' => 'Clínicas de Heridas', 'filename' => 'clinicas-heridas.csv', 'is_core' => true ],
+        'ESTABLECIMIENTOS' => [ 'label' => 'Establecimientos de Salud (Todas)', 'filename' => 'establecimientos-salud.csv', 'is_core' => true ]
+    ];
+    // JSON_UNESCAPED_UNICODE Evita que los acentos se rompan al guardar
+    update_option( 'siarhe_archivos_marcadores', wp_json_encode($tipos_marcadores, JSON_UNESCAPED_UNICODE) );
+}
+
+// Procesar agregado/eliminación de ranuras (vía POST local)
+if ( isset($_POST['action']) ) {
+    if ( $_POST['action'] === 'add_archivo_marcador' && isset($_POST['new_file_key']) ) {
+        $new_key = sanitize_text_field(strtoupper(str_replace(' ', '_', $_POST['new_file_key'])));
+        $new_label = sanitize_text_field($_POST['new_file_label']);
+        $new_filename = sanitize_file_name(strtolower(str_replace(' ', '-', $_POST['new_file_name'])));
+        if (strpos($new_filename, '.csv') === false) $new_filename .= '.csv';
+        
+        if (!empty($new_key) && !isset($tipos_marcadores[$new_key])) {
+            $tipos_marcadores[$new_key] = [ 'label' => $new_label, 'filename' => $new_filename, 'is_core' => false ];
+            update_option( 'siarhe_archivos_marcadores', wp_json_encode($tipos_marcadores, JSON_UNESCAPED_UNICODE) );
+            echo '<div class="notice notice-success is-dismissible"><p>Nueva variable agregada. Ya puedes subir su archivo CSV.</p></div>';
+        }
+    }
+    
+    if ( $_POST['action'] === 'delete_archivo_marcador' && isset($_POST['del_file_key']) ) {
+        $del_key = sanitize_text_field($_POST['del_file_key']);
+        if (isset($tipos_marcadores[$del_key]) && empty($tipos_marcadores[$del_key]['is_core'])) {
+            unset($tipos_marcadores[$del_key]);
+            update_option( 'siarhe_archivos_marcadores', wp_json_encode($tipos_marcadores, JSON_UNESCAPED_UNICODE) );
+            echo '<div class="notice notice-success is-dismissible"><p>Variable eliminada exitosamente.</p></div>';
+        }
+    }
+}
 
 // 2. Obtener metadatos existentes de la BD
 global $wpdb;
@@ -37,17 +61,28 @@ if ( isset($_GET['status']) ) {
     if ( $_GET['status'] == 'success' ) echo '<div class="notice notice-success is-dismissible"><p>Marcador actualizado correctamente.</p></div>';
     if ( $_GET['status'] == 'updated' ) echo '<div class="notice notice-success is-dismissible"><p>Metadatos actualizados.</p></div>';
 }
+
+// 🌟 Función auxiliar para mostrar la fecha de modificación con el formato bonito que pediste
+function format_custom_date($db_date) {
+    if (!$db_date) return '—';
+    $timestamp = strtotime($db_date);
+    $meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    $mes = $meses[date('n', $timestamp) - 1];
+    $hora = date('h:i a', $timestamp);
+    $hora = str_replace(['am', 'pm'], ['a.m.', 'p.m.'], $hora);
+    return date('j', $timestamp) . ' ' . $mes . ' ' . date('Y', $timestamp) . ', ' . $hora;
+}
 ?>
 
 <div class="card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
-    <h2>📍 Gestión de Marcadores (Clínicas)</h2>
+    <h2>📍 Gestión de Marcadores (Clínicas y Espectros)</h2>
     
     <div class="notice notice-info inline" style="margin: 10px 0 20px 0;">
         <p><strong>Política de Archivos Únicos:</strong></p>
         <ul style="list-style: disc; margin-left: 20px;">
             <li><strong>Formatos admitidos:</strong> Archivos .csv.</li>
-            <li><strong>Nomenclatura:</strong> El archivo se guardará automáticamente con el nombre estándar <code>{marcador}.csv</code> (ej. clinicas-cateteres.csv).</li>
-            <li><strong>Proyección:</strong> Es necesario que las bases de datos usen las variables <code>CVE_ENT</code>, <code>CVE_MUN</code>, <code>CVE_LOC</code>, <code>LATITUD</code>, <code>LONGITUD</code>, <code>NOMBRE_UNIDAD</code>.</li>
+            <li><strong>Nomenclatura:</strong> El archivo se guardará automáticamente con el nombre estándar configurado.</li>
+            <li><strong>Proyección:</strong> Es necesario que las bases de datos usen las variables <code>CVE_ENT</code>, <code>CVE_MUN</code>, <code>LATITUD</code>, <code>LONGITUD</code>.</li>
         </ul>
     </div>
 
@@ -105,7 +140,7 @@ if ( isset($_GET['status']) ) {
     </form>
 </div>
 
-<div class="card" style="max-width: 100%; padding: 0;">
+<div class="card" style="max-width: 100%; padding: 0; margin-bottom: 20px;">
     <h2 style="padding: 15px; margin: 0; border-bottom: 1px solid #eee;">Archivos en el Servidor</h2>
     <table id="siarhe-marcadores-table" class="siarhe-table">
         <thead>
@@ -132,6 +167,7 @@ if ( isset($_GET['status']) ) {
             <tr>
                 <td data-label="Marcador" data-mobile-role="primary">
                     <strong><?php echo esc_html($info['label']); ?></strong>
+                    <?php if(!empty($info['is_core'])) echo '<br><small style="color:#aaa;">(Nativo)</small>'; ?>
                 </td>
                 
                 <td data-label="Estado" data-mobile-role="secondary">
@@ -155,8 +191,12 @@ if ( isset($_GET['status']) ) {
                 </td>
                 
                 <td data-label="Última Modificación">
-                    <?php if ($existe_fisico) : ?>
-                        <?php echo date("d/m/y H:i", filemtime($ruta_fisica)); ?>
+                    <?php if ($db_file && !empty($db_file->fecha_modificacion)) : ?>
+                        <span style="color:#64748b; font-size:12px;">Por: <?php echo esc_html($db_file->modificado_por ?: 'Sistema'); ?></span><br>
+                        <?php echo format_custom_date($db_file->fecha_modificacion); ?>
+                    <?php elseif ($existe_fisico) : ?>
+                        <span style="color:#64748b; font-size:12px;">Por: Sistema</span><br>
+                        <?php echo format_custom_date(date("Y-m-d H:i:s", filemtime($ruta_fisica))); ?>
                     <?php else : ?>—<?php endif; ?>
                 </td>
                 
@@ -191,19 +231,51 @@ if ( isset($_GET['status']) ) {
                         </a>
 
                         <?php if ($db_file) : ?>
-                        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display:inline;" onsubmit="return confirm('⚠️ ¿Estás seguro de eliminar este marcador?');">
+                        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display:inline;" onsubmit="return confirm('⚠️ ¿Estás seguro de eliminar este archivo?');">
                             <input type="hidden" name="action" value="siarhe_delete_static">
                             <input type="hidden" name="file_id" value="<?php echo $db_file->id; ?>">
                             <?php wp_nonce_field( 'siarhe_delete_static_nonce_' . $db_file->id ); ?>
-                            <button type="submit" class="button button-small button-link-delete" title="Eliminar"><span class="dashicons dashicons-trash" style="color: #a00;"></span></button>
+                            <button type="submit" class="button button-small button-link-delete" title="Eliminar Archivo"><span class="dashicons dashicons-trash" style="color: #a00;"></span></button>
                         </form>
                         <?php endif; ?>
                     <?php else : ?>—<?php endif; ?>
+                    
+                    <?php if (empty($info['is_core'])): ?>
+                        <form method="post" style="display:inline;" onsubmit="return confirm('¿Eliminar esta variable de la lista? (El archivo CSV seguirá en el servidor si existe)');">
+                            <input type="hidden" name="action" value="delete_archivo_marcador">
+                            <input type="hidden" name="del_file_key" value="<?php echo esc_attr($key); ?>">
+                            <button type="submit" class="button button-small button-link-delete" title="Borrar Variable" style="color:#d63638; border-color:#d63638;"><span class="dashicons dashicons-dismiss"></span></button>
+                        </form>
+                    <?php endif; ?>
                 </td>
             </tr>
             <?php endforeach; ?>
         </tbody>
     </table>
+</div>
+
+<div class="card" style="max-width: 100%; padding: 20px;">
+    <h3 style="margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px;">➕ Incorporar Nueva Variable (CSV)</h3>
+    <p class="description">Agrega una nueva ranura de archivo para cargar marcadores adicionales (ej. Casos Epidemiológicos, Unidades Móviles).</p>
+    
+    <form method="post" style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; margin-top:15px;">
+        <input type="hidden" name="action" value="add_archivo_marcador">
+        <div>
+            <label>Clave Interna (Sin espacios):</label><br>
+            <input type="text" name="new_file_key" placeholder="Ej: CASOS_DENGUE" required class="regular-text">
+        </div>
+        <div>
+            <label>Etiqueta Pública:</label><br>
+            <input type="text" name="new_file_label" placeholder="Ej: Casos de Dengue 2026" required class="regular-text">
+        </div>
+        <div>
+            <label>Nombre del Archivo (con .csv):</label><br>
+            <input type="text" name="new_file_name" placeholder="ej: casos-dengue.csv" required class="regular-text">
+        </div>
+        <div>
+            <button type="submit" class="button button-secondary">Agregar Variable</button>
+        </div>
+    </form>
 </div>
 
 <div id="siarhe-edit-modal" class="siarhe-modal-overlay">
@@ -233,21 +305,17 @@ if ( isset($_GET['status']) ) {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    
-    // 1. Acordeón Móvil
     const table = document.getElementById('siarhe-marcadores-table');
     if(table) {
         table.querySelectorAll('tbody tr').forEach(row => {
             row.addEventListener('click', function(e) {
                 if (window.innerWidth > 767) return;
-                // Evitar disparo si se hace clic en inputs o enlaces
                 if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) return;
                 this.classList.toggle('is-open');
             });
         });
     }
 
-    // 2. Modal
     const modal = document.getElementById('siarhe-edit-modal');
     const closeBtn = document.getElementById('close-modal-btn');
     
@@ -255,24 +323,20 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.edit-meta-btn').forEach(btn => {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
-                // Llenar datos en el modal
                 document.getElementById('modal-entidad-name').textContent = this.dataset.nombre;
                 document.getElementById('modal-file-id').value = this.dataset.id;
                 document.getElementById('modal-anio').value = this.dataset.anio;
                 document.getElementById('modal-corte').value = this.dataset.corte;
                 document.getElementById('modal-ref').value = this.dataset.ref;
                 document.getElementById('modal-notes').value = this.dataset.notes;
-                
                 modal.style.display = 'block';
             });
         });
 
-        // Cerrar Modal
         closeBtn.addEventListener('click', () => { modal.style.display = 'none'; });
         window.onclick = function(event) { if (event.target == modal) { modal.style.display = 'none'; } }
     }
 
-    // 3. Copiar URL
     document.querySelectorAll('.copy-url-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.preventDefault(); e.stopPropagation();
