@@ -32,26 +32,33 @@ $defaults = [
     'tr_total_txt' => '#000000',
     'border_color' => '#dddddd',
     'border_width' => '1',
-
-    // Marcadores (Clínicas de Especialidad)
-    'm_cateter_shape'  => 'circle', 'm_cateter_fill'   => '#1E5B4F', 'm_cateter_stroke' => '#ffffff',
-    'm_heridas_shape'  => 'square', 'm_heridas_fill'   => '#9B2247', 'm_heridas_stroke' => '#ffffff',
-    
-    // Marcadores (Establecimientos por Nivel)
-    'm_estab1_shape'   => 'circle', 'm_estab1_fill'    => '#4daf4a', 'm_estab1_stroke'  => '#ffffff', // 1er Nivel
-    'm_estab2_shape'   => 'square', 'm_estab2_fill'    => '#377eb8', 'm_estab2_stroke'  => '#ffffff', // 2do Nivel
-    'm_estab3_shape'   => 'star',   'm_estab3_fill'    => '#e41a1c', 'm_estab3_stroke'  => '#ffffff', // 3er Nivel
-    'm_estab6_shape'   => 'cross',  'm_estab6_fill'    => '#984ea3', 'm_estab6_stroke'  => '#ffffff', // No Aplica
 ];
 
 $opts = wp_parse_args( $map_options, $defaults );
+
+// 🌟 3. OBTENER MARCADORES DINÁMICOS DESDE LA BD
+$marcadores_json = get_option( 'siarhe_marcadores_config', '' );
+$marcadores = json_decode( wp_unslash( $marcadores_json ), true );
+
+// Fallback por si la BD está vacía al cargar esta pestaña
+if (empty($marcadores)) {
+    $marcadores = [
+        'CATETER' => ['label' => 'Clínicas de catéteres'], 'HERIDAS' => ['label' => 'Clínicas de heridas'],
+        'ESTAB_1' => ['label' => 'Establecimientos (1er Nivel)'], 'ESTAB_2' => ['label' => 'Establecimientos (2do Nivel)'],
+        'ESTAB_3' => ['label' => 'Establecimientos (3er Nivel)'], 'ESTAB_6' => ['label' => 'Establecimientos (No Aplica)']
+    ];
+}
+
+// Colores heredados para que los nativos no pierdan su diseño original si no se han guardado
+$legacy_colors = [ 'cateter' => '#1E5B4F', 'heridas' => '#9B2247', 'estab_1' => '#4daf4a', 'estab_2' => '#377eb8', 'estab_3' => '#e41a1c', 'estab_6' => '#984ea3' ];
+$legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'circle', 'estab_2' => 'square', 'estab_3' => 'star', 'estab_6' => 'cross' ];
 ?>
 
 <style>
     .siarhe-admin-card { padding: 20px; max-width: 100%; box-sizing: border-box; background: #fff; border: 1px solid #ccd0d4; box-shadow: 0 1px 1px rgba(0,0,0,.04); }
     .siarhe-flex-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end; }
     
-    /* 🌟 Fila especial para marcadores */
+    /* Fila especial para marcadores */
     .siarhe-marker-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; border-bottom: 1px dashed #eee; padding-bottom: 15px; margin-bottom: 15px; }
     .siarhe-marker-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 
@@ -131,145 +138,6 @@ $opts = wp_parse_args( $map_options, $defaults );
         </tr>
     </table>
 
-    <h3 class="siarhe-section-title" style="margin-top: 40px; border-bottom: 1px solid #eee; padding-bottom: 10px;">📍 Estilos de Marcadores (Clínicas y Unidades)</h3>
-    
-    <table class="form-table">
-        <tr>
-            <th scope="row">Clínicas de Catéteres</th>
-            <td>
-                <div class="siarhe-marker-row" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
-                    <div class="siarhe-preview-box">
-                        <label style="font-size:10px; color:#888; margin-bottom:5px;">Vista Previa</label>
-                        <svg id="preview-cateter" width="30" height="30" viewBox="0 0 30 30"></svg>
-                    </div>
-                    <div>
-                        <label>Forma:</label><br>
-                        <select name="siarhe_map_options[m_cateter_shape]" id="m_cateter_shape">
-                            <option value="circle" <?php selected($opts['m_cateter_shape'], 'circle'); ?>>Círculo</option>
-                            <option value="square" <?php selected($opts['m_cateter_shape'], 'square'); ?>>Cuadrado</option>
-                            <option value="triangle" <?php selected($opts['m_cateter_shape'], 'triangle'); ?>>Triángulo</option>
-                            <option value="diamond" <?php selected($opts['m_cateter_shape'], 'diamond'); ?>>Rombo</option>
-                            <option value="star" <?php selected($opts['m_cateter_shape'], 'star'); ?>>Estrella</option>
-                            <option value="cross" <?php selected($opts['m_cateter_shape'], 'cross'); ?>>Cruz</option>
-                        </select>
-                    </div>
-                    <div><label>Relleno:</label><br><input type="text" name="siarhe_map_options[m_cateter_fill]" id="m_cateter_fill" value="<?php echo esc_attr($opts['m_cateter_fill']); ?>" class="siarhe-color-field"></div>
-                    <div><label>Borde:</label><br><input type="text" name="siarhe_map_options[m_cateter_stroke]" id="m_cateter_stroke" value="<?php echo esc_attr($opts['m_cateter_stroke']); ?>" class="siarhe-color-field"></div>
-                </div>
-            </td>
-        </tr>
-        
-        <tr>
-            <th scope="row">Clínicas de Heridas</th>
-            <td>
-                <div class="siarhe-marker-row" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
-                    <div class="siarhe-preview-box">
-                        <label style="font-size:10px; color:#888; margin-bottom:5px;">Vista Previa</label>
-                        <svg id="preview-heridas" width="30" height="30" viewBox="0 0 30 30"></svg>
-                    </div>
-                    <div>
-                        <label>Forma:</label><br>
-                        <select name="siarhe_map_options[m_heridas_shape]" id="m_heridas_shape">
-                            <option value="circle" <?php selected($opts['m_heridas_shape'], 'circle'); ?>>Círculo</option>
-                            <option value="square" <?php selected($opts['m_heridas_shape'], 'square'); ?>>Cuadrado</option>
-                            <option value="triangle" <?php selected($opts['m_heridas_shape'], 'triangle'); ?>>Triángulo</option>
-                            <option value="diamond" <?php selected($opts['m_heridas_shape'], 'diamond'); ?>>Rombo</option>
-                            <option value="star" <?php selected($opts['m_heridas_shape'], 'star'); ?>>Estrella</option>
-                            <option value="cross" <?php selected($opts['m_heridas_shape'], 'cross'); ?>>Cruz</option>
-                        </select>
-                    </div>
-                    <div><label>Relleno:</label><br><input type="text" name="siarhe_map_options[m_heridas_fill]" id="m_heridas_fill" value="<?php echo esc_attr($opts['m_heridas_fill']); ?>" class="siarhe-color-field"></div>
-                    <div><label>Borde:</label><br><input type="text" name="siarhe_map_options[m_heridas_stroke]" id="m_heridas_stroke" value="<?php echo esc_attr($opts['m_heridas_stroke']); ?>" class="siarhe-color-field"></div>
-                </div>
-            </td>
-        </tr>
-
-        <tr>
-            <th scope="row">Establecimientos de Salud</th>
-            <td>
-                <div class="siarhe-marker-row">
-                    <div class="siarhe-preview-box">
-                        <label style="font-size:10px; color:#888; margin-bottom:5px;">1er Nivel</label>
-                        <svg id="preview-estab1" width="30" height="30" viewBox="0 0 30 30"></svg>
-                    </div>
-                    <div>
-                        <label>Forma:</label><br>
-                        <select name="siarhe_map_options[m_estab1_shape]" id="m_estab1_shape">
-                            <option value="circle" <?php selected($opts['m_estab1_shape'], 'circle'); ?>>Círculo</option>
-                            <option value="square" <?php selected($opts['m_estab1_shape'], 'square'); ?>>Cuadrado</option>
-                            <option value="triangle" <?php selected($opts['m_estab1_shape'], 'triangle'); ?>>Triángulo</option>
-                            <option value="diamond" <?php selected($opts['m_estab1_shape'], 'diamond'); ?>>Rombo</option>
-                            <option value="star" <?php selected($opts['m_estab1_shape'], 'star'); ?>>Estrella</option>
-                            <option value="cross" <?php selected($opts['m_estab1_shape'], 'cross'); ?>>Cruz</option>
-                        </select>
-                    </div>
-                    <div><label>Relleno:</label><br><input type="text" name="siarhe_map_options[m_estab1_fill]" id="m_estab1_fill" value="<?php echo esc_attr($opts['m_estab1_fill']); ?>" class="siarhe-color-field"></div>
-                    <div><label>Borde:</label><br><input type="text" name="siarhe_map_options[m_estab1_stroke]" id="m_estab1_stroke" value="<?php echo esc_attr($opts['m_estab1_stroke']); ?>" class="siarhe-color-field"></div>
-                </div>
-                
-                <div class="siarhe-marker-row">
-                    <div class="siarhe-preview-box">
-                        <label style="font-size:10px; color:#888; margin-bottom:5px;">2do Nivel</label>
-                        <svg id="preview-estab2" width="30" height="30" viewBox="0 0 30 30"></svg>
-                    </div>
-                    <div>
-                        <label>Forma:</label><br>
-                        <select name="siarhe_map_options[m_estab2_shape]" id="m_estab2_shape">
-                            <option value="circle" <?php selected($opts['m_estab2_shape'], 'circle'); ?>>Círculo</option>
-                            <option value="square" <?php selected($opts['m_estab2_shape'], 'square'); ?>>Cuadrado</option>
-                            <option value="triangle" <?php selected($opts['m_estab2_shape'], 'triangle'); ?>>Triángulo</option>
-                            <option value="diamond" <?php selected($opts['m_estab2_shape'], 'diamond'); ?>>Rombo</option>
-                            <option value="star" <?php selected($opts['m_estab2_shape'], 'star'); ?>>Estrella</option>
-                            <option value="cross" <?php selected($opts['m_estab2_shape'], 'cross'); ?>>Cruz</option>
-                        </select>
-                    </div>
-                    <div><label>Relleno:</label><br><input type="text" name="siarhe_map_options[m_estab2_fill]" id="m_estab2_fill" value="<?php echo esc_attr($opts['m_estab2_fill']); ?>" class="siarhe-color-field"></div>
-                    <div><label>Borde:</label><br><input type="text" name="siarhe_map_options[m_estab2_stroke]" id="m_estab2_stroke" value="<?php echo esc_attr($opts['m_estab2_stroke']); ?>" class="siarhe-color-field"></div>
-                </div>
-
-                <div class="siarhe-marker-row">
-                    <div class="siarhe-preview-box">
-                        <label style="font-size:10px; color:#888; margin-bottom:5px;">3er Nivel</label>
-                        <svg id="preview-estab3" width="30" height="30" viewBox="0 0 30 30"></svg>
-                    </div>
-                    <div>
-                        <label>Forma:</label><br>
-                        <select name="siarhe_map_options[m_estab3_shape]" id="m_estab3_shape">
-                            <option value="circle" <?php selected($opts['m_estab3_shape'], 'circle'); ?>>Círculo</option>
-                            <option value="square" <?php selected($opts['m_estab3_shape'], 'square'); ?>>Cuadrado</option>
-                            <option value="triangle" <?php selected($opts['m_estab3_shape'], 'triangle'); ?>>Triángulo</option>
-                            <option value="diamond" <?php selected($opts['m_estab3_shape'], 'diamond'); ?>>Rombo</option>
-                            <option value="star" <?php selected($opts['m_estab3_shape'], 'star'); ?>>Estrella</option>
-                            <option value="cross" <?php selected($opts['m_estab3_shape'], 'cross'); ?>>Cruz</option>
-                        </select>
-                    </div>
-                    <div><label>Relleno:</label><br><input type="text" name="siarhe_map_options[m_estab3_fill]" id="m_estab3_fill" value="<?php echo esc_attr($opts['m_estab3_fill']); ?>" class="siarhe-color-field"></div>
-                    <div><label>Borde:</label><br><input type="text" name="siarhe_map_options[m_estab3_stroke]" id="m_estab3_stroke" value="<?php echo esc_attr($opts['m_estab3_stroke']); ?>" class="siarhe-color-field"></div>
-                </div>
-
-                <div class="siarhe-marker-row" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
-                    <div class="siarhe-preview-box">
-                        <label style="font-size:10px; color:#888; margin-bottom:5px;">No Aplica</label>
-                        <svg id="preview-estab6" width="30" height="30" viewBox="0 0 30 30"></svg>
-                    </div>
-                    <div>
-                        <label>Forma:</label><br>
-                        <select name="siarhe_map_options[m_estab6_shape]" id="m_estab6_shape">
-                            <option value="circle" <?php selected($opts['m_estab6_shape'], 'circle'); ?>>Círculo</option>
-                            <option value="square" <?php selected($opts['m_estab6_shape'], 'square'); ?>>Cuadrado</option>
-                            <option value="triangle" <?php selected($opts['m_estab6_shape'], 'triangle'); ?>>Triángulo</option>
-                            <option value="diamond" <?php selected($opts['m_estab6_shape'], 'diamond'); ?>>Rombo</option>
-                            <option value="star" <?php selected($opts['m_estab6_shape'], 'star'); ?>>Estrella</option>
-                            <option value="cross" <?php selected($opts['m_estab6_shape'], 'cross'); ?>>Cruz</option>
-                        </select>
-                    </div>
-                    <div><label>Relleno:</label><br><input type="text" name="siarhe_map_options[m_estab6_fill]" id="m_estab6_fill" value="<?php echo esc_attr($opts['m_estab6_fill']); ?>" class="siarhe-color-field"></div>
-                    <div><label>Borde:</label><br><input type="text" name="siarhe_map_options[m_estab6_stroke]" id="m_estab6_stroke" value="<?php echo esc_attr($opts['m_estab6_stroke']); ?>" class="siarhe-color-field"></div>
-                </div>
-            </td>
-        </tr>
-    </table>
-
     <h3 class="siarhe-section-title" style="margin-top: 40px; border-bottom: 1px solid #eee; padding-bottom: 10px;">Estilos de Tabla de Datos</h3>
     
     <table class="form-table">
@@ -294,6 +162,48 @@ $opts = wp_parse_args( $map_options, $defaults );
             <td><div class="siarhe-flex-row"><div><label>Color:</label><br><input type="text" name="siarhe_map_options[border_color]" value="<?php echo esc_attr($opts['border_color']); ?>" class="siarhe-color-field"></div><div><label>Grosor (px):</label><br><input type="number" name="siarhe_map_options[border_width]" value="<?php echo esc_attr($opts['border_width']); ?>" class="small-text" min="0" max="5"></div></div></td>
         </tr>
     </table>
+
+    <h3 class="siarhe-section-title" style="margin-top: 40px; border-bottom: 1px solid #eee; padding-bottom: 10px;">📍 Estilos Dinámicos de Marcadores</h3>
+    <p class="description">Aquí aparecerán automáticamente todos los marcadores que registres en la pestaña "Marcadores (CSV)".</p>
+    
+    <table class="form-table">
+        <?php foreach ($marcadores as $key => $mk): 
+            $s_key = strtolower($key);
+            // Si el marcador no tiene color guardado, intentamos usar el default legacy o un azul genérico
+            $shape_val  = isset($opts["m_{$s_key}_shape"])  ? $opts["m_{$s_key}_shape"]  : (isset($legacy_shapes[$s_key]) ? $legacy_shapes[$s_key] : 'circle');
+            $fill_val   = isset($opts["m_{$s_key}_fill"])   ? $opts["m_{$s_key}_fill"]   : (isset($legacy_colors[$s_key]) ? $legacy_colors[$s_key] : '#0A66C2');
+            $stroke_val = isset($opts["m_{$s_key}_stroke"]) ? $opts["m_{$s_key}_stroke"] : '#ffffff';
+        ?>
+        <tr>
+            <th scope="row">
+                <strong><?php echo esc_html($mk['label']); ?></strong><br>
+                <small style="color:#8c8f94; font-family:monospace;"><?php echo esc_html($key); ?></small>
+            </th>
+            <td>
+                <div class="siarhe-marker-row" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
+                    <div class="siarhe-preview-box">
+                        <label style="font-size:10px; color:#888; margin-bottom:5px;">Vista Previa</label>
+                        <svg id="preview-<?php echo esc_attr($s_key); ?>" width="30" height="30" viewBox="0 0 30 30"></svg>
+                    </div>
+                    <div>
+                        <label>Forma:</label><br>
+                        <select name="siarhe_map_options[m_<?php echo esc_attr($s_key); ?>_shape]" id="m_<?php echo esc_attr($s_key); ?>_shape">
+                            <option value="circle" <?php selected($shape_val, 'circle'); ?>>Círculo</option>
+                            <option value="square" <?php selected($shape_val, 'square'); ?>>Cuadrado</option>
+                            <option value="triangle" <?php selected($shape_val, 'triangle'); ?>>Triángulo</option>
+                            <option value="diamond" <?php selected($shape_val, 'diamond'); ?>>Rombo</option>
+                            <option value="star" <?php selected($shape_val, 'star'); ?>>Estrella</option>
+                            <option value="cross" <?php selected($shape_val, 'cross'); ?>>Cruz</option>
+                        </select>
+                    </div>
+                    <div><label>Relleno:</label><br><input type="text" name="siarhe_map_options[m_<?php echo esc_attr($s_key); ?>_fill]" id="m_<?php echo esc_attr($s_key); ?>_fill" value="<?php echo esc_attr($fill_val); ?>" class="siarhe-color-field"></div>
+                    <div><label>Borde:</label><br><input type="text" name="siarhe_map_options[m_<?php echo esc_attr($s_key); ?>_stroke]" id="m_<?php echo esc_attr($s_key); ?>_stroke" value="<?php echo esc_attr($stroke_val); ?>" class="siarhe-color-field"></div>
+                </div>
+            </td>
+        </tr>
+        <?php endforeach; ?>
+    </table>
+
 </div>
 
 <script>
@@ -328,7 +238,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    const types = ['cateter', 'heridas', 'estab1', 'estab2', 'estab3', 'estab6'];
+    // 🌟 Generamos la lista de IDs dinámicamente desde PHP para Javascript
+    const types = <?php echo wp_json_encode(array_map('strtolower', array_keys($marcadores))); ?>;
 
     types.forEach(t => updatePreview(t));
 

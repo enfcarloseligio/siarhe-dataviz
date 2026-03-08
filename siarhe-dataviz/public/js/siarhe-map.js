@@ -134,7 +134,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
             state.initialTransform = initialTransform;
 
-            // AÑADIDOS ESTILOS BASE AL TOOLTIP PRINCIPAL PARA EVITAR PARPADEOS
             d3.selectAll(mapDiv.querySelectorAll(".siarhe-tooltip")).remove(); 
             state.tooltip = d3.select(mapDiv).append("div")
                 .attr("class", "siarhe-tooltip")
@@ -528,9 +527,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const bgOpacity = (tt.bg_opacity !== undefined ? parseInt(tt.bg_opacity, 10) : 90) / 100;
                     const txtColor = tt.text_color || '#f8fafc';
                     const finalBgColor = app.map.hexToRgba(bgColor, bgOpacity);
+                    
+                    // 🌟 LECTURA DINÁMICA DEL NOMBRE DEL MARCADOR 🌟
+                    const markerLabel = state.markerLabels[d.tipo] ? state.markerLabels[d.tipo].label : d.tipo;
 
                     let html = `<div style="font-family:'Roboto', sans-serif; color:${txtColor};">`;
-                    html += `<div style="color: ${hlColor}; font-weight:bold; font-size:13px; margin-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:4px;">${app.constants.MARCADOR_NOMBRES[d.tipo] || 'Unidad de Salud'}</div>`;
+                    html += `<div style="color: ${hlColor}; font-weight:bold; font-size:13px; margin-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:4px;">${markerLabel}</div>`;
                     html += `<div style="font-size:12px; margin-top:4px;">
                         <div style="font-weight:bold; font-family:'IBM Plex Sans', sans-serif;">${d.nombre || 'Desconocido'}</div>`;
                         
@@ -555,7 +557,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         if(d.jurisdiccion && tt.mk_juris !== false) html += `<div style="font-size:10px;"><strong style="opacity:0.7;">Jurisdicción:</strong> ${d.jurisdiccion}</div>`;
                         html += `</div>`;
                     }
-                    html += `</div></div>`; // Cerrar wrappers principales
+                    html += `</div></div>`;
 
                     const mapDiv = document.querySelector('.siarhe-map-container');
                     const [mx, my] = d3.pointer(e, mapDiv);
@@ -600,7 +602,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             actives.forEach((tipo, i) => {
                 const yPos = 12 + (i * 20);
                 const styleCfg = app.utils.getMarkerStyle(tipo, state);
-                const nombre = app.constants.MARCADOR_NOMBRES[tipo] || tipo;
+                
+                // 🌟 LECTURA DINÁMICA DEL NOMBRE DEL MARCADOR EN LA LEYENDA 🌟
+                const markerLabel = state.markerLabels[tipo] ? state.markerLabels[tipo].label : tipo;
 
                 g.append("path")
                     .attr("d", d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)).size(50)())
@@ -609,7 +613,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     .attr("stroke", styleCfg.stroke)
                     .attr("stroke-width", 1);
                 
-                g.append("text").attr("x", 15).attr("y", yPos + 4).text(nombre).style("font-size", "11px").style("fill", "#475569");
+                g.append("text").attr("x", 15).attr("y", yPos + 4).text(markerLabel).style("font-size", "11px").style("fill", "#475569");
             });
         },
 
@@ -721,7 +725,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const titleNode = container.querySelector('h2.siarhe-title'); 
                     const entidadNombre = titleNode ? titleNode.innerText.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '').trim() : "México";
                     
-                    // USO DE ETIQUETA LARGA PARA EL TÍTULO DEL PNG
                     const titleText = `${metricInfo.fullLabel} en ${entidadNombre} (${anio})`;
                     ctx.fillStyle = "#0A66C2"; 
                     ctx.font = "bold 38px 'IBM Plex Sans', Arial, sans-serif"; 
@@ -747,7 +750,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     }
                     ctx.fillText(line, 1920 / 2, y);
                     
-                    // LÓGICA DE NOMBRAMIENTO DEL ARCHIVO PNG (Etiqueta Corta Limpia)
                     const labelClean = (metricInfo.label || metricInfo.fullLabel).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\./g, "").replace(/\s+/g, '_');
                     const entidadClean = entidadNombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_');
                     const nombreArchivo = `${labelClean}_${entidadClean}_${anio}${withLabels ? '_Etiquetas' : ''}.png`;

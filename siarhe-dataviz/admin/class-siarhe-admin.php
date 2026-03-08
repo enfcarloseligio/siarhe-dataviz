@@ -81,16 +81,16 @@ class Siarhe_Admin {
         register_setting( 'siarhe_links_group', 'siarhe_links_map' );
         register_setting( 'siarhe_theme_group', 'siarhe_theme_options' );
         register_setting( 'siarhe_map_group', 'siarhe_map_options' );
-        
-        // 🌟 NUEVO: REGISTRO PARA MÉTRICAS DINÁMICAS
+        // REGISTRO PARA MÉTRICAS DINÁMICAS
         register_setting( 'siarhe_metricas_group', 'siarhe_metricas_config' );
-        
-        // 🌟 NUEVO: REGISTRO PARA TOOLTIPS
+        // REGISTRO PARA TOOLTIPS
         register_setting( 'siarhe_tooltip_group', 'siarhe_tooltip_config' );
+        // REGISTRO PARA EL DICCIONARIO DE MARCADORES
+        register_setting( 'siarhe_marcadores_group', 'siarhe_marcadores_config' );
     }
 
     // -------------------------------------------------------------------------
-    // 🌟 NUEVO: UTILIDAD PARA FORZAR UTF-8 EN ARCHIVOS CSV
+    // UTILIDAD PARA FORZAR UTF-8 EN ARCHIVOS CSV
     // -------------------------------------------------------------------------
     private function ensure_utf8_csv( $filepath ) {
         if ( ! file_exists( $filepath ) ) return;

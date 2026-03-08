@@ -15,14 +15,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     // 1. CONSTANTES GLOBALES Y ESTILOS BASE
     // ==========================================
     app.constants = {
-        MARCADOR_NOMBRES: { 
-            'CATETER': "Clínicas de catéteres", 
-            'HERIDAS': "Clínicas de heridas",
-            'ESTAB_1': "Establecimientos (1er Nivel)",
-            'ESTAB_2': "Establecimientos (2do Nivel)",
-            'ESTAB_3': "Establecimientos (3er Nivel)",
-            'ESTAB_6': "Establecimientos (No Aplica)"
-        }
+        // 🌟 MARCADOR_NOMBRES ESTABA QUEMADO AQUÍ. AHORA SE CARGA DINÁMICAMENTE DESDE LA BASE DE DATOS.
     };
 
     // Extracción de variables CSS configuradas en el backend
@@ -31,7 +24,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
     app.colors = {
         RANGE: [ getVar('--s-map-c1', '#eff3ff'), getVar('--s-map-c2', '#bdd7e7'), getVar('--s-map-c3', '#9ecae1'), getVar('--s-map-c4', '#6baed6'), getVar('--s-map-c5', '#08519c') ],
-        // 🌟 NUEVO: Variables para la escala monocromática
         MONO: [ getVar('--s-map-mono-min', '#f0f9ff'), getVar('--s-map-mono-max', '#0369a1') ], 
         ZERO: getVar('--s-map-zero', '#d9d9d9'),
         NULL: getVar('--s-map-null', '#000000')
@@ -156,7 +148,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (!headerDiv) return;
             
             const info = state.metricas[state.currentMetric];
-            if(!info) return; // Prevención si la métrica fue eliminada y sigue en caché
+            if(!info) return;
 
             const pairKey = info.pair || state.currentMetric;
             let totalAbs = 0, valorMuestra = null;
@@ -205,12 +197,14 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         
         let MARCADOR_ESTILOS = safeParseJSON(container.dataset.markerConfig, {});
         let MARCADOR_URLS = safeParseJSON(container.dataset.markerUrls, {});
+        // 🌟 NUEVO: LECTURA DE DICCIONARIO DINÁMICO DE MARCADORES 🌟
+        let MARCADOR_LABELS = safeParseJSON(container.dataset.markerLabels, {});
         let ENTITY_URLS = safeParseJSON(container.dataset.entityUrls, {});
         let METRICAS_CONFIG = safeParseJSON(container.dataset.metricas, {});
         
-        // 🌟 NUEVO: LECTURA DE CONFIGURACIÓN DE TOOLTIPS
         let TOOLTIP_CONFIG = safeParseJSON(container.dataset.tooltips, {
             geo_pob: true, geo_abs: true, geo_rate: true,
+            geo_order: ['pob', 'abs', 'rate'],
             mk_inst: true, mk_mun: true, mk_clues: true,
             mk_tipo: true, mk_nivel: true, mk_juris: true
         });
@@ -219,17 +213,19 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         let state = {
             geoData: null, csvData: [], dataMap: new Map(),
             metricas: METRICAS_CONFIG,
-            tooltipConfig: TOOLTIP_CONFIG, // 🌟 GUARDADO EN EL ESTADO
+            tooltipConfig: TOOLTIP_CONFIG, 
             currentMetric: 'tasa_total',
-            colorMode: 'quartiles', // 🌟 NUEVO: Control del tipo de mapa (quartiles vs mono)
+            colorMode: 'quartiles',
             zoom: null, gLegend: null, gMarkerLegend: null, gradientId: null,
             svg: null, gMain: null, gPaths: null, gLabels: null, gMarkers: null, 
             activeMarkers: new Set(), markersData: {}, 
             markerStyles: MARCADOR_ESTILOS, markerUrls: MARCADOR_URLS,
+            markerLabels: MARCADOR_LABELS, // 🌟 GUARDADO EN EL ESTADO
             entityUrls: ENTITY_URLS, homeUrl: container.dataset.homeUrl || '', 
             isNacional: isNacional, 
             tooltip: null, markerTrigger: null, lastClickTime: 0,
-            rawEstabData: null,
+            // 🌟 NUEVO: Caché para MÚLTIPLES archivos base
+            rawCSVDataCache: {},
             initialTransform: d3.zoomIdentity 
         };
 
@@ -292,7 +288,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 // 5. INYECCIÓN AL CARGAR EL DOM
 // ==========================================
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("%c 🚀 SIARHE Core V45: Monocromático y Tooltips Integrados", "background: #1e40af; color: #ffffff; padding: 2px 6px; border-radius: 4px;");
+    console.log("%c 🚀 SIARHE Core V46: Marcadores Dinámicos", "background: #1e40af; color: #ffffff; padding: 2px 6px; border-radius: 4px;");
     
     const wrappers = document.querySelectorAll('.siarhe-viz-wrapper');
     wrappers.forEach(container => {

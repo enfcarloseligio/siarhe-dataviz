@@ -145,7 +145,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
 
             // ====================================================
-            // B) CONSTRUCCIÓN DE "MARCADORES"
+            // B) CONSTRUCCIÓN DE "MARCADORES" (AHORA DINÁMICOS)
             // ====================================================
             if (opts.showMarkers) {
                 const validMarkers = Object.keys(state.markerUrls).filter(k => state.markerUrls[k]);
@@ -179,7 +179,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     optionsContainerMc.className = 'siarhe-cs-options';
 
                     validMarkers.forEach(key => {
-                        const label = app.constants.MARCADOR_NOMBRES[key] || key;
+                        // 🌟 LECTURA DE ETIQUETA DINÁMICA
+                        const mkData = state.markerLabels[key] || {};
+                        const label = mkData.label || key;
+                        
                         const opt = document.createElement('div'); 
                         opt.className = 'mc-option';
                         opt.innerHTML = `<input type="checkbox" class="mc-check" value="${key}"> <span>${label}</span>`;
@@ -258,7 +261,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         toggleMarker: async function(type, state, container) {
             const loading = container.querySelector('.siarhe-loading-overlay');
             if (loading) {
-                loading.querySelector('p').textContent = `Procesando ${app.constants.MARCADOR_NOMBRES[type]}...`;
+                // 🌟 LECTURA DE ETIQUETA DINÁMICA PARA EL LOADING
+                const mkData = state.markerLabels[type] || {};
+                const label = mkData.label || type;
+                
+                loading.querySelector('p').textContent = `Procesando ${label}...`;
                 loading.style.position = 'absolute'; loading.style.top = '0'; loading.style.left = '0';
                 loading.style.width = '100%'; loading.style.height = '100%';
                 loading.style.background = 'rgba(248, 250, 252, 0.9)';
@@ -278,16 +285,20 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const url = state.markerUrls[type];
                     if (url) {
                         try {
-                            let rawData = state.rawEstabData;
-
-                            if (type.startsWith('ESTAB_') && !rawData) {
+                            // 🌟 SISTEMA DE CACHÉ DE CSV (Evita descargas dobles)
+                            let rawData;
+                            if (state.rawCSVDataCache && state.rawCSVDataCache[url]) {
+                                rawData = state.rawCSVDataCache[url];
+                            } else {
                                 rawData = await d3.csv(url);
-                                state.rawEstabData = rawData; 
-                            } else if (!type.startsWith('ESTAB_')) {
-                                rawData = await d3.csv(url);
+                                if (!state.rawCSVDataCache) state.rawCSVDataCache = {};
+                                state.rawCSVDataCache[url] = rawData;
                             }
 
-                            const nivelTarget = type.replace('ESTAB_', ''); 
+                            // 🌟 MOTOR DE FILTRADO DINÁMICO
+                            const config = state.markerLabels[type] || {};
+                            const filtroCol = config.filtro_col ? config.filtro_col.toLowerCase().trim() : null;
+                            const filtroVal = config.filtro_val ? config.filtro_val.toString().toLowerCase().trim() : null;
 
                             state.markersData[type] = rawData.map(d => {
                                 const latText = app.utils.getColValue(d, ['latitud', 'lat']);
@@ -297,7 +308,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                                 
                                 return {
                                     clues: app.utils.getColValue(d, ['clues']),
-                                    institucion: app.utils.getColValue(d, ['institución', 'institucion']),
+                                    institucion: app.utils.getColValue(d, ['institución', 'institucion', 'clave_institucion']),
                                     nombre: app.utils.getColValue(d, ['nombre_unidad', 'nombre de la unidad', 'unidad']),
                                     municipio: app.utils.getColValue(d, ['municipio']),
                                     lat: parseFloat(latText),
@@ -309,7 +320,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                                     cve_nivel: cveNivel,
                                     jurisdiccion: app.utils.getColValue(d, ['jurisdiccion', 'jurisdicción']),
                                     estrato: app.utils.getColValue(d, ['estrato_unidad', 'estrato unidad']),
-                                    tipo: type
+                                    tipo: type,
+                                    _raw: d // 🌟 Guardar la fila cruda para el filtro dinámico
                                 };
                             }).filter(d => {
                                 const isValidCoord = !isNaN(d.lat) && !isNaN(d.lon) && d.lat !== 0 && d.lon !== 0;
@@ -321,9 +333,17 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                                     if (markerEnt !== currentEnt) return false; 
                                 }
                                 
-                                if (type.startsWith('ESTAB_')) {
-                                    return d.cve_nivel === nivelTarget;
+                                // 🌟 APLICACIÓN DEL FILTRO DINÁMICO
+                                if (filtroCol && filtroVal) {
+                                    const realColName = Object.keys(d._raw).find(k => k.toLowerCase().trim() === filtroCol);
+                                    if (realColName) {
+                                        const rowVal = (d._raw[realColName] || '').toString().toLowerCase().trim();
+                                        if (rowVal !== filtroVal) return false; // Descartar si no coincide
+                                    } else {
+                                        return false; // Descartar si pide filtro y la columna no existe
+                                    }
                                 }
+                                
                                 return true; 
                             });
                             
@@ -346,7 +366,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 state.markerTrigger.innerHTML = `<span>Seleccionar...</span>`; 
                 state.markerTrigger.classList.add('is-placeholder'); 
             } else {
-                const labels = selected.map(k => app.constants.MARCADOR_NOMBRES[k] || k);
+                // 🌟 LECTURA DE ETIQUETA DINÁMICA
+                const labels = selected.map(k => {
+                    const mkData = state.markerLabels[k] || {};
+                    return mkData.label || k;
+                });
                 state.markerTrigger.innerHTML = `<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${labels.join(', ')}</span>`; 
                 state.markerTrigger.classList.remove('is-placeholder');
             }
