@@ -8,25 +8,25 @@ $current_time = current_time('mysql');
 
 // 2. Definir el diccionario de métricas base del sistema (Protegidas)
 $defaults = [
-    'tasa_total'                 => ['label' => 'Tasa Total', 'fullLabel' => 'Tasa de enfermeras por cada mil habitantes', 'tipo' => 'tasa', 'pair' => 'enfermeras_total', 'is_core' => true],
-    'enfermeras_total'           => ['label' => 'Total Enf.', 'fullLabel' => 'Total de profesionales de enfermería', 'tipo' => 'absoluto', 'pair' => 'enfermeras_total', 'is_core' => true],
-    'tasa_primer'                => ['label' => 'Tasa 1er Nivel', 'fullLabel' => 'Tasa de enfermeras en 1er Nivel de Atención', 'tipo' => 'tasa', 'pair' => 'enfermeras_primer', 'is_core' => true],
-    'enfermeras_primer'          => ['label' => 'Enf. 1er Nivel', 'fullLabel' => 'Enfermeras en 1er Nivel de Atención', 'tipo' => 'absoluto', 'pair' => 'enfermeras_primer', 'is_core' => true],
-    'tasa_segundo'               => ['label' => 'Tasa 2do Nivel', 'fullLabel' => 'Tasa de enfermeras en 2do Nivel de Atención', 'tipo' => 'tasa', 'pair' => 'enfermeras_segundo', 'is_core' => true],
-    'enfermeras_segundo'         => ['label' => 'Enf. 2do Nivel', 'fullLabel' => 'Enfermeras en 2do Nivel de Atención', 'tipo' => 'absoluto', 'pair' => 'enfermeras_segundo', 'is_core' => true],
-    'tasa_tercer'                => ['label' => 'Tasa 3er Nivel', 'fullLabel' => 'Tasa de enfermeras en 3er Nivel de Atención', 'tipo' => 'tasa', 'pair' => 'enfermeras_tercer', 'is_core' => true],
-    'enfermeras_tercer'          => ['label' => 'Enf. 3er Nivel', 'fullLabel' => 'Enfermeras en 3er Nivel de Atención', 'tipo' => 'absoluto', 'pair' => 'enfermeras_tercer', 'is_core' => true],
-    'tasa_apoyo'                 => ['label' => 'Tasa Apoyo', 'fullLabel' => 'Tasa de enfermeras en establecimientos de apoyo', 'tipo' => 'tasa', 'pair' => 'enfermeras_apoyo', 'is_core' => true],
-    'enfermeras_apoyo'           => ['label' => 'Enf. Apoyo', 'fullLabel' => 'Enfermeras en establecimientos de apoyo', 'tipo' => 'absoluto', 'pair' => 'enfermeras_apoyo', 'is_core' => true],
-    'tasa_administrativas'       => ['label' => 'Tasa Admin.', 'fullLabel' => 'Tasa de enfermeras con funciones administrativas', 'tipo' => 'tasa', 'pair' => 'enfermeras_administrativas', 'is_core' => true],
-    'enfermeras_administrativas' => ['label' => 'Enf. Admin.', 'fullLabel' => 'Enfermeras con funciones administrativas', 'tipo' => 'absoluto', 'pair' => 'enfermeras_administrativas', 'is_core' => true],
-    'tasa_escuelas'              => ['label' => 'Tasa Escuelas', 'fullLabel' => 'Tasa de enfermeras en escuelas de enfermería', 'tipo' => 'tasa', 'pair' => 'enfermeras_escuelas', 'is_core' => true],
-    'enfermeras_escuelas'        => ['label' => 'Enf. Escuelas', 'fullLabel' => 'Enfermeras en escuelas de enfermería', 'tipo' => 'absoluto', 'pair' => 'enfermeras_escuelas', 'is_core' => true],
-    'tasa_no_aplica'             => ['label' => 'Tasa Otros Est.', 'fullLabel' => 'Tasa de enfermeras en otros establecimientos', 'tipo' => 'tasa', 'pair' => 'enfermeras_no_aplica', 'is_core' => true],
-    'enfermeras_no_aplica'       => ['label' => 'Enf. Otros Est.', 'fullLabel' => 'Enfermeras en otros establecimientos', 'tipo' => 'absoluto', 'pair' => 'enfermeras_no_aplica', 'is_core' => true],
-    'tasa_no_asignado'           => ['label' => 'Tasa No Asignado', 'fullLabel' => 'Tasa de enfermeras con funciones no asignadas', 'tipo' => 'tasa', 'pair' => 'enfermeras_no_asignado', 'is_core' => true],
-    'enfermeras_no_asignado'     => ['label' => 'Enf. No Asignado', 'fullLabel' => 'Enfermeras con funciones no asignadas', 'tipo' => 'absoluto', 'pair' => 'enfermeras_no_asignado', 'is_core' => true],
-    'poblacion'                  => ['label' => 'Población', 'fullLabel' => 'Población total', 'tipo' => 'absoluto', 'pair' => 'poblacion', 'is_core' => true]
+    'tasa_total'                 => ['label' => 'Tasa Total', 'fullLabel' => 'Tasa de enfermeras por cada mil habitantes', 'abrev' => 'Tasa Total', 'tipo' => 'tasa', 'pair' => 'enfermeras_total', 'is_core' => true, 'visibilidad' => 'publico'],
+    'enfermeras_total'           => ['label' => 'Total Enfermeras', 'fullLabel' => 'Total de profesionales de enfermería', 'abrev' => 'Total Enf.', 'tipo' => 'absoluto', 'pair' => 'enfermeras_total', 'is_core' => true, 'visibilidad' => 'publico'],
+    'tasa_primer'                => ['label' => 'Tasa Primer Nivel', 'fullLabel' => 'Tasa de enfermeras en Primer Nivel de Atención', 'abrev' => 'Tasa Enf. 1er Nivel', 'tipo' => 'tasa', 'pair' => 'enfermeras_primer', 'is_core' => true, 'visibilidad' => 'publico'],
+    'enfermeras_primer'          => ['label' => 'Enfermeras Primer Nivel', 'fullLabel' => 'Enfermeras en Primer Nivel de Atención', 'abrev' => 'Enf. 1er Nivel', 'tipo' => 'absoluto', 'pair' => 'enfermeras_primer', 'is_core' => true, 'visibilidad' => 'publico'],
+    'tasa_segundo'               => ['label' => 'Tasa Segundo Nivel', 'fullLabel' => 'Tasa de enfermeras en Segundo Nivel de Atención', 'abrev' => 'Tasa Enf. 2do Nivel', 'tipo' => 'tasa', 'pair' => 'enfermeras_segundo', 'is_core' => true, 'visibilidad' => 'publico'],
+    'enfermeras_segundo'         => ['label' => 'Enfermeras Segundo Nivel', 'fullLabel' => 'Enfermeras en Segundo Nivel de Atención', 'abrev' => 'Enf. 2do Nivel', 'tipo' => 'absoluto', 'pair' => 'enfermeras_segundo', 'is_core' => true, 'visibilidad' => 'publico'],
+    'tasa_tercer'                => ['label' => 'Tasa Tercer Nivel', 'fullLabel' => 'Tasa de enfermeras en Tercer Nivel de Atención', 'abrev' => 'Tasa Enf. 3er Nivel', 'tipo' => 'tasa', 'pair' => 'enfermeras_tercer', 'is_core' => true, 'visibilidad' => 'publico'],
+    'enfermeras_tercer'          => ['label' => 'Enfermeras Tercer Nivel', 'fullLabel' => 'Enfermeras en Tercer Nivel de Atención', 'abrev' => 'Enf. 3er Nivel', 'tipo' => 'absoluto', 'pair' => 'enfermeras_tercer', 'is_core' => true, 'visibilidad' => 'publico'],
+    'tasa_apoyo'                 => ['label' => 'Tasa Apoyo', 'fullLabel' => 'Tasa de enfermeras en establecimientos de apoyo', 'abrev' => 'Tasa Enf. Apoyo', 'tipo' => 'tasa', 'pair' => 'enfermeras_apoyo', 'is_core' => true, 'visibilidad' => 'publico'],
+    'enfermeras_apoyo'           => ['label' => 'Enfermeras Apoyo', 'fullLabel' => 'Enfermeras en establecimientos de apoyo', 'abrev' => 'Enf. Apoyo', 'tipo' => 'absoluto', 'pair' => 'enfermeras_apoyo', 'is_core' => true, 'visibilidad' => 'publico'],
+    'tasa_administrativas'       => ['label' => 'Tasa Enfermeras Administrativas', 'fullLabel' => 'Tasa de enfermeras con funciones administrativas', 'abrev' => 'Tasa Enf. Admin.', 'tipo' => 'tasa', 'pair' => 'enfermeras_administrativas', 'is_core' => true, 'visibilidad' => 'publico'],
+    'enfermeras_administrativas' => ['label' => 'Enfermeras Administrativas', 'fullLabel' => 'Enfermeras con funciones administrativas', 'abrev' => 'Enf. Admin.', 'tipo' => 'absoluto', 'pair' => 'enfermeras_administrativas', 'is_core' => true, 'visibilidad' => 'publico'],
+    'tasa_escuelas'              => ['label' => 'Tasa Enfermeras Escuelas', 'fullLabel' => 'Tasa de enfermeras en escuelas de enfermería', 'abrev' => 'Tasa Enf. Escuelas', 'tipo' => 'tasa', 'pair' => 'enfermeras_escuelas', 'is_core' => true, 'visibilidad' => 'publico'],
+    'enfermeras_escuelas'        => ['label' => 'Enfermeras Escuelas', 'fullLabel' => 'Enfermeras en escuelas de enfermería', 'abrev' => 'Enf. Escuelas', 'tipo' => 'absoluto', 'pair' => 'enfermeras_escuelas', 'is_core' => true, 'visibilidad' => 'publico'],
+    'tasa_no_aplica'             => ['label' => 'Tasa Enfermeras Otros', 'fullLabel' => 'Tasa de enfermeras en otros establecimientos', 'abrev' => 'Tasa Enf. Otros', 'tipo' => 'tasa', 'pair' => 'enfermeras_no_aplica', 'is_core' => true, 'visibilidad' => 'publico'],
+    'enfermeras_no_aplica'       => ['label' => 'Enfermeras Otros', 'fullLabel' => 'Enfermeras en otros establecimientos', 'abrev' => 'Enf. Otros', 'tipo' => 'absoluto', 'pair' => 'enfermeras_no_aplica', 'is_core' => true, 'visibilidad' => 'publico'],
+    'tasa_no_asignado'           => ['label' => 'Tasa Enfermeras No Asignado', 'fullLabel' => 'Tasa de enfermeras con funciones no asignadas', 'abrev' => 'Tasa Enf. No Asignado', 'tipo' => 'tasa', 'pair' => 'enfermeras_no_asignado', 'is_core' => true, 'visibilidad' => 'publico'],
+    'enfermeras_no_asignado'     => ['label' => 'Enfermeras No Asignado', 'fullLabel' => 'Enfermeras con funciones no asignadas', 'abrev' => 'Enf. No Asignado', 'tipo' => 'absoluto', 'pair' => 'enfermeras_no_asignado', 'is_core' => true, 'visibilidad' => 'publico'],
+    'poblacion'                  => ['label' => 'Población', 'fullLabel' => 'Población total', 'abrev' => 'Población', 'tipo' => 'absoluto', 'pair' => 'poblacion', 'is_core' => true, 'visibilidad' => 'publico']
 ];
 
 $defaults_json = wp_json_encode($defaults);
@@ -67,11 +67,12 @@ if ( empty($metricas_json) ) {
     <table id="siarhe-metricas-table" class="siarhe-table">
         <thead>
             <tr>
-                <th style="width: 20%;">Clave de Columna (CSV)</th>
-                <th style="width: 20%;">Etiqueta Corta</th>
+                <th style="width: 15%;">Clave (CSV)</th>
                 <th style="width: 25%;">Etiqueta Larga</th>
+                <th style="width: 15%;">Etiqueta Corta</th>
+                <th style="width: 10%;">Abrev.</th>
                 <th style="width: 10%;">Tipo</th>
-                <th style="width: 15%;">Última Edición</th>
+                <th style="width: 15%;">Edición</th>
                 <th style="width: 10%;">Acciones</th>
             </tr>
         </thead>
@@ -102,6 +103,13 @@ if ( empty($metricas_json) ) {
                 </td>
             </tr>
             <tr>
+                <th><label>Etiqueta Larga</label></th>
+                <td>
+                    <input type="text" id="modal-metric-full" class="regular-text" style="width:100%;" required placeholder="ej. Tasa de enfermeras quirúrgicas por mil hab.">
+                    <p class="description">Texto descriptivo para el selector del menú desplegable.</p>
+                </td>
+            </tr>
+            <tr>
                 <th><label>Etiqueta Corta</label></th>
                 <td>
                     <input type="text" id="modal-metric-label" class="regular-text" required placeholder="ej. Tasa Quirúr.">
@@ -109,10 +117,21 @@ if ( empty($metricas_json) ) {
                 </td>
             </tr>
             <tr>
-                <th><label>Etiqueta Larga</label></th>
+                <th><label>Etiqueta Abreviada</label></th>
                 <td>
-                    <input type="text" id="modal-metric-full" class="regular-text" style="width:100%;" required placeholder="ej. Tasa de enfermeras quirúrgicas por mil hab.">
-                    <p class="description">Texto descriptivo para el selector del menú desplegable.</p>
+                    <input type="text" id="modal-metric-abrev" class="small-text" style="width:100px;" placeholder="ej. T. Qui.">
+                    <p class="description">Para uso en interfaces ultra compactas (móviles).</p>
+                </td>
+            </tr>
+            <tr>
+                <th><label>Visibilidad</label></th>
+                <td>
+                    <select id="modal-metric-visibilidad">
+                        <option value="publico">Público (Visible para todos)</option>
+                        <option value="registrados">Privado (Solo usuarios registrados)</option>
+                        <option value="oculto">Oculto (No mostrar en frontend)</option>
+                    </select>
+                    <p class="description" id="desc-visibilidad">Controla quién puede ver y seleccionar esta métrica.</p>
                 </td>
             </tr>
             <tr>
@@ -149,6 +168,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const tbody = document.getElementById('siarhe-metricas-tbody');
     const modal = document.getElementById('siarhe-edit-metric-modal');
 
+    // CLAVES BLOQUEADAS PARA VISIBILIDAD
+    const lockedVisibilityKeys = ['tasa_total', 'enfermeras_total', 'poblacion'];
+
     let metricasObj = {};
     try { metricasObj = JSON.parse(inputJson.value); } catch (e) {}
 
@@ -172,6 +194,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const item = metricasObj[key];
             const isCore = item.is_core === true;
             
+            const abrev = item.abrev || item.label.substring(0,6) + '.';
+            const vis = item.visibilidad || 'publico'; 
+            
             const badgeType = item.tipo === 'tasa' ? 'success' : 'neutral';
             const badgeLabel = item.tipo === 'tasa' ? 'Tasa' : 'Absoluto';
             const coreBadge = isCore ? '<span class="siarhe-badge brand" style="margin-left:5px;"><span class="dashicons dashicons-lock" style="font-size:12px;width:12px;height:12px;margin-top:2px;"></span> Nativa</span>' : '';
@@ -183,17 +208,29 @@ document.addEventListener('DOMContentLoaded', function() {
             const btnDelete = isCore 
                 ? `<span class="dashicons dashicons-lock" style="color:#ccc; margin-left:10px;" title="Las métricas nativas no se pueden eliminar"></span>` 
                 : `<button type="button" class="button button-small button-link-delete btn-delete-metrica" data-key="${key}" title="Eliminar métrica"><span class="dashicons dashicons-trash" style="color:#d63638;"></span></button>`;
+                
+            // INDICADOR VISUAL
+            let eyeIcon = 'dashicons-visibility';
+            let eyeColor = '#007cba';
+            let eyeTitle = 'Público: Visible para todos';
+            if (vis === 'registrados') { eyeIcon = 'dashicons-admin-users'; eyeColor = '#e68a00'; eyeTitle = 'Privado: Solo usuarios registrados'; }
+            if (vis === 'oculto') { eyeIcon = 'dashicons-hidden'; eyeColor = '#8c8f94'; eyeTitle = 'Oculto: No se mostrará en frontend'; }
+
+            const visIndicator = `<span class="dashicons ${eyeIcon}" style="color:${eyeColor}; margin-right: 8px; cursor: help;" title="${eyeTitle}"></span>`;
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td data-label="Clave (CSV)" data-mobile-role="primary">
                     <strong style="color:#2271b1; font-family:monospace;">${key}</strong> ${coreBadge}
                 </td>
+                <td data-label="Etiqueta Larga">
+                    <span class="siarhe-break-text" style="font-size:12px; color:#555;">${item.fullLabel}</span>
+                </td>
                 <td data-label="Etiqueta Corta" data-mobile-role="secondary">
                     <strong>${item.label}</strong>
                 </td>
-                <td data-label="Etiqueta Larga">
-                    <span class="siarhe-break-text" style="font-size:12px; color:#555;">${item.fullLabel}</span>
+                <td data-label="Abrev.">
+                    <span style="background:#f0f0f1; padding:2px 5px; border-radius:3px; font-size:11px;">${abrev}</span>
                 </td>
                 <td data-label="Tipo">
                     <span class="siarhe-badge ${badgeType}">${badgeLabel}</span>
@@ -202,6 +239,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     ${editInfo}
                 </td>
                 <td data-label="Acciones">
+                    ${visIndicator}
                     <button type="button" class="button button-small btn-edit-metrica" data-key="${key}" title="Modificar parámetros">
                         <span class="dashicons dashicons-edit"></span>
                     </button>
@@ -257,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function openModal(key = null) {
         const isNew = key === null;
-        const item = isNew ? { label: '', fullLabel: '', tipo: 'absoluto', pair: '', is_core: false } : metricasObj[key];
+        const item = isNew ? { label: '', fullLabel: '', abrev: '', tipo: 'absoluto', pair: '', visibilidad: 'publico', is_core: false } : metricasObj[key];
 
         document.getElementById('modal-metric-title').textContent = isNew ? 'Añadir Nueva Métrica' : 'Editar Propiedades';
         document.getElementById('modal-metric-original-key').value = isNew ? '' : key;
@@ -266,14 +304,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const keyInput = document.getElementById('modal-metric-key');
         const pairInput = document.getElementById('modal-metric-pair');
         const typeInput = document.getElementById('modal-metric-tipo');
+        const visInput = document.getElementById('modal-metric-visibilidad');
         const notice = document.getElementById('modal-core-notice');
+        const descVis = document.getElementById('desc-visibilidad');
 
         keyInput.value = isNew ? '' : key;
-        document.getElementById('modal-metric-label').value = item.label;
-        document.getElementById('modal-metric-full').value = item.fullLabel;
+        document.getElementById('modal-metric-label').value = item.label || '';
+        document.getElementById('modal-metric-full').value = item.fullLabel || '';
+        document.getElementById('modal-metric-abrev').value = item.abrev || '';
         typeInput.value = item.tipo;
         pairInput.value = item.pair;
+        visInput.value = item.visibilidad || 'publico';
 
+        // LÓGICA DE BLOQUEO (Nativas Estructurales vs Nativas Secundarias)
         if (item.is_core) {
             keyInput.readOnly = true;
             keyInput.style.background = '#f0f0f1';
@@ -290,6 +333,18 @@ document.addEventListener('DOMContentLoaded', function() {
             typeInput.disabled = false;
             typeInput.style.background = '#fff';
             notice.style.display = 'none';
+        }
+
+        // BLOQUEO ESTRICTO DE VISIBILIDAD PARA VARIABLES CRÍTICAS
+        if (!isNew && lockedVisibilityKeys.includes(key)) {
+            visInput.value = 'publico';
+            visInput.disabled = true;
+            visInput.style.background = '#f0f0f1';
+            descVis.innerHTML = '<span style="color:#d63638;">🔒 La visibilidad de esta métrica crítica no puede ser alterada.</span>';
+        } else {
+            visInput.disabled = false;
+            visInput.style.background = '#fff';
+            descVis.innerHTML = 'Controla quién puede ver y seleccionar esta métrica.';
         }
 
         modal.style.display = 'block';
@@ -313,11 +368,19 @@ document.addEventListener('DOMContentLoaded', function() {
             delete metricasObj[originalKey];
         }
 
+        // FORZAR PUBLICO SI ES VARIABLE CRÍTICA AL GUARDAR
+        let finalVis = document.getElementById('modal-metric-visibilidad').value;
+        if (lockedVisibilityKeys.includes(newKey)) {
+            finalVis = 'publico';
+        }
+
         metricasObj[newKey] = {
             label: document.getElementById('modal-metric-label').value.trim(),
             fullLabel: document.getElementById('modal-metric-full').value.trim(),
+            abrev: document.getElementById('modal-metric-abrev').value.trim(), 
             tipo: document.getElementById('modal-metric-tipo').value,
             pair: document.getElementById('modal-metric-pair').value.trim(),
+            visibilidad: finalVis, 
             is_core: isCore,
             last_edited_by: currentUser,
             last_edited_at: currentTime

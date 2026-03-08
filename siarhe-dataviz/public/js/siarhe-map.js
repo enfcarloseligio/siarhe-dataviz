@@ -73,7 +73,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             
             state.svg = svg;
 
-            // 🌟 MODIFICADO: EL GRADIENTE AHORA SE ACTUALIZA DINÁMICAMENTE EN RENDERLEGEND
             const defs = svg.append("defs");
             state.gradientId = `grad-${Math.random().toString(36).substr(2, 5)}`;
             defs.append("linearGradient")
@@ -199,7 +198,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
         updateVisuals: function(container, state) {
             const metric = state.currentMetric;
-            const mode = state.colorMode || 'quartiles'; // 🌟 Determina el tipo de mapa
+            const mode = state.colorMode || 'quartiles'; 
             
             const values = state.csvData
                 .filter(d => !d.isTotal && !d.isSpecial && d[metric] !== null && d[metric] > 0)
@@ -223,7 +222,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const max = d3.max(values);
 
                 if (mode === 'quartiles') {
-                    // 🌟 LÓGICA DE CUARTILES (5 colores)
                     let q1 = d3.quantile(values, 0.25); 
                     let q2 = d3.quantile(values, 0.50); 
                     let q3 = d3.quantile(values, 0.75);
@@ -242,7 +240,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     stats = { min, q1, q2, q3, max };
 
                 } else {
-                    // 🌟 LÓGICA MONOCROMÁTICA (Lineal 2 colores)
                     let domain = [min, max];
                     if (min === max) domain = [0, max];
                     
@@ -309,10 +306,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const g = state.gLegend; 
             g.html("");
             
-            const label = state.metricas[state.currentMetric] ? state.metricas[state.currentMetric].label : 'Indicador';
+            // USO DE ETIQUETA ABREVIADA PARA LA LEYENDA DEL MAPA
+            const info = state.metricas[state.currentMetric] || {};
+            const label = info.abrev || info.label || 'Indicador';
             const mode = state.colorMode || 'quartiles';
 
-            // 🌟 INYECCIÓN DE LOS COLORES AL GRADIENTE SEGÚN EL MODO
             const gradient = state.svg.select(`#${state.gradientId}`);
             gradient.selectAll("stop").remove();
             
@@ -324,7 +322,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 domainVals = [stats.min, stats.q1, stats.q2, stats.q3, stats.max];
             } else {
                 colorArr = app.colors.MONO;
-                // En monocromático dibujamos 5 rayitas equitativas para que la leyenda se vea igual de bonita
                 const stepVal = (stats.max - stats.min) / 4;
                 domainVals = [stats.min, stats.min + stepVal, stats.min + stepVal*2, stats.min + stepVal*3, stats.max];
             }
@@ -360,7 +357,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         },
 
         // ==========================================
-        // 3. TOOLTIPS Y EVENTOS (AHORA CON CONFIG DINÁMICA)
+        // 3. TOOLTIPS Y EVENTOS 
         // ==========================================
 
         showTooltip: function(event, d, state, mapDiv) {
@@ -381,7 +378,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 
                 if (mKey !== 'poblacion') {
                     if (tt.geo_abs !== false) {
-                        const labelAbs = state.metricas[pKey] ? state.metricas[pKey].label.replace('Total ','') : pKey;
+                        // USO DE ETIQUETA CORTA PARA EL TOOLTIP ABSOLUTO
+                        const labelAbs = state.metricas[pKey] ? state.metricas[pKey].label : pKey;
                         const valAbs = (row[pKey] !== null && row[pKey] !== undefined) ? row[pKey].toLocaleString('es-MX') : '—';
                         html += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span style="color:#A5B4C3">${labelAbs}:</span> <b>${valAbs}</b></div>`;
                     }
@@ -390,6 +388,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         let tasaKey = (state.metricas[mKey].tipo === 'tasa') ? mKey : app.utils.findRateKeyForAbsolute(pKey, state.metricas);
                         let valTasa = tasaKey ? row[tasaKey] : null;
                         const valTasaFmt = (valTasa !== null && valTasa !== undefined) ? valTasa.toFixed(2) : '—';
+                        // USO DE ETIQUETA CORTA PARA EL TOOLTIP RELATIVO
                         const labelTasa = (state.metricas[mKey].tipo === 'tasa') ? state.metricas[mKey].label : 'Tasa';
 
                         html += `<div style="display:flex; justify-content:space-between; margin-top:6px; padding-top:6px; border-top:1px solid #475569;">
@@ -647,6 +646,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const titleNode = container.querySelector('h2.siarhe-title'); 
                     const entidadNombre = titleNode ? titleNode.innerText.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '').trim() : "México";
                     
+                    // 🌟 USO DE ETIQUETA LARGA PARA EL TÍTULO DEL PNG
                     const titleText = `${metricInfo.fullLabel} en ${entidadNombre} (${anio})`;
                     ctx.fillStyle = "#0A66C2"; 
                     ctx.font = "bold 38px 'IBM Plex Sans', Arial, sans-serif"; 
@@ -672,9 +672,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     }
                     ctx.fillText(line, 1920 / 2, y);
                     
-                    const slug = container.dataset.slug || 'mapa'; 
-                    const metricSlug = state.currentMetric.replace(/_/g, '-');
-                    const nombreArchivo = `${slug}-${metricSlug}-${anio}${withLabels ? '-etiquetas' : ''}-FHD.png`;
+                    // LÓGICA DE NOMBRAMIENTO DEL ARCHIVO PNG (Etiqueta Corta Limpia)
+                    const labelClean = (metricInfo.label || metricInfo.fullLabel).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\./g, "").replace(/\s+/g, '_');
+                    const entidadClean = entidadNombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_');
+                    const nombreArchivo = `${labelClean}_${entidadClean}_${anio}${withLabels ? '_Etiquetas' : ''}.png`;
                     
                     const a = document.createElement("a"); a.download = nombreArchivo; a.href = canvas.toDataURL("image/png"); a.click();
                     if (withLabels) state.gLabels.style("display", "none");

@@ -15,7 +15,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         
         renderMain: function(container, state, onUpdate, opts = { targetSelector: '.siarhe-controls-placeholder', showMarkers: true }) {
             
-            // 🌟 INYECCIÓN CSS: Estilos para los Dropdowns y el nuevo Toggle de Colores
+            // INYECCIÓN CSS: Estilos para los Dropdowns y el nuevo Toggle de Colores
             if (!document.getElementById('siarhe-search-dropdown-styles')) {
                 const style = document.createElement('style');
                 style.id = 'siarhe-search-dropdown-styles';
@@ -35,7 +35,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     .siarhe-cs-option.selected { font-weight: bold; color: #0284c7; background: #f0f9ff; border-left: 3px solid #0284c7; padding-left: 9px; }
                     .is-placeholder { color: #94a3b8 !important; }
                     
-                    /* 🌟 Estilos del Toggle Switch Monocromático */
+                    /* Estilos del Toggle Switch Monocromático */
                     .siarhe-mode-toggle { display: flex; align-items: center; gap: 8px; margin-left: auto; font-family: 'Roboto', sans-serif; font-size: 13px; color: #475569; }
                     .s-toggle-switch { position: relative; display: inline-block; width: 40px; height: 20px; }
                     .s-toggle-switch input { opacity: 0; width: 0; height: 0; }
@@ -93,9 +93,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 
                 if (key === state.currentMetric) {
                     opt.classList.add('selected');
-                    triggerInd.innerHTML = `<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${info.fullLabel}</span>`;
+                    // USO DE ETIQUETA CORTA EN EL BOTÓN PRINCIPAL
+                    triggerInd.innerHTML = `<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${info.label || info.fullLabel}</span>`;
                 }
                 
+                // USO DE ETIQUETA LARGA EN LAS OPCIONES DESPLEGABLES
                 opt.textContent = info.fullLabel;
                 
                 opt.addEventListener('click', (e) => {
@@ -103,7 +105,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     state.currentMetric = key;
                     app.sortConfig = { key: 'tasa', direction: 'desc' };
                     
-                    triggerInd.innerHTML = `<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${info.fullLabel}</span>`;
+                    // USO DE ETIQUETA CORTA AL SELECCIONAR
+                    triggerInd.innerHTML = `<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${info.label || info.fullLabel}</span>`;
                     optionsContainerInd.querySelectorAll('.siarhe-cs-option').forEach(o => o.classList.remove('selected'));
                     opt.classList.add('selected');
                     menuInd.classList.remove('open');
@@ -225,9 +228,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
 
             // ====================================================
-            // C) 🌟 NUEVO: TOGGLE DE MODO DE COLOR (Monocromático vs Cuartiles)
+            // C) TOGGLE DE MODO DE COLOR (Monocromático vs Cuartiles)
             // ====================================================
-            if (opts.targetSelector === '.siarhe-controls-placeholder') { // Solo lo mostramos si hay mapa
+            if (opts.targetSelector === '.siarhe-controls-placeholder') { 
                 const colorToggleContainer = document.createElement('div');
                 colorToggleContainer.className = 'siarhe-mode-toggle';
                 
@@ -377,12 +380,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const colEntidad = state.isNacional ? 'Entidad Federativa' : 'Municipio';
                 csvContent += `${colEntidad},Población,Enfermeras,Tasa\n`;
                 
+                const metricInfo = state.metricas[state.currentMetric];
                 const mKey = state.currentMetric; 
-                const pKey = state.metricas[mKey].pair || mKey; 
+                const pKey = metricInfo.pair || mKey; 
                 const isPob = (mKey === 'poblacion');
                 
                 const enfDataKey = isPob ? null : pKey; 
-                const tasaDataKey = isPob ? null : ((state.metricas[mKey].tipo === 'tasa') ? mKey : app.utils.findRateKeyForAbsolute(pKey, state.metricas));
+                const tasaDataKey = isPob ? null : ((metricInfo.tipo === 'tasa') ? mKey : app.utils.findRateKeyForAbsolute(pKey, state.metricas));
                 
                 const getVal = (r, colId) => {
                     if (colId === 'estado') return r.estado;
@@ -422,14 +426,24 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     csvContent += `${estado},${pob},${enfStr},${tasaStr}\n`;
                 });
                 
+                // LÓGICA DE NOMBRAMIENTO DEL ARCHIVO EXCEL 
+                const anioNode = document.querySelector('.siarhe-dynamic-year');
+                const anio = anioNode ? anioNode.innerText : new Date().getFullYear();
+                
+                // Extraer el lugar limpiando acentos
+                const titleNode = container.querySelector('h2.siarhe-title'); 
+                const entidadNombreRaw = titleNode ? titleNode.innerText.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '').trim() : "Mexico";
+                const entidadClean = entidadNombreRaw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_');
+                
+                // Extraer la etiqueta corta y limpiarla
+                const labelRaw = metricInfo.label || metricInfo.fullLabel || 'Datos';
+                const labelClean = labelRaw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\./g, "").replace(/\s+/g, '_');
+                
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
-                const anioNode = document.querySelector('.siarhe-dynamic-year');
-                const anio = anioNode ? anioNode.innerText : new Date().getFullYear();
-                const slug = container.dataset.slug || 'datos';
-                const metricSlug = state.currentMetric.replace(/_/g, '-');
-                a.download = `SIARHE_${slug}_${metricSlug}_${anio}.csv`;
+                
+                a.download = `${labelClean}_${entidadClean}_${anio}.csv`; // Formato: EtiquetaCorta_Lugar_Anio.csv
                 a.href = url; 
                 a.style.display = "none"; 
                 document.body.appendChild(a); 
