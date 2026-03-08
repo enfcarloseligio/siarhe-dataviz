@@ -50,12 +50,11 @@ $defaults = [
 ];
 $opts = wp_parse_args( $map_options, $defaults );
 
-// 🌟 2. MOTOR DINÁMICO DE MARCADORES 🌟
+// 🌟 2. MOTOR DINÁMICO DE MARCADORES (Agregado para no perder la actualización anterior) 🌟
 $marcadores_json = get_option( 'siarhe_marcadores_config', '' );
 $marcadores_array = json_decode( wp_unslash( $marcadores_json ), true );
 
 if (empty($marcadores_array)) {
-    // Fallback de seguridad
     $marcadores_array = [
         'CATETER' => ['label' => 'Clínicas de catéteres', 'archivo' => 'clinicas-cateteres.csv', 'visibilidad' => 'publico'],
         'HERIDAS' => ['label' => 'Clínicas de heridas', 'archivo' => 'clinicas-heridas.csv', 'visibilidad' => 'publico']
@@ -64,23 +63,20 @@ if (empty($marcadores_array)) {
 
 $marker_config = [];
 $marker_urls = [];
-$marker_labels = []; // Para enviar al JS los nombres limpios
+$marker_labels = []; 
 $is_user_logged_in = is_user_logged_in();
 $upload_url = defined('SIARHE_UPLOAD_URL') ? SIARHE_UPLOAD_URL : wp_upload_dir()['baseurl'] . '/siarhe-data/';
 
 foreach ($marcadores_array as $key => $mk) {
     $visibilidad = isset($mk['visibilidad']) ? $mk['visibilidad'] : 'publico';
     
-    // Seguridad y Filtrado
     if ($visibilidad === 'oculto') continue; 
     if ($visibilidad === 'registrados' && !$is_user_logged_in) continue;
     
-    // Asignación Dinámica de URLs y Estilos
     $s_key = strtolower($key);
     $marker_urls[$key] = $upload_url . 'markers/' . $mk['archivo'] . '?v=' . time();
-    $marker_labels[$key] = $mk; // Pasamos toda la config del marcador al JS
+    $marker_labels[$key] = $mk; 
     
-    // Busca si tiene estilos guardados, si no, fallback
     $marker_config[$key] = [
         'shape' => isset($opts["m_{$s_key}_shape"]) ? $opts["m_{$s_key}_shape"] : 'circle',
         'fill'  => isset($opts["m_{$s_key}_fill"]) ? $opts["m_{$s_key}_fill"] : '#0A66C2',
@@ -89,10 +85,10 @@ foreach ($marcadores_array as $key => $mk) {
 }
 
 
-// LECTURA DINÁMICA DE MÉTRICAS (Igual)
+// LECTURA DINÁMICA DE MÉTRICAS (Intacta)
 $metricas_json = get_option( 'siarhe_metricas_config', '' );
 $metricas_array = json_decode( wp_unslash( $metricas_json ), true );
-// ... (Aquí dejé la misma lógica de métricas que ya tenías perfecta)
+
 if ( empty($metricas_array) || !is_array($metricas_array) ) {
     $metricas_array = [
         'tasa_total'                 => ['label' => 'Tasa Total', 'fullLabel' => 'Tasa de enfermeras por cada mil habitantes', 'tipo' => 'tasa', 'pair' => 'enfermeras_total'],
@@ -112,7 +108,7 @@ foreach ($metricas_array as $key => $metrica) {
 $metricas_clean_json = wp_json_encode($metricas_filtradas);
 
 
-// LECTURA DE CONFIGURACIÓN DE TOOLTIPS
+// 🌟 LECTURA DE CONFIGURACIÓN DE TOOLTIPS (Actualizada con las variables Drag&Drop de Marcadores) 🌟
 $tooltip_json = get_option( 'siarhe_tooltip_config', '' );
 if ( empty($tooltip_json) ) {
     $defaults_tt = [
@@ -121,7 +117,10 @@ if ( empty($tooltip_json) ) {
         'mk_inst' => true, 'mk_mun' => true, 'mk_clues' => true,
         'mk_tipo' => true, 'mk_nivel' => true, 'mk_juris' => true,
         'bg_color' => '#0f172a', 'bg_opacity' => '90', 'text_color' => '#f8fafc',
-        'highlight_var' => 'rate', 'highlight_color' => '#06b6d4'
+        'highlight_var' => 'rate', 'highlight_color' => '#06b6d4',
+        'mk_order' => ['mk_inst', 'mk_clues', 'mk_tipo', 'mk_nivel', 'mk_separator', 'mk_juris', 'mk_mun'],
+        'mk_bg_color' => '#0f172a', 'mk_bg_opacity' => '90', 'mk_text_color' => '#f8fafc',
+        'mk_highlight_var' => 'none', 'mk_highlight_color' => '#06b6d4'
     ];
     $tooltip_json = wp_json_encode($defaults_tt);
 } else {

@@ -381,10 +381,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const row = state.dataMap.get(cve);
             const nombre = row ? row.estado : (d.properties.NOMGEO || d.properties.NOM_ENT || "Sin Datos");
             
-            // OBTENER CONFIGURACIONES DE DISEÑO Y ORDEN
+            // OBTENER CONFIGURACIONES DE DISEÑO Y ORDEN DEL MAPA
             const tt = state.tooltipConfig || {}; 
             const order = tt.geo_order || ['pob', 'abs', 'rate'];
-            const hlVar = tt.highlight_var || 'rate'; // 'none', 'pob', 'abs', 'rate'
+            const hlVar = tt.highlight_var || 'rate'; 
             const hlColor = tt.highlight_color || '#06b6d4';
             const bgColor = tt.bg_color || '#0f172a';
             const bgOpacity = (tt.bg_opacity !== undefined ? parseInt(tt.bg_opacity, 10) : 90) / 100;
@@ -399,10 +399,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             let blocks = {};
             
             if (tt.geo_pob !== false) {
-                blocks['pob'] = {
-                    label: 'Población',
-                    value: row && row.poblacion ? row.poblacion.toLocaleString('es-MX') : '—'
-                };
+                blocks['pob'] = { label: 'Población', value: row && row.poblacion ? row.poblacion.toLocaleString('es-MX') : '—' };
             }
             
             if (mKey !== 'poblacion') {
@@ -427,7 +424,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             order.forEach(itemKey => {
                 if (!blocks[itemKey]) return; 
-                
                 const b = blocks[itemKey];
 
                 if (hlVar === itemKey) {
@@ -445,7 +441,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 }
             });
 
-            // Ensamblar caja final
             let html = `
                 <div style="font-family:'Roboto', sans-serif;">
                     <div style="font-weight:bold; font-size:14px; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:4px;">
@@ -494,7 +489,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             let baseSize = isMobile ? 350 : 250;
 
             let symbolSize = (baseSize / shrinkFactor) / (currentK * currentK);
-            
             let minSymbolSize = isMobile ? 0.08 : 0.05;
             if (symbolSize < minSymbolSize) symbolSize = minSymbolSize;
 
@@ -520,44 +514,89 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
                     d3.select(this).attr("stroke-width", 3 / k).raise(); 
 
-                    // OBTENER DISEÑO PARA TOOLTIP DE MARCADORES
+                    // 🌟 OBTENER DISEÑO Y ORDEN PARA TOOLTIP DE MARCADORES 🌟
                     const tt = state.tooltipConfig || {}; 
-                    const hlColor = tt.highlight_color || '#06b6d4';
-                    const bgColor = tt.bg_color || '#0f172a';
-                    const bgOpacity = (tt.bg_opacity !== undefined ? parseInt(tt.bg_opacity, 10) : 90) / 100;
-                    const txtColor = tt.text_color || '#f8fafc';
+                    const hlVar = tt.mk_highlight_var || 'none';
+                    const hlColor = tt.mk_highlight_color || '#06b6d4';
+                    const bgColor = tt.mk_bg_color || '#0f172a';
+                    const bgOpacity = (tt.mk_bg_opacity !== undefined ? parseInt(tt.mk_bg_opacity, 10) : 90) / 100;
+                    const txtColor = tt.mk_text_color || '#f8fafc';
                     const finalBgColor = app.map.hexToRgba(bgColor, bgOpacity);
-                    
-                    // 🌟 LECTURA DINÁMICA DEL NOMBRE DEL MARCADOR 🌟
-                    const markerLabel = state.markerLabels[d.tipo] ? state.markerLabels[d.tipo].label : d.tipo;
+                    const mkOrder = tt.mk_order || ['mk_inst', 'mk_clues', 'mk_tipo', 'mk_nivel', 'mk_separator', 'mk_juris', 'mk_mun'];
 
-                    let html = `<div style="font-family:'Roboto', sans-serif; color:${txtColor};">`;
-                    html += `<div style="color: ${hlColor}; font-weight:bold; font-size:13px; margin-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:4px;">${markerLabel}</div>`;
-                    html += `<div style="font-size:12px; margin-top:4px;">
-                        <div style="font-weight:bold; font-family:'IBM Plex Sans', sans-serif;">${d.nombre || 'Desconocido'}</div>`;
-                        
-                    if (tt.mk_inst !== false || tt.mk_mun !== false) {
-                        let instMun = [];
-                        if (tt.mk_inst !== false && d.institucion) instMun.push(d.institucion);
-                        if (tt.mk_mun !== false && d.municipio) instMun.push(d.municipio);
-                        if (instMun.length > 0) {
-                            html += `<div style="opacity:0.8; font-size:11px; margin-top:2px;">${instMun.join(' - ')}</div>`;
+                    // Titulo Dinámico del Marcador (Estrato y Nombre)
+                    let zonaTexto = "";
+                    if (d.estrato) {
+                        const estLower = d.estrato.toString().toLowerCase().trim();
+                        if (estLower === '1' || estLower === 'rural') zonaTexto = "Rural";
+                        else if (estLower === '2' || estLower === 'urbano') zonaTexto = "Urbana";
+                        else zonaTexto = d.estrato;
+                    }
+                    const titleLabel = zonaTexto ? `Establecimiento en Zona ${zonaTexto}` : (state.markerLabels[d.tipo] ? state.markerLabels[d.tipo].label : d.tipo);
+
+                    // Construcción de Bloques de Información
+                    let blocks = {};
+                    
+                    if (tt.mk_inst !== false && d.institucion) blocks['mk_inst'] = { label: 'Institución', value: d.institucion };
+                    if (tt.mk_clues !== false && d.clues) blocks['mk_clues'] = { label: 'CLUES', value: d.clues };
+                    if (tt.mk_nivel !== false && d.nivel_atencion) blocks['mk_nivel'] = { label: 'Nivel', value: d.nivel_atencion };
+                    if (tt.mk_juris !== false && d.jurisdiccion) blocks['mk_juris'] = { label: 'Jurisdicción', value: d.jurisdiccion };
+                    
+                    // Bloque Tipo/Tipología Combinado
+                    if (tt.mk_tipo !== false && (d.tipo_estab || d.tipologia)) {
+                        let valTipo = [];
+                        if (d.tipo_estab) valTipo.push(d.tipo_estab);
+                        if (d.tipologia) valTipo.push(d.tipologia);
+                        blocks['mk_tipo'] = { label: 'Tipo', value: valTipo.join(' - ') };
+                    }
+                    
+                    // Bloque Ubicación Geográfica Combinado
+                    if (tt.mk_mun !== false && (d._raw)) {
+                        let ubicacion = [];
+                        const colEntidad = app.utils.getColValue(d._raw, ['entidad', 'nom_ent']);
+                        const colLocalidad = app.utils.getColValue(d._raw, ['localidad', 'nom_loc']);
+                        if (colEntidad) ubicacion.push(colEntidad);
+                        if (d.municipio) ubicacion.push(d.municipio);
+                        if (colLocalidad) ubicacion.push(colLocalidad);
+                        if (ubicacion.length > 0) blocks['mk_mun'] = { label: 'Ubicación', value: ubicacion.join(', ') };
+                    }
+
+                    // Ensamblaje HTML Respetando el Orden
+                    let htmlStandard = '';
+                    let htmlHighlight = '';
+
+                    mkOrder.forEach(itemKey => {
+                        if (itemKey === 'mk_separator') {
+                            // Renderizar la Línea Separadora (Solo si hay elementos previos o posteriores para no dejarla colgada)
+                            htmlStandard += `<div style="border-top: 1px dashed rgba(255,255,255,0.2); margin: 6px 0;"></div>`;
+                            return;
                         }
-                    }
-                    
-                    if (tt.mk_clues !== false) {
-                        html += `<div style="font-size:10px; margin-top:2px; opacity:0.6;">CLUES: ${d.clues}</div>`;
-                    }
-                    
-                    if ((d.tipo_estab || d.nivel_atencion || d.jurisdiccion) && (tt.mk_tipo !== false || tt.mk_nivel !== false || tt.mk_juris !== false)) {
-                        html += `<div style="margin-top:6px; padding-top:4px; border-top:1px dashed rgba(255,255,255,0.2); opacity:0.9;">`;
-                        if(d.tipo_estab && tt.mk_tipo !== false) html += `<div style="font-size:11px;"><strong style="opacity:0.7;">Tipo:</strong> ${d.tipo_estab}</div>`;
-                        if(d.tipologia && tt.mk_tipo !== false) html += `<div style="font-size:11px;"><strong style="opacity:0.7;">Tipología:</strong> ${d.tipologia}</div>`;
-                        if(d.nivel_atencion && tt.mk_nivel !== false) html += `<div style="font-size:11px;"><strong style="opacity:0.7;">Nivel:</strong> ${d.nivel_atencion}</div>`;
-                        if(d.jurisdiccion && tt.mk_juris !== false) html += `<div style="font-size:10px;"><strong style="opacity:0.7;">Jurisdicción:</strong> ${d.jurisdiccion}</div>`;
-                        html += `</div>`;
-                    }
-                    html += `</div></div>`;
+
+                        if (!blocks[itemKey]) return; 
+                        const b = blocks[itemKey];
+
+                        if (hlVar === itemKey) {
+                            htmlHighlight = `
+                                <div style="margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.2);">
+                                    <span style="font-size:11px; opacity:0.8;">${b.label}:</span><br>
+                                    <strong style="color:${hlColor}; font-size:12px;">${b.value}</strong>
+                                </div>`;
+                        } else {
+                            htmlStandard += `
+                                <div style="font-size:11px; line-height: 1.4; margin-bottom: 3px;">
+                                    <span style="color:#06B6D4; opacity:0.9;">${b.label}:</span> 
+                                    <strong style="color:${txtColor}; font-family:'IBM Plex Sans', sans-serif;">${b.value}</strong>
+                                </div>`;
+                        }
+                    });
+
+                    // Tarjeta Final
+                    let html = `<div style="font-family:'Roboto', sans-serif; color:${txtColor};">`;
+                    html += `<div style="color: #06B6D4; font-weight:bold; font-size:12px; margin-bottom:4px; padding-bottom:4px;">${titleLabel}</div>`;
+                    html += `<div style="font-weight:bold; font-size:13px; font-family:'IBM Plex Sans', sans-serif; text-transform: uppercase; margin-bottom: 8px;">${d.nombre || 'Desconocido'}</div>`;
+                    html += htmlStandard;
+                    html += htmlHighlight;
+                    html += `</div>`;
 
                     const mapDiv = document.querySelector('.siarhe-map-container');
                     const [mx, my] = d3.pointer(e, mapDiv);
@@ -603,7 +642,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const yPos = 12 + (i * 20);
                 const styleCfg = app.utils.getMarkerStyle(tipo, state);
                 
-                // 🌟 LECTURA DINÁMICA DEL NOMBRE DEL MARCADOR EN LA LEYENDA 🌟
                 const markerLabel = state.markerLabels[tipo] ? state.markerLabels[tipo].label : tipo;
 
                 g.append("path")
