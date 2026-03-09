@@ -20,10 +20,17 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const style = document.createElement('style');
                 style.id = 'siarhe-search-dropdown-styles';
                 style.innerHTML = `
-                    .siarhe-custom-select, .mc-field { position: relative; width: 100%; min-width: 250px; font-family: 'Roboto', sans-serif; }
-                    .siarhe-cs-trigger, .mc-trigger { background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: #334155; min-height: 38px; box-sizing: border-box; font-size: 14px; transition: border-color 0.2s; }
+                    /* 🌟 SOLUCIÓN FLEXBOX: Obliga a los contenedores a medir lo mismo y no aplastarse */
+                    .siarhe-control-group { flex: 1 1 250px; min-width: 0; max-width: 100%; }
+                    
+                    .siarhe-custom-select, .mc-field { position: relative; width: 100%; font-family: 'Roboto', sans-serif; }
+                    
+                    /* 🌟 TRUNCAMIENTO PERFECTO DEL TEXTO CON PUNTOS SUSPENSIVOS (...) */
+                    .siarhe-cs-trigger, .mc-trigger { background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 0 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: #334155; height: 38px; box-sizing: border-box; font-size: 14px; transition: border-color 0.2s; overflow: hidden; width: 100%; }
+                    .siarhe-cs-trigger > span, .mc-trigger > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; text-align: left; line-height: 36px; padding-right: 10px; flex: 1; }
+                    .siarhe-cs-trigger::after, .mc-trigger::after { content: "▼"; font-size: 10px; color: #94a3b8; flex-shrink: 0; }
                     .siarhe-cs-trigger:hover, .mc-trigger:hover { border-color: #94a3b8; }
-                    .siarhe-cs-trigger::after { content: "▼"; font-size: 10px; color: #94a3b8; margin-left: 8px; }
+                    
                     .siarhe-cs-menu, .mc-menu { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); margin-top: 5px; z-index: 9999; display: none; flex-direction: column; max-height: 350px; overflow: hidden; }
                     .siarhe-cs-menu.open, .mc-menu.open { display: flex; }
                     .siarhe-cs-search { padding: 10px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; z-index: 2; }
@@ -33,7 +40,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     .siarhe-cs-option, .mc-option { padding: 8px 12px; cursor: pointer; color: #475569; font-size: 13px; display: flex; align-items: center; gap: 8px; transition: background 0.2s; line-height: 1.3;}
                     .siarhe-cs-option:hover, .mc-option:hover { background: #f1f5f9; color: #0f172a; }
                     .siarhe-cs-option.selected { font-weight: bold; color: #0284c7; background: #f0f9ff; border-left: 3px solid #0284c7; padding-left: 9px; }
-                    .is-placeholder { color: #94a3b8 !important; }
+                    .is-placeholder span { color: #94a3b8 !important; }
                     
                     /* Estilos del Toggle Switch Monocromático */
                     .siarhe-mode-toggle { display: flex; align-items: center; gap: 8px; margin-left: auto; font-family: 'Roboto', sans-serif; font-size: 13px; color: #475569; }
@@ -93,11 +100,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 
                 if (key === state.currentMetric) {
                     opt.classList.add('selected');
-                    // USO DE ETIQUETA CORTA EN EL BOTÓN PRINCIPAL
-                    triggerInd.innerHTML = `<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${info.label || info.fullLabel}</span>`;
+                    triggerInd.innerHTML = `<span>${info.label || info.fullLabel}</span>`;
                 }
                 
-                // USO DE ETIQUETA LARGA EN LAS OPCIONES DESPLEGABLES
                 opt.textContent = info.fullLabel;
                 
                 opt.addEventListener('click', (e) => {
@@ -105,8 +110,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     state.currentMetric = key;
                     app.sortConfig = { key: 'tasa', direction: 'desc' };
                     
-                    // USO DE ETIQUETA CORTA AL SELECCIONAR
-                    triggerInd.innerHTML = `<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${info.label || info.fullLabel}</span>`;
+                    triggerInd.innerHTML = `<span>${info.label || info.fullLabel}</span>`;
                     optionsContainerInd.querySelectorAll('.siarhe-cs-option').forEach(o => o.classList.remove('selected'));
                     opt.classList.add('selected');
                     menuInd.classList.remove('open');
@@ -145,7 +149,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
 
             // ====================================================
-            // B) CONSTRUCCIÓN DE "MARCADORES" (AHORA DINÁMICOS)
+            // B) CONSTRUCCIÓN DE "MARCADORES" (CON BOTÓN DE LIMPIAR)
             // ====================================================
             if (opts.showMarkers) {
                 const validMarkers = Object.keys(state.markerUrls).filter(k => state.markerUrls[k]);
@@ -166,20 +170,41 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const menuMc = document.createElement('div'); 
                     menuMc.className = 'mc-menu';
                     
+                    // 🌟 INTERFAZ PARA BUSCADOR Y BOTÓN LIMPIAR
                     const searchBoxMc = document.createElement('div');
                     searchBoxMc.className = 'siarhe-cs-search';
+                    searchBoxMc.style.display = 'flex';
+                    searchBoxMc.style.gap = '8px';
                     searchBoxMc.addEventListener('click', e => e.stopPropagation());
+                    
                     const searchInputMc = document.createElement('input');
                     searchInputMc.type = 'text';
                     searchInputMc.placeholder = '🔍 Buscar marcador...';
+                    searchInputMc.style.flex = '1';
+
+                    const btnClearMc = document.createElement('button');
+                    btnClearMc.type = 'button';
+                    btnClearMc.innerHTML = '✖ Limpiar';
+                    btnClearMc.style.cssText = 'background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; border-radius: 4px; padding: 0 10px; cursor: pointer; font-size: 12px; font-weight: bold; display: none; white-space: nowrap; height: 33px; line-height: 31px;';
+                    btnClearMc.title = 'Desmarcar todas las capas';
+                    
+                    btnClearMc.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        state.activeMarkers.clear();
+                        optionsContainerMc.querySelectorAll('.mc-check').forEach(chk => chk.checked = false);
+                        if (app.map) app.map.updateMarkers(state);
+                        if (app.map && app.map.renderMarkerLegend) app.map.renderMarkerLegend(state);
+                        app.controls.updateMarkerDropdownText(state);
+                    });
+
                     searchBoxMc.appendChild(searchInputMc);
+                    searchBoxMc.appendChild(btnClearMc); 
                     menuMc.appendChild(searchBoxMc);
 
                     const optionsContainerMc = document.createElement('div');
                     optionsContainerMc.className = 'siarhe-cs-options';
 
                     validMarkers.forEach(key => {
-                        // 🌟 LECTURA DE ETIQUETA DINÁMICA
                         const mkData = state.markerLabels[key] || {};
                         const label = mkData.label || key;
                         
@@ -284,7 +309,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const url = state.markerUrls[type];
                     if (url) {
                         try {
-                            // 🌟 SISTEMA DE CACHÉ DE CSV
                             let rawData;
                             if (state.rawCSVDataCache && state.rawCSVDataCache[url]) {
                                 rawData = state.rawCSVDataCache[url];
@@ -294,18 +318,15 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                                 state.rawCSVDataCache[url] = rawData;
                             }
 
-                            // 🌟 LECTURA DE CONFIGURACIÓN DEL PANEL
                             const config = state.markerLabels[type] || {};
                             const filtroCol = config.filtro_col ? config.filtro_col.toLowerCase().trim() : null;
                             const filtroVal = config.filtro_val ? config.filtro_val.toString().toLowerCase().trim() : null;
                             
-                            // 🌟 NUEVO: VARIABLES DE AGRUPACIÓN Y REGLAS
                             const agruparCol = config.agrupar_col ? config.agrupar_col.toLowerCase().trim() : null;
                             const reglas = config.reglas_tooltip || [];
 
                             let processedData = [];
 
-                            // 🌟 MOTOR DE FILTRADO BASE
                             const filteredData = rawData.filter(d => {
                                 const latText = app.utils.getColValue(d, ['latitud', 'lat']);
                                 const lonText = app.utils.getColValue(d, ['longitud', 'lon']);
@@ -334,19 +355,17 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                                 return true; 
                             });
 
-                            // 🌟 MOTOR DE FUSIÓN Y CONTEO (AGRUPACIÓN ESPACIAL) 🌟
                             if (agruparCol) {
                                 const mapGroup = new Map();
                                 
                                 filteredData.forEach(d => {
                                     const realAgruparCol = Object.keys(d).find(k => k.toLowerCase().trim() === agruparCol);
-                                    if (!realAgruparCol) return; // Si la fila no tiene la columna de agrupar, la saltamos
+                                    if (!realAgruparCol) return; 
 
                                     const groupKey = (d[realAgruparCol] || '').toString().trim();
                                     if (!groupKey) return;
 
                                     if (!mapGroup.has(groupKey)) {
-                                        // CREAR EL PUNTO BASE FUSIONADO (Toma las coordenadas e info de la primera fila que encuentre)
                                         const lat = parseFloat(app.utils.getColValue(d, ['latitud', 'lat']));
                                         const lon = parseFloat(app.utils.getColValue(d, ['longitud', 'lon']));
                                         const cveNivel = app.utils.getColValue(d, ['cve_n_atencion', 'cve_ n_atencion', 'cve n atencion']);
@@ -371,12 +390,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                                             _conteo_reglas: {}
                                         };
 
-                                        // Inicializar contadores de reglas en 0
                                         reglas.forEach(r => { baseObj._conteo_reglas[r.label] = 0; });
                                         mapGroup.set(groupKey, baseObj);
                                     }
 
-                                    // PROCESO DE SUMA Y CONTEO PARA ESTA FILA
                                     const targetObj = mapGroup.get(groupKey);
                                     targetObj._agrupados_total += 1;
 
@@ -395,7 +412,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                                 processedData = Array.from(mapGroup.values());
 
                             } else {
-                                // 🌟 MANEJO NORMAL (Sin agrupar, 1 fila = 1 punto)
                                 processedData = filteredData.map(d => {
                                     const lat = parseFloat(app.utils.getColValue(d, ['latitud', 'lat']));
                                     const lon = parseFloat(app.utils.getColValue(d, ['longitud', 'lon']));
@@ -438,6 +454,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         updateMarkerDropdownText: function(state) {
             if (!state.markerTrigger) return;
             const selected = Array.from(state.activeMarkers);
+            
+            const clearBtn = state.markerTrigger.parentElement.querySelector('.siarhe-cs-search button');
+            if (clearBtn) {
+                clearBtn.style.display = selected.length > 0 ? 'block' : 'none';
+            }
+
             if (selected.length === 0) { 
                 state.markerTrigger.innerHTML = `<span>Seleccionar...</span>`; 
                 state.markerTrigger.classList.add('is-placeholder'); 
@@ -446,7 +468,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const mkData = state.markerLabels[k] || {};
                     return mkData.label || k;
                 });
-                state.markerTrigger.innerHTML = `<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${labels.join(', ')}</span>`; 
+                state.markerTrigger.innerHTML = `<span>${labels.join(', ')}</span>`; 
                 state.markerTrigger.classList.remove('is-placeholder');
             }
         },
