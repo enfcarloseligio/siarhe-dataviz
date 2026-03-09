@@ -20,8 +20,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const style = document.createElement('style');
                 style.id = 'siarhe-search-dropdown-styles';
                 style.innerHTML = `
-                    /* 🌟 SOLUCIÓN FLEXBOX: Obliga a los contenedores a medir lo mismo y no aplastarse */
-                    .siarhe-control-group { flex: 1 1 250px; min-width: 0; max-width: 100%; }
+                    /* 🌟 SOLUCIÓN FLEXBOX: Obliga a los contenedores a medir lo mismo en PC */
+                    .siarhe-control-group { flex: 1 1 0%; min-width: 0; }
                     
                     .siarhe-custom-select, .mc-field { position: relative; width: 100%; font-family: 'Roboto', sans-serif; }
                     
@@ -50,7 +50,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     .s-toggle-slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
                     .s-toggle-switch input:checked + .s-toggle-slider { background-color: #0284c7; }
                     .s-toggle-switch input:checked + .s-toggle-slider:before { transform: translateX(20px); }
-                    @media (max-width: 767px) { .siarhe-mode-toggle { margin-left: 0; margin-top: 10px; width: 100%; justify-content: space-between; } }
+                    
+                    @media (max-width: 767px) { 
+                        /* 🌟 CORRECCIÓN MÓVIL: Quitar el flex-basis que causaba el espacio vertical gigante */
+                        .siarhe-control-group { flex: none; width: 100%; }
+                        .siarhe-mode-toggle { margin-left: 0; margin-top: 10px; width: 100%; justify-content: space-between; } 
+                    }
                 `;
                 document.head.appendChild(style);
             }
@@ -170,7 +175,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const menuMc = document.createElement('div'); 
                     menuMc.className = 'mc-menu';
                     
-                    // 🌟 INTERFAZ PARA BUSCADOR Y BOTÓN LIMPIAR
                     const searchBoxMc = document.createElement('div');
                     searchBoxMc.className = 'siarhe-cs-search';
                     searchBoxMc.style.display = 'flex';
