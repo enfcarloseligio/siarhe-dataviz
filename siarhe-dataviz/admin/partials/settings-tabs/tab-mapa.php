@@ -85,7 +85,7 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
     }
 </style>
 
-<div class="siarhe-admin-card">
+<div class="siarhe-admin-card siarhe-upload-card">
     <h2>🎨 Personalización Visual (Frontend)</h2>
     <p>Define los colores que verán los usuarios en los mapas y tablas del sitio web.</p>
 

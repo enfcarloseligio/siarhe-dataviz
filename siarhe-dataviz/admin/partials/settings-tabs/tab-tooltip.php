@@ -85,7 +85,7 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
 
 <input type="hidden" name="siarhe_tooltip_config" id="siarhe_tooltip_config" value="<?php echo esc_attr($tooltip_json); ?>">
 
-<div class="card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
+<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
     <h3 style="margin-top: 0; border-bottom: 2px solid #0A66C2; padding-bottom: 10px; display: inline-block;">
         🗺️ Tooltip del Mapa (Regiones)
     </h3>
@@ -154,23 +154,21 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
     <p style="color: #64748b; margin-top:0;">La variable destacada se colocará al final del tooltip, separada por una línea sutil, utilizando el color elegido.</p>
     
     <div style="display:flex; gap:20px; flex-wrap:wrap; background:#f0f9ff; padding:15px; border:1px dashed #bae6fd; border-radius:6px;">
-        <div>
-            <label><strong>¿Qué dato destacar?</strong></label><br>
-            <select id="tt_highlight_var" style="margin-top:5px;">
+        <div style="flex: 1 1 200px;"> <label><strong>¿Qué dato destacar?</strong></label><br>
+            <select id="tt_highlight_var" style="margin-top:5px; width:100%;">
                 <option value="none" <?php selected($hlVar, 'none'); ?>>Ninguno (Todo estándar)</option>
                 <option value="pob" <?php selected($hlVar, 'pob'); ?>>Población Total</option>
                 <option value="abs" <?php selected($hlVar, 'abs'); ?>>Valor Absoluto (Ej. Total de Enfermeras)</option>
                 <option value="rate" <?php selected($hlVar, 'rate'); ?>>Valor Relativo (La Tasa / Indicador Principal)</option>
             </select>
         </div>
-        <div>
-            <label><strong>Color del Texto Destacado</strong></label><br>
-            <input type="text" id="tt_highlight_color" value="<?php echo esc_attr($hlColor); ?>" class="siarhe-color-field" style="margin-top:5px;">
+        <div style="flex: 1 1 200px;"> <label><strong>Color del Texto Destacado</strong></label><br>
+            <input type="text" id="tt_highlight_color" value="<?php echo esc_attr($hlColor); ?>" class="siarhe-color-field" style="margin-top:5px; width:100%;">
         </div>
     </div>
 </div>
 
-<div class="card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
+<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
     <h3 style="margin-top: 0; border-bottom: 2px solid #06B6D4; padding-bottom: 10px; display: inline-block;">
         📍 Tooltip de Marcadores (Instituciones)
     </h3>
@@ -201,16 +199,17 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
     </div>
 
     <div style="display:flex; gap:20px; flex-wrap:wrap; background:#faf5ff; padding:15px; border:1px dashed #d8b4fe; border-radius:6px; margin-top: 15px;">
-        <div>
-            <label><strong>¿Qué dato destacar?</strong></label><br>
-            <select id="tt_mk_highlight_var" style="margin-top:5px;">
+        <div style="flex: 1 1 200px;"> <label><strong>¿Qué dato destacar?</strong></label><br>
+            <select id="tt_mk_highlight_var" style="margin-top:5px; width:100%;">
                 <option value="none" <?php selected($mkHlVar, 'none'); ?>>Ninguno (Todo estándar)</option>
                 <option value="mk_clues" <?php selected($mkHlVar, 'mk_clues'); ?>>Clave CLUES</option>
                 <option value="mk_inst" <?php selected($mkHlVar, 'mk_inst'); ?>>Institución</option>
                 <option value="mk_tipo" <?php selected($mkHlVar, 'mk_tipo'); ?>>Tipo y Tipología</option>
             </select>
         </div>
-        <div><label><strong>Color del Texto Destacado</strong></label><br><input type="text" id="tt_mk_highlight_color" value="<?php echo esc_attr($mkHlColor); ?>" class="siarhe-color-field" style="margin-top:5px;"></div>
+        <div style="flex: 1 1 200px;"> <label><strong>Color del Texto Destacado</strong></label><br>
+            <input type="text" id="tt_mk_highlight_color" value="<?php echo esc_attr($mkHlColor); ?>" class="siarhe-color-field" style="margin-top:5px; width:100%;">
+        </div>
     </div>
 </div>
 

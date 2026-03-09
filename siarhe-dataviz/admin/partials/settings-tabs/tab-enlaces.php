@@ -28,7 +28,7 @@ if ( ! is_wp_error( $categories ) && ! empty( $categories ) ) {
 // 2. Obtener configuración guardada de la base de datos
 $siarhe_links = get_option( 'siarhe_links_map', [] ); 
 
-// 3. Lista Maestra de Entidades + Clínicas
+// 3. Lista Maestra de Entidades + Clínicas + Legales
 $entidades = [
     // Nivel Nacional
     'republica-mexicana'  => 'República Mexicana (Vista Nacional)',
@@ -69,7 +69,11 @@ $entidades = [
 
     // Mapas Temáticos Especiales
     'clinicas-heridas'    => 'Clínicas de Heridas',
-    'clinicas-cateteres'  => 'Clínicas de Catéteres'
+    'clinicas-cateteres'  => 'Clínicas de Catéteres',
+
+    // SECCIÓN LEGAL  
+    'legal_terminos'      => '📄 Términos y Condiciones',
+    'legal_aviso'         => '⚖️ Aviso Legal (Disclaimer)'
 ];
 ?>
 
@@ -87,19 +91,21 @@ $entidades = [
     .select2-container--default .select2-selection--single .select2-selection__arrow {
         height: 28px;
     }
+    /* Arreglo para evitar que el dropdown select2 se desborde en móviles */
+    .select2-container { max-width: 100% !important; }
 </style>
 
-<div class="card" style="max-width: 100%; padding: 20px;">
+<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px;">
     <h2>🔗 Mapa de Navegación del Sitio</h2>
     <p class="description">
         Configura aquí hacia dónde debe redirigir cada mapa. <br>
         Puedes buscar y seleccionar <strong>Páginas</strong> o <strong>Categorías</strong>. Cuando un usuario haga clic en un estado, el sistema lo enviará al enlace seleccionado.
     </p>
 
-    <table id="siarhe-enlaces-table" class="siarhe-table" style="margin-top: 20px;">
+    <table id="siarhe-enlaces-table" class="siarhe-table" style="margin-top: 20px; table-layout: fixed; width: 100%;">
         <thead>
             <tr>
-                <th style="width: 40%;">Entidad / Mapa</th>
+                <th style="width: 40%;">Entidad / Mapa / Documento</th>
                 <th style="width: 60%;">Destino (Escribe para buscar)</th>
             </tr>
         </thead>
@@ -120,9 +126,13 @@ $entidades = [
                         $link_url = get_permalink((int)$selected_val);
                     }
                 }
+                
+                // Darle un fondo sutil a las filas legales para distinguirlas
+                $is_legal = (strpos($slug, 'legal_') === 0);
+                $row_style = $is_legal ? 'background-color: #f8fafc;' : '';
             ?>
-            <tr>
-                <td data-label="Entidad / Mapa" data-mobile-role="primary">
+            <tr style="<?php echo $row_style; ?>">
+                <td data-label="Entidad / Mapa" data-mobile-role="primary" style="word-wrap: break-word;">
                     <strong><?php echo esc_html($label); ?></strong><br>
                     <code style="color:#999; font-size:10px;">ID: <?php echo esc_html($slug); ?></code>
                 </td>
@@ -130,8 +140,7 @@ $entidades = [
                 <td data-label="Destino" data-mobile-role="secondary">
                     <div style="display: flex; gap: 10px; align-items: center; width: 100%;">
                         
-                        <div style="flex-grow: 1; max-width: 400px;">
-                            <select name="siarhe_links_map[<?php echo esc_attr($slug); ?>]" class="siarhe-searchable-select" style="width: 100%;">
+                        <div style="flex-grow: 1; min-width: 0;"> <select name="siarhe_links_map[<?php echo esc_attr($slug); ?>]" class="siarhe-searchable-select" style="width: 100%;">
                                 <option value="">-- Sin enlace (No clicable) --</option>
                                 <?php foreach ($options_links as $val => $title) : ?>
                                     <option value="<?php echo esc_attr($val); ?>" <?php selected( $selected_val, (string)$val ); ?>>
@@ -142,7 +151,7 @@ $entidades = [
                         </div>
                         
                         <?php if ( ! empty($link_url) ) : ?>
-                            <a href="<?php echo esc_url($link_url); ?>" target="_blank" class="button button-small" title="Probar enlace seleccionado">
+                            <a href="<?php echo esc_url($link_url); ?>" target="_blank" class="button button-small" title="Probar enlace seleccionado" style="flex-shrink: 0;">
                                 <span class="dashicons dashicons-external" style="line-height: 1.3;"></span>
                             </a>
                         <?php endif; ?>

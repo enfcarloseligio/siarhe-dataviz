@@ -40,7 +40,7 @@ if ( empty($metricas_json) ) {
 }
 ?>
 
-<div class="card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
+<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <div>
             <h2 style="margin-top: 0;">📊 Gestor de Métricas e Indicadores (CSV)</h2>
@@ -57,6 +57,7 @@ if ( empty($metricas_json) ) {
     </div>
 
     <input type="hidden" name="siarhe_metricas_config" id="siarhe_metricas_config" value="<?php echo esc_attr($metricas_json); ?>">
+    
     <input type="hidden" id="siarhe_default_metricas" value="<?php echo esc_attr($defaults_json); ?>">
     <input type="hidden" id="siarhe_current_user" value="<?php echo esc_attr($editor_name); ?>">
     <input type="hidden" id="siarhe_current_time" value="<?php echo esc_attr($current_time); ?>">
@@ -208,7 +209,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const badgeLabel = item.tipo === 'tasa' ? 'Tasa' : 'Absoluto';
             const coreBadge = isCore ? '<span class="siarhe-badge brand" style="margin-left:5px;"><span class="dashicons dashicons-lock" style="font-size:12px;width:12px;height:12px;margin-top:2px;"></span> Nativa</span>' : '';
             
-            // LÓGICA DE AUDITORÍA DOBLE
+            // AUDITORÍA DOBLE INTEGRADA 
             const autorOriginal = isCore ? 'Sistema' : (item.created_by || item.last_edited_by || 'Desconocido');
             const fechaOriginal = isCore ? 'Integrado en el código' : (item.created_at || item.last_edited_at || '');
             
@@ -277,6 +278,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function attachEvents() {
+        // ACORDEÓN JS MÓVIL
         document.querySelectorAll('#siarhe-metricas-table tbody tr').forEach(row => {
             row.removeEventListener('click', handleRowClick);
             row.addEventListener('click', handleRowClick);
@@ -310,17 +312,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function openModal(key = null) {
         const isNew = key === null;
-        const item = isNew ? { 
-            label: '', fullLabel: '', abrev: '', tipo: 'absoluto', pair: '', 
-            visibilidad: 'publico', is_core: false,
-            created_by: currentUser, created_at: currentTime 
-        } : metricasObj[key];
+        const item = isNew ? { label: '', fullLabel: '', abrev: '', tipo: 'absoluto', pair: '', visibilidad: 'publico', is_core: false, created_by: currentUser, created_at: currentTime } : metricasObj[key];
 
         document.getElementById('modal-metric-title').textContent = isNew ? 'Añadir Nueva Métrica' : 'Editar Propiedades';
         document.getElementById('modal-metric-original-key').value = isNew ? '' : key;
         document.getElementById('modal-metric-is-core').value = item.is_core ? '1' : '0';
         
-        // Preservar valores de creación original
         document.getElementById('modal-metric-created-by').value = item.created_by || item.last_edited_by || currentUser;
         document.getElementById('modal-metric-created-at').value = item.created_at || item.last_edited_at || currentTime;
 

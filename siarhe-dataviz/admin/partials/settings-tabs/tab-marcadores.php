@@ -58,7 +58,7 @@ if ( empty($marcadores_json) ) {
     .siarhe-switch input:checked + .siarhe-slider:before { transform: translateX(20px); }
 </style>
 
-<div class="card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
+<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <div>
             <h2 style="margin-top: 0;">📍 Gestor de Marcadores Espaciales (CSV)</h2>
@@ -350,11 +350,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const tr = document.createElement('tr');
+            // AÑADIDOS LOS DATA-MOBILE-ROLE PARA ACTIVAR EL ACORDEÓN EN MÓVILES
             tr.innerHTML = `
-                <td data-label="Clave">
+                <td data-label="Clave" data-mobile-role="primary">
                     <strong style="color:#2271b1; font-family:monospace;">${key}</strong> ${coreBadge}
                 </td>
-                <td data-label="Etiqueta">
+                <td data-label="Etiqueta" data-mobile-role="secondary">
                     <strong>${item.label}</strong>
                 </td>
                 <td data-label="Tipo">
@@ -383,6 +384,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function attachEvents() {
+        // AÑADIDO EL EVENTO DE CLIC A LA FILA PARA EL EFECTO ACORDEÓN
+        document.querySelectorAll('#siarhe-marcadores-table tbody tr').forEach(row => {
+            row.addEventListener('click', function(e) {
+                if (window.innerWidth > 767) return;
+                // No activar si se hace clic en un botón o link dentro de la fila
+                if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) return;
+                this.classList.toggle('is-open');
+            });
+        });
+
         document.querySelectorAll('.btn-toggle-vis-mk').forEach(btn => {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();

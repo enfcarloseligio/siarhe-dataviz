@@ -18,7 +18,39 @@ $defaults = [
 $colors = wp_parse_args( $theme_options, $defaults );
 ?>
 
-<div class="card" style="padding: 20px;">
+<style>
+    /* Excepción para que la tabla de vista previa no se convierta en acordeón en móviles */
+    @media screen and (max-width: 767px) {
+        #siarhe-preview-table {
+            display: table !important;
+            border: 1px solid #c3c4c7 !important;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.04) !important;
+            background: transparent !important;
+        }
+        #siarhe-preview-table thead { display: table-header-group !important; }
+        #siarhe-preview-table tr {
+            display: table-row !important;
+            margin-bottom: 0 !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            cursor: default !important;
+        }
+        #siarhe-preview-table tr::after { display: none !important; }
+        #siarhe-preview-table th,
+        #siarhe-preview-table td {
+            display: table-cell !important;
+            padding: 10px 12px !important;
+            text-align: left !important;
+            border-bottom: 1px solid #f0f0f1 !important;
+        }
+        #siarhe-preview-table td::before { display: none !important; }
+        /* Evitar que el color cambie en el primer td */
+        #siarhe-preview-table td:first-child { color: inherit !important; font-weight: normal !important; font-size: inherit !important; }
+    }
+</style>
+
+<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px;">
     <h2>🎨 Personalización del Tema Admin</h2>
     <p>Personaliza los colores de las tablas dentro del panel de administración del plugin.</p>
 
@@ -27,13 +59,13 @@ $colors = wp_parse_args( $theme_options, $defaults );
             <th scope="row">Cabecera de Tabla (Header)</th>
             <td>
                 <fieldset>
-                    <label style="margin-right: 20px;">
+                    <label style="margin-right: 20px; display: inline-block; margin-bottom: 10px;">
                         Fondo:<br>
                         <input type="text" name="siarhe_theme_options[th_bg]" 
                                value="<?php echo esc_attr($colors['th_bg']); ?>" 
                                class="siarhe-color-field" data-variable="--siarhe-th-bg">
                     </label>
-                    <label>
+                    <label style="display: inline-block; margin-bottom: 10px;">
                         Texto:<br>
                         <input type="text" name="siarhe_theme_options[th_text]" 
                                value="<?php echo esc_attr($colors['th_text']); ?>" 
@@ -47,13 +79,13 @@ $colors = wp_parse_args( $theme_options, $defaults );
             <th scope="row">Filas Impares (1, 3, 5...)</th>
             <td>
                 <fieldset>
-                    <label style="margin-right: 20px;">
+                    <label style="margin-right: 20px; display: inline-block; margin-bottom: 10px;">
                         Fondo:<br>
                         <input type="text" name="siarhe_theme_options[odd_bg]" 
                                value="<?php echo esc_attr($colors['odd_bg']); ?>" 
                                class="siarhe-color-field" data-variable="--siarhe-tr-odd-bg">
                     </label>
-                    <label>
+                    <label style="display: inline-block; margin-bottom: 10px;">
                         Texto:<br>
                         <input type="text" name="siarhe_theme_options[odd_text]" 
                                value="<?php echo esc_attr($colors['odd_text']); ?>" 
@@ -67,13 +99,13 @@ $colors = wp_parse_args( $theme_options, $defaults );
             <th scope="row">Filas Pares (2, 4, 6...)</th>
             <td>
                 <fieldset>
-                    <label style="margin-right: 20px;">
+                    <label style="margin-right: 20px; display: inline-block; margin-bottom: 10px;">
                         Fondo:<br>
                         <input type="text" name="siarhe_theme_options[even_bg]" 
                                value="<?php echo esc_attr($colors['even_bg']); ?>" 
                                class="siarhe-color-field" data-variable="--siarhe-tr-even-bg">
                     </label>
-                    <label>
+                    <label style="display: inline-block; margin-bottom: 10px;">
                         Texto:<br>
                         <input type="text" name="siarhe_theme_options[even_text]" 
                                value="<?php echo esc_attr($colors['even_text']); ?>" 
@@ -84,33 +116,34 @@ $colors = wp_parse_args( $theme_options, $defaults );
         </tr>
     </table>
 
-    <hr>
+    <hr style="margin: 30px 0;">
 
     <h3>Vista Previa</h3>
-    <table class="siarhe-table">
-        <thead>
-            <tr>
-                <th>Columna 1</th>
-                <th>Columna 2</th>
-                <th>Columna 3</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>Dato Impar 1</td>
-                <td>Dato Impar 2</td>
-                <td><span class="siarhe-badge success">Activo</span></td>
-            </tr>
-            <tr>
-                <td>Dato Par 1</td>
-                <td>Dato Par 2</td>
-                <td><span class="siarhe-badge warning">Pendiente</span></td>
-            </tr>
-            <tr>
-                <td>Dato Impar 1</td>
-                <td>Dato Impar 2</td>
-                <td><span class="siarhe-badge neutral">Inactivo</span></td>
-            </tr>
-        </tbody>
-    </table>
+    <div style="overflow-x: auto;"> <table id="siarhe-preview-table" class="siarhe-table" style="min-width: 400px;">
+            <thead>
+                <tr>
+                    <th>Columna 1</th>
+                    <th>Columna 2</th>
+                    <th>Columna 3</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Dato Impar 1</td>
+                    <td>Dato Impar 2</td>
+                    <td><span class="siarhe-badge success">Activo</span></td>
+                </tr>
+                <tr>
+                    <td>Dato Par 1</td>
+                    <td>Dato Par 2</td>
+                    <td><span class="siarhe-badge warning">Pendiente</span></td>
+                </tr>
+                <tr>
+                    <td>Dato Impar 1</td>
+                    <td>Dato Impar 2</td>
+                    <td><span class="siarhe-badge neutral">Inactivo</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </div>
