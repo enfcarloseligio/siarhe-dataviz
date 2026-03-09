@@ -197,7 +197,21 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     });
 
                     state.gMarkers.selectAll("path.siarhe-marker")
-                        .attr("d", d => symbolCache[d.tipo])
+                        .attr("d", d => {
+                            const config = state.markerLabels[d.tipo] || {};
+                            if (config.tipo === 'espectro') {
+                                let val = d._agrupados_total || 1;
+                                if (config.espectro_col && config.espectro_col.trim() !== '') {
+                                    const realCol = Object.keys(d._raw).find(k => k.toLowerCase().trim() === config.espectro_col.toLowerCase().trim());
+                                    val = realCol ? parseFloat(d._raw[realCol]) || 0 : 0;
+                                }
+                                const max = (state.espectroMaxVals && state.espectroMaxVals[d.tipo]) ? state.espectroMaxVals[d.tipo] : 1;
+                                const scaleArea = d3.scaleLinear().domain([0, max]).range([symbolSize * 0.3, symbolSize * 15]).clamp(true);
+                                const styleCfg = app.utils.getMarkerStyle(d.tipo, state);
+                                return d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)).size(scaleArea(val))();
+                            }
+                            return symbolCache[d.tipo];
+                        })
                         .attr("stroke-width", 1.5 / k);
                 });
             
@@ -377,6 +391,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         // ==========================================
 
         showTooltip: function(event, d, state, mapDiv) {
+            // Este es el tooltip de Polígonos (Estados o Municipios)
             let cve = app.utils.getGeoKey(d.properties, state.isNacional);
             const row = state.dataMap.get(cve);
             const nombre = row ? row.estado : (d.properties.NOMGEO || d.properties.NOM_ENT || "Sin Datos");
@@ -438,6 +453,101 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 }
             });
 
+            // 🌟 MOTOR DE RESUMEN GEOGRÁFICO (ROLLUP) SEGURO 🌟
+            let htmlResumenMarcadores = '';
+            try {
+                if (state.activeMarkers && state.activeMarkers.size > 0) {
+                    // Obtener la clave de la entidad de forma segura
+                    const wrapper = mapDiv.closest('.siarhe-viz-wrapper');
+                    const mapCveEnt = wrapper && wrapper.dataset.cveEnt ? wrapper.dataset.cveEnt.toString().padStart(2, '0') : '';
+
+                    state.activeMarkers.forEach(type => {
+                        const config = state.markerLabels[type] || {};
+                        
+                        // Solo procesar si el usuario activó la opción "resumen_geo"
+                        if (config.resumen_geo === true || config.resumen_geo === 'true') {
+                            const markerData = state.markersData[type] || [];
+                            
+                            let totalPuntos = 0;
+                            let totalRegistros = 0;
+                            let sumReglas = {};
+
+                            // Filtrar marcadores dentro del polígono actual (cve)
+                            markerData.forEach(mk => {
+                                let match = false;
+                                const mkEnt = mk.cve_ent ? mk.cve_ent.toString().padStart(2, '0') : null;
+
+                                if (state.isNacional) {
+                                    // En mapa nacional: cruce por CVE_ENT
+                                    if (mkEnt === cve) match = true;
+                                } else {
+                                    // En mapa estatal: cruce por CVE_ENT + CVE_MUN
+                                    let mkMun = null;
+                                    if (mk._raw) {
+                                        mkMun = app.utils.getColValue(mk._raw, ['cve_mun', 'cve mun', 'municipio', 'clave_municipio']);
+                                        if (mkMun) mkMun = mkMun.toString().padStart(3, '0');
+                                    }
+                                    if (mkEnt === mapCveEnt && mkMun === cve) match = true;
+                                }
+
+                                if (match) {
+                                    totalPuntos++;
+                                    totalRegistros += (mk._agrupados_total !== undefined) ? mk._agrupados_total : 1;
+
+                                    if (mk._conteo_reglas) {
+                                        Object.entries(mk._conteo_reglas).forEach(([rLabel, rCount]) => {
+                                            if (!sumReglas[rLabel]) sumReglas[rLabel] = 0;
+                                            sumReglas[rLabel] += rCount;
+                                        });
+                                    }
+                                }
+                            });
+
+                            if (totalPuntos > 0) {
+                                const mkLabelColor = app.utils.getMarkerStyle(type, state).fill;
+                                const mkLabelNombre = config.label || type;
+
+                                htmlResumenMarcadores += `
+                                    <div style="margin-top:12px; padding-top:8px; border-top:1px dashed rgba(255,255,255,0.3);">
+                                        <div style="font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; color:${mkLabelColor}; font-weight:bold; display:flex; align-items:center; gap:5px;">
+                                            <div style="width:8px; height:8px; background:${mkLabelColor}; border-radius:50%;"></div>
+                                            ${mkLabelNombre}
+                                        </div>
+                                `;
+
+                                // 🌟 SOLUCIÓN: SIEMPRE MOSTRAR LOS PUNTOS FÍSICOS 🌟
+                                htmlResumenMarcadores += `
+                                    <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:2px;">
+                                        <span style="opacity:0.8;">Puntos Físicos (Unidades):</span> 
+                                        <strong>${totalPuntos.toLocaleString('es-MX')}</strong>
+                                    </div>`;
+
+                                htmlResumenMarcadores += `
+                                    <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
+                                        <span style="opacity:0.9;">Total Registros:</span> 
+                                        <strong style="color:#f8fafc;">${totalRegistros.toLocaleString('es-MX')}</strong>
+                                    </div>`;
+
+                                if (Object.keys(sumReglas).length > 0) {
+                                    Object.entries(sumReglas).forEach(([rLabel, rVal]) => {
+                                        if (rVal > 0) {
+                                            htmlResumenMarcadores += `
+                                                <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:2px; padding-left:10px; border-left:1px solid rgba(255,255,255,0.1);">
+                                                    <span style="opacity:0.75;">↳ ${rLabel}:</span> 
+                                                    <strong style="color:#f8fafc; font-size:10px;">${rVal.toLocaleString('es-MX')}</strong>
+                                                </div>`;
+                                        }
+                                    });
+                                }
+                                htmlResumenMarcadores += `</div>`;
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error("[SIARHE] Error calculando resumen geográfico:", error);
+            }
+
             let html = `
                 <div style="font-family:'Roboto', sans-serif;">
                     <div style="font-weight:bold; font-size:14px; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:4px;">
@@ -445,6 +555,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     </div>
                     ${htmlStandard}
                     ${htmlHighlight}
+                    ${htmlResumenMarcadores}
                 </div>
             `;
             
@@ -489,6 +600,24 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             let minSymbolSize = isMobile ? 0.08 : 0.05;
             if (symbolSize < minSymbolSize) symbolSize = minSymbolSize;
 
+            state.espectroMaxVals = {};
+            state.activeMarkers.forEach(type => {
+                const config = state.markerLabels[type] || {};
+                if (config.tipo === 'espectro') {
+                    const data = state.markersData[type] || [];
+                    let max = 0;
+                    if (config.espectro_col && config.espectro_col.trim() !== '') {
+                        max = d3.max(data, d => {
+                             const realCol = Object.keys(d._raw).find(k => k.toLowerCase().trim() === config.espectro_col.toLowerCase().trim());
+                             return realCol ? parseFloat(d._raw[realCol]) || 0 : 0;
+                        });
+                    } else {
+                        max = d3.max(data, d => d._agrupados_total || 1);
+                    }
+                    state.espectroMaxVals[type] = max || 1;
+                }
+            });
+
             const markers = state.gMarkers.selectAll("path.siarhe-marker").data(allPoints);
             markers.exit().remove();
             
@@ -496,14 +625,32 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .attr("class", "siarhe-marker")
                 .merge(markers)
                 .attr("d", d => {
+                    const config = state.markerLabels[d.tipo] || {};
+                    let finalSize = symbolSize; 
+                    
+                    if (config.tipo === 'espectro') {
+                        let val = d._agrupados_total || 1;
+                        if (config.espectro_col && config.espectro_col.trim() !== '') {
+                            const realCol = Object.keys(d._raw).find(k => k.toLowerCase().trim() === config.espectro_col.toLowerCase().trim());
+                            val = realCol ? parseFloat(d._raw[realCol]) || 0 : 0;
+                        }
+                        const max = state.espectroMaxVals[d.tipo] || 1;
+                        const scaleArea = d3.scaleLinear().domain([0, max]).range([symbolSize * 0.3, symbolSize * 15]).clamp(true);
+                        finalSize = scaleArea(val);
+                    }
+
                     const styleCfg = app.utils.getMarkerStyle(d.tipo, state);
-                    return d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)).size(symbolSize)();
+                    return d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)).size(finalSize)();
                 })
                 .attr("transform", d => {
                     const coords = state.projection([d.lon, d.lat]);
                     return coords ? `translate(${coords[0]}, ${coords[1]})` : "translate(0,0)";
                 })
-                .attr("fill", d => app.utils.getMarkerStyle(d.tipo, state).fill)
+                .attr("fill", d => {
+                    const styleCfg = app.utils.getMarkerStyle(d.tipo, state);
+                    const config = state.markerLabels[d.tipo] || {};
+                    return (config.tipo === 'espectro') ? app.map.hexToRgba(styleCfg.fill, 0.75) : styleCfg.fill;
+                })
                 .attr("stroke", d => app.utils.getMarkerStyle(d.tipo, state).stroke)
                 .attr("stroke-width", 1.5 / currentK)
                 .style("cursor", "pointer")
@@ -580,19 +727,16 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         }
                     });
 
-                    // 🌟 INYECCIÓN DE REGLAS DE CONTEO Y AGRUPACIÓN
                     let htmlReglas = '';
                     if (d._agrupados_total !== undefined && d._agrupados_total > 0) {
                         htmlReglas += `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed rgba(255,255,255,0.3);">`;
                         htmlReglas += `<div style="font-size:12px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; opacity:0.7;">Estadísticas del Punto</div>`;
                         
-                        // Añadir total obligatoriamente
                         htmlReglas += `<div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
                                         <span style="opacity:0.9;">Total Registros:</span> 
                                         <strong style="color:#f8fafc;">${d._agrupados_total.toLocaleString('es-MX')}</strong>
                                        </div>`;
 
-                        // Añadir las reglas si tienen conteos mayores a 0
                         if (d._conteo_reglas) {
                             Object.entries(d._conteo_reglas).forEach(([ruleLabel, ruleCount]) => {
                                 if (ruleCount > 0) {
@@ -606,13 +750,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         htmlReglas += `</div>`;
                     }
 
-                    // Tarjeta Final
                     let html = `<div style="font-family:'Roboto', sans-serif; color:${txtColor};">`;
                     html += `<div style="color: #06B6D4; font-weight:bold; font-size:12px; margin-bottom:4px; padding-bottom:4px;">${titleLabel}</div>`;
                     html += `<div style="font-weight:bold; font-size:13px; font-family:'IBM Plex Sans', sans-serif; text-transform: uppercase; margin-bottom: 8px;">${d.nombre || 'Desconocido'}</div>`;
                     html += htmlStandard;
                     html += htmlHighlight;
-                    html += htmlReglas; // 🌟 Se inyectan las estadísticas al final de la tarjeta
+                    html += htmlReglas; 
                     html += `</div>`;
 
                     const mapDiv = document.querySelector('.siarhe-map-container');

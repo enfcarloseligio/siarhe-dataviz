@@ -48,13 +48,21 @@ if ( empty($marcadores_json) ) {
     .siarhe-rule-col { flex: 1; }
     .btn-remove-rule { color: #d63638; cursor: pointer; font-size: 20px; line-height: 1; padding: 5px; }
     .btn-remove-rule:hover { color: #a00; }
+    
+    /* Toggle Switch Personalizado para el Modal */
+    .siarhe-switch { position: relative; display: inline-block; width: 44px; height: 24px; vertical-align: middle; margin-right: 10px; }
+    .siarhe-switch input { opacity: 0; width: 0; height: 0; }
+    .siarhe-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .3s; border-radius: 24px; }
+    .siarhe-slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; }
+    .siarhe-switch input:checked + .siarhe-slider { background-color: #007cba; }
+    .siarhe-switch input:checked + .siarhe-slider:before { transform: translateX(20px); }
 </style>
 
 <div class="card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <div>
             <h2 style="margin-top: 0;">📍 Gestor de Marcadores Espaciales (CSV)</h2>
-            <p style="margin-bottom: 0;">Administra las capas de puntos sobre el mapa. Puedes configurar marcadores de <strong>Posición</strong> (Instituciones) o de <strong>Espectro</strong> (Burbujas epidemiológicas). Asigna de qué archivo CSV provienen y aplica filtros si un archivo contiene múltiples categorías.</p>
+            <p style="margin-bottom: 0;">Administra las capas de puntos sobre el mapa. Puedes configurar marcadores de <strong>Posición</strong> o de <strong>Espectro</strong>, agrupar datos nominales y activar resúmenes geográficos.</p>
         </div>
         <div style="display: flex; gap: 10px;">
             <button type="button" class="button button-secondary" id="btn-add-marcador">
@@ -179,7 +187,18 @@ if ( empty($marcadores_json) ) {
                     <button type="button" class="button button-small" id="btn-add-rule" style="margin-top:5px;">
                         <span class="dashicons dashicons-plus-alt2" style="margin-top:2px;"></span> Añadir Regla
                     </button>
-                    <p class="description">Ej: Etiqueta "Casos Graves" | Columna "gravedad" = "grave"</p>
+                </td>
+            </tr>
+
+            <tr style="background: #f0fdf4; border-top: 1px dashed #ccc;">
+                <th><label>Resumen Geográfico</label></th>
+                <td>
+                    <label class="siarhe-switch">
+                        <input type="checkbox" id="modal-mk-resumen-geo">
+                        <span class="siarhe-slider"></span>
+                    </label>
+                    <span style="font-weight:bold; color:#166534; vertical-align: middle;">Sumar valores a nivel Municipio/Estado</span>
+                    <p class="description" style="margin-top:8px;">Si se activa, cuando el usuario pase el cursor sobre un municipio, se sumarán los datos de este marcador y se mostrarán en el tooltip geográfico principal.</p>
                 </td>
             </tr>
 
@@ -211,7 +230,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const tbody = document.getElementById('siarhe-marcadores-tbody');
     const modal = document.getElementById('siarhe-edit-marcador-modal');
     
-    // UI Dinámica del Modal
     const tipoSelect = document.getElementById('modal-mk-tipo');
     const espectroRow = document.getElementById('mk-espectro-row');
 
@@ -222,7 +240,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let marcadoresObj = {};
     try { marcadoresObj = JSON.parse(inputJson.value); } catch (e) {}
 
-    // LÓGICA DEL CONSTRUCTOR DE REGLAS DE TOOLTIP
     const rulesContainer = document.getElementById('rules-container');
     const btnAddRule = document.getElementById('btn-add-rule');
     const MAX_RULES = 5;
@@ -265,7 +282,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     btnAddRule.addEventListener('click', () => addRuleRow());
 
-    // UTILIDADES DE TABLA Y FECHA
     function formatDate(dateStr) {
         if (!dateStr) return '—';
         const d = new Date(dateStr.replace(' ', 'T')); 
@@ -377,7 +393,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const item = isNew ? { 
             label: '', tipo: 'posicion', archivo: '', 
             filtro_col: '', filtro_val: '', espectro_calc: 'absoluto', espectro_col: '', 
-            agrupar_col: '', reglas_tooltip: [], // 🌟 NUEVOS CAMPOS INICIALIZADOS
+            agrupar_col: '', reglas_tooltip: [], resumen_geo: false, // 🌟 NUEVA VARIABLE: resumen_geo
             visibilidad: 'publico', is_core: false 
         } : marcadoresObj[key];
 
@@ -399,9 +415,11 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('modal-mk-espectro-col').value = item.espectro_col || '';
         document.getElementById('modal-mk-visibilidad').value = item.visibilidad || 'publico';
         
-        // 🌟 LLENAR AGRUPACIÓN Y REGLAS
         document.getElementById('modal-mk-agrupar-col').value = item.agrupar_col || '';
         renderRules(item.reglas_tooltip || []);
+        
+        // 🌟 LLENAR EL ESTADO DEL CHECKBOX
+        document.getElementById('modal-mk-resumen-geo').checked = item.resumen_geo === true;
 
         tipoSelect.dispatchEvent(new Event('change'));
 
@@ -437,7 +455,6 @@ document.addEventListener('DOMContentLoaded', function() {
             delete marcadoresObj[originalKey];
         }
 
-        // 🌟 RECOLECTAR REGLAS CREADAS EN LA UI
         const collectedRules = [];
         document.querySelectorAll('.siarhe-rule-row').forEach(row => {
             const label = row.querySelector('.rule-label').value.trim();
@@ -448,6 +465,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
+        // 🌟 GUARDAR EL ESTADO DEL CHECKBOX
+        const isResumenGeo = document.getElementById('modal-mk-resumen-geo').checked;
+
         marcadoresObj[newKey] = {
             label: document.getElementById('modal-mk-label').value.trim(),
             tipo: tipoSelect.value,
@@ -456,8 +476,9 @@ document.addEventListener('DOMContentLoaded', function() {
             filtro_val: document.getElementById('modal-mk-filtro-val').value.trim(),
             espectro_calc: document.getElementById('modal-mk-espectro-calc').value,
             espectro_col: document.getElementById('modal-mk-espectro-col').value.trim(),
-            agrupar_col: document.getElementById('modal-mk-agrupar-col').value.trim(), // 🌟 GUARDAR
-            reglas_tooltip: collectedRules, // 🌟 GUARDAR
+            agrupar_col: document.getElementById('modal-mk-agrupar-col').value.trim(), 
+            reglas_tooltip: collectedRules, 
+            resumen_geo: isResumenGeo, // 🌟 GUARDAR BOOLEAN
             visibilidad: document.getElementById('modal-mk-visibilidad').value,
             is_core: isCore,
             last_edited_by: currentUser,
