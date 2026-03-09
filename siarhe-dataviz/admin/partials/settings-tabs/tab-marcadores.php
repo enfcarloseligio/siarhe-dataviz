@@ -89,7 +89,7 @@ if ( empty($marcadores_json) ) {
                 <th style="width: 20%;">Etiqueta (Menú)</th>
                 <th style="width: 10%;">Tipo</th>
                 <th style="width: 20%;">Fuente CSV & Filtro</th>
-                <th style="width: 20%;">Edición</th>
+                <th style="width: 20%;">Auditoría</th>
                 <th style="width: 15%;">Acciones</th>
             </tr>
         </thead>
@@ -110,6 +110,8 @@ if ( empty($marcadores_json) ) {
 
         <input type="hidden" id="modal-mk-original-key">
         <input type="hidden" id="modal-mk-is-core">
+        <input type="hidden" id="modal-mk-created-by">
+        <input type="hidden" id="modal-mk-created-at">
 
         <table class="form-table">
             <tr>
@@ -286,7 +288,19 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!dateStr) return '—';
         const d = new Date(dateStr.replace(' ', 'T')); 
         if (isNaN(d.getTime())) return dateStr;
-        return d.toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
+        
+        const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+        const dia = d.getDate();
+        const mes = meses[d.getMonth()];
+        const anio = d.getFullYear();
+        
+        let horas = d.getHours();
+        let minutos = d.getMinutes().toString().padStart(2, '0');
+        let ampm = horas >= 12 ? 'p.m.' : 'a.m.';
+        horas = horas % 12;
+        horas = horas ? horas : 12; 
+
+        return `${dia} ${mes} ${anio}, ${horas}:${minutos} ${ampm}`;
     }
 
     function renderTable() {
@@ -296,14 +310,29 @@ document.addEventListener('DOMContentLoaded', function() {
             const item = marcadoresObj[key];
             const isCore = item.is_core === true;
             const vis = item.visibilidad || 'publico'; 
-            
             const badgeType = item.tipo === 'posicion' ? 'neutral' : 'warning';
             const badgeLabel = item.tipo === 'posicion' ? '📍 Posición' : '🔴 Espectro';
             const coreBadge = isCore ? '<span class="siarhe-badge brand" style="margin-left:5px;"><span class="dashicons dashicons-lock" style="font-size:12px;width:12px;height:12px;margin-top:2px;"></span> Nativo</span>' : '';
+            const autorOriginal = isCore ? 'Sistema' : (item.created_by || item.last_edited_by || 'Desconocido');
+            const fechaOriginal = isCore ? 'Integrado en el código' : (item.created_at || item.last_edited_at || '');
             
-            const editInfo = item.last_edited_by 
-                ? `<small style="color:#777;">Por: <strong>${item.last_edited_by}</strong><br>${formatDate(item.last_edited_at)}</small>` 
-                : '<small style="color:#ccc;">Configuración Inicial</small>';
+            let auditHtml = `
+                <div style="margin-bottom: 8px; line-height: 1.3;">
+                    <span style="font-size:10px; font-weight:bold; color:#94a3b8; text-transform:uppercase;">Creado por:</span><br>
+                    <span style="font-size:12px; color:#0f172a; font-weight:500;">${autorOriginal}</span><br>
+                    <span style="color:#64748b; font-size:11px;">${formatDate(fechaOriginal)}</span>
+                </div>
+            `;
+
+            if (!isCore && item.last_edited_by && item.last_edited_at !== item.created_at) {
+                auditHtml += `
+                    <div style="line-height: 1.3; border-top: 1px dashed #e2e8f0; padding-top: 6px;">
+                        <span style="font-size:10px; font-weight:bold; color:#0ea5e9; text-transform:uppercase;">Última edición:</span><br>
+                        <span style="font-size:12px; color:#0f172a; font-weight:500;">${item.last_edited_by}</span><br>
+                        <span style="color:#64748b; font-size:11px;">${formatDate(item.last_edited_at)}</span>
+                    </div>
+                `;
+            }
 
             const btnDelete = isCore 
                 ? `<span class="dashicons dashicons-lock" style="color:#ccc; margin-left:10px;" title="Los marcadores nativos no se pueden eliminar"></span>` 
@@ -334,8 +363,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td data-label="Fuente CSV">
                     ${fuenteHtml}
                 </td>
-                <td data-label="Última Edición">
-                    ${editInfo}
+                <td data-label="Auditoría">
+                    ${auditHtml}
                 </td>
                 <td data-label="Acciones">
                     <button type="button" class="button button-small btn-toggle-vis-mk" data-key="${key}" title="${eyeTitle}">
@@ -363,6 +392,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (currVis === 'publico') nextVis = 'registrados';
                 else if (currVis === 'registrados') nextVis = 'oculto';
                 marcadoresObj[key].visibilidad = nextVis;
+                
+                // Actualizar auditoría al ocultar/mostrar
+                marcadoresObj[key].last_edited_by = currentUser;
+                marcadoresObj[key].last_edited_at = currentTime;
+
                 updateHiddenInput();
                 renderTable();
             });
@@ -393,13 +427,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const item = isNew ? { 
             label: '', tipo: 'posicion', archivo: '', 
             filtro_col: '', filtro_val: '', espectro_calc: 'absoluto', espectro_col: '', 
-            agrupar_col: '', reglas_tooltip: [], resumen_geo: false, // 🌟 NUEVA VARIABLE: resumen_geo
-            visibilidad: 'publico', is_core: false 
+            agrupar_col: '', reglas_tooltip: [], resumen_geo: false,
+            visibilidad: 'publico', is_core: false,
+            created_by: currentUser, created_at: currentTime // Guardamos quién lo inicia
         } : marcadoresObj[key];
 
         document.getElementById('modal-mk-title').textContent = isNew ? 'Añadir Nuevo Marcador' : 'Editar Marcador';
         document.getElementById('modal-mk-original-key').value = isNew ? '' : key;
         document.getElementById('modal-mk-is-core').value = item.is_core ? '1' : '0';
+        
+        // Preservar el creador original si ya existía
+        document.getElementById('modal-mk-created-by').value = item.created_by || item.last_edited_by || currentUser;
+        document.getElementById('modal-mk-created-at').value = item.created_at || item.last_edited_at || currentTime;
 
         const keyInput = document.getElementById('modal-mk-key');
         const archivoInput = document.getElementById('modal-mk-archivo');
@@ -418,7 +457,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('modal-mk-agrupar-col').value = item.agrupar_col || '';
         renderRules(item.reglas_tooltip || []);
         
-        // 🌟 LLENAR EL ESTADO DEL CHECKBOX
         document.getElementById('modal-mk-resumen-geo').checked = item.resumen_geo === true;
 
         tipoSelect.dispatchEvent(new Event('change'));
@@ -465,8 +503,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // 🌟 GUARDAR EL ESTADO DEL CHECKBOX
         const isResumenGeo = document.getElementById('modal-mk-resumen-geo').checked;
+        
+        // Recuperar el creador original guardado en el form oculto
+        const originalCreator = document.getElementById('modal-mk-created-by').value;
+        const originalCreatedAt = document.getElementById('modal-mk-created-at').value;
 
         marcadoresObj[newKey] = {
             label: document.getElementById('modal-mk-label').value.trim(),
@@ -478,10 +519,12 @@ document.addEventListener('DOMContentLoaded', function() {
             espectro_col: document.getElementById('modal-mk-espectro-col').value.trim(),
             agrupar_col: document.getElementById('modal-mk-agrupar-col').value.trim(), 
             reglas_tooltip: collectedRules, 
-            resumen_geo: isResumenGeo, // 🌟 GUARDAR BOOLEAN
+            resumen_geo: isResumenGeo, 
             visibilidad: document.getElementById('modal-mk-visibilidad').value,
             is_core: isCore,
-            last_edited_by: currentUser,
+            created_by: originalCreator,     // Mantiene quién lo hizo primero
+            created_at: originalCreatedAt,
+            last_edited_by: currentUser,     // Actualiza quién lo movió al final
             last_edited_at: currentTime
         };
 

@@ -57,7 +57,6 @@ if ( empty($metricas_json) ) {
     </div>
 
     <input type="hidden" name="siarhe_metricas_config" id="siarhe_metricas_config" value="<?php echo esc_attr($metricas_json); ?>">
-    
     <input type="hidden" id="siarhe_default_metricas" value="<?php echo esc_attr($defaults_json); ?>">
     <input type="hidden" id="siarhe_current_user" value="<?php echo esc_attr($editor_name); ?>">
     <input type="hidden" id="siarhe_current_time" value="<?php echo esc_attr($current_time); ?>">
@@ -72,7 +71,7 @@ if ( empty($metricas_json) ) {
                 <th style="width: 15%;">Etiqueta Corta</th>
                 <th style="width: 10%;">Abrev.</th>
                 <th style="width: 10%;">Tipo</th>
-                <th style="width: 15%;">Edición</th>
+                <th style="width: 15%;">Auditoría</th>
                 <th style="width: 10%;">Acciones</th>
             </tr>
         </thead>
@@ -93,6 +92,8 @@ if ( empty($metricas_json) ) {
 
         <input type="hidden" id="modal-metric-original-key">
         <input type="hidden" id="modal-metric-is-core">
+        <input type="hidden" id="modal-metric-created-by">
+        <input type="hidden" id="modal-metric-created-at">
 
         <table class="form-table">
             <tr>
@@ -174,19 +175,25 @@ document.addEventListener('DOMContentLoaded', function() {
     let metricasObj = {};
     try { metricasObj = JSON.parse(inputJson.value); } catch (e) {}
 
-    /**
-     * Formatea cadenas de fecha para el registro de auditoría visual
-     */
     function formatDate(dateStr) {
         if (!dateStr) return '—';
         const d = new Date(dateStr.replace(' ', 'T')); 
         if (isNaN(d.getTime())) return dateStr;
-        return d.toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
+        
+        const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+        const dia = d.getDate();
+        const mes = meses[d.getMonth()];
+        const anio = d.getFullYear();
+        
+        let horas = d.getHours();
+        let minutos = d.getMinutes().toString().padStart(2, '0');
+        let ampm = horas >= 12 ? 'p.m.' : 'a.m.';
+        horas = horas % 12;
+        horas = horas ? horas : 12; 
+
+        return `${dia} ${mes} ${anio}, ${horas}:${minutos} ${ampm}`;
     }
 
-    /**
-     * Renderiza las filas de la tabla de administración basada en el objeto actual
-     */
     function renderTable() {
         tbody.innerHTML = '';
         
@@ -201,15 +208,32 @@ document.addEventListener('DOMContentLoaded', function() {
             const badgeLabel = item.tipo === 'tasa' ? 'Tasa' : 'Absoluto';
             const coreBadge = isCore ? '<span class="siarhe-badge brand" style="margin-left:5px;"><span class="dashicons dashicons-lock" style="font-size:12px;width:12px;height:12px;margin-top:2px;"></span> Nativa</span>' : '';
             
-            const editInfo = item.last_edited_by 
-                ? `<small style="color:#777;">Por: <strong>${item.last_edited_by}</strong><br>${formatDate(item.last_edited_at)}</small>` 
-                : '<small style="color:#ccc;">Configuración Inicial</small>';
+            // LÓGICA DE AUDITORÍA DOBLE
+            const autorOriginal = isCore ? 'Sistema' : (item.created_by || item.last_edited_by || 'Desconocido');
+            const fechaOriginal = isCore ? 'Integrado en el código' : (item.created_at || item.last_edited_at || '');
+            
+            let auditHtml = `
+                <div style="margin-bottom: 8px; line-height: 1.3;">
+                    <span style="font-size:10px; font-weight:bold; color:#94a3b8; text-transform:uppercase;">Creado por:</span><br>
+                    <span style="font-size:12px; color:#0f172a; font-weight:500;">${autorOriginal}</span><br>
+                    <span style="color:#64748b; font-size:11px;">${formatDate(fechaOriginal)}</span>
+                </div>
+            `;
+
+            if (!isCore && item.last_edited_by && item.last_edited_at !== item.created_at) {
+                auditHtml += `
+                    <div style="line-height: 1.3; border-top: 1px dashed #e2e8f0; padding-top: 6px;">
+                        <span style="font-size:10px; font-weight:bold; color:#0ea5e9; text-transform:uppercase;">Última edición:</span><br>
+                        <span style="font-size:12px; color:#0f172a; font-weight:500;">${item.last_edited_by}</span><br>
+                        <span style="color:#64748b; font-size:11px;">${formatDate(item.last_edited_at)}</span>
+                    </div>
+                `;
+            }
 
             const btnDelete = isCore 
                 ? `<span class="dashicons dashicons-lock" style="color:#ccc; margin-left:10px;" title="Las métricas nativas no se pueden eliminar"></span>` 
                 : `<button type="button" class="button button-small button-link-delete btn-delete-metrica" data-key="${key}" title="Eliminar métrica"><span class="dashicons dashicons-trash" style="color:#d63638;"></span></button>`;
                 
-            // INDICADOR VISUAL
             let eyeIcon = 'dashicons-visibility';
             let eyeColor = '#007cba';
             let eyeTitle = 'Público: Visible para todos';
@@ -235,8 +259,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td data-label="Tipo">
                     <span class="siarhe-badge ${badgeType}">${badgeLabel}</span>
                 </td>
-                <td data-label="Última Edición">
-                    ${editInfo}
+                <td data-label="Auditoría">
+                    ${auditHtml}
                 </td>
                 <td data-label="Acciones">
                     ${visIndicator}
@@ -252,17 +276,12 @@ document.addEventListener('DOMContentLoaded', function() {
         attachEvents();
     }
 
-    /**
-     * Vincula los controladores de eventos a los elementos del DOM generados
-     */
     function attachEvents() {
-        // Gestión del acordeón responsivo
         document.querySelectorAll('#siarhe-metricas-table tbody tr').forEach(row => {
             row.removeEventListener('click', handleRowClick);
             row.addEventListener('click', handleRowClick);
         });
 
-        // Eliminación de elementos
         document.querySelectorAll('.btn-delete-metrica').forEach(btn => {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -275,7 +294,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
 
-        // Apertura del modal de modificación
         document.querySelectorAll('.btn-edit-metrica').forEach(btn => {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -290,16 +308,21 @@ document.addEventListener('DOMContentLoaded', function() {
         this.classList.toggle('is-open');
     }
 
-    /**
-     * Inicializa y despliega la interfaz modal de edición
-     */
     function openModal(key = null) {
         const isNew = key === null;
-        const item = isNew ? { label: '', fullLabel: '', abrev: '', tipo: 'absoluto', pair: '', visibilidad: 'publico', is_core: false } : metricasObj[key];
+        const item = isNew ? { 
+            label: '', fullLabel: '', abrev: '', tipo: 'absoluto', pair: '', 
+            visibilidad: 'publico', is_core: false,
+            created_by: currentUser, created_at: currentTime 
+        } : metricasObj[key];
 
         document.getElementById('modal-metric-title').textContent = isNew ? 'Añadir Nueva Métrica' : 'Editar Propiedades';
         document.getElementById('modal-metric-original-key').value = isNew ? '' : key;
         document.getElementById('modal-metric-is-core').value = item.is_core ? '1' : '0';
+        
+        // Preservar valores de creación original
+        document.getElementById('modal-metric-created-by').value = item.created_by || item.last_edited_by || currentUser;
+        document.getElementById('modal-metric-created-at').value = item.created_at || item.last_edited_at || currentTime;
 
         const keyInput = document.getElementById('modal-metric-key');
         const pairInput = document.getElementById('modal-metric-pair');
@@ -316,7 +339,6 @@ document.addEventListener('DOMContentLoaded', function() {
         pairInput.value = item.pair;
         visInput.value = item.visibilidad || 'publico';
 
-        // LÓGICA DE BLOQUEO (Nativas Estructurales vs Nativas Secundarias)
         if (item.is_core) {
             keyInput.readOnly = true;
             keyInput.style.background = '#f0f0f1';
@@ -335,7 +357,6 @@ document.addEventListener('DOMContentLoaded', function() {
             notice.style.display = 'none';
         }
 
-        // BLOQUEO ESTRICTO DE VISIBILIDAD PARA VARIABLES CRÍTICAS
         if (!isNew && lockedVisibilityKeys.includes(key)) {
             visInput.value = 'publico';
             visInput.disabled = true;
@@ -350,13 +371,11 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.style.display = 'block';
     }
 
-    // Eventos de cierre del modal
     document.getElementById('close-metric-modal').addEventListener('click', () => { modal.style.display = 'none'; });
     window.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
 
     document.getElementById('btn-add-metrica').addEventListener('click', () => openModal(null));
 
-    // Consolidación de datos del modal
     document.getElementById('save-metric-btn').addEventListener('click', () => {
         const originalKey = document.getElementById('modal-metric-original-key').value;
         const newKey = document.getElementById('modal-metric-key').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
@@ -368,11 +387,13 @@ document.addEventListener('DOMContentLoaded', function() {
             delete metricasObj[originalKey];
         }
 
-        // FORZAR PUBLICO SI ES VARIABLE CRÍTICA AL GUARDAR
         let finalVis = document.getElementById('modal-metric-visibilidad').value;
         if (lockedVisibilityKeys.includes(newKey)) {
             finalVis = 'publico';
         }
+
+        const originalCreator = document.getElementById('modal-metric-created-by').value;
+        const originalCreatedAt = document.getElementById('modal-metric-created-at').value;
 
         metricasObj[newKey] = {
             label: document.getElementById('modal-metric-label').value.trim(),
@@ -382,6 +403,8 @@ document.addEventListener('DOMContentLoaded', function() {
             pair: document.getElementById('modal-metric-pair').value.trim(),
             visibilidad: finalVis, 
             is_core: isCore,
+            created_by: originalCreator,
+            created_at: originalCreatedAt,
             last_edited_by: currentUser,
             last_edited_at: currentTime
         };
@@ -390,7 +413,6 @@ document.addEventListener('DOMContentLoaded', function() {
         renderTable();
         modal.style.display = 'none';
         
-        // Indicadores visuales para recordar guardar los ajustes en el sistema
         const btnSubmit = document.querySelector('input[type="submit"]#submit');
         if (btnSubmit) {
             btnSubmit.style.boxShadow = '0 0 0 4px rgba(0, 115, 170, 0.4)';
@@ -404,18 +426,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Acción de restablecimiento a valores por defecto
     document.getElementById('btn-reset-metricas').addEventListener('click', function() {
         if (confirm('⚠️ PRECAUCIÓN: Esta acción purgará cualquier métrica personalizada e inicializará el catálogo a sus valores de fábrica. El proceso es irreversible. ¿Confirmar operación?')) {
             
             metricasObj = JSON.parse(defaultJson);
             updateHiddenInput();
             
-            // Bloqueo de UI durante la solicitud
             this.innerHTML = '<span class="spinner is-active" style="float:none; margin:0 5px 0 0;"></span> Procesando...';
             this.disabled = true;
             
-            // Envío forzado del formulario eludiendo colisiones del DOM (id="submit")
             const form = document.querySelector('form[action="options.php"]');
             if (form) {
                 HTMLFormElement.prototype.submit.call(form);
@@ -423,16 +442,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    /**
-     * Sincroniza el objeto JavaScript con el input asociado a la base de datos de WP
-     */
     function updateHiddenInput() {
         inputJson.value = JSON.stringify(metricasObj);
-        
-        // Despacha un evento para notificar al DOM de un cambio validado
         inputJson.dispatchEvent(new Event('change', { bubbles: true }));
         
-        // Asegura la habilitación de los controles de envío
         const btnSubmit = document.querySelector('input[type="submit"]#submit');
         if (btnSubmit) {
             btnSubmit.removeAttribute('disabled');
@@ -440,7 +453,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Inicialización del módulo
     renderTable();
 });
 </script>
