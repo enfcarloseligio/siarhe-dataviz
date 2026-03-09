@@ -4,11 +4,11 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 // 1. Obtener Entidades (Helper Centralizado)
 $entidades_data = siarhe_get_entities();
 
-// 2. Obtener archivos GeoJSON existentes
+// 2. Obtener archivos GeoJSON de Localidades existentes
 global $wpdb;
 $table_assets = $wpdb->prefix . 'siarhe_static_assets';
 $existing_files = $wpdb->get_results( 
-    $wpdb->prepare( "SELECT * FROM $table_assets WHERE tipo_archivo = %s AND es_activo = 1", 'geojson' )
+    $wpdb->prepare( "SELECT * FROM $table_assets WHERE tipo_archivo = %s AND es_activo = 1", 'localidades_geojson' )
 );
 
 // Indexar por slug
@@ -22,9 +22,9 @@ $upload_base_dir = defined('SIARHE_UPLOAD_DIR') ? SIARHE_UPLOAD_DIR : wp_upload_
 
 // Mensajes de estado
 if ( isset($_GET['status']) ) {
-    if ( $_GET['status'] == 'success' ) echo '<div class="notice notice-success is-dismissible"><p>Mapa GeoJSON cargado correctamente.</p></div>';
-    if ( $_GET['status'] == 'updated' ) echo '<div class="notice notice-success is-dismissible"><p>Metadatos del mapa actualizados.</p></div>';
-    if ( $_GET['status'] == 'deleted' ) echo '<div class="notice notice-warning is-dismissible"><p>Mapa eliminado correctamente.</p></div>';
+    if ( $_GET['status'] == 'success' ) echo '<div class="notice notice-success is-dismissible"><p>Mapa GeoJSON de Localidades cargado correctamente.</p></div>';
+    if ( $_GET['status'] == 'updated' ) echo '<div class="notice notice-success is-dismissible"><p>Metadatos del mapa de localidades actualizados.</p></div>';
+    if ( $_GET['status'] == 'deleted' ) echo '<div class="notice notice-warning is-dismissible"><p>Mapa de localidades eliminado correctamente.</p></div>';
 }
 
 // Función auxiliar para mostrar la fecha de modificación con formato estético
@@ -42,20 +42,20 @@ if (!function_exists('format_custom_date')) {
 ?>
 
 <div class="card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
-    <h2>📤 Cargar Mapa GeoJSON</h2>
+    <h2>🏘️ Cargar Mapa GeoJSON (Localidades)</h2>
     
     <div class="notice notice-info inline" style="margin: 10px 0 20px 0;">
         <p><strong>Política de Archivos Únicos:</strong></p>
         <ul style="list-style: disc; margin-left: 20px;">
             <li><strong>Formatos admitidos:</strong> Archivos .json o .geojson.</li>
-            <li><strong>Nomenclatura:</strong> El archivo se guardará automáticamente con el nombre estándar <code>{entidad}.geojson</code> (ej. aguascalientes.geojson).</li>
-            <li><strong>Proyección:</strong> Es obligatorio que el mapa esté exportado en formato <strong>WGS84 (EPSG:4326)</strong> para que los trazos coincidan correctamente.</li>
+            <li><strong>Nomenclatura:</strong> El archivo se guardará automáticamente con el nombre estándar <code>{entidad}.geojson</code> dentro de la carpeta de localidades.</li>
+            <li><strong>Proyección:</strong> Es obligatorio que el mapa esté exportado en formato <strong>WGS84 (EPSG:4326)</strong>.</li>
         </ul>
     </div>
     
     <form method="post" enctype="multipart/form-data" action="<?php echo admin_url('admin-post.php'); ?>">
-        <input type="hidden" name="action" value="siarhe_upload_geojson">
-        <?php wp_nonce_field( 'siarhe_upload_nonce', 'siarhe_nonce' ); ?>
+        <input type="hidden" name="action" value="siarhe_upload_localidades">
+        <?php wp_nonce_field( 'siarhe_upload_localidades_nonce', 'siarhe_nonce' ); ?>
 
         <table class="form-table" role="presentation">
             <tr>
@@ -72,7 +72,7 @@ if (!function_exists('format_custom_date')) {
                 </td>
             </tr>
             <tr>
-                <th scope="row"><label for="siarhe_file">Archivo GeoEspacial</label></th>
+                <th scope="row"><label for="siarhe_file">Archivo GeoEspacial (Localidades)</label></th>
                 <td>
                     <input type="file" name="siarhe_file" id="siarhe_file" accept=".json,.geojson" required>
                 </td>
@@ -109,9 +109,9 @@ if (!function_exists('format_custom_date')) {
 </div>
 
 <div class="card" style="max-width: 100%; padding: 0;">
-    <h2 style="padding: 15px; margin: 0; border-bottom: 1px solid #eee;">Estado de Mapas GeoJSON</h2>
+    <h2 style="padding: 15px; margin: 0; border-bottom: 1px solid #eee;">Estado de Mapas (Localidades)</h2>
     
-    <table id="siarhe-geojson-table" class="siarhe-table">
+    <table id="siarhe-localidades-table" class="siarhe-table">
         <thead>
             <tr>
                 <th style="width: 20%;">Entidad</th>
@@ -260,9 +260,9 @@ if (!function_exists('format_custom_date')) {
 
                         <?php if ($archivo) : ?>
                         <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display:inline;" onsubmit="return confirm('⚠️ ¿Estás seguro de eliminar este mapa GEOJSON?');">
-                            <input type="hidden" name="action" value="siarhe_delete_geojson">
+                            <input type="hidden" name="action" value="siarhe_delete_localidades">
                             <input type="hidden" name="file_id" value="<?php echo $archivo->id; ?>">
-                            <?php wp_nonce_field( 'siarhe_delete_nonce_' . $archivo->id ); ?>
+                            <?php wp_nonce_field( 'siarhe_delete_localidades_nonce_' . $archivo->id ); ?>
                             <button type="submit" class="button button-small button-link-delete" title="Eliminar"><span class="dashicons dashicons-trash" style="color: #a00;"></span></button>
                         </form>
                         <?php endif; ?>
@@ -280,9 +280,9 @@ if (!function_exists('format_custom_date')) {
             Editar Metadatos GeoJSON: <span id="modal-entidad-name" style="color: #2271b1;"></span>
         </h2>
         <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
-            <input type="hidden" name="action" value="siarhe_update_geojson_meta">
+            <input type="hidden" name="action" value="siarhe_update_localidades_meta">
             <input type="hidden" name="file_id" id="modal-file-id">
-            <?php wp_nonce_field( 'siarhe_update_meta_nonce', 'siarhe_meta_nonce' ); ?>
+            <?php wp_nonce_field( 'siarhe_update_localidades_meta_nonce', 'siarhe_meta_nonce' ); ?>
 
             <table class="form-table">
                 <tr><th><label>Año de los Datos</label></th><td><input type="number" name="anio_reporte" id="modal-anio" class="regular-text" required></td></tr>
@@ -301,8 +301,7 @@ if (!function_exists('format_custom_date')) {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     
-    // 1. Acordeón Móvil Restaurado
-    const table = document.getElementById('siarhe-geojson-table');
+    const table = document.getElementById('siarhe-localidades-table');
     if(table) {
         table.querySelectorAll('tbody tr').forEach(row => {
             row.addEventListener('click', function(e) {
@@ -313,7 +312,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 2. Funcionalidad Modal
     const modal = document.getElementById('siarhe-edit-modal');
     const closeBtn = document.getElementById('close-modal-btn');
     if(modal) {
@@ -333,7 +331,6 @@ document.addEventListener('DOMContentLoaded', function() {
         window.onclick = function(event) { if (event.target == modal) { modal.style.display = 'none'; } }
     }
     
-    // 3. Copiar URL
     document.querySelectorAll('.copy-url-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.preventDefault(); e.stopPropagation();

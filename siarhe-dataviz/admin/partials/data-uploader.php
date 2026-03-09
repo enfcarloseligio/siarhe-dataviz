@@ -7,6 +7,7 @@ $active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'geojson';
 // 2. Definir las pestañas disponibles
 $tabs = [
     'geojson'       => 'Geolocalización',
+    'localidades'   => 'Localidades (Geo)',
     'static'        => 'Bases Estáticas',
     'marcadores'    => 'Marcadores',
     'pivote'        => 'Pivotes',

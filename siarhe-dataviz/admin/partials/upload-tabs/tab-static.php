@@ -26,6 +26,19 @@ if ( isset($_GET['status']) ) {
     if ( $_GET['status'] == 'updated' ) echo '<div class="notice notice-success is-dismissible"><p>Metadatos actualizados.</p></div>';
     if ( $_GET['status'] == 'deleted' ) echo '<div class="notice notice-warning is-dismissible"><p>Archivo eliminado correctamente.</p></div>';
 }
+
+// 🌟 Función auxiliar para mostrar la fecha de modificación
+if (!function_exists('format_custom_date')) {
+    function format_custom_date($db_date) {
+        if (!$db_date) return '—';
+        $timestamp = strtotime($db_date);
+        $meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+        $mes = $meses[date('n', $timestamp) - 1];
+        $hora = date('h:i a', $timestamp);
+        $hora = str_replace(['am', 'pm'], ['a.m.', 'p.m.'], $hora);
+        return date('j', $timestamp) . ' ' . $mes . ' ' . date('Y', $timestamp) . ', ' . $hora;
+    }
+}
 ?>
 
 <div class="card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
@@ -106,7 +119,7 @@ if ( isset($_GET['status']) ) {
                 <th style="width: 10%;">Estado</th>
                 <th style="width: 20%;">Archivo del Sistema</th>
                 <th style="width: 10%;">Fecha de Corte</th>
-                <th style="width: 15%;">Última Modificación</th>
+                <th style="width: 15%;">Auditoría</th>
                 <th style="width: 5%;">Tamaño</th>
                 <th style="width: 15%;">Acciones</th>
             </tr>
@@ -176,10 +189,44 @@ if ( isset($_GET['status']) ) {
                     <?php else : ?>—<?php endif; ?>
                 </td>
 
-                <td data-label="Última Modificación">
-                    <?php if ($exists) : ?>
-                        <?php echo date("d/m/y H:i", filemtime($row['ruta_fisica'])); ?>
-                    <?php else : ?>—<?php endif; ?>
+                <td data-label="Auditoría">
+                    <?php if ($archivo) : 
+                        $autor_original = $archivo->subido_por ?? ($archivo->creado_por ?? ($archivo->registrado_por ?? 'Sistema'));
+                        $fecha_original = $archivo->fecha_subida ?? ($archivo->fecha_creacion ?? ($archivo->fecha_registro ?? $archivo->fecha_modificacion));
+                    ?>
+                        <div style="margin-bottom: 8px; line-height: 1.3;">
+                            <span style="font-size:10px; font-weight:bold; color:#94a3b8; text-transform:uppercase;">Subido por:</span><br>
+                            <span style="font-size:12px; color:#0f172a; font-weight:500;">
+                                <?php echo esc_html($autor_original); ?>
+                            </span><br>
+                            <span style="color:#64748b; font-size:11px;">
+                                <?php echo format_custom_date($fecha_original); ?>
+                            </span>
+                        </div>
+
+                        <?php if (!empty($archivo->fecha_modificacion) && $archivo->fecha_modificacion !== $fecha_original) : ?>
+                            <div style="line-height: 1.3; border-top: 1px dashed #e2e8f0; padding-top: 6px;">
+                                <span style="font-size:10px; font-weight:bold; color:#0ea5e9; text-transform:uppercase;">Última edición:</span><br>
+                                <span style="font-size:12px; color:#0f172a; font-weight:500;">
+                                    <?php echo esc_html($archivo->modificado_por ?: 'Sistema'); ?>
+                                </span><br>
+                                <span style="color:#64748b; font-size:11px;">
+                                    <?php echo format_custom_date($archivo->fecha_modificacion); ?>
+                                </span>
+                            </div>
+                        <?php endif; ?>
+
+                    <?php elseif ($exists) : ?>
+                        <div style="line-height: 1.3;">
+                            <span style="font-size:10px; font-weight:bold; color:#94a3b8; text-transform:uppercase;">Subido por:</span><br>
+                            <span style="font-size:12px; color:#0f172a; font-weight:500;">Sistema (Vía FTP/Cpanel)</span><br>
+                            <span style="color:#64748b; font-size:11px;">
+                                <?php echo format_custom_date(date("Y-m-d H:i:s", filemtime($row['ruta_fisica']))); ?>
+                            </span>
+                        </div>
+                    <?php else : ?>
+                        <span style="color:#cbd5e1;">—</span>
+                    <?php endif; ?>
                 </td>
 
                 <td data-label="Tamaño">
@@ -195,6 +242,7 @@ if ( isset($_GET['status']) ) {
                             <span class="dashicons dashicons-admin-links"></span>
                         </button>
                         
+                        <?php if ($archivo) : ?>
                         <button type="button" class="button button-small edit-meta-btn" 
                                 data-id="<?php echo $archivo->id; ?>" 
                                 data-nombre="<?php echo esc_attr($nombre); ?>" 
@@ -205,17 +253,20 @@ if ( isset($_GET['status']) ) {
                                 title="Ver Info / Editar">
                             <span class="dashicons dashicons-edit"></span>
                         </button>
+                        <?php endif; ?>
                         
                         <a href="<?php echo esc_url(SIARHE_UPLOAD_URL . $archivo->ruta_archivo); ?>" target="_blank" class="button button-small" title="Descargar">
                             <span class="dashicons dashicons-download"></span>
                         </a>
 
+                        <?php if ($archivo) : ?>
                         <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display:inline;" onsubmit="return confirm('⚠️ ¿Estás seguro de borrar esta base de datos?');">
                             <input type="hidden" name="action" value="siarhe_delete_static">
                             <input type="hidden" name="file_id" value="<?php echo $archivo->id; ?>">
                             <?php wp_nonce_field( 'siarhe_delete_static_nonce_' . $archivo->id ); ?>
                             <button type="submit" class="button button-small button-link-delete" title="Eliminar"><span class="dashicons dashicons-trash" style="color: #a00;"></span></button>
                         </form>
+                        <?php endif; ?>
                     <?php else : ?><span class="description">—</span><?php endif; ?>
                 </td>
             </tr>
@@ -291,7 +342,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const url = this.getAttribute('data-url');
             navigator.clipboard.writeText(url).then(() => {
                 const original = this.innerHTML;
-                this.innerHTML = '<span class="dashicons dashicons-yes"></span>';
+                this.innerHTML = '<span class="dashicons dashicons-yes" style="color:green;"></span>';
                 setTimeout(() => { this.innerHTML = original; }, 1500);
             });
         });

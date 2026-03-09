@@ -149,7 +149,7 @@ function format_custom_date($db_date) {
                 <th style="width: 15%">Estado</th>
                 <th style="width: 20%">Archivo Sistema</th>
                 <th style="width: 10%">Fecha de Corte</th>
-                <th style="width: 15%">Última Modificación</th>
+                <th style="width: 15%">Auditoría</th>
                 <th style="width: 5%">Tamaño</th>
                 <th style="width: 15%">Acciones</th>
             </tr>
@@ -190,14 +190,45 @@ function format_custom_date($db_date) {
                     <?php else : ?>—<?php endif; ?>
                 </td>
                 
-                <td data-label="Última Modificación">
-                    <?php if ($db_file && !empty($db_file->fecha_modificacion)) : ?>
-                        <span style="color:#64748b; font-size:12px;">Por: <?php echo esc_html($db_file->modificado_por ?: 'Sistema'); ?></span><br>
-                        <?php echo format_custom_date($db_file->fecha_modificacion); ?>
+                <td data-label="Auditoría">
+                    <?php if ($db_file) : 
+                        // Fallbacks por si las columnas en la BD tienen diferentes nombres en tu schema
+                        $autor_original = $db_file->subido_por ?? ($db_file->creado_por ?? ($db_file->registrado_por ?? 'Sistema'));
+                        $fecha_original = $db_file->fecha_subida ?? ($db_file->fecha_creacion ?? ($db_file->fecha_registro ?? $db_file->fecha_modificacion));
+                    ?>
+                        <div style="margin-bottom: 8px; line-height: 1.3;">
+                            <span style="font-size:10px; font-weight:bold; color:#94a3b8; text-transform:uppercase;">Subido por:</span><br>
+                            <span style="font-size:12px; color:#0f172a; font-weight:500;">
+                                <?php echo esc_html($autor_original); ?>
+                            </span><br>
+                            <span style="color:#64748b; font-size:11px;">
+                                <?php echo format_custom_date($fecha_original); ?>
+                            </span>
+                        </div>
+
+                        <?php if (!empty($db_file->fecha_modificacion) && $db_file->fecha_modificacion !== $fecha_original) : ?>
+                            <div style="line-height: 1.3; border-top: 1px dashed #e2e8f0; padding-top: 6px;">
+                                <span style="font-size:10px; font-weight:bold; color:#0ea5e9; text-transform:uppercase;">Última edición:</span><br>
+                                <span style="font-size:12px; color:#0f172a; font-weight:500;">
+                                    <?php echo esc_html($db_file->modificado_por ?: 'Sistema'); ?>
+                                </span><br>
+                                <span style="color:#64748b; font-size:11px;">
+                                    <?php echo format_custom_date($db_file->fecha_modificacion); ?>
+                                </span>
+                            </div>
+                        <?php endif; ?>
+
                     <?php elseif ($existe_fisico) : ?>
-                        <span style="color:#64748b; font-size:12px;">Por: Sistema</span><br>
-                        <?php echo format_custom_date(date("Y-m-d H:i:s", filemtime($ruta_fisica))); ?>
-                    <?php else : ?>—<?php endif; ?>
+                        <div style="line-height: 1.3;">
+                            <span style="font-size:10px; font-weight:bold; color:#94a3b8; text-transform:uppercase;">Subido por:</span><br>
+                            <span style="font-size:12px; color:#0f172a; font-weight:500;">Sistema (Vía FTP/Cpanel)</span><br>
+                            <span style="color:#64748b; font-size:11px;">
+                                <?php echo format_custom_date(date("Y-m-d H:i:s", filemtime($ruta_fisica))); ?>
+                            </span>
+                        </div>
+                    <?php else : ?>
+                        <span style="color:#cbd5e1;">—</span>
+                    <?php endif; ?>
                 </td>
                 
                 <td data-label="Tamaño">
