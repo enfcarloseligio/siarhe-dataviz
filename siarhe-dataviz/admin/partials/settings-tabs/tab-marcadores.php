@@ -41,6 +41,15 @@ if ( empty($marcadores_json) ) {
 }
 ?>
 
+<style>
+    /* Estilos para el constructor de reglas del Tooltip */
+    .siarhe-rule-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; background: #fff; padding: 10px; border: 1px solid #e2e8f0; border-radius: 4px; }
+    .siarhe-rule-row input { width: 100%; }
+    .siarhe-rule-col { flex: 1; }
+    .btn-remove-rule { color: #d63638; cursor: pointer; font-size: 20px; line-height: 1; padding: 5px; }
+    .btn-remove-rule:hover { color: #a00; }
+</style>
+
 <div class="card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <div>
@@ -82,7 +91,7 @@ if ( empty($marcadores_json) ) {
 </div>
 
 <div id="siarhe-edit-marcador-modal" class="siarhe-modal-overlay">
-    <div class="siarhe-modal-content" style="max-width: 600px;">
+    <div class="siarhe-modal-content" style="max-width: 650px;">
         <h2 style="margin-top:0; border-bottom: 1px solid #eee; padding-bottom: 15px;">
             <span class="dashicons dashicons-location"></span> <span id="modal-mk-title">Editar Marcador</span>
         </h2>
@@ -151,8 +160,26 @@ if ( empty($marcadores_json) ) {
                         <option value="absoluto">Basado en Valor Absoluto (Crudo)</option>
                         <option value="relativo">Basado en Tasa Relativa (Poblacional) - Próximamente</option>
                     </select><br>
-                    <input type="text" id="modal-mk-espectro-col" class="regular-text" placeholder="Columna a evaluar (ej. casos_confirmados)">
+                    <input type="text" id="modal-mk-espectro-col" class="regular-text" placeholder="Columna a evaluar (ej. total_casos)">
                     <p class="description">El tamaño de la burbuja se calculará en base a los números de esta columna.</p>
+                </td>
+            </tr>
+
+            <tr style="background: #faf5ff;">
+                <th><label>Agrupación y Tooltip<br><small style="font-weight:normal;">(Para bases nominales)</small></label></th>
+                <td>
+                    <p class="description" style="margin-top:0; margin-bottom:10px;">Si tu base tiene múltiples casos para un mismo punto, agrúpalos aquí para sumar y crear reglas en el tooltip.</p>
+                    
+                    <label><strong>1. Agrupar puntos por columna:</strong></label><br>
+                    <input type="text" id="modal-mk-agrupar-col" class="regular-text" placeholder="Ej. CLUES (Dejar vacío si no aplica)" style="margin-bottom:15px; width: 100%;">
+
+                    <label><strong>2. Reglas de Conteo en Tooltip (Máx 5):</strong></label>
+                    <div id="rules-container" style="margin-top:5px;"></div>
+                    
+                    <button type="button" class="button button-small" id="btn-add-rule" style="margin-top:5px;">
+                        <span class="dashicons dashicons-plus-alt2" style="margin-top:2px;"></span> Añadir Regla
+                    </button>
+                    <p class="description">Ej: Etiqueta "Casos Graves" | Columna "gravedad" = "grave"</p>
                 </td>
             </tr>
 
@@ -195,6 +222,50 @@ document.addEventListener('DOMContentLoaded', function() {
     let marcadoresObj = {};
     try { marcadoresObj = JSON.parse(inputJson.value); } catch (e) {}
 
+    // LÓGICA DEL CONSTRUCTOR DE REGLAS DE TOOLTIP
+    const rulesContainer = document.getElementById('rules-container');
+    const btnAddRule = document.getElementById('btn-add-rule');
+    const MAX_RULES = 5;
+
+    function renderRules(rulesArray = []) {
+        rulesContainer.innerHTML = '';
+        rulesArray.forEach((rule, index) => addRuleRow(rule.label, rule.col, rule.val));
+        updateAddRuleBtn();
+    }
+
+    function addRuleRow(label = '', col = '', val = '') {
+        if (rulesContainer.children.length >= MAX_RULES) return;
+
+        const row = document.createElement('div');
+        row.className = 'siarhe-rule-row';
+        row.innerHTML = `
+            <div class="siarhe-rule-col"><input type="text" class="rule-label" placeholder="Etiqueta (Ej. Graves)" value="${label}"></div>
+            <div class="siarhe-rule-col"><input type="text" class="rule-col" placeholder="Columna (Ej. gravedad)" value="${col}"></div>
+            <div style="font-weight:bold;">=</div>
+            <div class="siarhe-rule-col"><input type="text" class="rule-val" placeholder="Valor (Ej. grave)" value="${val}"></div>
+            <span class="dashicons dashicons-no-alt btn-remove-rule" title="Eliminar Regla"></span>
+        `;
+
+        row.querySelector('.btn-remove-rule').addEventListener('click', () => {
+            row.remove();
+            updateAddRuleBtn();
+        });
+
+        rulesContainer.appendChild(row);
+        updateAddRuleBtn();
+    }
+
+    function updateAddRuleBtn() {
+        if (rulesContainer.children.length >= MAX_RULES) {
+            btnAddRule.style.display = 'none';
+        } else {
+            btnAddRule.style.display = 'inline-flex';
+        }
+    }
+
+    btnAddRule.addEventListener('click', () => addRuleRow());
+
+    // UTILIDADES DE TABLA Y FECHA
     function formatDate(dateStr) {
         if (!dateStr) return '—';
         const d = new Date(dateStr.replace(' ', 'T')); 
@@ -267,7 +338,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function attachEvents() {
-        // Toggle Visibilidad
         document.querySelectorAll('.btn-toggle-vis-mk').forEach(btn => {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -282,7 +352,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
 
-        // Eliminar
         document.querySelectorAll('.btn-delete-mk').forEach(btn => {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -295,7 +364,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
 
-        // Editar
         document.querySelectorAll('.btn-edit-mk').forEach(btn => {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -309,6 +377,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const item = isNew ? { 
             label: '', tipo: 'posicion', archivo: '', 
             filtro_col: '', filtro_val: '', espectro_calc: 'absoluto', espectro_col: '', 
+            agrupar_col: '', reglas_tooltip: [], // 🌟 NUEVOS CAMPOS INICIALIZADOS
             visibilidad: 'publico', is_core: false 
         } : marcadoresObj[key];
 
@@ -329,8 +398,11 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('modal-mk-espectro-calc').value = item.espectro_calc || 'absoluto';
         document.getElementById('modal-mk-espectro-col').value = item.espectro_col || '';
         document.getElementById('modal-mk-visibilidad').value = item.visibilidad || 'publico';
+        
+        // 🌟 LLENAR AGRUPACIÓN Y REGLAS
+        document.getElementById('modal-mk-agrupar-col').value = item.agrupar_col || '';
+        renderRules(item.reglas_tooltip || []);
 
-        // Disparar evento para mostrar/ocultar Espectro
         tipoSelect.dispatchEvent(new Event('change'));
 
         if (item.is_core) {
@@ -347,7 +419,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     document.getElementById('close-mk-modal').addEventListener('click', () => { modal.style.display = 'none'; });
-
     document.getElementById('btn-add-marcador').addEventListener('click', () => openModal(null));
 
     document.getElementById('save-mk-btn').addEventListener('click', () => {
@@ -366,6 +437,17 @@ document.addEventListener('DOMContentLoaded', function() {
             delete marcadoresObj[originalKey];
         }
 
+        // 🌟 RECOLECTAR REGLAS CREADAS EN LA UI
+        const collectedRules = [];
+        document.querySelectorAll('.siarhe-rule-row').forEach(row => {
+            const label = row.querySelector('.rule-label').value.trim();
+            const col = row.querySelector('.rule-col').value.trim();
+            const val = row.querySelector('.rule-val').value.trim();
+            if (label && col && val) {
+                collectedRules.push({ label, col, val });
+            }
+        });
+
         marcadoresObj[newKey] = {
             label: document.getElementById('modal-mk-label').value.trim(),
             tipo: tipoSelect.value,
@@ -374,6 +456,8 @@ document.addEventListener('DOMContentLoaded', function() {
             filtro_val: document.getElementById('modal-mk-filtro-val').value.trim(),
             espectro_calc: document.getElementById('modal-mk-espectro-calc').value,
             espectro_col: document.getElementById('modal-mk-espectro-col').value.trim(),
+            agrupar_col: document.getElementById('modal-mk-agrupar-col').value.trim(), // 🌟 GUARDAR
+            reglas_tooltip: collectedRules, // 🌟 GUARDAR
             visibilidad: document.getElementById('modal-mk-visibilidad').value,
             is_core: isCore,
             last_edited_by: currentUser,

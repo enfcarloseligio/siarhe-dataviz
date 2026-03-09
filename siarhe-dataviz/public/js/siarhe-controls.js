@@ -261,7 +261,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         toggleMarker: async function(type, state, container) {
             const loading = container.querySelector('.siarhe-loading-overlay');
             if (loading) {
-                // 🌟 LECTURA DE ETIQUETA DINÁMICA PARA EL LOADING
                 const mkData = state.markerLabels[type] || {};
                 const label = mkData.label || type;
                 
@@ -285,7 +284,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const url = state.markerUrls[type];
                     if (url) {
                         try {
-                            // 🌟 SISTEMA DE CACHÉ DE CSV (Evita descargas dobles)
+                            // 🌟 SISTEMA DE CACHÉ DE CSV
                             let rawData;
                             if (state.rawCSVDataCache && state.rawCSVDataCache[url]) {
                                 rawData = state.rawCSVDataCache[url];
@@ -295,57 +294,134 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                                 state.rawCSVDataCache[url] = rawData;
                             }
 
-                            // 🌟 MOTOR DE FILTRADO DINÁMICO
+                            // 🌟 LECTURA DE CONFIGURACIÓN DEL PANEL
                             const config = state.markerLabels[type] || {};
                             const filtroCol = config.filtro_col ? config.filtro_col.toLowerCase().trim() : null;
                             const filtroVal = config.filtro_val ? config.filtro_val.toString().toLowerCase().trim() : null;
+                            
+                            // 🌟 NUEVO: VARIABLES DE AGRUPACIÓN Y REGLAS
+                            const agruparCol = config.agrupar_col ? config.agrupar_col.toLowerCase().trim() : null;
+                            const reglas = config.reglas_tooltip || [];
 
-                            state.markersData[type] = rawData.map(d => {
+                            let processedData = [];
+
+                            // 🌟 MOTOR DE FILTRADO BASE
+                            const filteredData = rawData.filter(d => {
                                 const latText = app.utils.getColValue(d, ['latitud', 'lat']);
                                 const lonText = app.utils.getColValue(d, ['longitud', 'lon']);
-                                const cveNivel = app.utils.getColValue(d, ['cve_n_atencion', 'cve_ n_atencion', 'cve n atencion']);
-                                const cveEntMarker = app.utils.getColValue(d, ['cve_ent', 'cve ent', 'entidad', 'clave_entidad']);
-                                
-                                return {
-                                    clues: app.utils.getColValue(d, ['clues']),
-                                    institucion: app.utils.getColValue(d, ['institución', 'institucion', 'clave_institucion']),
-                                    nombre: app.utils.getColValue(d, ['nombre_unidad', 'nombre de la unidad', 'unidad']),
-                                    municipio: app.utils.getColValue(d, ['municipio']),
-                                    lat: parseFloat(latText),
-                                    lon: parseFloat(lonText),
-                                    cve_ent: cveEntMarker, 
-                                    tipo_estab: app.utils.getColValue(d, ['tipo_establecimiento', 'tipo establecimiento']),
-                                    tipologia: app.utils.getColValue(d, ['nombre_tipologia', 'nombre tipologia']),
-                                    nivel_atencion: app.utils.getColValue(d, ['nivel_atencion', 'nivel atencion']),
-                                    cve_nivel: cveNivel,
-                                    jurisdiccion: app.utils.getColValue(d, ['jurisdiccion', 'jurisdicción']),
-                                    estrato: app.utils.getColValue(d, ['estrato_unidad', 'estrato unidad']),
-                                    tipo: type,
-                                    _raw: d // 🌟 Guardar la fila cruda para el filtro dinámico
-                                };
-                            }).filter(d => {
-                                const isValidCoord = !isNaN(d.lat) && !isNaN(d.lon) && d.lat !== 0 && d.lon !== 0;
+                                const lat = parseFloat(latText);
+                                const lon = parseFloat(lonText);
+
+                                const isValidCoord = !isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0;
                                 if (!isValidCoord) return false;
                                 
-                                if (!state.isNacional && d.cve_ent) {
-                                    let markerEnt = d.cve_ent.toString().padStart(2, '0');
+                                const cveEntMarker = app.utils.getColValue(d, ['cve_ent', 'cve ent', 'entidad', 'clave_entidad']);
+                                if (!state.isNacional && cveEntMarker) {
+                                    let markerEnt = cveEntMarker.toString().padStart(2, '0');
                                     let currentEnt = container.dataset.cveEnt.toString().padStart(2, '0');
                                     if (markerEnt !== currentEnt) return false; 
                                 }
                                 
-                                // 🌟 APLICACIÓN DEL FILTRO DINÁMICO
                                 if (filtroCol && filtroVal) {
-                                    const realColName = Object.keys(d._raw).find(k => k.toLowerCase().trim() === filtroCol);
+                                    const realColName = Object.keys(d).find(k => k.toLowerCase().trim() === filtroCol);
                                     if (realColName) {
-                                        const rowVal = (d._raw[realColName] || '').toString().toLowerCase().trim();
-                                        if (rowVal !== filtroVal) return false; // Descartar si no coincide
+                                        const rowVal = (d[realColName] || '').toString().toLowerCase().trim();
+                                        if (rowVal !== filtroVal) return false; 
                                     } else {
-                                        return false; // Descartar si pide filtro y la columna no existe
+                                        return false; 
                                     }
                                 }
-                                
                                 return true; 
                             });
+
+                            // 🌟 MOTOR DE FUSIÓN Y CONTEO (AGRUPACIÓN ESPACIAL) 🌟
+                            if (agruparCol) {
+                                const mapGroup = new Map();
+                                
+                                filteredData.forEach(d => {
+                                    const realAgruparCol = Object.keys(d).find(k => k.toLowerCase().trim() === agruparCol);
+                                    if (!realAgruparCol) return; // Si la fila no tiene la columna de agrupar, la saltamos
+
+                                    const groupKey = (d[realAgruparCol] || '').toString().trim();
+                                    if (!groupKey) return;
+
+                                    if (!mapGroup.has(groupKey)) {
+                                        // CREAR EL PUNTO BASE FUSIONADO (Toma las coordenadas e info de la primera fila que encuentre)
+                                        const lat = parseFloat(app.utils.getColValue(d, ['latitud', 'lat']));
+                                        const lon = parseFloat(app.utils.getColValue(d, ['longitud', 'lon']));
+                                        const cveNivel = app.utils.getColValue(d, ['cve_n_atencion', 'cve_ n_atencion', 'cve n atencion']);
+                                        const cveEntMarker = app.utils.getColValue(d, ['cve_ent', 'cve ent', 'entidad', 'clave_entidad']);
+
+                                        let baseObj = {
+                                            clues: app.utils.getColValue(d, ['clues']),
+                                            institucion: app.utils.getColValue(d, ['institución', 'institucion', 'clave_institucion']),
+                                            nombre: app.utils.getColValue(d, ['nombre_unidad', 'nombre de la unidad', 'unidad']),
+                                            municipio: app.utils.getColValue(d, ['municipio']),
+                                            lat: lat, lon: lon,
+                                            cve_ent: cveEntMarker, 
+                                            tipo_estab: app.utils.getColValue(d, ['tipo_establecimiento', 'tipo establecimiento']),
+                                            tipologia: app.utils.getColValue(d, ['nombre_tipologia', 'nombre tipologia']),
+                                            nivel_atencion: app.utils.getColValue(d, ['nivel_atencion', 'nivel atencion']),
+                                            cve_nivel: cveNivel,
+                                            jurisdiccion: app.utils.getColValue(d, ['jurisdiccion', 'jurisdicción']),
+                                            estrato: app.utils.getColValue(d, ['estrato_unidad', 'estrato unidad']),
+                                            tipo: type,
+                                            _raw: d,
+                                            _agrupados_total: 0,
+                                            _conteo_reglas: {}
+                                        };
+
+                                        // Inicializar contadores de reglas en 0
+                                        reglas.forEach(r => { baseObj._conteo_reglas[r.label] = 0; });
+                                        mapGroup.set(groupKey, baseObj);
+                                    }
+
+                                    // PROCESO DE SUMA Y CONTEO PARA ESTA FILA
+                                    const targetObj = mapGroup.get(groupKey);
+                                    targetObj._agrupados_total += 1;
+
+                                    reglas.forEach(r => {
+                                        const realRuleCol = Object.keys(d).find(k => k.toLowerCase().trim() === r.col.toLowerCase().trim());
+                                        if (realRuleCol) {
+                                            const rowVal = (d[realRuleCol] || '').toString().toLowerCase().trim();
+                                            const targetVal = r.val.toString().toLowerCase().trim();
+                                            if (rowVal === targetVal) {
+                                                targetObj._conteo_reglas[r.label] += 1;
+                                            }
+                                        }
+                                    });
+                                });
+
+                                processedData = Array.from(mapGroup.values());
+
+                            } else {
+                                // 🌟 MANEJO NORMAL (Sin agrupar, 1 fila = 1 punto)
+                                processedData = filteredData.map(d => {
+                                    const lat = parseFloat(app.utils.getColValue(d, ['latitud', 'lat']));
+                                    const lon = parseFloat(app.utils.getColValue(d, ['longitud', 'lon']));
+                                    const cveNivel = app.utils.getColValue(d, ['cve_n_atencion', 'cve_ n_atencion', 'cve n atencion']);
+                                    const cveEntMarker = app.utils.getColValue(d, ['cve_ent', 'cve ent', 'entidad', 'clave_entidad']);
+                                    
+                                    return {
+                                        clues: app.utils.getColValue(d, ['clues']),
+                                        institucion: app.utils.getColValue(d, ['institución', 'institucion', 'clave_institucion']),
+                                        nombre: app.utils.getColValue(d, ['nombre_unidad', 'nombre de la unidad', 'unidad']),
+                                        municipio: app.utils.getColValue(d, ['municipio']),
+                                        lat: lat, lon: lon,
+                                        cve_ent: cveEntMarker, 
+                                        tipo_estab: app.utils.getColValue(d, ['tipo_establecimiento', 'tipo establecimiento']),
+                                        tipologia: app.utils.getColValue(d, ['nombre_tipologia', 'nombre tipologia']),
+                                        nivel_atencion: app.utils.getColValue(d, ['nivel_atencion', 'nivel atencion']),
+                                        cve_nivel: cveNivel,
+                                        jurisdiccion: app.utils.getColValue(d, ['jurisdiccion', 'jurisdicción']),
+                                        estrato: app.utils.getColValue(d, ['estrato_unidad', 'estrato unidad']),
+                                        tipo: type,
+                                        _raw: d
+                                    };
+                                });
+                            }
+
+                            state.markersData[type] = processedData;
                             
                         } catch(e) { console.error(`[SIARHE] Error cargando marcadores ${type}:`, e); }
                     }
@@ -366,7 +442,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 state.markerTrigger.innerHTML = `<span>Seleccionar...</span>`; 
                 state.markerTrigger.classList.add('is-placeholder'); 
             } else {
-                // 🌟 LECTURA DE ETIQUETA DINÁMICA
                 const labels = selected.map(k => {
                     const mkData = state.markerLabels[k] || {};
                     return mkData.label || k;
@@ -450,16 +525,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     csvContent += `${estado},${pob},${enfStr},${tasaStr}\n`;
                 });
                 
-                // LÓGICA DE NOMBRAMIENTO DEL ARCHIVO EXCEL 
                 const anioNode = document.querySelector('.siarhe-dynamic-year');
                 const anio = anioNode ? anioNode.innerText : new Date().getFullYear();
                 
-                // Extraer el lugar limpiando acentos
                 const titleNode = container.querySelector('h2.siarhe-title'); 
                 const entidadNombreRaw = titleNode ? titleNode.innerText.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '').trim() : "Mexico";
                 const entidadClean = entidadNombreRaw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_');
                 
-                // Extraer la etiqueta corta y limpiarla
                 const labelRaw = metricInfo.label || metricInfo.fullLabel || 'Datos';
                 const labelClean = labelRaw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\./g, "").replace(/\s+/g, '_');
                 
@@ -467,7 +539,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 
-                a.download = `${labelClean}_${entidadClean}_${anio}.csv`; // Formato: EtiquetaCorta_Lugar_Anio.csv
+                a.download = `${labelClean}_${entidadClean}_${anio}.csv`; 
                 a.href = url; 
                 a.style.display = "none"; 
                 document.body.appendChild(a); 

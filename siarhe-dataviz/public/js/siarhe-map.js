@@ -381,7 +381,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const row = state.dataMap.get(cve);
             const nombre = row ? row.estado : (d.properties.NOMGEO || d.properties.NOM_ENT || "Sin Datos");
             
-            // OBTENER CONFIGURACIONES DE DISEÑO Y ORDEN DEL MAPA
             const tt = state.tooltipConfig || {}; 
             const order = tt.geo_order || ['pob', 'abs', 'rate'];
             const hlVar = tt.highlight_var || 'rate'; 
@@ -395,7 +394,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const mKey = state.currentMetric; 
             const pKey = state.metricas[mKey] ? state.metricas[mKey].pair : mKey; 
             
-            // CONSTRUIR BLOQUES DE DATOS DISPONIBLES
             let blocks = {};
             
             if (tt.geo_pob !== false) {
@@ -418,7 +416,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 }
             }
 
-            // ARMAR HTML SEGÚN EL ORDEN Y EL DESTACADO
             let htmlStandard = '';
             let htmlHighlight = '';
 
@@ -514,7 +511,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
                     d3.select(this).attr("stroke-width", 3 / k).raise(); 
 
-                    // 🌟 OBTENER DISEÑO Y ORDEN PARA TOOLTIP DE MARCADORES 🌟
                     const tt = state.tooltipConfig || {}; 
                     const hlVar = tt.mk_highlight_var || 'none';
                     const hlColor = tt.mk_highlight_color || '#06b6d4';
@@ -524,7 +520,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const finalBgColor = app.map.hexToRgba(bgColor, bgOpacity);
                     const mkOrder = tt.mk_order || ['mk_inst', 'mk_clues', 'mk_tipo', 'mk_nivel', 'mk_separator', 'mk_juris', 'mk_mun'];
 
-                    // Titulo Dinámico del Marcador (Estrato y Nombre)
                     let zonaTexto = "";
                     if (d.estrato) {
                         const estLower = d.estrato.toString().toLowerCase().trim();
@@ -534,7 +529,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     }
                     const titleLabel = zonaTexto ? `Establecimiento en Zona ${zonaTexto}` : (state.markerLabels[d.tipo] ? state.markerLabels[d.tipo].label : d.tipo);
 
-                    // Construcción de Bloques de Información
                     let blocks = {};
                     
                     if (tt.mk_inst !== false && d.institucion) blocks['mk_inst'] = { label: 'Institución', value: d.institucion };
@@ -542,7 +536,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     if (tt.mk_nivel !== false && d.nivel_atencion) blocks['mk_nivel'] = { label: 'Nivel', value: d.nivel_atencion };
                     if (tt.mk_juris !== false && d.jurisdiccion) blocks['mk_juris'] = { label: 'Jurisdicción', value: d.jurisdiccion };
                     
-                    // Bloque Tipo/Tipología Combinado
                     if (tt.mk_tipo !== false && (d.tipo_estab || d.tipologia)) {
                         let valTipo = [];
                         if (d.tipo_estab) valTipo.push(d.tipo_estab);
@@ -550,7 +543,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         blocks['mk_tipo'] = { label: 'Tipo', value: valTipo.join(' - ') };
                     }
                     
-                    // Bloque Ubicación Geográfica Combinado
                     if (tt.mk_mun !== false && (d._raw)) {
                         let ubicacion = [];
                         const colEntidad = app.utils.getColValue(d._raw, ['entidad', 'nom_ent']);
@@ -561,13 +553,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         if (ubicacion.length > 0) blocks['mk_mun'] = { label: 'Ubicación', value: ubicacion.join(', ') };
                     }
 
-                    // Ensamblaje HTML Respetando el Orden
                     let htmlStandard = '';
                     let htmlHighlight = '';
 
                     mkOrder.forEach(itemKey => {
                         if (itemKey === 'mk_separator') {
-                            // Renderizar la Línea Separadora (Solo si hay elementos previos o posteriores para no dejarla colgada)
                             htmlStandard += `<div style="border-top: 1px dashed rgba(255,255,255,0.2); margin: 6px 0;"></div>`;
                             return;
                         }
@@ -590,12 +580,39 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         }
                     });
 
+                    // 🌟 INYECCIÓN DE REGLAS DE CONTEO Y AGRUPACIÓN
+                    let htmlReglas = '';
+                    if (d._agrupados_total !== undefined && d._agrupados_total > 0) {
+                        htmlReglas += `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed rgba(255,255,255,0.3);">`;
+                        htmlReglas += `<div style="font-size:12px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; opacity:0.7;">Estadísticas del Punto</div>`;
+                        
+                        // Añadir total obligatoriamente
+                        htmlReglas += `<div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
+                                        <span style="opacity:0.9;">Total Registros:</span> 
+                                        <strong style="color:#f8fafc;">${d._agrupados_total.toLocaleString('es-MX')}</strong>
+                                       </div>`;
+
+                        // Añadir las reglas si tienen conteos mayores a 0
+                        if (d._conteo_reglas) {
+                            Object.entries(d._conteo_reglas).forEach(([ruleLabel, ruleCount]) => {
+                                if (ruleCount > 0) {
+                                    htmlReglas += `<div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
+                                                    <span style="opacity:0.9;">${ruleLabel}:</span> 
+                                                    <strong style="color:#f8fafc;">${ruleCount.toLocaleString('es-MX')}</strong>
+                                                   </div>`;
+                                }
+                            });
+                        }
+                        htmlReglas += `</div>`;
+                    }
+
                     // Tarjeta Final
                     let html = `<div style="font-family:'Roboto', sans-serif; color:${txtColor};">`;
                     html += `<div style="color: #06B6D4; font-weight:bold; font-size:12px; margin-bottom:4px; padding-bottom:4px;">${titleLabel}</div>`;
                     html += `<div style="font-weight:bold; font-size:13px; font-family:'IBM Plex Sans', sans-serif; text-transform: uppercase; margin-bottom: 8px;">${d.nombre || 'Desconocido'}</div>`;
                     html += htmlStandard;
                     html += htmlHighlight;
+                    html += htmlReglas; // 🌟 Se inyectan las estadísticas al final de la tarjeta
                     html += `</div>`;
 
                     const mapDiv = document.querySelector('.siarhe-map-container');
