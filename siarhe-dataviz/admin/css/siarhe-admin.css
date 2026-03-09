@@ -1,5 +1,5 @@
 /* =========================================
-   VARIABLES POR DEFECTO (Fallback)
+   1. VARIABLES POR DEFECTO (Fallback)
    ========================================= */
 :root {
     --siarhe-th-bg: #fcfcfc;
@@ -11,7 +11,7 @@
 }
 
 /* =========================================
-   ESTILOS GENERALES Y BADGES
+   2. ESTILOS GENERALES Y BADGES
    ========================================= */
 .siarhe-badge {
     display: inline-block;
@@ -24,9 +24,10 @@
 .siarhe-badge.success { background: #d1e7dd; color: #0f5132; }
 .siarhe-badge.warning { background: #fff3cd; color: #664d03; }
 .siarhe-badge.neutral { background: #e2e3e5; color: #41464b; }
+.siarhe-badge.brand { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; } /* Badge para Nativos */
 
 /* =========================================
-   TABLAS SIARHE (Diseño Universal)
+   3. TABLAS SIARHE (Diseño Universal)
    ========================================= */
 .siarhe-table {
     width: 100%;
@@ -65,8 +66,15 @@
 
 .siarhe-table td { color: inherit; }
 
+/* Utilidad para forzar salto de línea en textos muy largos */
+.siarhe-break-text {
+    display: inline-block;
+    word-break: break-word;
+    white-space: normal;
+}
+
 /* =========================================
-   VENTANA MODAL (ESTO ES LO QUE FALTABA)
+   4. VENTANA MODAL (ESTO ES LO QUE FALTABA)
    ========================================= */
 .siarhe-modal-overlay {
     display: none; /* Oculto por defecto */
@@ -94,7 +102,7 @@
 }
 
 /* =========================================
-   RESPONSIVE (Tablets y Móviles)
+   5. RESPONSIVE (Tablets y Móviles)
    ========================================= */
 
 /* Tablet (ajustar modal) */
@@ -102,9 +110,55 @@
     .siarhe-modal-content { width: 80%; }
 }
 
-/* Móvil (< 768px) - Acordeón y Modal Full */
+/* Móvil (< 768px) - Acordeón, Formularios y Modales Full */
 @media screen and (max-width: 767px) {
     
+    /* 🌟 SOLUCIÓN: Formularios de Subida Adaptables (Tarjetas blancas) 🌟 */
+    .siarhe-upload-card .form-table, 
+    .siarhe-upload-card .form-table tbody, 
+    .siarhe-upload-card .form-table tr, 
+    .siarhe-upload-card .form-table th, 
+    .siarhe-upload-card .form-table td {
+        display: block;
+        width: 100%;
+        padding: 0;
+    }
+    
+    .siarhe-upload-card .form-table th {
+        padding-top: 15px;
+        padding-bottom: 5px;
+    }
+    
+    .siarhe-upload-card .form-table td {
+        padding-bottom: 10px;
+    }
+    
+    /* Forzar que los inputs no desborden */
+    .siarhe-upload-card .form-table input,
+    .siarhe-upload-card .form-table select,
+    .siarhe-upload-card .form-table textarea {
+        width: 100% !important;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Lo mismo para el formulario del Modal */
+    .siarhe-modal-content .form-table,
+    .siarhe-modal-content .form-table tbody,
+    .siarhe-modal-content .form-table tr,
+    .siarhe-modal-content .form-table th,
+    .siarhe-modal-content .form-table td {
+        display: block;
+        width: 100%;
+        padding: 0;
+    }
+    .siarhe-modal-content .form-table th { padding-top: 10px; padding-bottom: 5px; }
+    .siarhe-modal-content .form-table td { padding-bottom: 10px; }
+    .siarhe-modal-content .form-table input,
+    .siarhe-modal-content .form-table select,
+    .siarhe-modal-content .form-table textarea { width: 100% !important; max-width: 100%; box-sizing: border-box; }
+
+
     /* Ajuste del Modal en Móvil */
     .siarhe-modal-content {
         width: 95%;
@@ -116,7 +170,7 @@
     .siarhe-table { border: 0; background: transparent; box-shadow: none; }
     .siarhe-table thead { display: none; }
 
-    /* Tarjetas */
+    /* Tarjetas (Acordeón) */
     .siarhe-table tr {
         display: block;
         margin-bottom: 15px;

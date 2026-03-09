@@ -27,7 +27,7 @@ if ( isset($_GET['status']) ) {
     if ( $_GET['status'] == 'deleted' ) echo '<div class="notice notice-warning is-dismissible"><p>Archivo eliminado correctamente.</p></div>';
 }
 
-// 🌟 Función auxiliar para mostrar la fecha de modificación
+// Función auxiliar para mostrar la fecha de modificación con formato estético
 if (!function_exists('format_custom_date')) {
     function format_custom_date($db_date) {
         if (!$db_date) return '—';
@@ -41,7 +41,7 @@ if (!function_exists('format_custom_date')) {
 }
 ?>
 
-<div class="card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
+<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
     <h2>📤 Cargar Base Estática Minificada</h2>
     
     <div class="notice notice-info inline" style="margin: 10px 0 20px 0;">
@@ -302,7 +302,7 @@ if (!function_exists('format_custom_date')) {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     
-    // 1. Acordeón Móvil (Mantiene funcionalidad Responsive)
+    // 1. Acordeón Móvil
     const table = document.getElementById('siarhe-static-table');
     if(table) {
         table.querySelectorAll('tbody tr').forEach(row => {

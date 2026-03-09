@@ -41,7 +41,7 @@ if (!function_exists('format_custom_date')) {
 }
 ?>
 
-<div class="card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
+<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
     <h2>📤 Cargar Mapa GeoJSON</h2>
     
     <div class="notice notice-info inline" style="margin: 10px 0 20px 0;">
@@ -301,7 +301,7 @@ if (!function_exists('format_custom_date')) {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     
-    // 1. Acordeón Móvil Restaurado
+    // 1. Acordeón Móvil
     const table = document.getElementById('siarhe-geojson-table');
     if(table) {
         table.querySelectorAll('tbody tr').forEach(row => {

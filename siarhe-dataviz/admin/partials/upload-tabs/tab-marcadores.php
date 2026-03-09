@@ -1,11 +1,11 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// 🌟 1. GESTOR DINÁMICO DE DICCIONARIO DE ARCHIVOS
+// 1. GESTOR DINÁMICO DE DICCIONARIO DE ARCHIVOS
 $archivos_json = get_option( 'siarhe_archivos_marcadores', '' );
 $tipos_marcadores = json_decode( wp_unslash( $archivos_json ), true );
 
-// Auto-corrector por si la base de datos se corrompió con el error "u00ed" en las pruebas anteriores
+// Auto-corrector por si la base de datos se corrompió con el error "u00ed" 
 if ( empty($tipos_marcadores) || !is_array($tipos_marcadores) || (isset($tipos_marcadores['CATETER']['label']) && strpos($tipos_marcadores['CATETER']['label'], 'u00ed') !== false) ) {
     $tipos_marcadores = [
         'CATETER' => [ 'label' => 'Clínicas de Catéteres', 'filename' => 'clinicas-cateteres.csv', 'is_core' => true ],
@@ -62,7 +62,7 @@ if ( isset($_GET['status']) ) {
     if ( $_GET['status'] == 'updated' ) echo '<div class="notice notice-success is-dismissible"><p>Metadatos actualizados.</p></div>';
 }
 
-// 🌟 Función auxiliar para mostrar la fecha de modificación con el formato bonito que pediste
+// Función auxiliar para mostrar la fecha de modificación con formato estético
 function format_custom_date($db_date) {
     if (!$db_date) return '—';
     $timestamp = strtotime($db_date);
@@ -74,7 +74,7 @@ function format_custom_date($db_date) {
 }
 ?>
 
-<div class="card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
+<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
     <h2>📍 Gestión de Marcadores (Clínicas y Espectros)</h2>
     
     <div class="notice notice-info inline" style="margin: 10px 0 20px 0;">
@@ -192,7 +192,6 @@ function format_custom_date($db_date) {
                 
                 <td data-label="Auditoría">
                     <?php if ($db_file) : 
-                        // Fallbacks por si las columnas en la BD tienen diferentes nombres en tu schema
                         $autor_original = $db_file->subido_por ?? ($db_file->creado_por ?? ($db_file->registrado_por ?? 'Sistema'));
                         $fecha_original = $db_file->fecha_subida ?? ($db_file->fecha_creacion ?? ($db_file->fecha_registro ?? $db_file->fecha_modificacion));
                     ?>
@@ -285,27 +284,29 @@ function format_custom_date($db_date) {
     </table>
 </div>
 
-<div class="card" style="max-width: 100%; padding: 20px;">
+<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px;">
     <h3 style="margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px;">➕ Incorporar Nueva Variable (CSV)</h3>
     <p class="description">Agrega una nueva ranura de archivo para cargar marcadores adicionales (ej. Casos Epidemiológicos, Unidades Móviles).</p>
     
-    <form method="post" style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; margin-top:15px;">
+    <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
         <input type="hidden" name="action" value="add_archivo_marcador">
-        <div>
-            <label>Clave Interna (Sin espacios):</label><br>
-            <input type="text" name="new_file_key" placeholder="Ej: CASOS_DENGUE" required class="regular-text">
-        </div>
-        <div>
-            <label>Etiqueta Pública:</label><br>
-            <input type="text" name="new_file_label" placeholder="Ej: Casos de Dengue 2026" required class="regular-text">
-        </div>
-        <div>
-            <label>Nombre del Archivo (con .csv):</label><br>
-            <input type="text" name="new_file_name" placeholder="ej: casos-dengue.csv" required class="regular-text">
-        </div>
-        <div>
+        <table class="form-table" role="presentation">
+            <tr>
+                <th scope="row"><label>Clave Interna (Sin espacios):</label></th>
+                <td><input type="text" name="new_file_key" placeholder="Ej: CASOS_DENGUE" required class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label>Etiqueta Pública:</label></th>
+                <td><input type="text" name="new_file_label" placeholder="Ej: Casos de Dengue 2026" required class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label>Nombre del Archivo (con .csv):</label></th>
+                <td><input type="text" name="new_file_name" placeholder="ej: casos-dengue.csv" required class="regular-text"></td>
+            </tr>
+        </table>
+        <p class="submit">
             <button type="submit" class="button button-secondary">Agregar Variable</button>
-        </div>
+        </p>
     </form>
 </div>
 

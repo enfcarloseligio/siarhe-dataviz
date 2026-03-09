@@ -13,7 +13,7 @@ $defaults = [
     'map_c4' => '#3182bd', // Q3 (75%)
     'map_c5' => '#08519c', // Máximo
     
-    // 🌟 NUEVO: Mapa (Secuencial Monocromático)
+    // Mapa (Secuencial Monocromático)
     'mono_min' => '#f0f9ff', // Color más claro
     'mono_max' => '#0369a1', // Color más oscuro
     
@@ -36,7 +36,7 @@ $defaults = [
 
 $opts = wp_parse_args( $map_options, $defaults );
 
-// 🌟 3. OBTENER MARCADORES DINÁMICOS DESDE LA BD
+// 3. OBTENER MARCADORES DINÁMICOS DESDE LA BD
 $marcadores_json = get_option( 'siarhe_marcadores_config', '' );
 $marcadores = json_decode( wp_unslash( $marcadores_json ), true );
 
@@ -238,7 +238,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 🌟 Generamos la lista de IDs dinámicamente desde PHP para Javascript
+    // Generamos la lista de IDs dinámicamente desde PHP para Javascript
     const types = <?php echo wp_json_encode(array_map('strtolower', array_keys($marcadores))); ?>;
 
     types.forEach(t => updatePreview(t));
