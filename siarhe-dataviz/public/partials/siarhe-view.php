@@ -27,6 +27,12 @@ if ( $csv_meta && !empty($csv_meta->anio_reporte) ) {
     $anio = $csv_meta->anio_reporte; 
 }
 
+// CONSULTA DE METADATOS DEL MARCADOR DE ESTABLECIMIENTOS PARA REFERENCIA
+$mk_meta = $wpdb->get_row( "SELECT referencia_bibliografica, fecha_corte FROM $table_assets WHERE entidad_slug = 'ESTABLECIMIENTOS' AND tipo_archivo = 'marcador' AND es_activo = 1" );
+$mk_ref  = ($mk_meta && !empty($mk_meta->referencia_bibliografica)) ? $mk_meta->referencia_bibliografica : 'Catálogo de Establecimientos de Salud.';
+$mk_date = ($mk_meta && !empty($mk_meta->fecha_corte)) ? date_i18n('d/M/Y', strtotime($mk_meta->fecha_corte)) : '—';
+
+
 // Catálogo de Entidades Federativas (INEGI)
 $catalogo_oficial = [
     '01' => 'Aguascalientes', '02' => 'Baja California', '03' => 'Baja California Sur', '04' => 'Campeche',
@@ -41,7 +47,7 @@ $catalogo_oficial = [
 $es_nacional = ($slug === 'republica-mexicana' || $cve_ent === '33');
 $lugar_texto = isset($catalogo_oficial[$cve_ent]) ? $catalogo_oficial[$cve_ent] : esc_html($nombre_entidad);
 
-// 🌟 1. OBTENER CONFIGURACIÓN DE COLORES BASE
+// 1. OBTENER CONFIGURACIÓN DE COLORES BASE
 $map_options = get_option( 'siarhe_map_options', [] );
 $defaults = [
     'map_c1' => '#eff3ff', 'map_c2' => '#bdd7e7', 'map_c3' => '#6baed6', 'map_c4' => '#3182bd', 'map_c5' => '#08519c',
@@ -50,7 +56,7 @@ $defaults = [
 ];
 $opts = wp_parse_args( $map_options, $defaults );
 
-// 🌟 2. MOTOR DINÁMICO DE MARCADORES (Agregado para no perder la actualización anterior) 🌟
+// 2. MOTOR DINÁMICO DE MARCADORES
 $marcadores_json = get_option( 'siarhe_marcadores_config', '' );
 $marcadores_array = json_decode( wp_unslash( $marcadores_json ), true );
 
@@ -85,7 +91,7 @@ foreach ($marcadores_array as $key => $mk) {
 }
 
 
-// LECTURA DINÁMICA DE MÉTRICAS (Intacta)
+// LECTURA DINÁMICA DE MÉTRICAS 
 $metricas_json = get_option( 'siarhe_metricas_config', '' );
 $metricas_array = json_decode( wp_unslash( $metricas_json ), true );
 
@@ -108,7 +114,7 @@ foreach ($metricas_array as $key => $metrica) {
 $metricas_clean_json = wp_json_encode($metricas_filtradas);
 
 
-// 🌟 LECTURA DE CONFIGURACIÓN DE TOOLTIPS (Actualizada con las variables Drag&Drop de Marcadores) 🌟
+// LECTURA DE CONFIGURACIÓN DE TOOLTIPS
 $tooltip_json = get_option( 'siarhe_tooltip_config', '' );
 if ( empty($tooltip_json) ) {
     $defaults_tt = [
@@ -162,6 +168,21 @@ if ( !empty($siarhe_links_raw['republica-mexicana']) ) {
     $url = (strpos((string)$val, 'cat_') === 0) ? get_term_link((int)str_replace('cat_', '', $val), 'category') : get_permalink((int)$val);
     if ( !is_wp_error($url) && !empty($url) ) $home_url = $url;
 }
+
+// OBTENER ENLACES LEGALES DINÁMICOS 
+$url_terminos = 'https://enfcarloseligio.com/terminos-y-condiciones/';
+if ( !empty($siarhe_links_raw['legal_terminos']) ) {
+    $val = $siarhe_links_raw['legal_terminos'];
+    $url = (strpos((string)$val, 'cat_') === 0) ? get_term_link((int)str_replace('cat_', '', $val), 'category') : get_permalink((int)$val);
+    if ( !is_wp_error($url) && !empty($url) ) $url_terminos = $url;
+}
+
+$url_aviso = 'https://enfcarloseligio.com/descargo-de-responsabilidades/';
+if ( !empty($siarhe_links_raw['legal_aviso']) ) {
+    $val = $siarhe_links_raw['legal_aviso'];
+    $url = (strpos((string)$val, 'cat_') === 0) ? get_term_link((int)str_replace('cat_', '', $val), 'category') : get_permalink((int)$val);
+    if ( !is_wp_error($url) && !empty($url) ) $url_aviso = $url;
+}
 ?>
 
 <style>
@@ -183,6 +204,45 @@ if ( !empty($siarhe_links_raw['republica-mexicana']) ) {
     }
     .siarhe-viz-wrapper * { box-sizing: inherit; }
     .siarhe-break-text { overflow-wrap: break-word; word-wrap: break-word; word-break: break-word; hyphens: auto; }
+    .siarhe-viz-wrapper .siarhe-legal-disclaimer a,
+    .siarhe-viz-wrapper .siarhe-legal-disclaimer a:link,
+    .siarhe-viz-wrapper .siarhe-legal-disclaimer a:visited,
+    .siarhe-viz-wrapper .siarhe-legal-disclaimer a:hover,
+    .siarhe-viz-wrapper .siarhe-legal-disclaimer a:active,
+    .siarhe-viz-wrapper .siarhe-legal-disclaimer a:focus {
+        font-size: 1em; 
+        font-family: inherit;
+        font-weight: normal; 
+        line-height: inherit;
+        letter-spacing: normal;
+        transform: none; 
+        display: inline;
+        margin: 0;
+        padding: 0;
+        transition: none; 
+        text-decoration: underline;
+    }
+
+    /* REGLAS USABILIDAD PARA LAS COLUMNAS DEL FOOTER */
+    .siarhe-viz-wrapper .siarhe-footer-grid {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: 1fr; /* Móvil (<= 767px): Todo en 1 columna */
+    }
+    
+    @media (min-width: 768px) and (max-width: 1023px) {
+        /* Tablet (768px - 1023px): 2 Columnas. El tercer elemento queda en su propia celda abajo a la izq. */
+        .siarhe-viz-wrapper .siarhe-footer-grid {
+            grid-template-columns: 1fr 1fr; 
+        }
+    }
+    
+    @media (min-width: 1024px) {
+        /* PC Desktop (>= 1024px): 3 Columnas simétricas */
+        .siarhe-viz-wrapper .siarhe-footer-grid {
+            grid-template-columns: repeat(3, 1fr); 
+        }
+    }
 </style>
 
 <div class="siarhe-viz-wrapper" 
@@ -300,18 +360,26 @@ if ( !empty($siarhe_links_raw['republica-mexicana']) ) {
         <div class="siarhe-footer-grid">
             
             <div class="siarhe-ref-col">
-                <strong><span class="dashicons dashicons-groups"></span> Datos de Enfermería</strong>
-                <p class="siarhe-break-text">
-                    <strong>Fuente:</strong> <?php echo esc_html($csv_ref); ?><br>
-                    <strong>Fecha de corte:</strong> <?php echo esc_html($csv_date); ?>
-                </p>
-            </div>
-
-            <div class="siarhe-ref-col">
                 <strong><span class="dashicons dashicons-admin-site"></span> Datos Espaciales</strong>
                 <p class="siarhe-break-text">
                     <strong>Fuente:</strong> <?php echo esc_html($geo_ref); ?><br>
                     <strong>Fecha de corte:</strong> <?php echo esc_html($geo_date); ?>
+                </p>
+            </div>
+
+            <div class="siarhe-ref-col">
+                <strong><span class="dashicons dashicons-location"></span> Datos de Establecimientos</strong>
+                <p class="siarhe-break-text">
+                    <strong>Fuente:</strong> <?php echo esc_html($mk_ref); ?><br>
+                    <strong>Fecha de corte:</strong> <?php echo esc_html($mk_date); ?>
+                </p>
+            </div>
+
+            <div class="siarhe-ref-col">
+                <strong><span class="dashicons dashicons-groups"></span> Datos de Enfermería</strong>
+                <p class="siarhe-break-text">
+                    <strong>Fuente:</strong> <?php echo esc_html($csv_ref); ?><br>
+                    <strong>Fecha de corte:</strong> <?php echo esc_html($csv_date); ?>
                 </p>
             </div>
 
@@ -322,7 +390,7 @@ if ( !empty($siarhe_links_raw['republica-mexicana']) ) {
         </p>
 
         <p class="siarhe-legal-disclaimer siarhe-break-text">
-            Toda la información fue obtenida de fuentes oficiales a través de sus portales de datos abiertos; sin embargo, este análisis no representa una postura oficial de dichas instituciones. Recomendamos revisar nuestros <a href="https://enfcarloseligio.com/terminos-y-condiciones/" target="_blank">Términos y Condiciones</a> y el <a href="https://enfcarloseligio.com/descargo-de-responsabilidades/" target="_blank">Aviso Legal</a> para más detalles.
+            Toda la información fue obtenida de fuentes oficiales a través de sus portales de datos abiertos; sin embargo, este análisis no representa una postura oficial de dichas instituciones. Recomendamos revisar nuestros <a href="<?php echo esc_url($url_terminos); ?>" target="_blank">Términos y Condiciones</a> y el <a href="<?php echo esc_url($url_aviso); ?>" target="_blank">Aviso Legal</a> para más detalles.
         </p>
     </footer>
 
