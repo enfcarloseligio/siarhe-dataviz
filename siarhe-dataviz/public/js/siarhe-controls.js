@@ -15,17 +15,17 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         
         renderMain: function(container, state, onUpdate, opts = { targetSelector: '.siarhe-controls-placeholder', showMarkers: true }) {
             
-            // INYECCIÓN CSS: Estilos para los Dropdowns y el nuevo Toggle de Colores
+            // INYECCIÓN CSS: Estilos para los Dropdowns, el Toggle de Colores y el nuevo TOAST FLOTANTE 🌟
             if (!document.getElementById('siarhe-search-dropdown-styles')) {
                 const style = document.createElement('style');
                 style.id = 'siarhe-search-dropdown-styles';
                 style.innerHTML = `
-                    /* 🌟 SOLUCIÓN FLEXBOX: Obliga a los contenedores a medir lo mismo en PC */
+                    /* SOLUCIÓN FLEXBOX: Obliga a los contenedores a medir lo mismo en PC */
                     .siarhe-control-group { flex: 1 1 0%; min-width: 0; }
                     
                     .siarhe-custom-select, .mc-field { position: relative; width: 100%; font-family: 'Roboto', sans-serif; }
                     
-                    /* 🌟 TRUNCAMIENTO PERFECTO DEL TEXTO CON PUNTOS SUSPENSIVOS (...) */
+                    /* TRUNCAMIENTO PERFECTO DEL TEXTO CON PUNTOS SUSPENSIVOS (...) */
                     .siarhe-cs-trigger, .mc-trigger { background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 0 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: #334155; height: 38px; box-sizing: border-box; font-size: 14px; transition: border-color 0.2s; overflow: hidden; width: 100%; }
                     .siarhe-cs-trigger > span, .mc-trigger > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; text-align: left; line-height: 36px; padding-right: 10px; flex: 1; }
                     .siarhe-cs-trigger::after, .mc-trigger::after { content: "▼"; font-size: 10px; color: #94a3b8; flex-shrink: 0; }
@@ -51,10 +51,32 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     .s-toggle-switch input:checked + .s-toggle-slider { background-color: #0284c7; }
                     .s-toggle-switch input:checked + .s-toggle-slider:before { transform: translateX(20px); }
                     
+                    /* 🌟 ESTILOS DEL TOAST FLOTANTE (SUGERENCIA INTELIGENTE) 🌟 */
+                    .siarhe-smart-toast {
+                        position: absolute; top: 20px; right: 20px; z-index: 10000;
+                        background: #fff; border-left: 4px solid #0ea5e9; border-radius: 6px;
+                        box-shadow: 0 10px 25px rgba(0,0,0,0.15); padding: 15px;
+                        display: flex; flex-direction: column; gap: 10px; 
+                        font-family: 'Roboto', sans-serif; font-size: 13px;
+                        width: 280px; max-width: calc(100% - 40px);
+                        transform: translateX(120%); opacity: 0; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                        pointer-events: none; /* Ignora clics mientras está oculto */
+                    }
+                    .siarhe-smart-toast.show {
+                        transform: translateX(0); opacity: 1; pointer-events: auto;
+                    }
+                    .siarhe-toast-header { display: flex; justify-content: space-between; align-items: center; color: #0f172a; font-size: 14px;}
+                    .siarhe-toast-close { cursor: pointer; color: #94a3b8; border: none; background: none; font-size: 16px; line-height: 1; padding: 0; margin: 0; }
+                    .siarhe-toast-close:hover { color: #d63638; }
+                    .siarhe-toast-btn { background: #f0f9ff; color: #0284c7; border: 1px solid #bae6fd; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; text-align: center; transition: background 0.2s; align-self: flex-start; }
+                    .siarhe-toast-btn:hover { background: #e0f2fe; }
+
                     @media (max-width: 767px) { 
-                        /* 🌟 CORRECCIÓN MÓVIL: Quitar el flex-basis que causaba el espacio vertical gigante */
+                        /* CORRECCIÓN MÓVIL */
                         .siarhe-control-group { flex: none; width: 100%; }
                         .siarhe-mode-toggle { margin-left: 0; margin-top: 10px; width: 100%; justify-content: space-between; } 
+                        .siarhe-smart-toast { top: auto; bottom: 20px; right: 50%; transform: translateX(50%) translateY(120%); }
+                        .siarhe-smart-toast.show { transform: translateX(50%) translateY(0); }
                     }
                 `;
                 document.head.appendChild(style);
@@ -70,6 +92,65 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             document.addEventListener('click', () => {
                 container.querySelectorAll('.siarhe-cs-menu, .mc-menu').forEach(m => m.classList.remove('open'));
             });
+
+            // 🌟 INYECTAR TOAST AL CONTENEDOR PRINCIPAL
+            let toastBox = container.querySelector('.siarhe-smart-toast');
+            if (!toastBox) {
+                toastBox = document.createElement('div');
+                toastBox.className = 'siarhe-smart-toast';
+                container.appendChild(toastBox);
+            }
+
+            let toastTimeout;
+            const showSmartToast = (markerKey, markerLabel) => {
+                toastBox.innerHTML = `
+                    <div class="siarhe-toast-header">
+                        <strong>💡 Sugerencia de análisis</strong>
+                        <button class="siarhe-toast-close" title="Cerrar">✖</button>
+                    </div>
+                    <div style="color: #475569; line-height: 1.4;">
+                        Existen datos de <strong>${markerLabel}</strong> vinculados a este indicador.
+                    </div>
+                    <button class="siarhe-toast-btn">📍 Mostrar en mapa</button>
+                `;
+                
+                toastBox.querySelector('.siarhe-toast-close').onclick = () => toastBox.classList.remove('show');
+                
+                toastBox.querySelector('.siarhe-toast-btn').onclick = () => {
+                    toastBox.classList.remove('show');
+                    // Simular activación desde el checkbox oculto en el DOM
+                    const chk = container.querySelector(`.mc-check[value="${markerKey}"]`);
+                    if (chk && !chk.checked) {
+                        chk.checked = true;
+                        app.controls.toggleMarker(markerKey, state, container);
+                    } else if (!chk) {
+                        app.controls.toggleMarker(markerKey, state, container);
+                    }
+                };
+
+                toastBox.classList.add('show');
+                clearTimeout(toastTimeout);
+                toastTimeout = setTimeout(() => { toastBox.classList.remove('show'); }, 8000);
+            };
+
+            const checkSpectrumLink = (metricKey) => {
+                if (!opts.showMarkers) return; // Si no hay marcadores habilitados, no hacer nada.
+                
+                // Buscar si hay algún marcador de tipo espectro asociado a esta métrica
+                const linkedMarkerKey = Object.keys(state.markerLabels).find(k => {
+                    const mk = state.markerLabels[k];
+                    return mk.tipo === 'espectro' && mk.espectro_pair === metricKey;
+                });
+
+                // Si existe y NO está activo actualmente, mostrar la sugerencia
+                if (linkedMarkerKey && !state.activeMarkers.has(linkedMarkerKey)) {
+                    const mkLabel = state.markerLabels[linkedMarkerKey].label || linkedMarkerKey;
+                    showSmartToast(linkedMarkerKey, mkLabel);
+                } else {
+                    toastBox.classList.remove('show'); // Ocultar si cambia a uno sin enlace
+                }
+            };
+
 
             // ====================================================
             // A) CONSTRUCCIÓN DE "INDICADOR"
@@ -121,6 +202,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     menuInd.classList.remove('open');
                     
                     onUpdate(); 
+                    
+                    // 🌟 MAGIA: Verificar si hay un Espectro Vinculado después de actualizar 🌟
+                    checkSpectrumLink(key);
                 });
                 
                 optionsContainerInd.appendChild(opt);

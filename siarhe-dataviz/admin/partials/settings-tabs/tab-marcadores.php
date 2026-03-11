@@ -166,11 +166,18 @@ if ( empty($marcadores_json) ) {
             <tr id="mk-espectro-row" style="display:none; background: #f0f9ff;">
                 <th><label>Configuración de Espectro</label></th>
                 <td>
-                    <select id="modal-mk-espectro-calc" style="margin-bottom:5px; width:100%;">
+                    <label><strong>Clave Relacionada (Par)</strong></label><br>
+                    <input type="text" id="modal-mk-espectro-pair" class="regular-text" placeholder="Ej. tasa_total" style="margin-bottom:10px; width: 100%;">
+                    <p class="description" style="margin-top:0; margin-bottom:15px;">Si escribes la clave interna de un <strong>Indicador</strong> (ej. <code>tasa_total</code>), el sistema sugerirá activar este marcador automáticamente cuando el usuario seleccione dicho indicador.</p>
+
+                    <label><strong>Modo de Cálculo</strong></label><br>
+                    <select id="modal-mk-espectro-calc" style="margin-bottom:10px; width:100%;">
                         <option value="absoluto">Basado en Valor Absoluto (Crudo)</option>
                         <option value="relativo">Basado en Tasa Relativa (Poblacional) - Próximamente</option>
                     </select><br>
-                    <input type="text" id="modal-mk-espectro-col" class="regular-text" placeholder="Columna a evaluar (ej. total_casos)">
+
+                    <label><strong>Columna Numérica</strong></label><br>
+                    <input type="text" id="modal-mk-espectro-col" class="regular-text" placeholder="Columna a evaluar (ej. total_casos)" style="width: 100%;">
                     <p class="description">El tamaño de la burbuja se calculará en base a los números de esta columna.</p>
                 </td>
             </tr>
@@ -350,7 +357,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const tr = document.createElement('tr');
-            // AÑADIDOS LOS DATA-MOBILE-ROLE PARA ACTIVAR EL ACORDEÓN EN MÓVILES
             tr.innerHTML = `
                 <td data-label="Clave" data-mobile-role="primary">
                     <strong style="color:#2271b1; font-family:monospace;">${key}</strong> ${coreBadge}
@@ -384,11 +390,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function attachEvents() {
-        // AÑADIDO EL EVENTO DE CLIC A LA FILA PARA EL EFECTO ACORDEÓN
         document.querySelectorAll('#siarhe-marcadores-table tbody tr').forEach(row => {
             row.addEventListener('click', function(e) {
                 if (window.innerWidth > 767) return;
-                // No activar si se hace clic en un botón o link dentro de la fila
                 if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) return;
                 this.classList.toggle('is-open');
             });
@@ -404,7 +408,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 else if (currVis === 'registrados') nextVis = 'oculto';
                 marcadoresObj[key].visibilidad = nextVis;
                 
-                // Actualizar auditoría al ocultar/mostrar
                 marcadoresObj[key].last_edited_by = currentUser;
                 marcadoresObj[key].last_edited_at = currentTime;
 
@@ -437,17 +440,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const isNew = key === null;
         const item = isNew ? { 
             label: '', tipo: 'posicion', archivo: '', 
-            filtro_col: '', filtro_val: '', espectro_calc: 'absoluto', espectro_col: '', 
+            filtro_col: '', filtro_val: '', espectro_pair: '', espectro_calc: 'absoluto', espectro_col: '', 
             agrupar_col: '', reglas_tooltip: [], resumen_geo: false,
             visibilidad: 'publico', is_core: false,
-            created_by: currentUser, created_at: currentTime // Guardamos quién lo inicia
+            created_by: currentUser, created_at: currentTime 
         } : marcadoresObj[key];
 
         document.getElementById('modal-mk-title').textContent = isNew ? 'Añadir Nuevo Marcador' : 'Editar Marcador';
         document.getElementById('modal-mk-original-key').value = isNew ? '' : key;
         document.getElementById('modal-mk-is-core').value = item.is_core ? '1' : '0';
         
-        // Preservar el creador original si ya existía
         document.getElementById('modal-mk-created-by').value = item.created_by || item.last_edited_by || currentUser;
         document.getElementById('modal-mk-created-at').value = item.created_at || item.last_edited_at || currentTime;
 
@@ -461,6 +463,7 @@ document.addEventListener('DOMContentLoaded', function() {
         archivoInput.value = item.archivo || '';
         document.getElementById('modal-mk-filtro-col').value = item.filtro_col || '';
         document.getElementById('modal-mk-filtro-val').value = item.filtro_val || '';
+        document.getElementById('modal-mk-espectro-pair').value = item.espectro_pair || ''; // 🌟 CARGAMOS LA CLAVE RELACIONADA
         document.getElementById('modal-mk-espectro-calc').value = item.espectro_calc || 'absoluto';
         document.getElementById('modal-mk-espectro-col').value = item.espectro_col || '';
         document.getElementById('modal-mk-visibilidad').value = item.visibilidad || 'publico';
@@ -516,7 +519,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const isResumenGeo = document.getElementById('modal-mk-resumen-geo').checked;
         
-        // Recuperar el creador original guardado en el form oculto
         const originalCreator = document.getElementById('modal-mk-created-by').value;
         const originalCreatedAt = document.getElementById('modal-mk-created-at').value;
 
@@ -526,6 +528,7 @@ document.addEventListener('DOMContentLoaded', function() {
             archivo: archivoVal,
             filtro_col: document.getElementById('modal-mk-filtro-col').value.trim(),
             filtro_val: document.getElementById('modal-mk-filtro-val').value.trim(),
+            espectro_pair: document.getElementById('modal-mk-espectro-pair').value.trim(), // 🌟 GUARDAMOS LA CLAVE RELACIONADA
             espectro_calc: document.getElementById('modal-mk-espectro-calc').value,
             espectro_col: document.getElementById('modal-mk-espectro-col').value.trim(),
             agrupar_col: document.getElementById('modal-mk-agrupar-col').value.trim(), 
@@ -533,9 +536,9 @@ document.addEventListener('DOMContentLoaded', function() {
             resumen_geo: isResumenGeo, 
             visibilidad: document.getElementById('modal-mk-visibilidad').value,
             is_core: isCore,
-            created_by: originalCreator,     // Mantiene quién lo hizo primero
+            created_by: originalCreator,    
             created_at: originalCreatedAt,
-            last_edited_by: currentUser,     // Actualiza quién lo movió al final
+            last_edited_by: currentUser,    
             last_edited_at: currentTime
         };
 

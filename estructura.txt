@@ -3,57 +3,13 @@ estructura.bat
 estructura.txt
 LICENSE
 README.md
-siarhe-dataviz.zip
-
-================================
- rates
-================================
-Listado de rutas de carpetas para el volumen Archivos
-El número de serie del volumen es BCB7-CE12
-F:\USERS\ENFCA\DOCUMENTS\PROYECTOS\SIARHE-DATAVIZ\RATES
-    aguascalientes.csv
-    baja-california-sur.csv
-    baja-california.csv
-    campeche.csv
-    chiapas.csv
-    chihuahua.csv
-    ciudad-de-mexico.csv
-    coahuila.csv
-    colima.csv
-    durango.csv
-    estado-de-mexico.csv
-    guanajuato.csv
-    guerrero.csv
-    hidalgo.csv
-    jalisco.csv
-    michoacan.csv
-    morelos.csv
-    nayarit.csv
-    nuevo-leon.csv
-    oaxaca.csv
-    puebla.csv
-    queretaro.csv
-    quintana-roo.csv
-    republica-mexicana.csv
-    san-luis-potosi.csv
-    sinaloa.csv
-    sonora.csv
-    tabasco.csv
-    tamaulipas.csv
-    tlaxcala.csv
-    veracruz.csv
-    yucatan.csv
-    zacatecas.csv
-    
-No existe ninguna subcarpeta 
-
 
 ================================
  siarhe-dataviz
 ================================
-Listado de rutas de carpetas para el volumen Archivos
-El número de serie del volumen es BCB7-CE12
-F:\USERS\ENFCA\DOCUMENTS\PROYECTOS\SIARHE-DATAVIZ\SIARHE-DATAVIZ
+Listado de rutas de carpetas para el volumen Windows 11
+El número de serie del volumen es 0246-9FF7
+C:\USERS\ENFCA\DOCUMENTS\PROYECTOS\SIARHE-DATAVIZ\SIARHE-DATAVIZ
 ¦   siarhe-dataviz.php
 ¦   
 +---admin
@@ -75,10 +31,14 @@ F:\USERS\ENFCA\DOCUMENTS\PROYECTOS\SIARHE-DATAVIZ\SIARHE-DATAVIZ
 ¦       +---settings-tabs
 ¦       ¦       tab-enlaces.php
 ¦       ¦       tab-mapa.php
+¦       ¦       tab-marcadores.php
+¦       ¦       tab-metricas.php
 ¦       ¦       tab-tema.php
+¦       ¦       tab-tooltip.php
 ¦       ¦       
 ¦       +---upload-tabs
 ¦               tab-geojson.php
+¦               tab-localidades.php
 ¦               tab-marcadores.php
 ¦               tab-static.php
 ¦               
@@ -95,12 +55,16 @@ F:\USERS\ENFCA\DOCUMENTS\PROYECTOS\SIARHE-DATAVIZ\SIARHE-DATAVIZ
 ¦           table-renderer.php
 ¦           
 +---public
-    +---css
-    ¦       siarhe-frontend.css
-    ¦       
-    +---js
-    ¦       siarhe-viz.js
-    ¦       
-    +---partials
-            siarhe-view.php
-            
+¦   +---css
+¦   ¦       siarhe-frontend.css
+¦   ¦       
+¦   +---js
+¦   ¦       siarhe-controls.js
+¦   ¦       siarhe-core.js
+¦   ¦       siarhe-map.js
+¦   ¦       siarhe-table.js
+¦   ¦       
+¦   +---partials
+¦           siarhe-view.php
+¦           
++---uploads

@@ -43,9 +43,12 @@ $marcadores = json_decode( wp_unslash( $marcadores_json ), true );
 // Fallback por si la BD está vacía al cargar esta pestaña
 if (empty($marcadores)) {
     $marcadores = [
-        'CATETER' => ['label' => 'Clínicas de catéteres'], 'HERIDAS' => ['label' => 'Clínicas de heridas'],
-        'ESTAB_1' => ['label' => 'Establecimientos (1er Nivel)'], 'ESTAB_2' => ['label' => 'Establecimientos (2do Nivel)'],
-        'ESTAB_3' => ['label' => 'Establecimientos (3er Nivel)'], 'ESTAB_6' => ['label' => 'Establecimientos (No Aplica)']
+        'CATETER' => ['label' => 'Clínicas de catéteres', 'tipo' => 'posicion'], 
+        'HERIDAS' => ['label' => 'Clínicas de heridas', 'tipo' => 'posicion'],
+        'ESTAB_1' => ['label' => 'Establecimientos (1er Nivel)', 'tipo' => 'posicion'], 
+        'ESTAB_2' => ['label' => 'Establecimientos (2do Nivel)', 'tipo' => 'posicion'],
+        'ESTAB_3' => ['label' => 'Establecimientos (3er Nivel)', 'tipo' => 'posicion'], 
+        'ESTAB_6' => ['label' => 'Establecimientos (No Aplica)', 'tipo' => 'posicion']
     ];
 }
 
@@ -71,6 +74,11 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         min-width: 80px; height: 75px; box-sizing: border-box;
     }
+
+    /* Insignias para clasificar el tipo de marcador */
+    .siarhe-badge { padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; display: inline-block; border: 1px solid transparent; }
+    .siarhe-badge.neutral { background: #f0f0f1; color: #3c434a; border-color: #c3c4c7; }
+    .siarhe-badge.espectro { background: #fef3c7; color: #92400e; border-color: #fde68a; }
     
     @media (max-width: 782px) {
         .siarhe-admin-card .form-table th { display: block; width: 100%; padding-bottom: 5px; }
@@ -169,35 +177,68 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
     <table class="form-table">
         <?php foreach ($marcadores as $key => $mk): 
             $s_key = strtolower($key);
-            // Si el marcador no tiene color guardado, intentamos usar el default legacy o un azul genérico
-            $shape_val  = isset($opts["m_{$s_key}_shape"])  ? $opts["m_{$s_key}_shape"]  : (isset($legacy_shapes[$s_key]) ? $legacy_shapes[$s_key] : 'circle');
-            $fill_val   = isset($opts["m_{$s_key}_fill"])   ? $opts["m_{$s_key}_fill"]   : (isset($legacy_colors[$s_key]) ? $legacy_colors[$s_key] : '#0A66C2');
+            $tipo = isset($mk['tipo']) ? $mk['tipo'] : 'posicion';
+            $is_espectro = ($tipo === 'espectro');
+
+            // Lógica para asignar forma por defecto (El espectro SIEMPRE es círculo)
+            $shape_val = isset($opts["m_{$s_key}_shape"]) ? $opts["m_{$s_key}_shape"] : (isset($legacy_shapes[$s_key]) ? $legacy_shapes[$s_key] : 'circle');
+            if ($is_espectro) $shape_val = 'circle'; 
+
+            // Si es un Espectro nuevo, le damos un color rojo semi-transparente (rgba) por defecto
+            $default_fill = $is_espectro ? 'rgba(214, 54, 56, 0.6)' : '#0A66C2';
+            $fill_val   = isset($opts["m_{$s_key}_fill"])   ? $opts["m_{$s_key}_fill"]   : (isset($legacy_colors[$s_key]) ? $legacy_colors[$s_key] : $default_fill);
             $stroke_val = isset($opts["m_{$s_key}_stroke"]) ? $opts["m_{$s_key}_stroke"] : '#ffffff';
         ?>
         <tr>
             <th scope="row">
-                <strong><?php echo esc_html($mk['label']); ?></strong><br>
+                <strong style="font-size: 14px;"><?php echo esc_html($mk['label']); ?></strong><br>
                 <small style="color:#8c8f94; font-family:monospace;"><?php echo esc_html($key); ?></small>
+                
+                <div style="margin-top: 6px;">
+                    <?php if ($is_espectro): ?>
+                        <span class="siarhe-badge espectro">🔴 Espectro (Burbuja)</span>
+                    <?php else: ?>
+                        <span class="siarhe-badge neutral">📍 Posición Fija</span>
+                    <?php endif; ?>
+                </div>
             </th>
             <td>
                 <div class="siarhe-marker-row" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
                     <div class="siarhe-preview-box">
                         <label style="font-size:10px; color:#888; margin-bottom:5px;">Vista Previa</label>
-                        <svg id="preview-<?php echo esc_attr($s_key); ?>" width="30" height="30" viewBox="0 0 30 30"></svg>
+                        <svg id="preview-<?php echo esc_attr($s_key); ?>" width="<?php echo $is_espectro ? '36' : '30'; ?>" height="<?php echo $is_espectro ? '36' : '30'; ?>" viewBox="0 0 30 30"></svg>
                     </div>
+                    
                     <div>
                         <label>Forma:</label><br>
-                        <select name="siarhe_map_options[m_<?php echo esc_attr($s_key); ?>_shape]" id="m_<?php echo esc_attr($s_key); ?>_shape">
-                            <option value="circle" <?php selected($shape_val, 'circle'); ?>>Círculo</option>
-                            <option value="square" <?php selected($shape_val, 'square'); ?>>Cuadrado</option>
-                            <option value="triangle" <?php selected($shape_val, 'triangle'); ?>>Triángulo</option>
-                            <option value="diamond" <?php selected($shape_val, 'diamond'); ?>>Rombo</option>
-                            <option value="star" <?php selected($shape_val, 'star'); ?>>Estrella</option>
-                            <option value="cross" <?php selected($shape_val, 'cross'); ?>>Cruz</option>
-                        </select>
+                        <?php if ($is_espectro): ?>
+                            <input type="hidden" name="siarhe_map_options[m_<?php echo esc_attr($s_key); ?>_shape]" id="m_<?php echo esc_attr($s_key); ?>_shape" value="circle">
+                            <select disabled style="background:#f0f0f1; color:#666; cursor:not-allowed;">
+                                <option>Círculo (Burbuja)</option>
+                            </select>
+                        <?php else: ?>
+                            <select name="siarhe_map_options[m_<?php echo esc_attr($s_key); ?>_shape]" id="m_<?php echo esc_attr($s_key); ?>_shape">
+                                <option value="circle" <?php selected($shape_val, 'circle'); ?>>Círculo</option>
+                                <option value="square" <?php selected($shape_val, 'square'); ?>>Cuadrado</option>
+                                <option value="triangle" <?php selected($shape_val, 'triangle'); ?>>Triángulo</option>
+                                <option value="diamond" <?php selected($shape_val, 'diamond'); ?>>Rombo</option>
+                                <option value="star" <?php selected($shape_val, 'star'); ?>>Estrella</option>
+                                <option value="cross" <?php selected($shape_val, 'cross'); ?>>Cruz</option>
+                            </select>
+                        <?php endif; ?>
                     </div>
-                    <div><label>Relleno:</label><br><input type="text" name="siarhe_map_options[m_<?php echo esc_attr($s_key); ?>_fill]" id="m_<?php echo esc_attr($s_key); ?>_fill" value="<?php echo esc_attr($fill_val); ?>" class="siarhe-color-field"></div>
-                    <div><label>Borde:</label><br><input type="text" name="siarhe_map_options[m_<?php echo esc_attr($s_key); ?>_stroke]" id="m_<?php echo esc_attr($s_key); ?>_stroke" value="<?php echo esc_attr($stroke_val); ?>" class="siarhe-color-field"></div>
+                    
+                    <div>
+                        <label>Relleno:</label><br>
+                        <input type="text" name="siarhe_map_options[m_<?php echo esc_attr($s_key); ?>_fill]" id="m_<?php echo esc_attr($s_key); ?>_fill" value="<?php echo esc_attr($fill_val); ?>" class="siarhe-color-field" <?php if($is_espectro) echo 'data-alpha="true"'; ?>>
+                        <?php if ($is_espectro): ?>                            
+                        <?php endif; ?>
+                    </div>
+                    
+                    <div>
+                        <label>Borde:</label><br>
+                        <input type="text" name="siarhe_map_options[m_<?php echo esc_attr($s_key); ?>_stroke]" id="m_<?php echo esc_attr($s_key); ?>_stroke" value="<?php echo esc_attr($stroke_val); ?>" class="siarhe-color-field">
+                    </div>
                 </div>
             </td>
         </tr>

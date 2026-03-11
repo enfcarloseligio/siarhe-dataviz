@@ -24,6 +24,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 c= '0x'+c.join('');
                 return 'rgba('+[(c>>16)&255, (c>>8)&255, c&255].join(',')+','+alpha+')';
             }
+            // 🌟 SOPORTE RGBA NATIVO: Si ya viene en formato rgba(r,g,b,a), lo devuelve intacto para los Espectros
+            if(hex.startsWith('rgba') || hex.startsWith('rgb')) return hex;
             return `rgba(15, 23, 42, ${alpha})`; // Fallback oscuro
         },
 
@@ -206,7 +208,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                                     val = realCol ? parseFloat(d._raw[realCol]) || 0 : 0;
                                 }
                                 const max = (state.espectroMaxVals && state.espectroMaxVals[d.tipo]) ? state.espectroMaxVals[d.tipo] : 1;
-                                const scaleArea = d3.scaleLinear().domain([0, max]).range([symbolSize * 0.3, symbolSize * 15]).clamp(true);
+                                // 🌟 TAMAÑO DE BURBUJAS: Rango ajustado para destacar las grandes sin tapar el mapa
+                                const scaleArea = d3.scaleLinear().domain([0, max]).range([symbolSize * 0.8, symbolSize * 18]).clamp(true);
                                 const styleCfg = app.utils.getMarkerStyle(d.tipo, state);
                                 return d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)).size(scaleArea(val))();
                             }
@@ -504,7 +507,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                             });
 
                             if (totalPuntos > 0) {
-                                const mkLabelColor = app.utils.getMarkerStyle(type, state).fill;
+                                const mkStyle = app.utils.getMarkerStyle(type, state);
+                                // Si es espectro y trae rgba, extraemos solo el RGB para el indicador visual
+                                const mkLabelColor = mkStyle.fill.startsWith('rgba') ? mkStyle.fill.replace(/[^,]+(?=\))/, '1') : mkStyle.fill;
                                 const mkLabelNombre = config.label || type;
 
                                 htmlResumenMarcadores += `
@@ -515,7 +520,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                                         </div>
                                 `;
 
-                                // 🌟 SOLUCIÓN: SIEMPRE MOSTRAR LOS PUNTOS FÍSICOS 🌟
                                 htmlResumenMarcadores += `
                                     <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:2px;">
                                         <span style="opacity:0.8;">Puntos Físicos (Unidades):</span> 
@@ -635,7 +639,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                             val = realCol ? parseFloat(d._raw[realCol]) || 0 : 0;
                         }
                         const max = state.espectroMaxVals[d.tipo] || 1;
-                        const scaleArea = d3.scaleLinear().domain([0, max]).range([symbolSize * 0.3, symbolSize * 15]).clamp(true);
+                        // 🌟 TAMAÑO DE BURBUJAS: Escala logarítmica o lineal adaptada
+                        const scaleArea = d3.scaleLinear().domain([0, max]).range([symbolSize * 0.8, symbolSize * 18]).clamp(true);
                         finalSize = scaleArea(val);
                     }
 
@@ -649,7 +654,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .attr("fill", d => {
                     const styleCfg = app.utils.getMarkerStyle(d.tipo, state);
                     const config = state.markerLabels[d.tipo] || {};
-                    return (config.tipo === 'espectro') ? app.map.hexToRgba(styleCfg.fill, 0.75) : styleCfg.fill;
+                    // Si ya es un rgba del panel, se usa directo, si no y es espectro, se le pone 0.75
+                    if (config.tipo === 'espectro') {
+                        return styleCfg.fill.startsWith('rgba') ? styleCfg.fill : app.map.hexToRgba(styleCfg.fill, 0.75);
+                    }
+                    return styleCfg.fill;
                 })
                 .attr("stroke", d => app.utils.getMarkerStyle(d.tipo, state).stroke)
                 .attr("stroke-width", 1.5 / currentK)
@@ -929,9 +938,15 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     ctx.textAlign = "center"; 
                     ctx.fillText(titleText, 1920 / 2, 75);
                     
+                    // 🌟 CORRECCIÓN: BUSCAR REFERENCIA DE ENFERMERÍA (El bloque con el ícono groups)
                     let refText = "Fuente de Datos: SIARHE.";
-                    const refNodes = container.querySelectorAll('.siarhe-ref-col p');
-                    if(refNodes.length > 0) { refText = refNodes[0].innerText.replace(/\n/g, ' | '); }
+                    const refNodes = container.querySelectorAll('.siarhe-ref-col');
+                    refNodes.forEach(node => {
+                        if (node.innerHTML.includes('dashicons-groups') || node.innerHTML.includes('Datos de Enfermería')) {
+                            const pTag = node.querySelector('p');
+                            if (pTag) refText = pTag.innerText.replace(/\n/g, ' | ');
+                        }
+                    });
 
                     ctx.fillStyle = "#475569"; 
                     ctx.font = "20px 'Roboto', sans-serif"; 
