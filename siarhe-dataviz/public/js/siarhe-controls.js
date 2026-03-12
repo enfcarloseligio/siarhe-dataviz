@@ -21,21 +21,27 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 style.id = 'siarhe-search-dropdown-styles';
                 style.innerHTML = `
                     /* SOLUCIÓN FLEXBOX: Obliga a los contenedores a medir lo mismo en PC */
-                    .siarhe-control-group { flex: 1 1 0%; min-width: 0; }
+                    .siarhe-controls-layout { display: flex; flex-direction: column; gap: 15px; background: #F8FAFC; padding: 15px 20px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 20px; }
+                    .siarhe-controls-row { display: flex; gap: 20px; flex-wrap: wrap; width: 100%; align-items: flex-end; }
+                    .siarhe-control-group { flex: 1 1 0%; min-width: 220px; display: flex; flex-direction: column; gap: 5px; }
+                    .siarhe-control-group > label { font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 13px; color: #0A66C2; text-transform: uppercase; letter-spacing: 0.5px; }
                     
                     .siarhe-custom-select, .mc-field { position: relative; width: 100%; font-family: 'Roboto', sans-serif; }
                     
                     /* TRUNCAMIENTO PERFECTO DEL TEXTO CON PUNTOS SUSPENSIVOS (...) */
-                    .siarhe-cs-trigger, .mc-trigger { background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 0 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: #334155; height: 38px; box-sizing: border-box; font-size: 14px; transition: border-color 0.2s; overflow: hidden; width: 100%; }
+                    .siarhe-metric-select, .siarhe-cs-trigger, .mc-trigger { background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 0 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: #334155; height: 38px; box-sizing: border-box; font-size: 14px; transition: border-color 0.2s; overflow: hidden; width: 100%; }
                     .siarhe-cs-trigger > span, .mc-trigger > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; text-align: left; line-height: 36px; padding-right: 10px; flex: 1; }
                     .siarhe-cs-trigger::after, .mc-trigger::after { content: "▼"; font-size: 10px; color: #94a3b8; flex-shrink: 0; }
-                    .siarhe-cs-trigger:hover, .mc-trigger:hover { border-color: #94a3b8; }
+                    .siarhe-metric-select:hover, .siarhe-cs-trigger:hover, .mc-trigger:hover { border-color: #94a3b8; }
+                    .siarhe-metric-select:focus { outline: none; border-color: #06B6D4; box-shadow: 0 0 0 2px rgba(6,182,212,0.2); }
                     
                     .siarhe-cs-menu, .mc-menu { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); margin-top: 5px; z-index: 9999; display: none; flex-direction: column; max-height: 350px; overflow: hidden; }
                     .siarhe-cs-menu.open, .mc-menu.open { display: flex; }
-                    .siarhe-cs-search { padding: 10px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; z-index: 2; }
-                    .siarhe-cs-search input { width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; font-size: 13px; outline: none; transition: all 0.2s; }
+                    .siarhe-cs-search { padding: 10px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; z-index: 2; display: flex; gap: 8px; }
+                    .siarhe-cs-search input { flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; font-size: 13px; outline: none; transition: all 0.2s; }
                     .siarhe-cs-search input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2); }
+                    .siarhe-cs-search button { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; border-radius: 4px; padding: 0 10px; cursor: pointer; font-size: 12px; font-weight: bold; display: none; white-space: nowrap; height: 33px; line-height: 31px; }
+                    
                     .siarhe-cs-options { overflow-y: auto; padding: 4px 0; }
                     .siarhe-cs-option, .mc-option { padding: 8px 12px; cursor: pointer; color: #475569; font-size: 13px; display: flex; align-items: center; gap: 8px; transition: background 0.2s; line-height: 1.3;}
                     .siarhe-cs-option:hover, .mc-option:hover { background: #f1f5f9; color: #0f172a; }
@@ -73,7 +79,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
                     @media (max-width: 767px) { 
                         /* CORRECCIÓN MÓVIL */
-                        .siarhe-control-group { flex: none; width: 100%; }
+                        .siarhe-control-group { flex: none; width: 100%; min-width: 0; }
                         .siarhe-mode-toggle { margin-left: 0; margin-top: 10px; width: 100%; justify-content: space-between; } 
                         .siarhe-smart-toast { top: auto; bottom: 20px; right: 50%; transform: translateX(50%) translateY(120%); }
                         .siarhe-smart-toast.show { transform: translateX(50%) translateY(0); }
@@ -87,7 +93,19 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             ph.innerHTML = '';
             
             const wrapper = document.createElement('div'); 
-            wrapper.className = 'siarhe-controls'; 
+            wrapper.className = 'siarhe-controls-layout'; 
+            
+            wrapper.innerHTML = `
+                <div class="siarhe-controls-row">
+                    <div class="siarhe-control-group" id="c-indicador"><label>Indicador Principal</label></div>
+                    <div class="siarhe-control-group" id="c-posicion"><label>Marcadores (Posición)</label></div>
+                    <div class="siarhe-control-group" id="c-espectro"><label>Marcadores (Densidad)</label></div>
+                </div>
+                <div class="siarhe-controls-row">
+                    <div class="siarhe-control-group" id="c-escala"><label>Estilo de Mapa</label></div>
+                    <div class="siarhe-control-group" id="c-vista"><label>Vista Geográfica</label></div>
+                </div>
+            `;
 
             document.addEventListener('click', () => {
                 container.querySelectorAll('.siarhe-cs-menu, .mc-menu').forEach(m => m.classList.remove('open'));
@@ -155,9 +173,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             // ====================================================
             // A) CONSTRUCCIÓN DE "INDICADOR"
             // ====================================================
-            const grpInd = document.createElement('div'); 
-            grpInd.className = 'siarhe-control-group'; 
-            grpInd.innerHTML = `<label>Indicador</label>`;
+            const cInd = wrapper.querySelector('#c-indicador');
 
             const customSelectInd = document.createElement('div');
             customSelectInd.className = 'siarhe-custom-select';
@@ -212,8 +228,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             menuInd.appendChild(optionsContainerInd);
             customSelectInd.append(triggerInd, menuInd);
-            grpInd.appendChild(customSelectInd);
-            wrapper.appendChild(grpInd);
+            cInd.appendChild(customSelectInd);
 
             searchInputInd.addEventListener('keyup', (e) => {
                 const val = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); 
@@ -238,137 +253,202 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
 
             // ====================================================
-            // B) CONSTRUCCIÓN DE "MARCADORES" (CON BOTÓN DE LIMPIAR)
+            // B) FUNCIÓN GENERADORA DE MULTI-SELECTORES DE MARCADORES
             // ====================================================
-            if (opts.showMarkers) {
-                const validMarkers = Object.keys(state.markerUrls).filter(k => state.markerUrls[k]);
+            const buildMarkerDropdown = (targetId, typeFilter, placeholderTitle) => {
+                const containerDiv = wrapper.querySelector('#' + targetId);
+                const validMarkers = Object.keys(state.markerUrls).filter(k => state.markerUrls[k] && (state.markerLabels[k] || {}).tipo === typeFilter);
                 
-                if (validMarkers.length > 0) {
-                    const grpMarc = document.createElement('div'); 
-                    grpMarc.className = 'siarhe-control-group'; 
-                    grpMarc.innerHTML = `<label>Marcadores</label>`;
-                    
-                    const field = document.createElement('div'); 
-                    field.className = 'mc-field';
-                    
-                    const triggerMc = document.createElement('div'); 
-                    triggerMc.className = 'mc-trigger is-placeholder'; 
-                    triggerMc.innerHTML = `<span>Seleccionar...</span>`;
-                    state.markerTrigger = triggerMc; 
-                    
-                    const menuMc = document.createElement('div'); 
-                    menuMc.className = 'mc-menu';
-                    
-                    const searchBoxMc = document.createElement('div');
-                    searchBoxMc.className = 'siarhe-cs-search';
-                    searchBoxMc.style.display = 'flex';
-                    searchBoxMc.style.gap = '8px';
-                    searchBoxMc.addEventListener('click', e => e.stopPropagation());
-                    
-                    const searchInputMc = document.createElement('input');
-                    searchInputMc.type = 'text';
-                    searchInputMc.placeholder = '🔍 Buscar marcador...';
-                    searchInputMc.style.flex = '1';
-
-                    const btnClearMc = document.createElement('button');
-                    btnClearMc.type = 'button';
-                    btnClearMc.innerHTML = '✖ Limpiar';
-                    btnClearMc.style.cssText = 'background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; border-radius: 4px; padding: 0 10px; cursor: pointer; font-size: 12px; font-weight: bold; display: none; white-space: nowrap; height: 33px; line-height: 31px;';
-                    btnClearMc.title = 'Desmarcar todas las capas';
-                    
-                    btnClearMc.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        state.activeMarkers.clear();
-                        optionsContainerMc.querySelectorAll('.mc-check').forEach(chk => chk.checked = false);
-                        if (app.map) app.map.updateMarkers(state);
-                        if (app.map && app.map.renderMarkerLegend) app.map.renderMarkerLegend(state);
-                        app.controls.updateMarkerDropdownText(state);
-                    });
-
-                    searchBoxMc.appendChild(searchInputMc);
-                    searchBoxMc.appendChild(btnClearMc); 
-                    menuMc.appendChild(searchBoxMc);
-
-                    const optionsContainerMc = document.createElement('div');
-                    optionsContainerMc.className = 'siarhe-cs-options';
-
-                    validMarkers.forEach(key => {
-                        const mkData = state.markerLabels[key] || {};
-                        const label = mkData.label || key;
-                        
-                        const opt = document.createElement('div'); 
-                        opt.className = 'mc-option';
-                        opt.innerHTML = `<input type="checkbox" class="mc-check" value="${key}"> <span>${label}</span>`;
-                        
-                        opt.addEventListener('click', (e) => {
-                            if (e.target.tagName !== 'INPUT') {
-                                const chk = opt.querySelector('input'); 
-                                chk.checked = !chk.checked; 
-                                app.controls.toggleMarker(key, state, container);
-                            }
-                        });
-                        opt.querySelector('input').addEventListener('click', (e) => { 
-                            e.stopPropagation(); 
-                            app.controls.toggleMarker(key, state, container); 
-                        });
-                        optionsContainerMc.appendChild(opt);
-                    });
-                    
-                    menuMc.appendChild(optionsContainerMc);
-                    
-                    searchInputMc.addEventListener('keyup', (e) => {
-                        const val = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                        optionsContainerMc.querySelectorAll('.mc-option').forEach(o => {
-                            const text = o.textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                            o.style.display = text.includes(val) ? '' : 'none';
-                        });
-                    });
-
-                    triggerMc.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        const isOpen = menuMc.classList.contains('open');
-                        container.querySelectorAll('.siarhe-cs-menu, .mc-menu').forEach(m => m.classList.remove('open'));
-                        
-                        if (!isOpen) {
-                            menuMc.classList.add('open');
-                            searchInputMc.value = '';
-                            optionsContainerMc.querySelectorAll('.mc-option').forEach(o => o.style.display = '');
-                            setTimeout(() => searchInputMc.focus(), 50);
-                        }
-                    });
-
-                    field.append(triggerMc, menuMc); 
-                    grpMarc.appendChild(field); 
-                    wrapper.appendChild(grpMarc);
+                if (validMarkers.length === 0) {
+                    containerDiv.innerHTML += `<div class="mc-trigger is-placeholder" style="cursor:not-allowed; background:#f1f5f9;"><span>No disponibles</span></div>`;
+                    return;
                 }
-            }
 
-            // ====================================================
-            // C) TOGGLE DE MODO DE COLOR (Monocromático vs Cuartiles)
-            // ====================================================
-            if (opts.targetSelector === '.siarhe-controls-placeholder') { 
-                const colorToggleContainer = document.createElement('div');
-                colorToggleContainer.className = 'siarhe-mode-toggle';
+                const field = document.createElement('div'); 
+                field.className = 'mc-field';
                 
-                colorToggleContainer.innerHTML = `
-                    <span>Cuartiles</span>
-                    <label class="s-toggle-switch">
-                        <input type="checkbox" id="siarhe_color_mode_toggle" ${state.colorMode === 'mono' ? 'checked' : ''}>
-                        <span class="s-toggle-slider"></span>
-                    </label>
-                    <span>Monocromático</span>
-                `;
-
-                const checkbox = colorToggleContainer.querySelector('input');
-                checkbox.addEventListener('change', (e) => {
-                    state.colorMode = e.target.checked ? 'mono' : 'quartiles';
-                    if (app.map) app.map.updateVisuals(container, state);
+                const triggerMc = document.createElement('div'); 
+                triggerMc.className = `mc-trigger is-placeholder trigger-${typeFilter}`; 
+                triggerMc.innerHTML = `<span>${placeholderTitle}</span>`;
+                
+                if(typeFilter === 'posicion') state.posTrigger = triggerMc;
+                if(typeFilter === 'espectro') state.specTrigger = triggerMc;
+                
+                const menuMc = document.createElement('div'); 
+                menuMc.className = 'mc-menu';
+                
+                const searchBoxMc = document.createElement('div');
+                searchBoxMc.className = 'siarhe-cs-search';
+                searchBoxMc.addEventListener('click', e => e.stopPropagation());
+                
+                const searchInputMc = document.createElement('input');
+                searchInputMc.type = 'text';
+                searchInputMc.placeholder = '🔍 Filtrar...';
+                
+                const btnClearMc = document.createElement('button');
+                btnClearMc.type = 'button';
+                btnClearMc.innerHTML = '✖ Limpiar';
+                
+                btnClearMc.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    Array.from(state.activeMarkers).forEach(k => { 
+                        if((state.markerLabels[k] || {}).tipo === typeFilter) state.activeMarkers.delete(k); 
+                    });
+                    optionsContainerMc.querySelectorAll('.mc-check').forEach(chk => chk.checked = false);
+                    if (app.map) { app.map.updateMarkers(state); app.map.renderMarkerLegend(state); }
+                    app.controls.updateMarkerDropdownText(state);
                 });
 
-                wrapper.appendChild(colorToggleContainer);
+                searchBoxMc.append(searchInputMc, btnClearMc); 
+                menuMc.appendChild(searchBoxMc);
+
+                const optionsContainerMc = document.createElement('div');
+                optionsContainerMc.className = 'siarhe-cs-options';
+
+                validMarkers.forEach(key => {
+                    const mkData = state.markerLabels[key] || {};
+                    const label = mkData.label || key;
+                    
+                    const opt = document.createElement('div'); 
+                    opt.className = 'mc-option';
+                    opt.innerHTML = `<input type="checkbox" class="mc-check" value="${key}"> <span>${label}</span>`;
+                    
+                    opt.addEventListener('click', (e) => {
+                        if (e.target.tagName !== 'INPUT') {
+                            const chk = opt.querySelector('input'); 
+                            chk.checked = !chk.checked; 
+                            app.controls.toggleMarker(key, state, container);
+                        }
+                    });
+                    opt.querySelector('input').addEventListener('click', (e) => { 
+                        e.stopPropagation(); 
+                        app.controls.toggleMarker(key, state, container); 
+                    });
+                    optionsContainerMc.appendChild(opt);
+                });
+                
+                menuMc.appendChild(optionsContainerMc);
+                
+                searchInputMc.addEventListener('keyup', (e) => {
+                    const val = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    optionsContainerMc.querySelectorAll('.mc-option').forEach(o => {
+                        const text = o.textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        o.style.display = text.includes(val) ? '' : 'none';
+                    });
+                });
+
+                triggerMc.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isOpen = menuMc.classList.contains('open');
+                    container.querySelectorAll('.siarhe-cs-menu, .mc-menu').forEach(m => m.classList.remove('open'));
+                    
+                    if (!isOpen) {
+                        menuMc.classList.add('open');
+                        searchInputMc.value = '';
+                        optionsContainerMc.querySelectorAll('.mc-option').forEach(o => o.style.display = '');
+                        setTimeout(() => searchInputMc.focus(), 50);
+                    }
+                });
+
+                field.append(triggerMc, menuMc); 
+                containerDiv.appendChild(field);
+            };
+
+            if (opts.showMarkers) {
+                buildMarkerDropdown('c-posicion', 'posicion', 'Seleccionar Clínicas...');
+                buildMarkerDropdown('c-espectro', 'espectro', 'Seleccionar Espectros...');
             }
+
+            // ====================================================
+            // C) ESTILO DE MAPA (Degradado vs Monocromático)
+            // ====================================================
+            const cEscala = wrapper.querySelector('#c-escala');
+            const currentStyle = state.colorMode === 'mono' ? 'mono' : 'degradado'; 
             
+            cEscala.innerHTML += `
+                <select class="siarhe-metric-select" id="siarhe-escala-select">
+                    <option value="degradado" ${currentStyle === 'degradado' ? 'selected' : ''}>Degradado Continuo (Por Cuartiles)</option>
+                    <option value="rangos" disabled>Rangos Personalizados (Próximamente)</option>
+                    <option value="mono" ${currentStyle === 'mono' ? 'selected' : ''}>Escala Monocromática</option>
+                </select>
+            `;
+            cEscala.querySelector('select').addEventListener('change', (e) => {
+                state.colorMode = e.target.value === 'mono' ? 'mono' : 'quartiles'; 
+                state.realStyleMode = e.target.value; 
+                if (app.map) app.map.updateVisuals(container, state);
+            });
+
+
+            // ====================================================
+            // D) VISTA GEOGRÁFICA (Base vs Localidades)
+            // ====================================================
+            const cVista = wrapper.querySelector('#c-vista');
+            const labelNivel1 = state.isNacional ? 'Entidades Federativas' : 'Municipios';
+            const labelNivel2 = state.isNacional ? 'Municipios (Detalle)' : 'Localidades (Detalle)';
+            const geoLocUrl = container.dataset.geojsonLoc;
+
+            cVista.innerHTML += `
+                <select class="siarhe-metric-select" id="siarhe-vista-select">
+                    <option value="base">${labelNivel1}</option>
+                    ${geoLocUrl ? `<option value="detalle">${labelNivel2}</option>` : ''}
+                </select>
+            `;
+            
+            cVista.querySelector('select').addEventListener('change', (e) => {
+                const val = e.target.value;
+                const loading = container.querySelector('.siarhe-loading-overlay');
+                
+                // Guardamos el GeoJSON original si no lo hemos hecho aún
+                if (!state.baseGeoData) state.baseGeoData = state.geoData; 
+                
+                if (val === 'base') {
+                    // Volver al mapa original
+                    state.geoData = state.baseGeoData;
+                    state.isGeoLocMode = false;
+                    
+                    if (app.map) app.map.render(container, state, container.dataset.cveEnt);
+                    
+                    // Notificamos a la tabla que debe re-renderizarse (siarhe-table.js debe escuchar este onUpdate)
+                    onUpdate();
+                } 
+                else if (val === 'detalle' && geoLocUrl) {
+                    // Cargar el GeoJSON de detalle (Localidades)
+                    if (loading) { 
+                        loading.style.display = 'flex'; 
+                        loading.querySelector('p').textContent = 'Cargando ' + labelNivel2 + '...'; 
+                    }
+                    
+                    // Si no está en caché, lo descargamos
+                    if (!state.locGeoData) {
+                        d3.json(geoLocUrl).then(data => {
+                            state.locGeoData = data;
+                            state.geoData = data;
+                            state.isGeoLocMode = true;
+                            
+                            if (app.map) app.map.render(container, state, container.dataset.cveEnt);
+                            if (loading) loading.style.display = 'none';
+                            
+                            onUpdate(); // Actualizar tabla
+                        }).catch(err => {
+                            console.error("[SIARHE] Error al cargar GeoJSON detallado", err);
+                            if (loading) loading.style.display = 'none';
+                            e.target.value = 'base'; // Revertir selector si falla
+                        });
+                    } else {
+                        // Si ya estaba en caché, usarlo directo
+                        state.geoData = state.locGeoData;
+                        state.isGeoLocMode = true;
+                        
+                        if (app.map) app.map.render(container, state, container.dataset.cveEnt);
+                        if (loading) loading.style.display = 'none';
+                        
+                        onUpdate(); // Actualizar tabla
+                    }
+                }
+            });
+
             ph.appendChild(wrapper);
+            app.controls.updateMarkerDropdownText(state);
         },
 
         toggleMarker: async function(type, state, container) {
@@ -540,25 +620,27 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         },
 
         updateMarkerDropdownText: function(state) {
-            if (!state.markerTrigger) return;
-            const selected = Array.from(state.activeMarkers);
-            
-            const clearBtn = state.markerTrigger.parentElement.querySelector('.siarhe-cs-search button');
-            if (clearBtn) {
-                clearBtn.style.display = selected.length > 0 ? 'block' : 'none';
-            }
+            const upd = (trigger, typeFilter) => {
+                if (!trigger) return;
+                const sel = Array.from(state.activeMarkers).filter(k => (state.markerLabels[k] || {}).tipo === typeFilter);
+                
+                const clearBtn = trigger.parentElement.querySelector('.siarhe-cs-search button');
+                if (clearBtn) {
+                    clearBtn.style.display = sel.length > 0 ? 'block' : 'none';
+                }
 
-            if (selected.length === 0) { 
-                state.markerTrigger.innerHTML = `<span>Seleccionar...</span>`; 
-                state.markerTrigger.classList.add('is-placeholder'); 
-            } else {
-                const labels = selected.map(k => {
-                    const mkData = state.markerLabels[k] || {};
-                    return mkData.label || k;
-                });
-                state.markerTrigger.innerHTML = `<span>${labels.join(', ')}</span>`; 
-                state.markerTrigger.classList.remove('is-placeholder');
-            }
+                if (sel.length === 0) { 
+                    trigger.innerHTML = `<span>Seleccionar...</span>`; 
+                    trigger.classList.add('is-placeholder'); 
+                } else {
+                    const labels = sel.map(k => state.markerLabels[k].label || k);
+                    trigger.innerHTML = `<span>${labels.join(', ')}</span>`; 
+                    trigger.classList.remove('is-placeholder');
+                }
+            };
+
+            upd(state.posTrigger, 'posicion');
+            upd(state.specTrigger, 'espectro');
         },
 
         setupActionButtons: function(container, state) {

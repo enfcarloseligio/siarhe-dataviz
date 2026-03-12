@@ -24,9 +24,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 c= '0x'+c.join('');
                 return 'rgba('+[(c>>16)&255, (c>>8)&255, c&255].join(',')+','+alpha+')';
             }
-            // 🌟 SOPORTE RGBA NATIVO: Si ya viene en formato rgba(r,g,b,a), lo devuelve intacto para los Espectros
+            // SOPORTE RGBA NATIVO: Si ya viene en formato rgba(r,g,b,a), lo devuelve intacto para los Espectros
             if(hex.startsWith('rgba') || hex.startsWith('rgb')) return hex;
-            return `rgba(15, 23, 42, ${alpha})`; // Fallback oscuro
+            return `rgba(15, 23, 42, ${alpha})`; 
         },
 
         // ==========================================
@@ -208,8 +208,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                                     val = realCol ? parseFloat(d._raw[realCol]) || 0 : 0;
                                 }
                                 const max = (state.espectroMaxVals && state.espectroMaxVals[d.tipo]) ? state.espectroMaxVals[d.tipo] : 1;
-                                // 🌟 TAMAÑO DE BURBUJAS: Rango ajustado para destacar las grandes sin tapar el mapa
-                                const scaleArea = d3.scaleLinear().domain([0, max]).range([symbolSize * 0.8, symbolSize * 18]).clamp(true);
+                                
+                                if (val <= 0) return d3.symbol().type(app.utils.getD3Shape(app.utils.getMarkerStyle(d.tipo, state).shape)).size(0)();
+
+                                // 🌟 TAMAÑO DE BURBUJAS: El valor 1 inicia en 2.5 veces el tamaño del marcador base.
+                                const scaleArea = d3.scaleLinear().domain([1, max]).range([symbolSize * 2.5, symbolSize * 25]).clamp(true);
                                 const styleCfg = app.utils.getMarkerStyle(d.tipo, state);
                                 return d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)).size(scaleArea(val))();
                             }
@@ -456,18 +459,16 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 }
             });
 
-            // 🌟 MOTOR DE RESUMEN GEOGRÁFICO (ROLLUP) SEGURO 🌟
+            // MOTOR DE RESUMEN GEOGRÁFICO (ROLLUP) SEGURO
             let htmlResumenMarcadores = '';
             try {
                 if (state.activeMarkers && state.activeMarkers.size > 0) {
-                    // Obtener la clave de la entidad de forma segura
                     const wrapper = mapDiv.closest('.siarhe-viz-wrapper');
                     const mapCveEnt = wrapper && wrapper.dataset.cveEnt ? wrapper.dataset.cveEnt.toString().padStart(2, '0') : '';
 
                     state.activeMarkers.forEach(type => {
                         const config = state.markerLabels[type] || {};
                         
-                        // Solo procesar si el usuario activó la opción "resumen_geo"
                         if (config.resumen_geo === true || config.resumen_geo === 'true') {
                             const markerData = state.markersData[type] || [];
                             
@@ -475,16 +476,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                             let totalRegistros = 0;
                             let sumReglas = {};
 
-                            // Filtrar marcadores dentro del polígono actual (cve)
                             markerData.forEach(mk => {
                                 let match = false;
                                 const mkEnt = mk.cve_ent ? mk.cve_ent.toString().padStart(2, '0') : null;
 
                                 if (state.isNacional) {
-                                    // En mapa nacional: cruce por CVE_ENT
                                     if (mkEnt === cve) match = true;
                                 } else {
-                                    // En mapa estatal: cruce por CVE_ENT + CVE_MUN
                                     let mkMun = null;
                                     if (mk._raw) {
                                         mkMun = app.utils.getColValue(mk._raw, ['cve_mun', 'cve mun', 'municipio', 'clave_municipio']);
@@ -508,7 +506,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
                             if (totalPuntos > 0) {
                                 const mkStyle = app.utils.getMarkerStyle(type, state);
-                                // Si es espectro y trae rgba, extraemos solo el RGB para el indicador visual
                                 const mkLabelColor = mkStyle.fill.startsWith('rgba') ? mkStyle.fill.replace(/[^,]+(?=\))/, '1') : mkStyle.fill;
                                 const mkLabelNombre = config.label || type;
 
@@ -591,6 +588,24 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if(state.markersData[type]) allPoints = allPoints.concat(state.markersData[type]); 
             });
 
+            // 🌟 Z-INDEX INTELIGENTE: Ordenar para que los Espectros (burbujas grandes) queden al fondo
+            // y los marcadores de Posición queden al frente, garantizando que siempre sean clickeables.
+            allPoints.sort((a, b) => {
+                const isSpecA = (state.markerLabels[a.tipo] || {}).tipo === 'espectro';
+                const isSpecB = (state.markerLabels[b.tipo] || {}).tipo === 'espectro';
+                
+                if (isSpecA && !isSpecB) return -1; // A (espectro) va antes (al fondo) que B (posicion)
+                if (!isSpecA && isSpecB) return 1;  // B (espectro) va antes que A
+                
+                // Si ambos son espectros, dibujar el más grande primero para que no tape al pequeño
+                if (isSpecA && isSpecB) {
+                    let valA = a._agrupados_total || 1;
+                    let valB = b._agrupados_total || 1;
+                    return valB - valA; 
+                }
+                return 0;
+            });
+
             let currentK = 1; 
             if (state.svg) { try { currentK = d3.zoomTransform(state.svg.node()).k; } catch(e) {} }
             
@@ -639,9 +654,14 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                             val = realCol ? parseFloat(d._raw[realCol]) || 0 : 0;
                         }
                         const max = state.espectroMaxVals[d.tipo] || 1;
-                        // 🌟 TAMAÑO DE BURBUJAS: Escala logarítmica o lineal adaptada
-                        const scaleArea = d3.scaleLinear().domain([0, max]).range([symbolSize * 0.8, symbolSize * 18]).clamp(true);
-                        finalSize = scaleArea(val);
+                        
+                        if (val <= 0) {
+                            finalSize = 0; // Ocultar si vale 0
+                        } else {
+                            // 🌟 TAMAÑO DIFERENCIADO: Si vale 1, inicia 2.5 veces más grande que el marcador base
+                            const scaleArea = d3.scaleLinear().domain([1, max]).range([symbolSize * 2.5, symbolSize * 25]).clamp(true);
+                            finalSize = scaleArea(val);
+                        }
                     }
 
                     const styleCfg = app.utils.getMarkerStyle(d.tipo, state);
@@ -654,7 +674,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .attr("fill", d => {
                     const styleCfg = app.utils.getMarkerStyle(d.tipo, state);
                     const config = state.markerLabels[d.tipo] || {};
-                    // Si ya es un rgba del panel, se usa directo, si no y es espectro, se le pone 0.75
                     if (config.tipo === 'espectro') {
                         return styleCfg.fill.startsWith('rgba') ? styleCfg.fill : app.map.hexToRgba(styleCfg.fill, 0.75);
                     }
@@ -665,7 +684,14 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .style("cursor", "pointer")
                 .on("mouseover", function(e, d) {
                     let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
-                    d3.select(this).attr("stroke-width", 3 / k).raise(); 
+                    const config = state.markerLabels[d.tipo] || {};
+                    
+                    d3.select(this).attr("stroke-width", 3 / k); 
+                    
+                    // 🌟 BLOQUEO DE RAISE: SÓLO los de posición se traen al frente. El espectro se queda abajo.
+                    if (config.tipo !== 'espectro') {
+                        d3.select(this).raise(); 
+                    }
 
                     const tt = state.tooltipConfig || {}; 
                     const hlVar = tt.mk_highlight_var || 'none';

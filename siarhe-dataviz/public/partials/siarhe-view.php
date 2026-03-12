@@ -73,6 +73,10 @@ $marker_labels = [];
 $is_user_logged_in = is_user_logged_in();
 $upload_url = defined('SIARHE_UPLOAD_URL') ? SIARHE_UPLOAD_URL : wp_upload_dir()['baseurl'] . '/siarhe-data/';
 
+// 🌟 OBTENER GEOJSON DE LOCALIDADES (DETALLE) 🌟
+$geo_loc_meta = $wpdb->get_row( $wpdb->prepare( "SELECT ruta_archivo FROM $table_assets WHERE entidad_slug = %s AND tipo_archivo = 'localidades_geojson' AND es_activo = 1", $slug ) );
+$geojson_loc_url = ($geo_loc_meta && !empty($geo_loc_meta->ruta_archivo)) ? $upload_url . $geo_loc_meta->ruta_archivo : '';
+
 foreach ($marcadores_array as $key => $mk) {
     $visibilidad = isset($mk['visibilidad']) ? $mk['visibilidad'] : 'publico';
     
@@ -252,6 +256,7 @@ if ( !empty($siarhe_links_raw['legal_aviso']) ) {
      data-mode="<?php echo esc_attr($mode); ?>"
      data-geojson="<?php echo esc_url($geojson_url); ?>"
      data-csv="<?php echo esc_url($csv_url); ?>"
+     data-geojson-loc="<?php echo esc_url($geojson_loc_url); ?>"
      data-marker-config='<?php echo esc_attr(wp_json_encode($marker_config)); ?>'
      data-marker-urls='<?php echo esc_attr(wp_json_encode($marker_urls)); ?>'
      data-marker-labels='<?php echo esc_attr(wp_json_encode($marker_labels)); ?>'
