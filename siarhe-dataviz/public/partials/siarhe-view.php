@@ -265,6 +265,7 @@ if ( !empty($siarhe_links_raw['legal_aviso']) ) {
      data-entity-urls='<?php echo esc_attr(wp_json_encode($entity_urls)); ?>' 
      data-metricas='<?php echo esc_attr($metricas_clean_json); ?>' 
      data-tooltips='<?php echo esc_attr($tooltip_json); ?>' 
+     data-catalogo='<?php echo esc_attr(wp_json_encode($catalogo_oficial)); ?>'
      data-home-url="<?php echo esc_url($home_url); ?>"> 
 
     <?php 

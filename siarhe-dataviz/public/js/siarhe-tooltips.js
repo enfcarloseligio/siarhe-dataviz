@@ -14,20 +14,44 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
         showGeoTooltip: function(event, d, state, mapDiv) {
             let cve = app.utils.getGeoKey(d.properties, state.isNacional);
-            const row = state.dataMap.get(cve);
+            let row = state.dataMap.get(cve);
+            const wrapper = mapDiv.closest('.siarhe-viz-wrapper');
             
-            // 🌟 LÓGICA MUNICIPIO - LOCALIDAD
+            // LÓGICA DE HERENCIA: Si estamos en vista detalle y no hay fila, heredar del padre
+            if (!row && state.isGeoLocMode && d.properties.CVE_ENT && d.properties.CVE_MUN) {
+                let parentCve = state.isNacional ? d.properties.CVE_ENT : (d.properties.CVE_ENT + d.properties.CVE_MUN);
+                row = state.dataMap.get(parentCve);
+            }
+            
+            // 🌟 LÓGICA INTELIGENTE DE TÍTULOS (NACIONAL VS ESTATAL)
             let nombre = row ? row.estado : (d.properties.NOMGEO || d.properties.NOM_ENT || "Sin Datos");
             
             if (state.isGeoLocMode) {
-                // Extraer atributos estándar del Marco Geoestadístico de INEGI
-                let mun = d.properties.NOM_MUN || d.properties.MUNICIPIO || "";
-                let loc = d.properties.NOM_LOC || d.properties.NOMGEO || d.properties.LOCALIDAD || "";
-                
-                if (mun && loc && mun !== loc) {
-                    nombre = `${mun} - <span style="opacity:0.8; font-weight:normal;">${loc}</span>`;
-                } else if (loc) {
-                    nombre = loc;
+                if (state.isNacional) {
+                    // MODO NACIONAL DETALLE = ESTADO / MUNICIPIO
+                    let catalogo = {};
+                    if (wrapper && wrapper.dataset.catalogo) {
+                        try { catalogo = JSON.parse(wrapper.dataset.catalogo); } catch(e){}
+                    }
+                    let cveEnt = d.properties.CVE_ENT ? d.properties.CVE_ENT.toString().padStart(2, '0') : '';
+                    let entName = catalogo[cveEnt] || (row ? row.estado : "Entidad");
+                    let munName = d.properties.NOMGEO || d.properties.NOM_MUN || d.properties.MUNICIPIO || "";
+                    
+                    if (entName && munName) {
+                        nombre = `${entName} / <span style="opacity:0.8; font-weight:normal;">${munName}</span>`;
+                    } else if (munName) {
+                        nombre = munName;
+                    }
+                } else {
+                    // MODO ESTATAL DETALLE = MUNICIPIO / LOCALIDAD
+                    let munName = row ? row.estado : (d.properties.NOM_MUN || d.properties.MUNICIPIO || "Municipio");
+                    let locName = d.properties.NOMGEO || d.properties.NOM_LOC || d.properties.LOCALIDAD || "";
+                    
+                    if (munName && locName && munName !== locName) {
+                        nombre = `${munName} / <span style="opacity:0.8; font-weight:normal;">${locName}</span>`;
+                    } else if (locName) {
+                        nombre = locName;
+                    }
                 }
             }
 
@@ -91,8 +115,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             let htmlResumenMarcadores = '';
             try {
                 if (state.activeMarkers && state.activeMarkers.size > 0) {
-                    const wrapper = mapDiv.closest('.siarhe-viz-wrapper');
                     const mapCveEnt = wrapper && wrapper.dataset.cveEnt ? wrapper.dataset.cveEnt.toString().padStart(2, '0') : '';
+                    const mapCveMun = (state.isGeoLocMode && d.properties.CVE_MUN) ? d.properties.CVE_MUN.toString().padStart(3, '0') : cve;
 
                     state.activeMarkers.forEach(type => {
                         const config = state.markerLabels[type] || {};
@@ -116,7 +140,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                                         mkMun = app.utils.getColValue(mk._raw, ['cve_mun', 'cve mun', 'municipio', 'clave_municipio']);
                                         if (mkMun) mkMun = mkMun.toString().padStart(3, '0');
                                     }
-                                    if (mkEnt === mapCveEnt && mkMun === cve) match = true;
+                                    if (mkEnt === mapCveEnt && mkMun === mapCveMun) match = true;
                                 }
 
                                 if (match) {

@@ -15,12 +15,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         
         renderMain: function(container, state, onUpdate, opts = { targetSelector: '.siarhe-controls-placeholder', showMarkers: true }) {
             
-            // INYECCIÓN CSS: Estilos para los Dropdowns, el Toggle de Colores y el nuevo TOAST FLOTANTE 🌟
             if (!document.getElementById('siarhe-search-dropdown-styles')) {
                 const style = document.createElement('style');
                 style.id = 'siarhe-search-dropdown-styles';
                 style.innerHTML = `
-                    /* SOLUCIÓN FLEXBOX: Obliga a los contenedores a medir lo mismo en PC */
                     .siarhe-controls-layout { display: flex; flex-direction: column; gap: 15px; background: #F8FAFC; padding: 15px 20px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 20px; }
                     .siarhe-controls-row { display: flex; gap: 20px; flex-wrap: wrap; width: 100%; align-items: flex-end; }
                     .siarhe-control-group { flex: 1 1 0%; min-width: 220px; display: flex; flex-direction: column; gap: 5px; }
@@ -28,7 +26,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     
                     .siarhe-custom-select, .mc-field { position: relative; width: 100%; font-family: 'Roboto', sans-serif; }
                     
-                    /* TRUNCAMIENTO PERFECTO DEL TEXTO CON PUNTOS SUSPENSIVOS (...) */
                     .siarhe-metric-select, .siarhe-cs-trigger, .mc-trigger { background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 0 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: #334155; height: 38px; box-sizing: border-box; font-size: 14px; transition: border-color 0.2s; overflow: hidden; width: 100%; }
                     .siarhe-cs-trigger > span, .mc-trigger > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; text-align: left; line-height: 36px; padding-right: 10px; flex: 1; }
                     .siarhe-cs-trigger::after, .mc-trigger::after { content: "▼"; font-size: 10px; color: #94a3b8; flex-shrink: 0; }
@@ -48,7 +45,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     .siarhe-cs-option.selected { font-weight: bold; color: #0284c7; background: #f0f9ff; border-left: 3px solid #0284c7; padding-left: 9px; }
                     .is-placeholder span { color: #94a3b8 !important; }
                     
-                    /* Estilos del Toggle Switch Monocromático */
                     .siarhe-mode-toggle { display: flex; align-items: center; gap: 8px; margin-left: auto; font-family: 'Roboto', sans-serif; font-size: 13px; color: #475569; }
                     .s-toggle-switch { position: relative; display: inline-block; width: 40px; height: 20px; }
                     .s-toggle-switch input { opacity: 0; width: 0; height: 0; }
@@ -57,20 +53,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     .s-toggle-switch input:checked + .s-toggle-slider { background-color: #0284c7; }
                     .s-toggle-switch input:checked + .s-toggle-slider:before { transform: translateX(20px); }
                     
-                    /* 🌟 ESTILOS DEL TOAST FLOTANTE (SUGERENCIA INTELIGENTE) 🌟 */
-                    .siarhe-smart-toast {
-                        position: absolute; top: 20px; right: 20px; z-index: 10000;
-                        background: #fff; border-left: 4px solid #0ea5e9; border-radius: 6px;
-                        box-shadow: 0 10px 25px rgba(0,0,0,0.15); padding: 15px;
-                        display: flex; flex-direction: column; gap: 10px; 
-                        font-family: 'Roboto', sans-serif; font-size: 13px;
-                        width: 280px; max-width: calc(100% - 40px);
-                        transform: translateX(120%); opacity: 0; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                        pointer-events: none; /* Ignora clics mientras está oculto */
-                    }
-                    .siarhe-smart-toast.show {
-                        transform: translateX(0); opacity: 1; pointer-events: auto;
-                    }
+                    .siarhe-smart-toast { position: absolute; top: 20px; right: 20px; z-index: 10000; background: #fff; border-left: 4px solid #0ea5e9; border-radius: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); padding: 15px; display: flex; flex-direction: column; gap: 10px; font-family: 'Roboto', sans-serif; font-size: 13px; width: 280px; max-width: calc(100% - 40px); transform: translateX(120%); opacity: 0; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); pointer-events: none; }
+                    .siarhe-smart-toast.show { transform: translateX(0); opacity: 1; pointer-events: auto; }
                     .siarhe-toast-header { display: flex; justify-content: space-between; align-items: center; color: #0f172a; font-size: 14px;}
                     .siarhe-toast-close { cursor: pointer; color: #94a3b8; border: none; background: none; font-size: 16px; line-height: 1; padding: 0; margin: 0; }
                     .siarhe-toast-close:hover { color: #d63638; }
@@ -78,7 +62,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     .siarhe-toast-btn:hover { background: #e0f2fe; }
 
                     @media (max-width: 767px) { 
-                        /* CORRECCIÓN MÓVIL */
                         .siarhe-control-group { flex: none; width: 100%; min-width: 0; }
                         .siarhe-mode-toggle { margin-left: 0; margin-top: 10px; width: 100%; justify-content: space-between; } 
                         .siarhe-smart-toast { top: auto; bottom: 20px; right: 50%; transform: translateX(50%) translateY(120%); }
@@ -111,7 +94,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 container.querySelectorAll('.siarhe-cs-menu, .mc-menu').forEach(m => m.classList.remove('open'));
             });
 
-            // 🌟 INYECTAR TOAST AL CONTENEDOR PRINCIPAL
             let toastBox = container.querySelector('.siarhe-smart-toast');
             if (!toastBox) {
                 toastBox = document.createElement('div');
@@ -133,10 +115,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 `;
                 
                 toastBox.querySelector('.siarhe-toast-close').onclick = () => toastBox.classList.remove('show');
-                
                 toastBox.querySelector('.siarhe-toast-btn').onclick = () => {
                     toastBox.classList.remove('show');
-                    // Simular activación desde el checkbox oculto en el DOM
                     const chk = container.querySelector(`.mc-check[value="${markerKey}"]`);
                     if (chk && !chk.checked) {
                         chk.checked = true;
@@ -152,35 +132,24 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             };
 
             const checkSpectrumLink = (metricKey) => {
-                if (!opts.showMarkers) return; // Si no hay marcadores habilitados, no hacer nada.
-                
-                // Buscar si hay algún marcador de tipo espectro asociado a esta métrica
+                if (!opts.showMarkers) return; 
                 const linkedMarkerKey = Object.keys(state.markerLabels).find(k => {
                     const mk = state.markerLabels[k];
                     return mk.tipo === 'espectro' && mk.espectro_pair === metricKey;
                 });
-
-                // Si existe y NO está activo actualmente, mostrar la sugerencia
                 if (linkedMarkerKey && !state.activeMarkers.has(linkedMarkerKey)) {
                     const mkLabel = state.markerLabels[linkedMarkerKey].label || linkedMarkerKey;
                     showSmartToast(linkedMarkerKey, mkLabel);
                 } else {
-                    toastBox.classList.remove('show'); // Ocultar si cambia a uno sin enlace
+                    toastBox.classList.remove('show'); 
                 }
             };
 
-
-            // ====================================================
-            // A) CONSTRUCCIÓN DE "INDICADOR"
-            // ====================================================
             const cInd = wrapper.querySelector('#c-indicador');
-
             const customSelectInd = document.createElement('div');
             customSelectInd.className = 'siarhe-custom-select';
-
             const triggerInd = document.createElement('div');
             triggerInd.className = 'siarhe-cs-trigger';
-
             const menuInd = document.createElement('div');
             menuInd.className = 'siarhe-cs-menu';
 
@@ -199,30 +168,22 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             Object.entries(state.metricas).forEach(([key, info]) => {
                 const opt = document.createElement('div');
                 opt.className = 'siarhe-cs-option';
-                
                 if (key === state.currentMetric) {
                     opt.classList.add('selected');
                     triggerInd.innerHTML = `<span>${info.label || info.fullLabel}</span>`;
                 }
-                
                 opt.textContent = info.fullLabel;
-                
                 opt.addEventListener('click', (e) => {
                     e.stopPropagation();
                     state.currentMetric = key;
                     app.sortConfig = { key: 'tasa', direction: 'desc' };
-                    
                     triggerInd.innerHTML = `<span>${info.label || info.fullLabel}</span>`;
                     optionsContainerInd.querySelectorAll('.siarhe-cs-option').forEach(o => o.classList.remove('selected'));
                     opt.classList.add('selected');
                     menuInd.classList.remove('open');
-                    
                     onUpdate(); 
-                    
-                    // 🌟 MAGIA: Verificar si hay un Espectro Vinculado después de actualizar 🌟
                     checkSpectrumLink(key);
                 });
-                
                 optionsContainerInd.appendChild(opt);
             });
 
@@ -242,7 +203,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 e.stopPropagation();
                 const isOpen = menuInd.classList.contains('open');
                 container.querySelectorAll('.siarhe-cs-menu, .mc-menu').forEach(m => m.classList.remove('open'));
-                
                 if (!isOpen) {
                     menuInd.classList.add('open');
                     searchInputInd.value = '';
@@ -251,10 +211,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 }
             });
 
-
-            // ====================================================
-            // B) FUNCIÓN GENERADORA DE MULTI-SELECTORES DE MARCADORES
-            // ====================================================
             const buildMarkerDropdown = (targetId, typeFilter, placeholderTitle) => {
                 const containerDiv = wrapper.querySelector('#' + targetId);
                 const validMarkers = Object.keys(state.markerUrls).filter(k => state.markerUrls[k] && (state.markerLabels[k] || {}).tipo === typeFilter);
@@ -308,7 +264,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 validMarkers.forEach(key => {
                     const mkData = state.markerLabels[key] || {};
                     const label = mkData.label || key;
-                    
                     const opt = document.createElement('div'); 
                     opt.className = 'mc-option';
                     opt.innerHTML = `<input type="checkbox" class="mc-check" value="${key}"> <span>${label}</span>`;
@@ -341,7 +296,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     e.stopPropagation();
                     const isOpen = menuMc.classList.contains('open');
                     container.querySelectorAll('.siarhe-cs-menu, .mc-menu').forEach(m => m.classList.remove('open'));
-                    
                     if (!isOpen) {
                         menuMc.classList.add('open');
                         searchInputMc.value = '';
@@ -359,9 +313,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 buildMarkerDropdown('c-espectro', 'espectro', 'Seleccionar Espectros...');
             }
 
-            // ====================================================
-            // C) ESTILO DE MAPA (Degradado vs Monocromático)
-            // ====================================================
             const cEscala = wrapper.querySelector('#c-escala');
             const currentStyle = state.colorMode === 'mono' ? 'mono' : 'degradado'; 
             
@@ -379,9 +330,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             });
 
 
-            // ====================================================
-            // D) VISTA GEOGRÁFICA (Base vs Localidades)
-            // ====================================================
+            // 🌟 NUEVA LÓGICA VISTA GEOGRÁFICA (SUPERPOSICIÓN TRANSPARENTE)
             const cVista = wrapper.querySelector('#c-vista');
             const labelNivel1 = state.isNacional ? 'Entidades Federativas' : 'Municipios';
             const labelNivel2 = state.isNacional ? 'Municipios (Detalle)' : 'Localidades (Detalle)';
@@ -398,13 +347,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const val = e.target.value;
                 const loading = container.querySelector('.siarhe-loading-overlay');
                 
-                if (!state.baseGeoData) state.baseGeoData = state.geoData; 
-                
                 if (val === 'base') {
-                    state.geoData = state.baseGeoData;
                     state.isGeoLocMode = false;
-                    
-                    // 🌟 AHORA USAMOS UPDATE GEOGRAPHY
                     if (app.map) app.map.updateGeography(container, state);
                     onUpdate();
                 } 
@@ -417,13 +361,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     if (!state.locGeoData) {
                         d3.json(geoLocUrl).then(data => {
                             state.locGeoData = data;
-                            state.geoData = data;
                             state.isGeoLocMode = true;
-                            
-                            // 🌟 AHORA USAMOS UPDATE GEOGRAPHY
                             if (app.map) app.map.updateGeography(container, state);
                             if (loading) loading.style.display = 'none';
-                            
                             onUpdate(); 
                         }).catch(err => {
                             console.error("[SIARHE] Error al cargar GeoJSON detallado", err);
@@ -431,13 +371,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                             e.target.value = 'base';
                         });
                     } else {
-                        state.geoData = state.locGeoData;
                         state.isGeoLocMode = true;
-                        
-                        // 🌟 AHORA USAMOS UPDATE GEOGRAPHY
                         if (app.map) app.map.updateGeography(container, state);
                         if (loading) loading.style.display = 'none';
-                        
                         onUpdate();
                     }
                 }
@@ -485,7 +421,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                             const config = state.markerLabels[type] || {};
                             const filtroCol = config.filtro_col ? config.filtro_col.toLowerCase().trim() : null;
                             const filtroVal = config.filtro_val ? config.filtro_val.toString().toLowerCase().trim() : null;
-                            
                             const agruparCol = config.agrupar_col ? config.agrupar_col.toLowerCase().trim() : null;
                             const reglas = config.reglas_tooltip || [];
 
