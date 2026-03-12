@@ -398,27 +398,21 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const val = e.target.value;
                 const loading = container.querySelector('.siarhe-loading-overlay');
                 
-                // Guardamos el GeoJSON original si no lo hemos hecho aún
                 if (!state.baseGeoData) state.baseGeoData = state.geoData; 
                 
                 if (val === 'base') {
-                    // Volver al mapa original
                     state.geoData = state.baseGeoData;
                     state.isGeoLocMode = false;
                     
                     if (app.map) app.map.render(container, state, container.dataset.cveEnt);
-                    
-                    // Notificamos a la tabla que debe re-renderizarse (siarhe-table.js debe escuchar este onUpdate)
                     onUpdate();
                 } 
                 else if (val === 'detalle' && geoLocUrl) {
-                    // Cargar el GeoJSON de detalle (Localidades)
                     if (loading) { 
                         loading.style.display = 'flex'; 
                         loading.querySelector('p').textContent = 'Cargando ' + labelNivel2 + '...'; 
                     }
                     
-                    // Si no está en caché, lo descargamos
                     if (!state.locGeoData) {
                         d3.json(geoLocUrl).then(data => {
                             state.locGeoData = data;
@@ -428,21 +422,20 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                             if (app.map) app.map.render(container, state, container.dataset.cveEnt);
                             if (loading) loading.style.display = 'none';
                             
-                            onUpdate(); // Actualizar tabla
+                            onUpdate(); 
                         }).catch(err => {
                             console.error("[SIARHE] Error al cargar GeoJSON detallado", err);
                             if (loading) loading.style.display = 'none';
-                            e.target.value = 'base'; // Revertir selector si falla
+                            e.target.value = 'base';
                         });
                     } else {
-                        // Si ya estaba en caché, usarlo directo
                         state.geoData = state.locGeoData;
                         state.isGeoLocMode = true;
                         
                         if (app.map) app.map.render(container, state, container.dataset.cveEnt);
                         if (loading) loading.style.display = 'none';
                         
-                        onUpdate(); // Actualizar tabla
+                        onUpdate();
                     }
                 }
             });

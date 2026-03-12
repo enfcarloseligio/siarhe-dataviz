@@ -10,7 +10,9 @@ wp_enqueue_script( 'siarhe-controls-js', SIARHE_URL . 'public/js/siarhe-controls
 
 // 2. Mapa (Solo si el shortcode incluye la letra 'M')
 if ( strpos( strtoupper($mode), 'M' ) !== false ) {
-    wp_enqueue_script( 'siarhe-map-js', SIARHE_URL . 'public/js/siarhe-map.js', array('siarhe-core-js', 'siarhe-controls-js'), $v_js, true );
+    // 🌟 AÑADIDO: Cargamos el gestor de Tooltips antes del mapa
+    wp_enqueue_script( 'siarhe-tooltips-js', SIARHE_URL . 'public/js/siarhe-tooltips.js', array('siarhe-core-js'), $v_js, true );
+    wp_enqueue_script( 'siarhe-map-js', SIARHE_URL . 'public/js/siarhe-map.js', array('siarhe-core-js', 'siarhe-controls-js', 'siarhe-tooltips-js'), $v_js, true );
 }
 
 // 3. Tabla (Solo si el shortcode incluye la letra 'T')
