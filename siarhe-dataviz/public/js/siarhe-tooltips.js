@@ -23,34 +23,26 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 row = state.dataMap.get(parentCve);
             }
             
-            // 🌟 LÓGICA INTELIGENTE DE TÍTULOS (NACIONAL VS ESTATAL)
+            // LÓGICA INTELIGENTE DE TÍTULOS (NACIONAL VS ESTATAL)
             let nombre = row ? row.estado : (d.properties.NOMGEO || d.properties.NOM_ENT || "Sin Datos");
             
             if (state.isGeoLocMode) {
+                let ent = row ? row.estado : (d.properties.NOM_ENT || "");
+                let mun = d.properties.NOM_MUN || d.properties.MUNICIPIO || "";
+                let loc = d.properties.NOM_LOC || d.properties.LOCALIDAD || "";
+
                 if (state.isNacional) {
-                    // MODO NACIONAL DETALLE = ESTADO / MUNICIPIO
-                    let catalogo = {};
-                    if (wrapper && wrapper.dataset.catalogo) {
-                        try { catalogo = JSON.parse(wrapper.dataset.catalogo); } catch(e){}
-                    }
-                    let cveEnt = d.properties.CVE_ENT ? d.properties.CVE_ENT.toString().padStart(2, '0') : '';
-                    let entName = catalogo[cveEnt] || (row ? row.estado : "Entidad");
-                    let munName = d.properties.NOMGEO || d.properties.NOM_MUN || d.properties.MUNICIPIO || "";
-                    
-                    if (entName && munName) {
-                        nombre = `${entName} / <span style="opacity:0.8; font-weight:normal;">${munName}</span>`;
-                    } else if (munName) {
-                        nombre = munName;
+                    if (!mun && d.properties.NOMGEO) mun = d.properties.NOMGEO; 
+                    if (mun) {
+                        nombre = `${ent} / <span style="opacity:0.8; font-weight:normal;">${mun}</span>`;
                     }
                 } else {
-                    // MODO ESTATAL DETALLE = MUNICIPIO / LOCALIDAD
                     let munName = row ? row.estado : (d.properties.NOM_MUN || d.properties.MUNICIPIO || "Municipio");
-                    let locName = d.properties.NOMGEO || d.properties.NOM_LOC || d.properties.LOCALIDAD || "";
-                    
-                    if (munName && locName && munName !== locName) {
-                        nombre = `${munName} / <span style="opacity:0.8; font-weight:normal;">${locName}</span>`;
-                    } else if (locName) {
-                        nombre = locName;
+                    if (!loc && d.properties.NOMGEO) loc = d.properties.NOMGEO; 
+                    if (munName && loc && munName !== loc) {
+                        nombre = `${munName} / <span style="opacity:0.8; font-weight:normal;">${loc}</span>`;
+                    } else if (loc) {
+                        nombre = loc;
                     }
                 }
             }
@@ -201,10 +193,16 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 console.error("[SIARHE] Error calculando resumen geográfico:", error);
             }
 
+            // 🌟 SUBTÍTULO DINÁMICO: "Información Estatal" o "Información Municipal"
+            const labelNivel = state.isNacional ? 'Información Estatal:' : 'Información Municipal:';
+
             let html = `
                 <div style="font-family:'Roboto', sans-serif;">
-                    <div style="font-weight:bold; font-size:14px; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:4px;">
+                    <div style="font-weight:bold; font-size:14px; margin-bottom:2px;">
                         ${nombre}
+                    </div>
+                    <div style="font-size:10px; text-transform:uppercase; color:#94a3b8; letter-spacing:0.5px; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:6px;">
+                        ${labelNivel}
                     </div>
                     ${htmlStandard}
                     ${htmlHighlight}

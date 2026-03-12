@@ -91,7 +91,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             state.gMain = gMain;
             
             state.gPaths = gMain.append("g").attr("class", "paths-layer");
-            // 🌟 NUEVA CAPA TRANSPARENTE DE LOCALIDADES (Se renderiza ENCIMA de los municipios pero DEBAJO de los marcadores)
             state.gLocPaths = gMain.append("g").attr("class", "loc-paths-layer");
             
             state.gLabels = gMain.append("g").attr("class", "labels-layer").style("display", "none").style("pointer-events", "none");
@@ -142,17 +141,21 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             state.gPaths.selectAll("path.siarhe-feature")
                 .data(state.geoData.features).enter().append("path")
                 .attr("d", path).attr("class", "siarhe-feature")
-                .attr("stroke", "#fff").attr("stroke-width", "0.5").style("fill", app.colors.NULL)
+                .attr("stroke", "#fff").attr("stroke-width", "0.5")
+                .style("fill", "#e6f0f8")
+                .style("cursor", "pointer")
                 .on("mouseover", (e, d) => {
                     if(app.tooltips) app.tooltips.showGeoTooltip(e, d, state, mapDiv);
                 }) 
                 .on("mousemove", (e) => {
                     const [mx, my] = d3.pointer(e, mapDiv);
-                    state.tooltip.style("left", (mx + 15) + "px").style("top", (my - 28) + "px");
+                    if (state.tooltip) state.tooltip.style("left", (mx + 15) + "px").style("top", (my - 28) + "px");
                 })
                 .on("mouseout", () => { 
-                    state.gPaths.selectAll("path.siarhe-feature").style("stroke", "#fff").style("stroke-width", "0.5"); 
-                    state.tooltip.style("opacity", 0).style("display", "none"); 
+                    let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
+                    // Mantenemos el stroke adaptado al zoom
+                    state.gPaths.selectAll("path.siarhe-feature").attr("stroke", "#fff").attr("stroke-width", 0.5 / k); 
+                    if (state.tooltip) state.tooltip.style("opacity", 0).style("display", "none"); 
                 })
                 .on("click", (e, d) => {
                     const ahora = Date.now();
@@ -177,7 +180,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         .style("font-size", `${14 / k}px`)
                         .attr("stroke-width", 2.5 / k);
                     
-                    // 🌟 AJUSTAR ZOOM DE LAS LÍNEAS DE LOCALIDADES SI EXISTEN
+                    // 🌟 SOLUCIÓN AL GROSOR: Dividir las líneas blancas entre el nivel de zoom
+                    state.gPaths.selectAll("path.siarhe-feature").attr("stroke-width", 0.5 / k);
                     state.gLocPaths.selectAll("path.siarhe-loc-feature").attr("stroke-width", 0.5 / k);
 
                     let shrinkFactor = 1;
@@ -225,15 +229,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             app.map.updateVisuals(container, state);
         },
 
-        // ==========================================
-        // 🌟 ACTUALIZACIÓN DE LÍNEAS GEOGRÁFICAS (TRANSPARENTE)
-        // ==========================================
         updateGeography: function(container, state) {
             const mapDiv = container.querySelector('.siarhe-map-container');
             if (!mapDiv || !state.gLocPaths || !state.path) return;
 
             if (state.isGeoLocMode && state.locGeoData) {
-                // Estamos en modo Detalle: Inyectar las líneas de localidades
                 const paths = state.gLocPaths.selectAll("path.siarhe-loc-feature")
                     .data(state.locGeoData.features, d => d.properties.CVEGEO || Math.random());
 
@@ -241,11 +241,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
                 const pathsEnter = paths.enter().append("path")
                     .attr("class", "siarhe-loc-feature")
-                    .attr("stroke", "rgba(255, 255, 255, 0.4)") // Color sutil de líneas
-                    .style("fill", "transparent") // Transparente para ver el municipio debajo
-                    .style("cursor", "pointer")
+                    .attr("stroke", "rgba(255, 255, 255, 0.4)") 
+                    .style("fill", "transparent") 
+                    .style("cursor", "pointer") // 🌟 CORRECCIÓN DEL CURSOR (Manita siempre)
                     .on("mouseover", function(e, d) {
-                        d3.select(this).attr("stroke", "#ffffff").attr("stroke-width", "1.5");
+                        // 🌟 RESPETAR GROSOR DEL ZOOM AL ILUMINAR
+                        let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
+                        d3.select(this).attr("stroke", "#ffffff").attr("stroke-width", 1.5 / k);
                         if(app.tooltips) app.tooltips.showGeoTooltip(e, d, state, mapDiv);
                     }) 
                     .on("mousemove", (e) => {
@@ -253,7 +255,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         if (state.tooltip) state.tooltip.style("left", (mx + 15) + "px").style("top", (my - 28) + "px");
                     })
                     .on("mouseout", function() { 
-                        d3.select(this).attr("stroke", "rgba(255, 255, 255, 0.4)").attr("stroke-width", "0.5");
+                        // 🌟 RESPETAR GROSOR DEL ZOOM AL APAGAR
+                        let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
+                        d3.select(this).attr("stroke", "rgba(255, 255, 255, 0.4)").attr("stroke-width", 0.5 / k);
                         if (state.tooltip) state.tooltip.style("opacity", 0).style("display", "none"); 
                     })
                     .on("click", (e, d) => {
@@ -268,21 +272,15 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
                 pathsEnter.merge(paths).attr("d", state.path);
                 
-                // Mostrar y ajustar grosor al zoom actual
                 state.gLocPaths.style("display", "block");
                 let currentK = 1; 
                 if (state.svg) { try { currentK = d3.zoomTransform(state.svg.node()).k; } catch(e) {} }
                 state.gLocPaths.selectAll("path.siarhe-loc-feature").attr("stroke-width", 0.5 / currentK);
 
             } else {
-                // Volver a modo Municipio: simplemente ocultar la capa de líneas
                 state.gLocPaths.style("display", "none");
             }
         },
-
-        // ==========================================
-        // 2. ACTUALIZACIÓN VISUAL (Colores y Leyendas)
-        // ==========================================
 
         updateVisuals: function(container, state) {
             const metric = state.currentMetric;
@@ -341,7 +339,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     colorScale = d3.scaleLinear().domain(domain).range(monoRange).clamp(true);
                 }
 
-                // 🌟 SIEMPRE SE COLOREA EL MAPA BASE (Municipios)
                 state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
                     .style("fill", d => {
                         let cve = app.utils.getGeoKey(d.properties, state.isNacional);
@@ -363,7 +360,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             let currentK = 1; 
             if (state.svg) { try { currentK = d3.zoomTransform(state.svg.node()).k; } catch(e) {} }
 
-            // 🌟 AUNQUE ESTÉ EN LOCALIDADES, LAS ETIQUETAS USAN EL BASE (Municipios) PARA NO SATURAR 🌟
             const baseGeoData = state.baseGeoData || state.geoData;
             const maxAreaFeatures = new Map();
             
