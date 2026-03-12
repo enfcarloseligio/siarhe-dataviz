@@ -244,28 +244,39 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const min = d3.min(values); 
                 const max = d3.max(values);
 
-                if (mode === 'quartiles') {
-                    let q1 = d3.quantile(values, 0.25); 
-                    let q2 = d3.quantile(values, 0.50); 
-                    let q3 = d3.quantile(values, 0.75);
-                    let domain = [min, q1, q2, q3, max];
-                    
-                    if (min === max) {
-                        domain = [min * 0.2, min * 0.4, min * 0.6, min * 0.8, max];
-                    } else {
-                        for (let i = 1; i < domain.length; i++) {
-                            if (domain[i] <= domain[i-1]) domain[i] = domain[i-1] + 0.000001; 
-                        }
-                    }
-                    
-                    colorScale = d3.scaleLinear().domain(domain).range(app.colors.RANGE).clamp(true);
-                    stats = { min, q1, q2, q3, max };
-
+                // 🌟 SIEMPRE CALCULAMOS LOS CUARTILES 🌟
+                let q1 = d3.quantile(values, 0.25); 
+                let q2 = d3.quantile(values, 0.50); 
+                let q3 = d3.quantile(values, 0.75);
+                let domain = [min, q1, q2, q3, max];
+                
+                if (min === max) {
+                    domain = [min * 0.2, min * 0.4, min * 0.6, min * 0.8, max];
                 } else {
-                    let domain = [min, max];
-                    if (min === max) domain = [0, max];
-                    colorScale = d3.scaleLinear().domain(domain).range(app.colors.MONO).clamp(true);
-                    stats = { min, max };
+                    for (let i = 1; i < domain.length; i++) {
+                        if (domain[i] <= domain[i-1]) domain[i] = domain[i-1] + 0.000001; 
+                    }
+                }
+                
+                stats = { min, q1, q2, q3, max };
+
+                // LA ÚNICA DIFERENCIA ES LA PALETA DE COLORES (RANGE)
+                if (mode === 'quartiles') {
+                    colorScale = d3.scaleLinear().domain(domain).range(app.colors.RANGE).clamp(true);
+                } else {
+                    let monoRange = app.colors.MONO;
+                    // Si el array mono solo tiene 2 colores (min y max), generamos dinámicamente los 3 intermedios
+                    if (monoRange.length === 2) {
+                        const interpolator = d3.interpolate(monoRange[0], monoRange[1]);
+                        monoRange = [
+                            interpolator(0), 
+                            interpolator(0.25), 
+                            interpolator(0.50), 
+                            interpolator(0.75), 
+                            interpolator(1)
+                        ];
+                    }
+                    colorScale = d3.scaleLinear().domain(domain).range(monoRange).clamp(true);
                 }
 
                 state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
@@ -334,15 +345,24 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             gradient.selectAll("stop").remove();
             
             let colorArr = [];
-            let domainVals = [];
+            // 🌟 AHORA AMBOS MODOS USAN ESTADÍSTICAS BASADAS EN CUARTILES REALES
+            let domainVals = [stats.min, stats.q1, stats.q2, stats.q3, stats.max];
 
             if (mode === 'quartiles') {
                 colorArr = app.colors.RANGE;
-                domainVals = [stats.min, stats.q1, stats.q2, stats.q3, stats.max];
             } else {
                 colorArr = app.colors.MONO;
-                const stepVal = (stats.max - stats.min) / 4;
-                domainVals = [stats.min, stats.min + stepVal, stats.min + stepVal*2, stats.min + stepVal*3, stats.max];
+                // Si solo tenemos 2 colores, generamos la escala visual de 5 puntos
+                if (colorArr.length === 2) {
+                    const interpolator = d3.interpolate(colorArr[0], colorArr[1]);
+                    colorArr = [
+                        interpolator(0), 
+                        interpolator(0.25), 
+                        interpolator(0.50), 
+                        interpolator(0.75), 
+                        interpolator(1)
+                    ];
+                }
             }
 
             gradient.selectAll("stop")
@@ -483,7 +503,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     d3.select(this).attr("stroke-width", 3 / k); 
                     if (config.tipo !== 'espectro') { d3.select(this).raise(); }
                     
-                    // 🌟 AQUI DELEGAMOS EL TOOLTIP 🌟
                     const mapDiv = document.querySelector('.siarhe-map-container');
                     if(app.tooltips) app.tooltips.showMarkerTooltip(e, d, state, mapDiv);
                 })
@@ -554,7 +573,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             btnFullscreen.onclick = (e) => {
                 e.preventDefault();
                 
-                // 🌟 CORRECCIÓN DE LA CLASE A ".siarhe-controls-layout" 🌟
                 const controlsEl = container.querySelector('.siarhe-controls-layout');
                 const controlsPlaceholder = container.querySelector('.siarhe-controls-placeholder');
 

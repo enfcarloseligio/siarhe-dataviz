@@ -367,8 +367,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             
             cEscala.innerHTML += `
                 <select class="siarhe-metric-select" id="siarhe-escala-select">
-                    <option value="degradado" ${currentStyle === 'degradado' ? 'selected' : ''}>Degradado Continuo (Por Cuartiles)</option>
-                    <option value="rangos" disabled>Rangos Personalizados (Próximamente)</option>
+                    <option value="degradado" ${currentStyle === 'degradado' ? 'selected' : ''}>Degradado por Colores</option>
+                    <option value="rangos" disabled>Rangos (Próximamente)</option>
                     <option value="mono" ${currentStyle === 'mono' ? 'selected' : ''}>Escala Monocromática</option>
                 </select>
             `;
