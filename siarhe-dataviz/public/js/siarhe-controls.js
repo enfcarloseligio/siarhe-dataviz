@@ -367,8 +367,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             
             cEscala.innerHTML += `
                 <select class="siarhe-metric-select" id="siarhe-escala-select">
-                    <option value="degradado" ${currentStyle === 'degradado' ? 'selected' : ''}>Degradado por Colores</option>
-                    <option value="rangos" disabled>Rangos (Próximamente)</option>
+                    <option value="degradado" ${currentStyle === 'degradado' ? 'selected' : ''}>Degradado Continuo (Por Cuartiles)</option>
+                    <option value="rangos" disabled>Rangos Personalizados (Próximamente)</option>
                     <option value="mono" ${currentStyle === 'mono' ? 'selected' : ''}>Escala Monocromática</option>
                 </select>
             `;
@@ -404,7 +404,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     state.geoData = state.baseGeoData;
                     state.isGeoLocMode = false;
                     
-                    if (app.map) app.map.render(container, state, container.dataset.cveEnt);
+                    // 🌟 AHORA USAMOS UPDATE GEOGRAPHY
+                    if (app.map) app.map.updateGeography(container, state);
                     onUpdate();
                 } 
                 else if (val === 'detalle' && geoLocUrl) {
@@ -419,7 +420,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                             state.geoData = data;
                             state.isGeoLocMode = true;
                             
-                            if (app.map) app.map.render(container, state, container.dataset.cveEnt);
+                            // 🌟 AHORA USAMOS UPDATE GEOGRAPHY
+                            if (app.map) app.map.updateGeography(container, state);
                             if (loading) loading.style.display = 'none';
                             
                             onUpdate(); 
@@ -432,7 +434,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         state.geoData = state.locGeoData;
                         state.isGeoLocMode = true;
                         
-                        if (app.map) app.map.render(container, state, container.dataset.cveEnt);
+                        // 🌟 AHORA USAMOS UPDATE GEOGRAPHY
+                        if (app.map) app.map.updateGeography(container, state);
                         if (loading) loading.style.display = 'none';
                         
                         onUpdate();

@@ -139,21 +139,21 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             state.gPaths.selectAll("path.siarhe-feature")
                 .data(state.geoData.features).enter().append("path")
                 .attr("d", path).attr("class", "siarhe-feature")
-                .attr("stroke", "#fff").attr("stroke-width", "0.5").style("fill", app.colors.NULL)
+                .attr("stroke", "#fff").attr("stroke-width", "0.5").style("fill", "#e6f0f8")
                 .on("mouseover", (e, d) => {
                     if(app.tooltips) app.tooltips.showGeoTooltip(e, d, state, mapDiv);
                 }) 
                 .on("mousemove", (e) => {
                     const [mx, my] = d3.pointer(e, mapDiv);
-                    state.tooltip.style("left", (mx + 15) + "px").style("top", (my - 28) + "px");
+                    if (state.tooltip) state.tooltip.style("left", (mx + 15) + "px").style("top", (my - 28) + "px");
                 })
                 .on("mouseout", () => { 
                     state.gPaths.selectAll("path.siarhe-feature").style("stroke", "#fff").style("stroke-width", "0.5"); 
-                    state.tooltip.style("opacity", 0).style("display", "none"); 
+                    if (state.tooltip) state.tooltip.style("opacity", 0).style("display", "none"); 
                 })
                 .on("click", (e, d) => {
                     const ahora = Date.now();
-                    if (ahora - state.lastClickTime < 400) { 
+                    if (ahora - (state.lastClickTime || 0) < 400) { 
                         app.map.handleMapClick(d, state); 
                     } else { 
                         if(app.tooltips) app.tooltips.showGeoTooltip(e, d, state, mapDiv); 
@@ -219,6 +219,61 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             app.map.updateVisuals(container, state);
         },
 
+        // ==========================================
+        // 🌟 ACTUALIZACIÓN DE GEOMETRÍA SIN PERDER ZOOM 🌟
+        // ==========================================
+        updateGeography: function(container, state) {
+            const mapDiv = container.querySelector('.siarhe-map-container');
+            if (!mapDiv || !state.gPaths || !state.path) return;
+
+            // 1. Unir datos: Mapeamos los nuevos polígonos sobre los existentes
+            const paths = state.gPaths.selectAll("path.siarhe-feature")
+                .data(state.geoData.features, d => {
+                    let cve = app.utils.getGeoKey(d.properties, state.isNacional);
+                    return cve || Math.random(); 
+                });
+
+            // 2. Eliminar polígonos viejos (ej. los municipios grandes)
+            paths.exit().remove();
+
+            // 3. Crear los nuevos polígonos (ej. las localidades pequeñas)
+            const pathsEnter = paths.enter().append("path")
+                .attr("class", "siarhe-feature")
+                .attr("stroke", "#fff")
+                .attr("stroke-width", "0.5")
+                .style("fill", "#e6f0f8")
+                .on("mouseover", (e, d) => {
+                    if(app.tooltips) app.tooltips.showGeoTooltip(e, d, state, mapDiv);
+                }) 
+                .on("mousemove", (e) => {
+                    const [mx, my] = d3.pointer(e, mapDiv);
+                    if (state.tooltip) state.tooltip.style("left", (mx + 15) + "px").style("top", (my - 28) + "px");
+                })
+                .on("mouseout", () => { 
+                    state.gPaths.selectAll("path.siarhe-feature").style("stroke", "#fff").style("stroke-width", "0.5"); 
+                    if (state.tooltip) state.tooltip.style("opacity", 0).style("display", "none"); 
+                })
+                .on("click", (e, d) => {
+                    const ahora = Date.now();
+                    if (ahora - (state.lastClickTime || 0) < 400) { 
+                        app.map.handleMapClick(d, state); 
+                    } else { 
+                        if(app.tooltips) app.tooltips.showGeoTooltip(e, d, state, mapDiv); 
+                    }
+                    state.lastClickTime = ahora;
+                });
+
+            // 4. Fusionar y dibujar con la proyección actual (conservando el zoom)
+            pathsEnter.merge(paths).attr("d", state.path);
+
+            // 5. Repintar colores y actualizar etiquetas
+            app.map.updateVisuals(container, state);
+        },
+
+        // ==========================================
+        // 2. ACTUALIZACIÓN VISUAL (Colores y Leyendas)
+        // ==========================================
+
         updateVisuals: function(container, state) {
             const metric = state.currentMetric;
             const mode = state.colorMode || 'quartiles'; 
@@ -244,7 +299,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const min = d3.min(values); 
                 const max = d3.max(values);
 
-                // 🌟 SIEMPRE CALCULAMOS LOS CUARTILES 🌟
                 let q1 = d3.quantile(values, 0.25); 
                 let q2 = d3.quantile(values, 0.50); 
                 let q3 = d3.quantile(values, 0.75);
@@ -260,12 +314,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 
                 stats = { min, q1, q2, q3, max };
 
-                // LA ÚNICA DIFERENCIA ES LA PALETA DE COLORES (RANGE)
                 if (mode === 'quartiles') {
                     colorScale = d3.scaleLinear().domain(domain).range(app.colors.RANGE).clamp(true);
                 } else {
                     let monoRange = app.colors.MONO;
-                    // Si el array mono solo tiene 2 colores (min y max), generamos dinámicamente los 3 intermedios
                     if (monoRange.length === 2) {
                         const interpolator = d3.interpolate(monoRange[0], monoRange[1]);
                         monoRange = [
@@ -345,14 +397,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             gradient.selectAll("stop").remove();
             
             let colorArr = [];
-            // 🌟 AHORA AMBOS MODOS USAN ESTADÍSTICAS BASADAS EN CUARTILES REALES
             let domainVals = [stats.min, stats.q1, stats.q2, stats.q3, stats.max];
 
             if (mode === 'quartiles') {
                 colorArr = app.colors.RANGE;
             } else {
                 colorArr = app.colors.MONO;
-                // Si solo tenemos 2 colores, generamos la escala visual de 5 puntos
                 if (colorArr.length === 2) {
                     const interpolator = d3.interpolate(colorArr[0], colorArr[1]);
                     colorArr = [
