@@ -15,13 +15,18 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         
         renderMain: function(container, state, onUpdate, opts = { targetSelector: '.siarhe-controls-placeholder', showMarkers: true }) {
             
+            // DETECCIÓN DE MODO: ¿Estamos cargando solo la tabla?
+            const isTableOnly = (opts.targetSelector === '.siarhe-table-controls-placeholder');
+
             if (!document.getElementById('siarhe-search-dropdown-styles')) {
                 const style = document.createElement('style');
                 style.id = 'siarhe-search-dropdown-styles';
                 style.innerHTML = `
-                    .siarhe-controls-layout { display: flex; flex-direction: column; gap: 15px; background: #F8FAFC; padding: 15px 20px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 20px; }
+                    .siarhe-controls-layout { position: relative; display: flex; flex-direction: column; gap: 15px; background: #F8FAFC; padding: 15px 20px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 20px; }
                     .siarhe-controls-row { display: flex; gap: 20px; flex-wrap: wrap; width: 100%; align-items: flex-end; }
-                    .siarhe-control-group { flex: 1 1 0%; min-width: 220px; display: flex; flex-direction: column; gap: 5px; }
+                    
+                    /* 🌟 FIX MÓVIL HORIZONTAL: min-width 0 permite que el texto se trunque con puntos suspensivos en vez de encimarse */
+                    .siarhe-control-group { flex: 1 1 0%; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
                     .siarhe-control-group > label { font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 13px; color: #0A66C2; text-transform: uppercase; letter-spacing: 0.5px; }
                     
                     .siarhe-custom-select, .mc-field { position: relative; width: 100%; font-family: 'Roboto', sans-serif; }
@@ -35,7 +40,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     .siarhe-cs-menu, .mc-menu { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); margin-top: 5px; z-index: 9999; display: none; flex-direction: column; max-height: 350px; overflow: hidden; }
                     .siarhe-cs-menu.open, .mc-menu.open { display: flex; }
                     .siarhe-cs-search { padding: 10px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; z-index: 2; display: flex; gap: 8px; }
-                    .siarhe-cs-search input { flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; font-size: 13px; outline: none; transition: all 0.2s; }
+                    .siarhe-cs-search input { flex: 1; width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; font-size: 13px; outline: none; transition: all 0.2s; }
                     .siarhe-cs-search input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2); }
                     .siarhe-cs-search button { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; border-radius: 4px; padding: 0 10px; cursor: pointer; font-size: 12px; font-weight: bold; display: none; white-space: nowrap; height: 33px; line-height: 31px; }
                     
@@ -53,19 +58,43 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     .s-toggle-switch input:checked + .s-toggle-slider { background-color: #0284c7; }
                     .s-toggle-switch input:checked + .s-toggle-slider:before { transform: translateX(20px); }
                     
-                    .siarhe-smart-toast { position: absolute; top: 20px; right: 20px; z-index: 10000; background: #fff; border-left: 4px solid #0ea5e9; border-radius: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); padding: 15px; display: flex; flex-direction: column; gap: 10px; font-family: 'Roboto', sans-serif; font-size: 13px; width: 280px; max-width: calc(100% - 40px); transform: translateX(120%); opacity: 0; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); pointer-events: none; }
-                    .siarhe-smart-toast.show { transform: translateX(0); opacity: 1; pointer-events: auto; }
+                    /* 🌟 FIX TOAST SCROLL: visibility oculta el elemento en vez de enviarlo fuera de la pantalla */
+                    .siarhe-smart-toast {
+                        position: absolute; top: 20px; right: 20px; z-index: 10000;
+                        background: #fff; border-left: 4px solid #0ea5e9; border-radius: 6px;
+                        box-shadow: 0 10px 25px rgba(0,0,0,0.15); padding: 15px;
+                        display: flex; flex-direction: column; gap: 10px; 
+                        font-family: 'Roboto', sans-serif; font-size: 13px;
+                        width: 280px; max-width: calc(100% - 40px);
+                        transform: translateY(15px); opacity: 0; visibility: hidden; 
+                        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    }
+                    .siarhe-smart-toast.show {
+                        transform: translateY(0); opacity: 1; visibility: visible; pointer-events: auto;
+                    }
                     .siarhe-toast-header { display: flex; justify-content: space-between; align-items: center; color: #0f172a; font-size: 14px;}
                     .siarhe-toast-close { cursor: pointer; color: #94a3b8; border: none; background: none; font-size: 16px; line-height: 1; padding: 0; margin: 0; }
                     .siarhe-toast-close:hover { color: #d63638; }
                     .siarhe-toast-btn { background: #f0f9ff; color: #0284c7; border: 1px solid #bae6fd; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; text-align: center; transition: background 0.2s; align-self: flex-start; }
                     .siarhe-toast-btn:hover { background: #e0f2fe; }
 
+                    /* 🌟 BOTÓN CERRAR CONTROLES FULLSCREEN 🌟 */
+                    .siarhe-close-controls-btn {
+                        position: absolute; top: 10px; right: 12px;
+                        background: rgba(0,0,0,0.05); border: none; font-size: 12px;
+                        cursor: pointer; color: #64748b; border-radius: 50%;
+                        width: 24px; height: 24px; display: none;
+                        align-items: center; justify-content: center;
+                    }
+                    .siarhe-close-controls-btn:hover { background: #fee2e2; color: #b91c1c; }
+                    .siarhe-controls-layout.is-fullscreen-mode .siarhe-close-controls-btn { display: flex; }
+                    .siarhe-controls-layout.is-hidden { display: none !important; }
+
                     @media (max-width: 767px) { 
                         .siarhe-control-group { flex: none; width: 100%; min-width: 0; }
                         .siarhe-mode-toggle { margin-left: 0; margin-top: 10px; width: 100%; justify-content: space-between; } 
-                        .siarhe-smart-toast { top: auto; bottom: 20px; right: 50%; transform: translateX(50%) translateY(120%); }
-                        .siarhe-smart-toast.show { transform: translateX(50%) translateY(0); }
+                        .siarhe-smart-toast { top: auto; bottom: 20px; right: 10px; left: 10px; width: auto; max-width: none; transform: translateY(15px); }
+                        .siarhe-smart-toast.show { transform: translateY(0); }
                     }
                 `;
                 document.head.appendChild(style);
@@ -78,31 +107,60 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const wrapper = document.createElement('div'); 
             wrapper.className = 'siarhe-controls-layout'; 
             
-            wrapper.innerHTML = `
-                <div class="siarhe-controls-row">
-                    <div class="siarhe-control-group" id="c-indicador"><label>Indicador Principal</label></div>
-                    <div class="siarhe-control-group" id="c-posicion"><label>Marcadores (Posición)</label></div>
-                    <div class="siarhe-control-group" id="c-espectro"><label>Marcadores (Densidad)</label></div>
-                </div>
-                <div class="siarhe-controls-row">
-                    <div class="siarhe-control-group" id="c-escala"><label>Estilo de Mapa</label></div>
-                    <div class="siarhe-control-group" id="c-vista"><label>Vista Geográfica</label></div>
-                </div>
-            `;
+            if (isTableOnly) {
+                wrapper.innerHTML = `
+                    <div class="siarhe-controls-row">
+                        <div class="siarhe-control-group" id="c-indicador"><label>Indicador de la Tabla</label></div>
+                    </div>
+                `;
+            } else {
+                wrapper.innerHTML = `
+                    <div class="siarhe-controls-row">
+                        <div class="siarhe-control-group" id="c-escala"><label>Estilo de Mapa</label></div>
+                        <div class="siarhe-control-group" id="c-vista"><label>Vista Geográfica</label></div>
+                    </div>
+                    <div class="siarhe-controls-row">
+                        <div class="siarhe-control-group" id="c-indicador"><label>Indicador Principal</label></div>
+                        <div class="siarhe-control-group" id="c-posicion"><label>Marcadores (Posición)</label></div>
+                        <div class="siarhe-control-group" id="c-espectro"><label>Marcadores (Densidad)</label></div>
+                    </div>
+                `;
+
+                // Botón para ocultar menú en fullscreen
+                const closeBtn = document.createElement('button');
+                closeBtn.className = 'siarhe-close-controls-btn';
+                closeBtn.innerHTML = '✖';
+                closeBtn.title = 'Ocultar panel';
+                wrapper.appendChild(closeBtn);
+                
+                closeBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    wrapper.classList.add('is-hidden');
+                    const mapDiv = container.querySelector('.siarhe-map-container');
+                    if (mapDiv) {
+                        const showBtn = mapDiv.querySelector('.btn-show-controls');
+                        if (showBtn) showBtn.style.display = 'block';
+                    }
+                });
+            }
 
             document.addEventListener('click', () => {
                 container.querySelectorAll('.siarhe-cs-menu, .mc-menu').forEach(m => m.classList.remove('open'));
             });
 
-            let toastBox = container.querySelector('.siarhe-smart-toast');
-            if (!toastBox) {
-                toastBox = document.createElement('div');
-                toastBox.className = 'siarhe-smart-toast';
-                container.appendChild(toastBox);
+            let toastBox = null;
+            if (!isTableOnly) {
+                toastBox = container.querySelector('.siarhe-smart-toast');
+                if (!toastBox) {
+                    toastBox = document.createElement('div');
+                    toastBox.className = 'siarhe-smart-toast';
+                    container.appendChild(toastBox);
+                }
             }
 
             let toastTimeout;
             const showSmartToast = (markerKey, markerLabel) => {
+                if (!toastBox) return;
                 toastBox.innerHTML = `
                     <div class="siarhe-toast-header">
                         <strong>💡 Sugerencia de análisis</strong>
@@ -132,11 +190,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             };
 
             const checkSpectrumLink = (metricKey) => {
-                if (!opts.showMarkers) return; 
+                if (!opts.showMarkers || isTableOnly || !toastBox) return; 
                 const linkedMarkerKey = Object.keys(state.markerLabels).find(k => {
                     const mk = state.markerLabels[k];
                     return mk.tipo === 'espectro' && mk.espectro_pair === metricKey;
                 });
+
                 if (linkedMarkerKey && !state.activeMarkers.has(linkedMarkerKey)) {
                     const mkLabel = state.markerLabels[linkedMarkerKey].label || linkedMarkerKey;
                     showSmartToast(linkedMarkerKey, mkLabel);
@@ -148,8 +207,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const cInd = wrapper.querySelector('#c-indicador');
             const customSelectInd = document.createElement('div');
             customSelectInd.className = 'siarhe-custom-select';
+
             const triggerInd = document.createElement('div');
             triggerInd.className = 'siarhe-cs-trigger';
+
             const menuInd = document.createElement('div');
             menuInd.className = 'siarhe-cs-menu';
 
@@ -168,19 +229,24 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             Object.entries(state.metricas).forEach(([key, info]) => {
                 const opt = document.createElement('div');
                 opt.className = 'siarhe-cs-option';
+                
                 if (key === state.currentMetric) {
                     opt.classList.add('selected');
                     triggerInd.innerHTML = `<span>${info.label || info.fullLabel}</span>`;
                 }
+                
                 opt.textContent = info.fullLabel;
+                
                 opt.addEventListener('click', (e) => {
                     e.stopPropagation();
                     state.currentMetric = key;
                     app.sortConfig = { key: 'tasa', direction: 'desc' };
+                    
                     triggerInd.innerHTML = `<span>${info.label || info.fullLabel}</span>`;
                     optionsContainerInd.querySelectorAll('.siarhe-cs-option').forEach(o => o.classList.remove('selected'));
                     opt.classList.add('selected');
                     menuInd.classList.remove('open');
+                    
                     onUpdate(); 
                     checkSpectrumLink(key);
                 });
@@ -203,6 +269,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 e.stopPropagation();
                 const isOpen = menuInd.classList.contains('open');
                 container.querySelectorAll('.siarhe-cs-menu, .mc-menu').forEach(m => m.classList.remove('open'));
+                
                 if (!isOpen) {
                     menuInd.classList.add('open');
                     searchInputInd.value = '';
@@ -211,173 +278,155 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 }
             });
 
-            const buildMarkerDropdown = (targetId, typeFilter, placeholderTitle) => {
-                const containerDiv = wrapper.querySelector('#' + targetId);
-                const validMarkers = Object.keys(state.markerUrls).filter(k => state.markerUrls[k] && (state.markerLabels[k] || {}).tipo === typeFilter);
-                
-                if (validMarkers.length === 0) {
-                    containerDiv.innerHTML += `<div class="mc-trigger is-placeholder" style="cursor:not-allowed; background:#f1f5f9;"><span>No disponibles</span></div>`;
-                    return;
-                }
-
-                const field = document.createElement('div'); 
-                field.className = 'mc-field';
-                
-                const triggerMc = document.createElement('div'); 
-                triggerMc.className = `mc-trigger is-placeholder trigger-${typeFilter}`; 
-                triggerMc.innerHTML = `<span>${placeholderTitle}</span>`;
-                
-                if(typeFilter === 'posicion') state.posTrigger = triggerMc;
-                if(typeFilter === 'espectro') state.specTrigger = triggerMc;
-                
-                const menuMc = document.createElement('div'); 
-                menuMc.className = 'mc-menu';
-                
-                const searchBoxMc = document.createElement('div');
-                searchBoxMc.className = 'siarhe-cs-search';
-                searchBoxMc.addEventListener('click', e => e.stopPropagation());
-                
-                const searchInputMc = document.createElement('input');
-                searchInputMc.type = 'text';
-                searchInputMc.placeholder = '🔍 Filtrar...';
-                
-                const btnClearMc = document.createElement('button');
-                btnClearMc.type = 'button';
-                btnClearMc.innerHTML = '✖ Limpiar';
-                
-                btnClearMc.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    Array.from(state.activeMarkers).forEach(k => { 
-                        if((state.markerLabels[k] || {}).tipo === typeFilter) state.activeMarkers.delete(k); 
-                    });
-                    optionsContainerMc.querySelectorAll('.mc-check').forEach(chk => chk.checked = false);
-                    if (app.map) { app.map.updateMarkers(state); app.map.renderMarkerLegend(state); }
-                    app.controls.updateMarkerDropdownText(state);
-                });
-
-                searchBoxMc.append(searchInputMc, btnClearMc); 
-                menuMc.appendChild(searchBoxMc);
-
-                const optionsContainerMc = document.createElement('div');
-                optionsContainerMc.className = 'siarhe-cs-options';
-
-                validMarkers.forEach(key => {
-                    const mkData = state.markerLabels[key] || {};
-                    const label = mkData.label || key;
-                    const opt = document.createElement('div'); 
-                    opt.className = 'mc-option';
-                    opt.innerHTML = `<input type="checkbox" class="mc-check" value="${key}"> <span>${label}</span>`;
+            if (!isTableOnly) {
+                const buildMarkerDropdown = (targetId, typeFilter, placeholderTitle) => {
+                    const containerDiv = wrapper.querySelector('#' + targetId);
+                    const validMarkers = Object.keys(state.markerUrls).filter(k => state.markerUrls[k] && (state.markerLabels[k] || {}).tipo === typeFilter);
                     
-                    opt.addEventListener('click', (e) => {
-                        if (e.target.tagName !== 'INPUT') {
-                            const chk = opt.querySelector('input'); 
-                            chk.checked = !chk.checked; 
-                            app.controls.toggleMarker(key, state, container);
+                    if (validMarkers.length === 0) {
+                        containerDiv.innerHTML += `<div class="mc-trigger is-placeholder" style="cursor:not-allowed; background:#f1f5f9;"><span>No disponibles</span></div>`;
+                        return;
+                    }
+
+                    const field = document.createElement('div'); field.className = 'mc-field';
+                    const triggerMc = document.createElement('div'); triggerMc.className = `mc-trigger is-placeholder trigger-${typeFilter}`; 
+                    triggerMc.innerHTML = `<span>${placeholderTitle}</span>`;
+                    
+                    if(typeFilter === 'posicion') state.posTrigger = triggerMc;
+                    if(typeFilter === 'espectro') state.specTrigger = triggerMc;
+                    
+                    const menuMc = document.createElement('div'); menuMc.className = 'mc-menu';
+                    const searchBoxMc = document.createElement('div'); searchBoxMc.className = 'siarhe-cs-search';
+                    searchBoxMc.addEventListener('click', e => e.stopPropagation());
+                    const searchInputMc = document.createElement('input'); searchInputMc.type = 'text'; searchInputMc.placeholder = '🔍 Filtrar...';
+                    
+                    const btnClearMc = document.createElement('button'); btnClearMc.type = 'button'; btnClearMc.innerHTML = '✖ Limpiar';
+                    btnClearMc.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        Array.from(state.activeMarkers).forEach(k => { 
+                            if((state.markerLabels[k] || {}).tipo === typeFilter) state.activeMarkers.delete(k); 
+                        });
+                        optionsContainerMc.querySelectorAll('.mc-check').forEach(chk => chk.checked = false);
+                        if (app.map) { app.map.updateMarkers(state); app.map.renderMarkerLegend(state); }
+                        app.controls.updateMarkerDropdownText(state);
+                    });
+
+                    searchBoxMc.append(searchInputMc, btnClearMc); menuMc.appendChild(searchBoxMc);
+                    const optionsContainerMc = document.createElement('div'); optionsContainerMc.className = 'siarhe-cs-options';
+
+                    validMarkers.forEach(key => {
+                        const mkData = state.markerLabels[key] || {};
+                        const label = mkData.label || key;
+                        const opt = document.createElement('div'); opt.className = 'mc-option';
+                        opt.innerHTML = `<input type="checkbox" class="mc-check" value="${key}"> <span>${label}</span>`;
+                        
+                        opt.addEventListener('click', (e) => {
+                            if (e.target.tagName !== 'INPUT') {
+                                const chk = opt.querySelector('input'); chk.checked = !chk.checked; 
+                                app.controls.toggleMarker(key, state, container);
+                            }
+                        });
+                        opt.querySelector('input').addEventListener('click', (e) => { 
+                            e.stopPropagation(); app.controls.toggleMarker(key, state, container); 
+                        });
+                        optionsContainerMc.appendChild(opt);
+                    });
+                    
+                    menuMc.appendChild(optionsContainerMc);
+                    
+                    searchInputMc.addEventListener('keyup', (e) => {
+                        const val = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        optionsContainerMc.querySelectorAll('.mc-option').forEach(o => {
+                            const text = o.textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                            o.style.display = text.includes(val) ? '' : 'none';
+                        });
+                    });
+
+                    triggerMc.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const isOpen = menuMc.classList.contains('open');
+                        container.querySelectorAll('.siarhe-cs-menu, .mc-menu').forEach(m => m.classList.remove('open'));
+                        if (!isOpen) {
+                            menuMc.classList.add('open'); searchInputMc.value = '';
+                            optionsContainerMc.querySelectorAll('.mc-option').forEach(o => o.style.display = '');
+                            setTimeout(() => searchInputMc.focus(), 50);
                         }
                     });
-                    opt.querySelector('input').addEventListener('click', (e) => { 
-                        e.stopPropagation(); 
-                        app.controls.toggleMarker(key, state, container); 
-                    });
-                    optionsContainerMc.appendChild(opt);
-                });
-                
-                menuMc.appendChild(optionsContainerMc);
-                
-                searchInputMc.addEventListener('keyup', (e) => {
-                    const val = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                    optionsContainerMc.querySelectorAll('.mc-option').forEach(o => {
-                        const text = o.textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                        o.style.display = text.includes(val) ? '' : 'none';
-                    });
-                });
 
-                triggerMc.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const isOpen = menuMc.classList.contains('open');
-                    container.querySelectorAll('.siarhe-cs-menu, .mc-menu').forEach(m => m.classList.remove('open'));
-                    if (!isOpen) {
-                        menuMc.classList.add('open');
-                        searchInputMc.value = '';
-                        optionsContainerMc.querySelectorAll('.mc-option').forEach(o => o.style.display = '');
-                        setTimeout(() => searchInputMc.focus(), 50);
-                    }
+                    field.append(triggerMc, menuMc); containerDiv.appendChild(field);
+                };
+
+                if (opts.showMarkers) {
+                    buildMarkerDropdown('c-posicion', 'posicion', 'Seleccionar Clínicas...');
+                    buildMarkerDropdown('c-espectro', 'espectro', 'Seleccionar Espectros...');
+                }
+
+                const cEscala = wrapper.querySelector('#c-escala');
+                const currentStyle = state.colorMode === 'mono' ? 'mono' : 'degradado'; 
+                
+                cEscala.innerHTML += `
+                    <select class="siarhe-metric-select" id="siarhe-escala-select">
+                        <option value="degradado" ${currentStyle === 'degradado' ? 'selected' : ''}>Degradado Continuo (Por Cuartiles)</option>
+                        <option value="rangos" disabled>Rangos Personalizados (Próximamente)</option>
+                        <option value="mono" ${currentStyle === 'mono' ? 'selected' : ''}>Escala Monocromática</option>
+                    </select>
+                `;
+                cEscala.querySelector('select').addEventListener('change', (e) => {
+                    state.colorMode = e.target.value === 'mono' ? 'mono' : 'quartiles'; 
+                    state.realStyleMode = e.target.value; 
+                    if (app.map) app.map.updateVisuals(container, state);
                 });
 
-                field.append(triggerMc, menuMc); 
-                containerDiv.appendChild(field);
-            };
+                const cVista = wrapper.querySelector('#c-vista');
+                const labelNivel1 = state.isNacional ? 'Entidades Federativas' : 'Municipios';
+                const labelNivel2 = state.isNacional ? 'Municipios (Detalle)' : 'Localidades (Detalle)';
+                const geoLocUrl = container.dataset.geojsonLoc;
 
-            if (opts.showMarkers) {
-                buildMarkerDropdown('c-posicion', 'posicion', 'Seleccionar Clínicas...');
-                buildMarkerDropdown('c-espectro', 'espectro', 'Seleccionar Espectros...');
-            }
-
-            const cEscala = wrapper.querySelector('#c-escala');
-            const currentStyle = state.colorMode === 'mono' ? 'mono' : 'degradado'; 
-            
-            cEscala.innerHTML += `
-                <select class="siarhe-metric-select" id="siarhe-escala-select">
-                    <option value="degradado" ${currentStyle === 'degradado' ? 'selected' : ''}>Degradado Continuo (Por Cuartiles)</option>
-                    <option value="rangos" disabled>Rangos Personalizados (Próximamente)</option>
-                    <option value="mono" ${currentStyle === 'mono' ? 'selected' : ''}>Escala Monocromática</option>
-                </select>
-            `;
-            cEscala.querySelector('select').addEventListener('change', (e) => {
-                state.colorMode = e.target.value === 'mono' ? 'mono' : 'quartiles'; 
-                state.realStyleMode = e.target.value; 
-                if (app.map) app.map.updateVisuals(container, state);
-            });
-
-
-            // 🌟 NUEVA LÓGICA VISTA GEOGRÁFICA (SUPERPOSICIÓN TRANSPARENTE)
-            const cVista = wrapper.querySelector('#c-vista');
-            const labelNivel1 = state.isNacional ? 'Entidades Federativas' : 'Municipios';
-            const labelNivel2 = state.isNacional ? 'Municipios (Detalle)' : 'Localidades (Detalle)';
-            const geoLocUrl = container.dataset.geojsonLoc;
-
-            cVista.innerHTML += `
-                <select class="siarhe-metric-select" id="siarhe-vista-select">
-                    <option value="base">${labelNivel1}</option>
-                    ${geoLocUrl ? `<option value="detalle">${labelNivel2}</option>` : ''}
-                </select>
-            `;
-            
-            cVista.querySelector('select').addEventListener('change', (e) => {
-                const val = e.target.value;
-                const loading = container.querySelector('.siarhe-loading-overlay');
+                cVista.innerHTML += `
+                    <select class="siarhe-metric-select" id="siarhe-vista-select">
+                        <option value="base">${labelNivel1}</option>
+                        ${geoLocUrl ? `<option value="detalle">${labelNivel2}</option>` : ''}
+                    </select>
+                `;
                 
-                if (val === 'base') {
-                    state.isGeoLocMode = false;
-                    if (app.map) app.map.updateGeography(container, state);
-                    onUpdate();
-                } 
-                else if (val === 'detalle' && geoLocUrl) {
-                    if (loading) { 
-                        loading.style.display = 'flex'; 
-                        loading.querySelector('p').textContent = 'Cargando ' + labelNivel2 + '...'; 
-                    }
+                cVista.querySelector('select').addEventListener('change', (e) => {
+                    const val = e.target.value;
+                    const loading = container.querySelector('.siarhe-loading-overlay');
                     
-                    if (!state.locGeoData) {
-                        d3.json(geoLocUrl).then(data => {
-                            state.locGeoData = data;
+                    if (!state.baseGeoData) state.baseGeoData = state.geoData; 
+                    
+                    if (val === 'base') {
+                        state.isGeoLocMode = false;
+                        if (app.map) app.map.updateGeography(container, state);
+                        onUpdate();
+                    } 
+                    else if (val === 'detalle' && geoLocUrl) {
+                        if (loading) { 
+                            loading.style.display = 'flex'; 
+                            loading.querySelector('p').textContent = 'Cargando ' + labelNivel2 + '...'; 
+                        }
+                        
+                        if (!state.locGeoData) {
+                            d3.json(geoLocUrl).then(data => {
+                                state.locGeoData = data;
+                                state.isGeoLocMode = true;
+                                if (app.map) app.map.updateGeography(container, state);
+                                if (loading) loading.style.display = 'none';
+                                onUpdate(); 
+                            }).catch(err => {
+                                console.error("[SIARHE] Error al cargar GeoJSON detallado", err);
+                                if (loading) loading.style.display = 'none';
+                                e.target.value = 'base';
+                            });
+                        } else {
                             state.isGeoLocMode = true;
                             if (app.map) app.map.updateGeography(container, state);
                             if (loading) loading.style.display = 'none';
-                            onUpdate(); 
-                        }).catch(err => {
-                            console.error("[SIARHE] Error al cargar GeoJSON detallado", err);
-                            if (loading) loading.style.display = 'none';
-                            e.target.value = 'base';
-                        });
-                    } else {
-                        state.isGeoLocMode = true;
-                        if (app.map) app.map.updateGeography(container, state);
-                        if (loading) loading.style.display = 'none';
-                        onUpdate();
+                            onUpdate();
+                        }
                     }
-                }
-            });
+                });
+            }
 
             ph.appendChild(wrapper);
             app.controls.updateMarkerDropdownText(state);
@@ -388,7 +437,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (loading) {
                 const mkData = state.markerLabels[type] || {};
                 const label = mkData.label || type;
-                
                 loading.querySelector('p').textContent = `Procesando ${label}...`;
                 loading.style.position = 'absolute'; loading.style.top = '0'; loading.style.left = '0';
                 loading.style.width = '100%'; loading.style.height = '100%';
@@ -404,7 +452,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 state.activeMarkers.delete(type); 
             } else {
                 state.activeMarkers.add(type);
-                
                 if (!state.markersData[type]) {
                     const url = state.markerUrls[type];
                     if (url) {
@@ -423,7 +470,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                             const filtroVal = config.filtro_val ? config.filtro_val.toString().toLowerCase().trim() : null;
                             const agruparCol = config.agrupar_col ? config.agrupar_col.toLowerCase().trim() : null;
                             const reglas = config.reglas_tooltip || [];
-
                             let processedData = [];
 
                             const filteredData = rawData.filter(d => {
@@ -456,7 +502,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
                             if (agruparCol) {
                                 const mapGroup = new Map();
-                                
                                 filteredData.forEach(d => {
                                     const realAgruparCol = Object.keys(d).find(k => k.toLowerCase().trim() === agruparCol);
                                     if (!realAgruparCol) return; 

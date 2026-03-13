@@ -34,29 +34,51 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const style = document.createElement('style');
                 style.id = 'siarhe-fullscreen-styles';
                 style.innerHTML = `
+                    .siarhe-map-container {
+                        position: relative;
+                    }
+                    /* 🌟 BOTONES ARRIBA A LA DERECHA SIEMPRE 🌟 */
+                    .siarhe-map-container .zoom-controles {
+                        position: absolute !important;
+                        top: 15px !important;
+                        right: 15px !important;
+                        bottom: auto !important;
+                        z-index: 1000;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 6px;
+                    }
+                    .siarhe-map-container.is-fullscreen {
+                        background: #e6f0f8 !important;
+                    }
+                    .siarhe-map-container.is-fullscreen > svg {
+                        width: 100% !important;
+                        height: 100% !important; 
+                        display: block !important;
+                    }
                     .siarhe-controls-layout.is-fullscreen-mode {
                         position: absolute !important;
-                        top: 15px;
-                        left: 50%;
-                        transform: translateX(-50%) scale(0.85);
+                        top: 15px !important;
+                        left: 50% !important;
+                        transform: translateX(-50%) !important; 
                         background: rgba(255, 255, 255, 0.95);
-                        padding: 10px 25px;
+                        padding: 15px 25px;
                         border-radius: 8px;
                         box-shadow: 0 4px 15px rgba(0,0,0,0.3);
                         z-index: 1000;
-                        transform-origin: center top;
-                        border: 1px solid #cbd5e1;
-                        width: max-content;
+                        width: 90% !important; /* Limita a que no se desborde */
+                        max-width: 1000px !important;
                     }
                     .siarhe-controls-layout.is-fullscreen-mode .mc-menu, 
                     .siarhe-controls-layout.is-fullscreen-mode .siarhe-cs-menu {
-                        max-height: 50vh;
+                        max-height: 40vh;
                         overflow-y: auto;
                     }
                     @media (max-width: 767px) {
                         .siarhe-controls-layout.is-fullscreen-mode {
-                            top: 10px;
-                            transform: translateX(-50%) scale(0.8);
+                            top: 10px !important;
+                            width: 95% !important;
+                            padding: 10px !important;
                         }
                     }
                 `;
@@ -153,7 +175,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 })
                 .on("mouseout", () => { 
                     let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
-                    // Mantenemos el stroke adaptado al zoom
                     state.gPaths.selectAll("path.siarhe-feature").attr("stroke", "#fff").attr("stroke-width", 0.5 / k); 
                     if (state.tooltip) state.tooltip.style("opacity", 0).style("display", "none"); 
                 })
@@ -180,7 +201,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         .style("font-size", `${14 / k}px`)
                         .attr("stroke-width", 2.5 / k);
                     
-                    // 🌟 SOLUCIÓN AL GROSOR: Dividir las líneas blancas entre el nivel de zoom
                     state.gPaths.selectAll("path.siarhe-feature").attr("stroke-width", 0.5 / k);
                     state.gLocPaths.selectAll("path.siarhe-loc-feature").attr("stroke-width", 0.5 / k);
 
@@ -243,9 +263,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     .attr("class", "siarhe-loc-feature")
                     .attr("stroke", "rgba(255, 255, 255, 0.4)") 
                     .style("fill", "transparent") 
-                    .style("cursor", "pointer") // 🌟 CORRECCIÓN DEL CURSOR (Manita siempre)
+                    .style("cursor", "pointer")
                     .on("mouseover", function(e, d) {
-                        // 🌟 RESPETAR GROSOR DEL ZOOM AL ILUMINAR
                         let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
                         d3.select(this).attr("stroke", "#ffffff").attr("stroke-width", 1.5 / k);
                         if(app.tooltips) app.tooltips.showGeoTooltip(e, d, state, mapDiv);
@@ -255,7 +274,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         if (state.tooltip) state.tooltip.style("left", (mx + 15) + "px").style("top", (my - 28) + "px");
                     })
                     .on("mouseout", function() { 
-                        // 🌟 RESPETAR GROSOR DEL ZOOM AL APAGAR
                         let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
                         d3.select(this).attr("stroke", "rgba(255, 255, 255, 0.4)").attr("stroke-width", 0.5 / k);
                         if (state.tooltip) state.tooltip.style("opacity", 0).style("display", "none"); 
@@ -618,67 +636,88 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const b = document.createElement('button'); 
                 b.className = 'boton'; b.innerHTML = l; b.title = t; b.onclick = cb; 
                 ctrlDiv.appendChild(b); 
+                return b;
             };
             
             createBtn('+', 'Acercar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 1.5); });
             createBtn('–', 'Alejar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 0.6); });
             createBtn('⟳', 'Reset', (e) => { e.preventDefault(); svg.transition().duration(750).call(zoom.transform, state.initialTransform); });
             
+            // 🌟 NUEVO ÍCONO Y LÓGICA DE PANTALLA COMPLETA 🌟
             const btnFullscreen = document.createElement('button');
             btnFullscreen.className = 'boton'; 
-            btnFullscreen.innerHTML = '⛶'; 
+            btnFullscreen.innerHTML = '⤢'; // Flecha universal de expandir
             btnFullscreen.title = 'Pantalla Completa';
             const mapContainer = mapDiv; 
+            
+            // Botón mágico para restaurar controles (Oculto por defecto)
+            const btnShowControls = document.createElement('button');
+            btnShowControls.className = 'boton btn-show-controls'; 
+            btnShowControls.innerHTML = '🎛️'; 
+            btnShowControls.title = 'Mostrar Controles';
+            btnShowControls.style.display = 'none';
+
+            btnShowControls.onclick = (e) => {
+                e.preventDefault();
+                const controlsEl = container.querySelector('.siarhe-controls-layout');
+                if (controlsEl) controlsEl.classList.remove('is-hidden');
+                btnShowControls.style.display = 'none';
+            };
 
             btnFullscreen.onclick = (e) => {
                 e.preventDefault();
                 
                 const controlsEl = container.querySelector('.siarhe-controls-layout');
-                const controlsPlaceholder = container.querySelector('.siarhe-controls-placeholder');
 
                 if (!document.fullscreenElement && !document.webkitFullscreenElement) {
                     if (mapContainer.requestFullscreen) { mapContainer.requestFullscreen(); } 
                     else if (mapContainer.webkitRequestFullscreen) { mapContainer.webkitRequestFullscreen(); } 
                     else if (mapContainer.msRequestFullscreen) { mapContainer.msRequestFullscreen(); }
                     
-                    btnFullscreen.innerHTML = '🗗'; 
+                    btnFullscreen.innerHTML = '⤡'; // Flecha contraer
                     mapContainer.classList.add('is-fullscreen');
                     
                     if (controlsEl) {
                         mapContainer.appendChild(controlsEl);
                         controlsEl.classList.add('is-fullscreen-mode');
+                        controlsEl.classList.remove('is-hidden');
                     }
                 } else {
                     if (document.exitFullscreen) { document.exitFullscreen(); } 
                     else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); }
                     else if (document.msExitFullscreen) { document.msExitFullscreen(); }
                     
-                    btnFullscreen.innerHTML = '⛶'; 
+                    btnFullscreen.innerHTML = '⤢'; 
                     mapContainer.classList.remove('is-fullscreen');
+                    btnShowControls.style.display = 'none';
                     
-                    if (controlsEl && controlsPlaceholder) {
-                        controlsPlaceholder.appendChild(controlsEl);
+                    if (controlsEl) {
+                        const controlsPlaceholder = container.querySelector('.siarhe-controls-placeholder');
+                        if(controlsPlaceholder) controlsPlaceholder.appendChild(controlsEl);
                         controlsEl.classList.remove('is-fullscreen-mode');
+                        controlsEl.classList.remove('is-hidden');
                     }
                 }
             };
 
             document.addEventListener('fullscreenchange', () => {
                 if (!document.fullscreenElement) {
-                    btnFullscreen.innerHTML = '⛶'; 
+                    btnFullscreen.innerHTML = '⤢'; 
                     mapContainer.classList.remove('is-fullscreen');
+                    btnShowControls.style.display = 'none';
                     
                     const controlsEl = mapContainer.querySelector('.siarhe-controls-layout');
-                    const controlsPlaceholder = container.querySelector('.siarhe-controls-placeholder');
-                    
-                    if (controlsEl && controlsPlaceholder) {
-                        controlsPlaceholder.appendChild(controlsEl);
+                    if (controlsEl) {
+                        const controlsPlaceholder = container.querySelector('.siarhe-controls-placeholder');
+                        if(controlsPlaceholder) controlsPlaceholder.appendChild(controlsEl);
                         controlsEl.classList.remove('is-fullscreen-mode');
+                        controlsEl.classList.remove('is-hidden');
                     }
                 }
             });
             
             ctrlDiv.appendChild(btnFullscreen);
+            ctrlDiv.appendChild(btnShowControls);
 
             if (!state.isNacional && state.homeUrl) {
                 createBtn('🏠', 'Ir a Nacional', (e) => { e.preventDefault(); window.location.href = state.homeUrl; });
