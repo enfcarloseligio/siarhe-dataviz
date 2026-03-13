@@ -463,7 +463,7 @@ document.addEventListener('DOMContentLoaded', function() {
         archivoInput.value = item.archivo || '';
         document.getElementById('modal-mk-filtro-col').value = item.filtro_col || '';
         document.getElementById('modal-mk-filtro-val').value = item.filtro_val || '';
-        document.getElementById('modal-mk-espectro-pair').value = item.espectro_pair || ''; // 🌟 CARGAMOS LA CLAVE RELACIONADA
+        document.getElementById('modal-mk-espectro-pair').value = item.espectro_pair || '';
         document.getElementById('modal-mk-espectro-calc').value = item.espectro_calc || 'absoluto';
         document.getElementById('modal-mk-espectro-col').value = item.espectro_col || '';
         document.getElementById('modal-mk-visibilidad').value = item.visibilidad || 'publico';
@@ -498,6 +498,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!newKey) { alert('La clave es obligatoria.'); return; }
         
+        // BARRERA 1: Evitar sobreescribir una clave que ya existe (si estamos creando una nueva, o renombrando una)
+        if (!originalKey && marcadoresObj.hasOwnProperty(newKey)) {
+            alert(`⚠️ ALERTA DE SEGURIDAD: La clave "${newKey}" ya existe en el sistema. No puedes crear un duplicado porque sobreescribirías el marcador existente.`);
+            return; // Bloquea la ejecución
+        }
+
+        if (originalKey && originalKey !== newKey && marcadoresObj.hasOwnProperty(newKey)) {
+            alert(`⚠️ ALERTA DE SEGURIDAD: No puedes renombrar la clave a "${newKey}" porque esa clave ya está en uso por otro marcador del sistema.`);
+            return; // Bloquea la ejecución
+        }
+        
         const archivo = document.getElementById('modal-mk-archivo');
         const archivoVal = isCore && marcadoresObj[originalKey] ? marcadoresObj[originalKey].archivo : archivo.value;
 
@@ -528,7 +539,7 @@ document.addEventListener('DOMContentLoaded', function() {
             archivo: archivoVal,
             filtro_col: document.getElementById('modal-mk-filtro-col').value.trim(),
             filtro_val: document.getElementById('modal-mk-filtro-val').value.trim(),
-            espectro_pair: document.getElementById('modal-mk-espectro-pair').value.trim(), // 🌟 GUARDAMOS LA CLAVE RELACIONADA
+            espectro_pair: document.getElementById('modal-mk-espectro-pair').value.trim(), 
             espectro_calc: document.getElementById('modal-mk-espectro-calc').value,
             espectro_col: document.getElementById('modal-mk-espectro-col').value.trim(),
             agrupar_col: document.getElementById('modal-mk-agrupar-col').value.trim(), 

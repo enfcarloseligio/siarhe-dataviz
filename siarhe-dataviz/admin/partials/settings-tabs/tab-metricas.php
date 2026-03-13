@@ -149,7 +149,7 @@ if ( empty($metricas_json) ) {
                 <th><label>Clave Relacionada (Par)</label></th>
                 <td>
                     <input type="text" id="modal-metric-pair" class="regular-text" required placeholder="ej. enfermeras_quirurgicas">
-                    <p class="description">Vincula el valor de una tasa con su conteo absoluto para la visualización combinada en el Tooltip.</p>
+                    <p class="description">Vincula el valor de una tasa con su conteo absoluto para la visualización combinada en el Tooltip y la Tabla.</p>
                 </td>
             </tr>
         </table>
@@ -376,10 +376,45 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('save-metric-btn').addEventListener('click', () => {
         const originalKey = document.getElementById('modal-metric-original-key').value;
         const newKey = document.getElementById('modal-metric-key').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+        const newTipo = document.getElementById('modal-metric-tipo').value;
+        const newPair = document.getElementById('modal-metric-pair').value.trim();
         const isCore = document.getElementById('modal-metric-is-core').value === '1';
 
         if (!newKey) { alert('La clave identificadora es obligatoria.'); return; }
 
+        // BARRERA 1: Evitar sobreescribir una clave que ya existe (si estamos creando una nueva, o renombrando una)
+        if (!originalKey && metricasObj.hasOwnProperty(newKey)) {
+            alert(`⚠️ ALERTA DE SEGURIDAD: La clave "${newKey}" ya existe en el sistema. No puedes crear un duplicado porque sobreescribirías la métrica existente.`);
+            return; 
+        }
+
+        if (originalKey && originalKey !== newKey && metricasObj.hasOwnProperty(newKey)) {
+            alert(`⚠️ ALERTA DE SEGURIDAD: No puedes renombrar la clave a "${newKey}" porque esa clave ya está en uso por otra métrica del sistema.`);
+            return; 
+        }
+
+        // BARRERA 2: Evitar que existan dos absolutos o dos tasas para el MISMO PAR
+        let pairConflict = false;
+        let conflictKey = '';
+
+        for (const [key, item] of Object.entries(metricasObj)) {
+            // Ignoramos la métrica que estamos editando actualmente
+            if (key === originalKey) continue; 
+            
+            // Verificamos si hay colisión de TIPO para el MISMO PAR
+            if (item.pair === newPair && item.tipo === newTipo) {
+                pairConflict = true;
+                conflictKey = key;
+                break;
+            }
+        }
+
+        if (pairConflict) {
+            alert(`⚠️ ALERTA ESTRUCTURAL: Ya existe una métrica ("${conflictKey}") de tipo "${newTipo}" asociada a la clave relacionada "${newPair}".\n\nEl sistema requiere que cada par tenga máximo un valor Absoluto y una Tasa para mantener la integridad de las columnas en la tabla de datos.`);
+            return; // Bloquea el guardado
+        }
+
+        // Si pasó toda la seguridad, continuamos. Borramos la original (si cambió de nombre).
         if (!isCore && originalKey && originalKey !== newKey) {
             delete metricasObj[originalKey];
         }
@@ -396,8 +431,8 @@ document.addEventListener('DOMContentLoaded', function() {
             label: document.getElementById('modal-metric-label').value.trim(),
             fullLabel: document.getElementById('modal-metric-full').value.trim(),
             abrev: document.getElementById('modal-metric-abrev').value.trim(), 
-            tipo: document.getElementById('modal-metric-tipo').value,
-            pair: document.getElementById('modal-metric-pair').value.trim(),
+            tipo: newTipo,
+            pair: newPair,
             visibilidad: finalVis, 
             is_core: isCore,
             created_by: originalCreator,
