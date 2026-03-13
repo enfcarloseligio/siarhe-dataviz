@@ -1,22 +1,21 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// 1. GESTOR DINÁMICO DE DICCIONARIO DE ARCHIVOS
+// 1. Gestor dinámico del diccionario de archivos
 $archivos_json = get_option( 'siarhe_archivos_marcadores', '' );
 $tipos_marcadores = json_decode( wp_unslash( $archivos_json ), true );
 
-// Auto-corrector por si la base de datos se corrompió con el error "u00ed" 
+// Auto-corrector de seguridad por corrupción de codificación ("u00ed")
 if ( empty($tipos_marcadores) || !is_array($tipos_marcadores) || (isset($tipos_marcadores['CATETER']['label']) && strpos($tipos_marcadores['CATETER']['label'], 'u00ed') !== false) ) {
     $tipos_marcadores = [
         'CATETER' => [ 'label' => 'Clínicas de Catéteres', 'filename' => 'clinicas-cateteres.csv', 'is_core' => true ],
         'HERIDAS' => [ 'label' => 'Clínicas de Heridas', 'filename' => 'clinicas-heridas.csv', 'is_core' => true ],
         'ESTABLECIMIENTOS' => [ 'label' => 'Establecimientos de Salud (Todas)', 'filename' => 'establecimientos-salud.csv', 'is_core' => true ]
     ];
-    // JSON_UNESCAPED_UNICODE Evita que los acentos se rompan al guardar
     update_option( 'siarhe_archivos_marcadores', wp_json_encode($tipos_marcadores, JSON_UNESCAPED_UNICODE) );
 }
 
-// Procesar agregado/eliminación de ranuras (vía POST local)
+// Interceptor de transacciones locales vía POST para gestión de ranuras
 if ( isset($_POST['action']) ) {
     if ( $_POST['action'] === 'add_archivo_marcador' && isset($_POST['new_file_key']) ) {
         $new_key = sanitize_text_field(strtoupper(str_replace(' ', '_', $_POST['new_file_key'])));
@@ -27,7 +26,7 @@ if ( isset($_POST['action']) ) {
         if (!empty($new_key) && !isset($tipos_marcadores[$new_key])) {
             $tipos_marcadores[$new_key] = [ 'label' => $new_label, 'filename' => $new_filename, 'is_core' => false ];
             update_option( 'siarhe_archivos_marcadores', wp_json_encode($tipos_marcadores, JSON_UNESCAPED_UNICODE) );
-            echo '<div class="notice notice-success is-dismissible"><p>Nueva variable agregada. Ya puedes subir su archivo CSV.</p></div>';
+            echo '<div class="notice notice-success is-dismissible"><p>Ranura de variable registrada. Archivo CSV admitido para carga.</p></div>';
         }
     }
     
@@ -36,12 +35,12 @@ if ( isset($_POST['action']) ) {
         if (isset($tipos_marcadores[$del_key]) && empty($tipos_marcadores[$del_key]['is_core'])) {
             unset($tipos_marcadores[$del_key]);
             update_option( 'siarhe_archivos_marcadores', wp_json_encode($tipos_marcadores, JSON_UNESCAPED_UNICODE) );
-            echo '<div class="notice notice-success is-dismissible"><p>Variable eliminada exitosamente.</p></div>';
+            echo '<div class="notice notice-success is-dismissible"><p>Ranura de variable eliminada del registro.</p></div>';
         }
     }
 }
 
-// 2. Obtener metadatos existentes de la BD
+// 2. Consulta de metadatos existentes en base de datos
 global $wpdb;
 $table_assets = $wpdb->prefix . 'siarhe_static_assets';
 $existing_files = $wpdb->get_results( 
@@ -53,24 +52,26 @@ foreach ($existing_files as $file) {
     $files_by_type[$file->entidad_slug] = $file;
 }
 
-// Directorio base para comprobaciones físicas
+// Directorio base de validación física
 $upload_base_dir = (defined('SIARHE_UPLOAD_DIR') ? SIARHE_UPLOAD_DIR : wp_upload_dir()['basedir'] . '/siarhe-data/') . 'markers/';
 
-// Mensajes de estado
+// Manejo de notificaciones de estado
 if ( isset($_GET['status']) ) {
-    if ( $_GET['status'] == 'success' ) echo '<div class="notice notice-success is-dismissible"><p>Marcador actualizado correctamente.</p></div>';
-    if ( $_GET['status'] == 'updated' ) echo '<div class="notice notice-success is-dismissible"><p>Metadatos actualizados.</p></div>';
+    if ( $_GET['status'] == 'success' ) echo '<div class="notice notice-success is-dismissible"><p>Marcador procesado y actualizado correctamente.</p></div>';
+    if ( $_GET['status'] == 'updated' ) echo '<div class="notice notice-success is-dismissible"><p>Metadatos sincronizados exitosamente.</p></div>';
 }
 
-// Función auxiliar para mostrar la fecha de modificación con formato estético
-function format_custom_date($db_date) {
-    if (!$db_date) return '—';
-    $timestamp = strtotime($db_date);
-    $meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-    $mes = $meses[date('n', $timestamp) - 1];
-    $hora = date('h:i a', $timestamp);
-    $hora = str_replace(['am', 'pm'], ['a.m.', 'p.m.'], $hora);
-    return date('j', $timestamp) . ' ' . $mes . ' ' . date('Y', $timestamp) . ', ' . $hora;
+// Utilidad local para formato legible de marcas de tiempo
+if (!function_exists('format_custom_date')) {
+    function format_custom_date($db_date) {
+        if (!$db_date) return '—';
+        $timestamp = strtotime($db_date);
+        $meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+        $mes = $meses[date('n', $timestamp) - 1];
+        $hora = date('h:i a', $timestamp);
+        $hora = str_replace(['am', 'pm'], ['a.m.', 'p.m.'], $hora);
+        return date('j', $timestamp) . ' ' . $mes . ' ' . date('Y', $timestamp) . ', ' . $hora;
+    }
 }
 ?>
 
@@ -140,8 +141,29 @@ function format_custom_date($db_date) {
     </form>
 </div>
 
-<div class="card" style="max-width: 100%; padding: 0; margin-bottom: 20px;">
+<div class="card" style="max-width: 100%; padding: 0; margin-bottom: 20px; overflow: hidden;">
     <h2 style="padding: 15px; margin: 0; border-bottom: 1px solid #eee;">Archivos en el Servidor</h2>
+    
+    <div class="siarhe-toolbar">
+        <div class="siarhe-table-controls">
+            <label style="font-size: 13px; color: #3c434a;">
+                Mostrar 
+                <select id="siarhe-items-per-page" style="margin: 0 5px; padding: 2px 24px 2px 8px; font-size: 13px; min-height: 28px;">
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="all">Todos</option>
+                </select> 
+                registros
+            </label>
+        </div>
+
+        <div class="siarhe-search-box">
+            <span class="dashicons dashicons-search"></span>
+            <input type="text" id="siarhe-search-marcadores-file" placeholder="Buscar marcador, estado o archivo...">
+        </div>
+    </div>
+
     <table id="siarhe-marcadores-table" class="siarhe-table">
         <thead>
             <tr>
@@ -154,7 +176,7 @@ function format_custom_date($db_date) {
                 <th style="width: 15%">Acciones</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="siarhe-marcadores-tbody">
             <?php foreach ($tipos_marcadores as $key => $info) : 
                 $db_file = isset($files_by_type[$key]) ? $files_by_type[$key] : null;
                 
@@ -164,7 +186,7 @@ function format_custom_date($db_date) {
                 
                 $url_publica = defined('SIARHE_UPLOAD_URL') ? SIARHE_UPLOAD_URL . 'markers/' . $filename : '';
             ?>
-            <tr>
+            <tr class="siarhe-data-row">
                 <td data-label="Marcador" data-mobile-role="primary">
                     <strong><?php echo esc_html($info['label']); ?></strong>
                     <?php if(!empty($info['is_core'])) echo '<br><small style="color:#aaa;">(Nativo)</small>'; ?>
@@ -280,8 +302,16 @@ function format_custom_date($db_date) {
                 </td>
             </tr>
             <?php endforeach; ?>
+            <tr id="siarhe-marcadores-empty" style="display: none;">
+                <td colspan="7" style="text-align:center; padding: 20px; color:#8c8f94;">No se encontraron resultados para su búsqueda.</td>
+            </tr>
         </tbody>
     </table>
+
+    <div class="siarhe-pagination">
+        <div id="siarhe-marcadores-count" style="font-size: 13px; color: #64748b;"></div>
+        <div class="siarhe-page-numbers" id="siarhe-pagination-controls"></div>
+    </div>
 </div>
 
 <div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px;">
@@ -337,17 +367,8 @@ function format_custom_date($db_date) {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const table = document.getElementById('siarhe-marcadores-table');
-    if(table) {
-        table.querySelectorAll('tbody tr').forEach(row => {
-            row.addEventListener('click', function(e) {
-                if (window.innerWidth > 767) return;
-                if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) return;
-                this.classList.toggle('is-open');
-            });
-        });
-    }
-
+    
+    // Configuración Modal
     const modal = document.getElementById('siarhe-edit-modal');
     const closeBtn = document.getElementById('close-modal-btn');
     
@@ -366,9 +387,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         closeBtn.addEventListener('click', () => { modal.style.display = 'none'; });
-        window.onclick = function(event) { if (event.target == modal) { modal.style.display = 'none'; } }
+        window.addEventListener('click', function(e) { if (e.target == modal) { modal.style.display = 'none'; } });
     }
 
+    // Utilidad: Copiar URL
     document.querySelectorAll('.copy-url-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.preventDefault(); e.stopPropagation();
@@ -380,5 +402,141 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
+
+    // Motor de Paginación y Filtrado vía DOM Hiding
+    const searchInput = document.getElementById('siarhe-search-marcadores-file');
+    const itemsPerPageSelect = document.getElementById('siarhe-items-per-page');
+    const paginationControls = document.getElementById('siarhe-pagination-controls');
+    const countDisplay = document.getElementById('siarhe-marcadores-count');
+    
+    const allRows = Array.from(document.querySelectorAll('.siarhe-data-row'));
+    const emptyRow = document.getElementById('siarhe-marcadores-empty');
+
+    let currentPage = 1;
+    let itemsPerPage = 25;
+    let matchedRows = allRows;
+
+    function applySearchFilter() {
+        const term = searchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        
+        matchedRows = allRows.filter(row => {
+            const text = row.textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const match = text.includes(term);
+            if (!match) row.style.display = 'none';
+            return match;
+        });
+
+        currentPage = 1;
+        renderPagination();
+    }
+
+    function renderPagination() {
+        const totalItems = matchedRows.length;
+        let totalPages = 1;
+        
+        matchedRows.forEach(row => row.style.display = 'none');
+        emptyRow.style.display = totalItems === 0 ? '' : 'none';
+
+        if (itemsPerPage === 'all') {
+            matchedRows.forEach(row => row.style.display = '');
+        } else {
+            totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+            
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            
+            matchedRows.slice(start, end).forEach(row => {
+                row.style.display = '';
+            });
+        }
+        
+        updatePaginationUI(totalItems, itemsPerPage === 'all' ? totalItems : Math.min(itemsPerPage, totalItems - (currentPage-1)*itemsPerPage), totalPages);
+    }
+
+    function updatePaginationUI(totalItems, currentItemsCount, totalPages) {
+        if (totalItems === 0) {
+            countDisplay.innerHTML = 'No hay registros para mostrar.';
+            paginationControls.innerHTML = '';
+            return;
+        }
+
+        let startRange = 1;
+        let endRange = totalItems;
+
+        if (itemsPerPage !== 'all') {
+            startRange = ((currentPage - 1) * itemsPerPage) + 1;
+            endRange = startRange + currentItemsCount - 1;
+        }
+
+        countDisplay.innerHTML = `Mostrando del <strong>${startRange}</strong> al <strong>${endRange}</strong> de <strong>${totalItems}</strong> registros`;
+
+        paginationControls.innerHTML = '';
+        if (totalPages <= 1) return;
+
+        const btnPrev = document.createElement('a');
+        btnPrev.className = `siarhe-page-btn ${currentPage === 1 ? 'disabled' : ''}`;
+        btnPrev.innerHTML = '« Ant';
+        btnPrev.addEventListener('click', (e) => { e.preventDefault(); if(currentPage > 1) { currentPage--; renderPagination(); } });
+        paginationControls.appendChild(btnPrev);
+
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
+
+        if (currentPage <= 2) endPage = Math.min(totalPages, 5);
+        if (currentPage >= totalPages - 1) startPage = Math.max(1, totalPages - 4);
+
+        if (startPage > 1) {
+            const btnFirst = document.createElement('a');
+            btnFirst.className = 'siarhe-page-btn'; btnFirst.innerHTML = '1';
+            btnFirst.addEventListener('click', (e) => { e.preventDefault(); currentPage = 1; renderPagination(); });
+            paginationControls.appendChild(btnFirst);
+            if (startPage > 2) paginationControls.insertAdjacentHTML('beforeend', '<span style="color:#8c8f94;">...</span>');
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            const btnP = document.createElement('a');
+            btnP.className = `siarhe-page-btn ${i === currentPage ? 'active' : ''}`;
+            btnP.innerHTML = i;
+            btnP.addEventListener('click', (e) => { e.preventDefault(); currentPage = i; renderPagination(); });
+            paginationControls.appendChild(btnP);
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) paginationControls.insertAdjacentHTML('beforeend', '<span style="color:#8c8f94;">...</span>');
+            const btnLast = document.createElement('a');
+            btnLast.className = 'siarhe-page-btn'; btnLast.innerHTML = totalPages;
+            btnLast.addEventListener('click', (e) => { e.preventDefault(); currentPage = totalPages; renderPagination(); });
+            paginationControls.appendChild(btnLast);
+        }
+
+        const btnNext = document.createElement('a');
+        btnNext.className = `siarhe-page-btn ${currentPage === totalPages ? 'disabled' : ''}`;
+        btnNext.innerHTML = 'Sig »';
+        btnNext.addEventListener('click', (e) => { e.preventDefault(); if(currentPage < totalPages) { currentPage++; renderPagination(); } });
+        paginationControls.appendChild(btnNext);
+    }
+
+    if(searchInput) searchInput.addEventListener('input', applySearchFilter);
+    
+    if(itemsPerPageSelect) {
+        itemsPerPageSelect.addEventListener('change', (e) => {
+            itemsPerPage = e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10);
+            currentPage = 1;
+            renderPagination();
+        });
+    }
+
+    // Lógica interna para acordeón móvil aislando controles interactivos
+    document.querySelectorAll('.siarhe-data-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (window.innerWidth > 767) return;
+            if (e.target.closest('button') || e.target.closest('a') || e.target.closest('form')) return;
+            this.classList.toggle('is-open');
+        });
+    });
+
+    // Inicialización del módulo
+    applySearchFilter();
 });
 </script>

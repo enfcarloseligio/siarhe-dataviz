@@ -108,8 +108,28 @@ if (!function_exists('format_custom_date')) {
     </form>
 </div>
 
-<div class="card" style="max-width: 100%; padding: 0;">
+<div class="card" style="max-width: 100%; padding: 0; overflow: hidden;">
     <h2 style="padding: 15px; margin: 0; border-bottom: 1px solid #eee;">Estado de Mapas (Localidades)</h2>
+    
+    <div class="siarhe-toolbar">
+        <div class="siarhe-table-controls">
+            <label style="font-size: 13px; color: #3c434a;">
+                Mostrar 
+                <select id="siarhe-items-per-page" style="margin: 0 5px; padding: 2px 24px 2px 8px; font-size: 13px; min-height: 28px;">
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="all">Todos</option>
+                </select> 
+                registros
+            </label>
+        </div>
+
+        <div class="siarhe-search-box">
+            <span class="dashicons dashicons-search"></span>
+            <input type="text" id="siarhe-search-localidades" placeholder="Buscar entidad, archivo o estado...">
+        </div>
+    </div>
     
     <table id="siarhe-localidades-table" class="siarhe-table">
         <thead>
@@ -124,7 +144,7 @@ if (!function_exists('format_custom_date')) {
                 <th style="width: 15%;">Acciones</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="siarhe-localidades-tbody">
             <?php 
             $rows = [];
             $upload_base = defined('SIARHE_UPLOAD_DIR') ? SIARHE_UPLOAD_DIR : wp_upload_dir()['basedir'] . '/siarhe-data/';
@@ -159,7 +179,7 @@ if (!function_exists('format_custom_date')) {
                 $archivo = $row['archivo']; 
                 $exists = $row['existe_fisico'];
             ?>
-            <tr>
+            <tr class="siarhe-data-row">
                 <td data-label="Entidad" data-mobile-role="primary">
                     <strong><?php echo esc_html($nombre); ?></strong>
                 </td>
@@ -270,8 +290,16 @@ if (!function_exists('format_custom_date')) {
                 </td>
             </tr>
             <?php endforeach; ?>
+            <tr id="siarhe-localidades-empty" style="display: none;">
+                <td colspan="8" style="text-align:center; padding: 20px; color:#8c8f94;">No se encontraron resultados para su búsqueda.</td>
+            </tr>
         </tbody>
     </table>
+
+    <div class="siarhe-pagination">
+        <div id="siarhe-localidades-count" style="font-size: 13px; color: #64748b;"></div>
+        <div class="siarhe-page-numbers" id="siarhe-pagination-controls"></div>
+    </div>
 </div>
 
 <div id="siarhe-edit-modal" class="siarhe-modal-overlay">
@@ -301,17 +329,7 @@ if (!function_exists('format_custom_date')) {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     
-    const table = document.getElementById('siarhe-localidades-table');
-    if(table) {
-        table.querySelectorAll('tbody tr').forEach(row => {
-            row.addEventListener('click', function(e) {
-                if (window.innerWidth > 767) return;
-                if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) return;
-                this.classList.toggle('is-open');
-            });
-        });
-    }
-
+    // Configuración de Modales
     const modal = document.getElementById('siarhe-edit-modal');
     const closeBtn = document.getElementById('close-modal-btn');
     if(modal) {
@@ -328,9 +346,10 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         closeBtn.addEventListener('click', () => { modal.style.display = 'none'; });
-        window.onclick = function(event) { if (event.target == modal) { modal.style.display = 'none'; } }
+        window.addEventListener('click', function(e) { if (e.target == modal) { modal.style.display = 'none'; } });
     }
     
+    // Utilidad: Copiar URL
     document.querySelectorAll('.copy-url-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.preventDefault(); e.stopPropagation();
@@ -342,5 +361,144 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
+
+    // Motor de Paginación y Filtrado por DOM Hiding
+    const searchInput = document.getElementById('siarhe-search-localidades');
+    const itemsPerPageSelect = document.getElementById('siarhe-items-per-page');
+    const paginationControls = document.getElementById('siarhe-pagination-controls');
+    const countDisplay = document.getElementById('siarhe-localidades-count');
+    
+    const allRows = Array.from(document.querySelectorAll('.siarhe-data-row'));
+    const emptyRow = document.getElementById('siarhe-localidades-empty');
+
+    let currentPage = 1;
+    let itemsPerPage = 25;
+    let matchedRows = allRows;
+
+    function applySearchFilter() {
+        const term = searchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        
+        matchedRows = allRows.filter(row => {
+            // Evaluamos todo el texto de la fila (Entidad, Archivo, Estado, etc.)
+            const text = row.textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const match = text.includes(term);
+            if (!match) row.style.display = 'none';
+            return match;
+        });
+
+        currentPage = 1;
+        renderPagination();
+    }
+
+    function renderPagination() {
+        const totalItems = matchedRows.length;
+        let totalPages = 1;
+        
+        // Ocultar todos los matches temporalmente
+        matchedRows.forEach(row => row.style.display = 'none');
+        emptyRow.style.display = totalItems === 0 ? '' : 'none';
+
+        if (itemsPerPage === 'all') {
+            matchedRows.forEach(row => row.style.display = '');
+        } else {
+            totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+            
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            
+            // Mostrar solo los elementos de la página actual
+            matchedRows.slice(start, end).forEach(row => {
+                row.style.display = '';
+            });
+        }
+        
+        updatePaginationUI(totalItems, itemsPerPage === 'all' ? totalItems : Math.min(itemsPerPage, totalItems - (currentPage-1)*itemsPerPage), totalPages);
+    }
+
+    function updatePaginationUI(totalItems, currentItemsCount, totalPages) {
+        if (totalItems === 0) {
+            countDisplay.innerHTML = 'No hay registros para mostrar.';
+            paginationControls.innerHTML = '';
+            return;
+        }
+
+        let startRange = 1;
+        let endRange = totalItems;
+
+        if (itemsPerPage !== 'all') {
+            startRange = ((currentPage - 1) * itemsPerPage) + 1;
+            endRange = startRange + currentItemsCount - 1;
+        }
+
+        countDisplay.innerHTML = `Mostrando del <strong>${startRange}</strong> al <strong>${endRange}</strong> de <strong>${totalItems}</strong> registros`;
+
+        paginationControls.innerHTML = '';
+        if (totalPages <= 1) return;
+
+        const btnPrev = document.createElement('a');
+        btnPrev.className = `siarhe-page-btn ${currentPage === 1 ? 'disabled' : ''}`;
+        btnPrev.innerHTML = '« Ant';
+        btnPrev.addEventListener('click', (e) => { e.preventDefault(); if(currentPage > 1) { currentPage--; renderPagination(); } });
+        paginationControls.appendChild(btnPrev);
+
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
+
+        if (currentPage <= 2) endPage = Math.min(totalPages, 5);
+        if (currentPage >= totalPages - 1) startPage = Math.max(1, totalPages - 4);
+
+        if (startPage > 1) {
+            const btnFirst = document.createElement('a');
+            btnFirst.className = 'siarhe-page-btn'; btnFirst.innerHTML = '1';
+            btnFirst.addEventListener('click', (e) => { e.preventDefault(); currentPage = 1; renderPagination(); });
+            paginationControls.appendChild(btnFirst);
+            if (startPage > 2) paginationControls.insertAdjacentHTML('beforeend', '<span style="color:#8c8f94;">...</span>');
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            const btnP = document.createElement('a');
+            btnP.className = `siarhe-page-btn ${i === currentPage ? 'active' : ''}`;
+            btnP.innerHTML = i;
+            btnP.addEventListener('click', (e) => { e.preventDefault(); currentPage = i; renderPagination(); });
+            paginationControls.appendChild(btnP);
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) paginationControls.insertAdjacentHTML('beforeend', '<span style="color:#8c8f94;">...</span>');
+            const btnLast = document.createElement('a');
+            btnLast.className = 'siarhe-page-btn'; btnLast.innerHTML = totalPages;
+            btnLast.addEventListener('click', (e) => { e.preventDefault(); currentPage = totalPages; renderPagination(); });
+            paginationControls.appendChild(btnLast);
+        }
+
+        const btnNext = document.createElement('a');
+        btnNext.className = `siarhe-page-btn ${currentPage === totalPages ? 'disabled' : ''}`;
+        btnNext.innerHTML = 'Sig »';
+        btnNext.addEventListener('click', (e) => { e.preventDefault(); if(currentPage < totalPages) { currentPage++; renderPagination(); } });
+        paginationControls.appendChild(btnNext);
+    }
+
+    if(searchInput) searchInput.addEventListener('input', applySearchFilter);
+    
+    if(itemsPerPageSelect) {
+        itemsPerPageSelect.addEventListener('change', (e) => {
+            itemsPerPage = e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10);
+            currentPage = 1;
+            renderPagination();
+        });
+    }
+
+    // Lógica interna para acordeón móvil aislando clicks en botones
+    document.querySelectorAll('.siarhe-data-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (window.innerWidth > 767) return;
+            if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) return;
+            this.classList.toggle('is-open');
+        });
+    });
+
+    // Inicialización del módulo
+    applySearchFilter();
 });
 </script>
