@@ -30,55 +30,99 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
         render: function(container, state, cveEnt) {
             
+            // 🌟 CSS DEL MAPA, BOTONES ZOOM Y LÓGICA DE OCULTAMIENTO DE 🎛️ 🌟
             if (!document.getElementById('siarhe-fullscreen-styles')) {
                 const style = document.createElement('style');
                 style.id = 'siarhe-fullscreen-styles';
                 style.innerHTML = `
-                    .siarhe-map-container {
-                        position: relative;
-                    }
-                    /* 🌟 BOTONES ARRIBA A LA DERECHA SIEMPRE 🌟 */
+                    .siarhe-map-container { position: relative !important; overflow: hidden !important; }
+                    
+                    /* Botones Zoom (Base) */
                     .siarhe-map-container .zoom-controles {
                         position: absolute !important;
-                        top: 15px !important;
-                        right: 15px !important;
-                        bottom: auto !important;
-                        z-index: 1000;
-                        display: flex;
-                        flex-direction: column;
-                        gap: 6px;
+                        z-index: 1000 !important;
+                        display: flex !important;
                     }
+                    .siarhe-map-container .zoom-controles button {
+                        padding: 0 !important; margin: 0 !important; line-height: 1 !important;
+                        display: flex !important; align-items: center !important; justify-content: center !important;
+                        background: rgba(255, 255, 255, 0.95) !important;
+                        border: 1px solid #cbd5e1 !important; border-radius: 4px !important;
+                        cursor: pointer !important; color: #334155 !important;
+                        box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important; transition: all 0.2s;
+                    }
+                    .siarhe-map-container .zoom-controles button:hover { background: #f1f5f9 !important; }
+                    
+                    /* 🌟 LÓGICA DEL BOTÓN AJUSTES 🎛️ 🌟 */
+                    .siarhe-map-container .zoom-controles button.btn-show-controls {
+                        background: #0ea5e9 !important; color: #fff !important; border-color: #0284c7 !important;
+                        display: none !important; /* Siempre oculto por defecto */
+                    }
+                    /* SOLO aparece si el mapa es Fullscreen Y los controles fueron cerrados (Clase mágica) */
+                    .siarhe-map-container.is-fullscreen.controls-are-hidden .zoom-controles button.btn-show-controls {
+                        display: flex !important; 
+                    }
+
+                    /* 🌟 PC Y TABLET (≥ 768px): Botones SIEMPRE arriba derecha 🌟 */
+                    @media (min-width: 768px) {
+                        .siarhe-map-container .zoom-controles {
+                            top: 15px !important; right: 15px !important; bottom: auto !important; left: auto !important;
+                            flex-direction: column !important; gap: 8px !important;
+                        }
+                        .siarhe-map-container .zoom-controles button {
+                            width: 34px !important; height: 34px !important; font-size: 16px !important;
+                        }
+                    }
+
+                    /* 🌟 MÓVIL (< 767px): Lógica Dinámica de Botones 🌟 */
+                    @media (max-width: 767px) {
+                        /* Modo Navegador Normal: Abajo, en medio, horizontales y pequeños */
+                        .siarhe-map-container:not(.is-fullscreen) .zoom-controles {
+                            top: auto !important; bottom: 10px !important;
+                            left: 50% !important; right: auto !important;
+                            transform: translateX(-50%) !important;
+                            flex-direction: row !important; gap: 10px !important;
+                        }
+                        .siarhe-map-container:not(.is-fullscreen) .zoom-controles button {
+                            width: 28px !important; height: 28px !important; font-size: 14px !important;
+                        }
+                        
+                        /* Modo Fullscreen (Vertical u Horizontal): Arriba derecha en columna */
+                        .siarhe-map-container.is-fullscreen .zoom-controles {
+                            top: 10px !important; right: 10px !important;
+                            bottom: auto !important; left: auto !important;
+                            transform: none !important;
+                            flex-direction: column !important; gap: 8px !important;
+                        }
+                        .siarhe-map-container.is-fullscreen .zoom-controles button {
+                            width: 32px !important; height: 32px !important; font-size: 15px !important;
+                        }
+                    }
+
+                    /* =========================================
+                       ESTILOS FULLSCREEN GENERALES
+                       ========================================= */
                     .siarhe-map-container.is-fullscreen {
+                        position: fixed !important;
+                        top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+                        width: 100vw !important; height: 100vh !important;
+                        padding-bottom: 0 !important; 
                         background: #e6f0f8 !important;
+                        z-index: 99999 !important;
+                        border: none !important; border-radius: 0 !important;
                     }
                     .siarhe-map-container.is-fullscreen > svg {
-                        width: 100% !important;
-                        height: 100% !important; 
-                        display: block !important;
+                        width: 100% !important; height: 100% !important; display: block !important;
                     }
-                    .siarhe-controls-layout.is-fullscreen-mode {
-                        position: absolute !important;
-                        top: 15px !important;
-                        left: 50% !important;
-                        transform: translateX(-50%) !important; 
-                        background: rgba(255, 255, 255, 0.95);
-                        padding: 15px 25px;
-                        border-radius: 8px;
-                        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-                        z-index: 1000;
-                        width: 90% !important; /* Limita a que no se desborde */
-                        max-width: 1000px !important;
-                    }
-                    .siarhe-controls-layout.is-fullscreen-mode .mc-menu, 
-                    .siarhe-controls-layout.is-fullscreen-mode .siarhe-cs-menu {
-                        max-height: 40vh;
-                        overflow-y: auto;
-                    }
-                    @media (max-width: 767px) {
+                    
+                    /* Panel en Fullscreen PC */
+                    @media (min-width: 768px) {
                         .siarhe-controls-layout.is-fullscreen-mode {
-                            top: 10px !important;
-                            width: 95% !important;
-                            padding: 10px !important;
+                            position: absolute !important; top: 15px !important; left: 50% !important;
+                            transform: translateX(-50%) scale(0.75) !important; transform-origin: top center !important;
+                            background: rgba(255, 255, 255, 0.95) !important; padding: 15px 25px !important;
+                            border-radius: 8px !important; box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+                            z-index: 1000 !important; width: 90% !important; max-width: 1000px !important;
                         }
                     }
                 `;
@@ -96,7 +140,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .attr("viewBox", `0 0 ${width} ${height}`)
                 .attr("preserveAspectRatio", "xMidYMid meet")
                 .style("width", "100%")
-                .style("height", "auto")
+                .style("height", "100%")
                 .style("background-color", "#e6f0f8") 
                 .style("font-family", "'Roboto', Arial, sans-serif"); 
             
@@ -643,25 +687,23 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             createBtn('–', 'Alejar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 0.6); });
             createBtn('⟳', 'Reset', (e) => { e.preventDefault(); svg.transition().duration(750).call(zoom.transform, state.initialTransform); });
             
-            // 🌟 NUEVO ÍCONO Y LÓGICA DE PANTALLA COMPLETA 🌟
             const btnFullscreen = document.createElement('button');
             btnFullscreen.className = 'boton'; 
-            btnFullscreen.innerHTML = '⤢'; // Flecha universal de expandir
+            btnFullscreen.innerHTML = '⤢'; 
             btnFullscreen.title = 'Pantalla Completa';
             const mapContainer = mapDiv; 
             
-            // Botón mágico para restaurar controles (Oculto por defecto)
             const btnShowControls = document.createElement('button');
             btnShowControls.className = 'boton btn-show-controls'; 
             btnShowControls.innerHTML = '🎛️'; 
             btnShowControls.title = 'Mostrar Controles';
-            btnShowControls.style.display = 'none';
 
             btnShowControls.onclick = (e) => {
                 e.preventDefault();
                 const controlsEl = container.querySelector('.siarhe-controls-layout');
                 if (controlsEl) controlsEl.classList.remove('is-hidden');
-                btnShowControls.style.display = 'none';
+                // Al presionar Ajustes, quitamos la clase mágica
+                mapContainer.classList.remove('controls-are-hidden');
             };
 
             btnFullscreen.onclick = (e) => {
@@ -674,9 +716,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     else if (mapContainer.webkitRequestFullscreen) { mapContainer.webkitRequestFullscreen(); } 
                     else if (mapContainer.msRequestFullscreen) { mapContainer.msRequestFullscreen(); }
                     
-                    btnFullscreen.innerHTML = '⤡'; // Flecha contraer
+                    btnFullscreen.innerHTML = '⤡'; 
                     mapContainer.classList.add('is-fullscreen');
                     
+                    // Al ENTRAR a fullscreen, aseguramos que los controles estén visibles y el botón oculto
+                    mapContainer.classList.remove('controls-are-hidden'); 
                     if (controlsEl) {
                         mapContainer.appendChild(controlsEl);
                         controlsEl.classList.add('is-fullscreen-mode');
@@ -689,7 +733,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     
                     btnFullscreen.innerHTML = '⤢'; 
                     mapContainer.classList.remove('is-fullscreen');
-                    btnShowControls.style.display = 'none';
+                    // Al SALIR de fullscreen, reseteamos las clases mágicas
+                    mapContainer.classList.remove('controls-are-hidden');
                     
                     if (controlsEl) {
                         const controlsPlaceholder = container.querySelector('.siarhe-controls-placeholder');
@@ -704,7 +749,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (!document.fullscreenElement) {
                     btnFullscreen.innerHTML = '⤢'; 
                     mapContainer.classList.remove('is-fullscreen');
-                    btnShowControls.style.display = 'none';
+                    mapContainer.classList.remove('controls-are-hidden');
                     
                     const controlsEl = mapContainer.querySelector('.siarhe-controls-layout');
                     if (controlsEl) {
@@ -717,11 +762,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             });
             
             ctrlDiv.appendChild(btnFullscreen);
-            ctrlDiv.appendChild(btnShowControls);
 
             if (!state.isNacional && state.homeUrl) {
                 createBtn('🏠', 'Ir a Nacional', (e) => { e.preventDefault(); window.location.href = state.homeUrl; });
             }
+
+            // INYECTAMOS 🎛️ AL FINAL
+            ctrlDiv.appendChild(btnShowControls);
         },
 
         downloadMapAsPNG: function(container, state, withLabels) {

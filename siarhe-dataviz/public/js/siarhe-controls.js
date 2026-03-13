@@ -15,7 +15,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         
         renderMain: function(container, state, onUpdate, opts = { targetSelector: '.siarhe-controls-placeholder', showMarkers: true }) {
             
-            // DETECCIÓN DE MODO: ¿Estamos cargando solo la tabla?
             const isTableOnly = (opts.targetSelector === '.siarhe-table-controls-placeholder');
 
             if (!document.getElementById('siarhe-search-dropdown-styles')) {
@@ -23,14 +22,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 style.id = 'siarhe-search-dropdown-styles';
                 style.innerHTML = `
                     .siarhe-controls-layout { position: relative; display: flex; flex-direction: column; gap: 15px; background: #F8FAFC; padding: 15px 20px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 20px; }
-                    .siarhe-controls-row { display: flex; gap: 20px; flex-wrap: wrap; width: 100%; align-items: flex-end; }
-                    
-                    /* 🌟 FIX MÓVIL HORIZONTAL: min-width 0 permite que el texto se trunque con puntos suspensivos en vez de encimarse */
+                    .siarhe-controls-row { display: flex; gap: 20px; width: 100%; align-items: flex-end; }
                     .siarhe-control-group { flex: 1 1 0%; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
                     .siarhe-control-group > label { font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 13px; color: #0A66C2; text-transform: uppercase; letter-spacing: 0.5px; }
                     
                     .siarhe-custom-select, .mc-field { position: relative; width: 100%; font-family: 'Roboto', sans-serif; }
-                    
                     .siarhe-metric-select, .siarhe-cs-trigger, .mc-trigger { background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 0 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: #334155; height: 38px; box-sizing: border-box; font-size: 14px; transition: border-color 0.2s; overflow: hidden; width: 100%; }
                     .siarhe-cs-trigger > span, .mc-trigger > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; text-align: left; line-height: 36px; padding-right: 10px; flex: 1; }
                     .siarhe-cs-trigger::after, .mc-trigger::after { content: "▼"; font-size: 10px; color: #94a3b8; flex-shrink: 0; }
@@ -58,7 +54,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     .s-toggle-switch input:checked + .s-toggle-slider { background-color: #0284c7; }
                     .s-toggle-switch input:checked + .s-toggle-slider:before { transform: translateX(20px); }
                     
-                    /* 🌟 FIX TOAST SCROLL: visibility oculta el elemento en vez de enviarlo fuera de la pantalla */
                     .siarhe-smart-toast {
                         position: absolute; top: 20px; right: 20px; z-index: 10000;
                         background: #fff; border-left: 4px solid #0ea5e9; border-radius: 6px;
@@ -69,32 +64,67 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         transform: translateY(15px); opacity: 0; visibility: hidden; 
                         transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                     }
-                    .siarhe-smart-toast.show {
-                        transform: translateY(0); opacity: 1; visibility: visible; pointer-events: auto;
-                    }
+                    .siarhe-smart-toast.show { transform: translateY(0); opacity: 1; visibility: visible; pointer-events: auto; }
                     .siarhe-toast-header { display: flex; justify-content: space-between; align-items: center; color: #0f172a; font-size: 14px;}
                     .siarhe-toast-close { cursor: pointer; color: #94a3b8; border: none; background: none; font-size: 16px; line-height: 1; padding: 0; margin: 0; }
                     .siarhe-toast-close:hover { color: #d63638; }
                     .siarhe-toast-btn { background: #f0f9ff; color: #0284c7; border: 1px solid #bae6fd; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; text-align: center; transition: background 0.2s; align-self: flex-start; }
                     .siarhe-toast-btn:hover { background: #e0f2fe; }
 
-                    /* 🌟 BOTÓN CERRAR CONTROLES FULLSCREEN 🌟 */
+                    /* 🌟 "X" CÍRCULO PERFECTO AZUL 🌟 */
                     .siarhe-close-controls-btn {
-                        position: absolute; top: 10px; right: 12px;
-                        background: rgba(0,0,0,0.05); border: none; font-size: 12px;
-                        cursor: pointer; color: #64748b; border-radius: 50%;
-                        width: 24px; height: 24px; display: none;
-                        align-items: center; justify-content: center;
+                        position: absolute !important;
+                        top: -12px !important;
+                        right: -12px !important;
+                        background: #0A66C2 !important;
+                        border: 2px solid #ffffff !important;
+                        color: #ffffff !important;
+                        border-radius: 50% !important;
+                        width: 28px !important; 
+                        height: 28px !important;
+                        padding: 0 !important;
+                        font-size: 12px !important;
+                        font-weight: bold !important;
+                        cursor: pointer !important;
+                        display: none; 
+                        align-items: center !important;
+                        justify-content: center !important;
+                        box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+                        transition: transform 0.1s !important;
                     }
-                    .siarhe-close-controls-btn:hover { background: #fee2e2; color: #b91c1c; }
+                    .siarhe-close-controls-btn:active { transform: scale(0.9) !important; }
                     .siarhe-controls-layout.is-fullscreen-mode .siarhe-close-controls-btn { display: flex; }
                     .siarhe-controls-layout.is-hidden { display: none !important; }
 
                     @media (max-width: 767px) { 
-                        .siarhe-control-group { flex: none; width: 100%; min-width: 0; }
-                        .siarhe-mode-toggle { margin-left: 0; margin-top: 10px; width: 100%; justify-content: space-between; } 
+                        .siarhe-controls-row { flex-direction: column !important; gap: 12px !important; }
+                        .siarhe-control-group { width: 100% !important; flex: none !important; }
                         .siarhe-smart-toast { top: auto; bottom: 20px; right: 10px; left: 10px; width: auto; max-width: none; transform: translateY(15px); }
                         .siarhe-smart-toast.show { transform: translateY(0); }
+                        
+                        .siarhe-controls-layout.is-fullscreen-mode {
+                            gap: 8px !important;
+                            padding: 10px 15px !important;
+                            margin-bottom: 20px !important; /* Espacio para el botón */
+                        }
+                        .siarhe-controls-layout.is-fullscreen-mode .siarhe-controls-row { gap: 6px !important; }
+                        .siarhe-controls-layout.is-fullscreen-mode .siarhe-metric-select, 
+                        .siarhe-controls-layout.is-fullscreen-mode .mc-trigger {
+                            height: 34px !important; font-size: 13px !important;
+                        }
+
+                        /* 🌟 En móvil movemos la X al Centro Inferior para no chocar con el mapa 🌟 */
+                        .siarhe-close-controls-btn {
+                            top: auto !important;
+                            right: auto !important;
+                            bottom: -15px !important;
+                            left: 50% !important;
+                            transform: translateX(-50%) !important;
+                            width: 32px !important; 
+                            height: 32px !important;
+                            font-size: 14px !important;
+                        }
+                        .siarhe-close-controls-btn:active { transform: translateX(-50%) scale(0.9) !important; }
                     }
                 `;
                 document.head.appendChild(style);
@@ -126,7 +156,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     </div>
                 `;
 
-                // Botón para ocultar menú en fullscreen
                 const closeBtn = document.createElement('button');
                 closeBtn.className = 'siarhe-close-controls-btn';
                 closeBtn.innerHTML = '✖';
@@ -137,10 +166,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     e.preventDefault();
                     wrapper.classList.add('is-hidden');
                     const mapDiv = container.querySelector('.siarhe-map-container');
-                    if (mapDiv) {
-                        const showBtn = mapDiv.querySelector('.btn-show-controls');
-                        if (showBtn) showBtn.style.display = 'block';
-                    }
+                    // 🌟 INYECTA LA CLASE MÁGICA PARA QUE APAREZCA 🎛️
+                    if (mapDiv) mapDiv.classList.add('controls-are-hidden');
                 });
             }
 

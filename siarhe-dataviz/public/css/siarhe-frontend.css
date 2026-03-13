@@ -8,14 +8,14 @@
     --s-map-null: #d9d9d9;
     
     /* Tabla - Fondos */
-    --s-th-bg: #F8FAFC; /* Blanco suave de la identidad */
+    --s-th-bg: #F8FAFC; 
     --s-tr-odd: #ffffff;
     --s-tr-even: #f9f9f9;
     --s-total-bg: #e8f4fd;
     
     /* Tabla - Textos */
-    --s-th-text: #0F172A; /* Azul profundo tecnológico */
-    --s-tr-odd-txt: #475569; /* Gris profesional */
+    --s-th-text: #0F172A; 
+    --s-tr-odd-txt: #475569; 
     --s-tr-even-txt: #475569;
     --s-total-txt: #0F172A;
     
@@ -27,7 +27,6 @@
    2. ESTRUCTURA DE PÁGINA (Layout)
    ========================================= */
 .siarhe-viz-wrapper {
-    /* Eliminado el font-family genérico para que Elementor controle los textos base (Roboto/IBM Plex Sans) */
     margin: 20px 0;
     position: relative;
     max-width: 100%;
@@ -40,16 +39,15 @@
 }
 
 .siarhe-title {
-    color: #0A66C2; /* Azul clínico moderno */
+    color: #0A66C2; 
     margin: 0 0 10px 0;
     display: flex;
     align-items: center;
     gap: 10px;
-    /* Font-size y familia controlados por Elementor (H2) */
 }
 
 .siarhe-meta {
-    color: #475569; /* Gris profesional */
+    color: #475569; 
     margin: 0;
 }
 
@@ -65,147 +63,20 @@
 }
 
 /* =========================================
-   3. CONTROLES UNIFICADOS (Indicador + Marcadores)
+   3. MAPA INTERACTIVO (Contenedor Base)
    ========================================= */
-.siarhe-controls {
-    display: flex;
-    align-items: flex-end; /* Alineación inferior para que las etiquetas coincidan */
-    gap: 20px; /* Espacio entre el selector y los marcadores */
-    background: #F8FAFC; /* Blanco suave */
-    padding: 15px 20px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-}
 
-/* Grupos de Control (Label + Input) */
-.siarhe-control-group {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.siarhe-control-group label {
-    font-family: 'Space Grotesk', sans-serif; /* Etiquetas técnicas */
-    font-weight: 500;
-    font-size: 13px;
-    color: #0A66C2; /* Azul clínico moderno */
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-/* Estilo BASE compartido para Select y Dropdown Trigger */
-.siarhe-metric-select,
-.mc-trigger {
-    height: 38px; /* Altura fija idéntica */
-    min-width: 260px;
-    padding: 6px 12px;
-    font-family: 'Roboto', sans-serif;
-    font-size: 14px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background-color: #fff;
-    color: #0F172A;
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    transition: border-color 0.2s;
-}
-
-.siarhe-metric-select:hover,
-.mc-trigger:hover {
-    border-color: #0A66C2;
-}
-
-.siarhe-metric-select:focus {
-    border-color: #06B6D4; /* Cian científico para focus */
-    outline: none;
-}
-
-/* Ajustes específicos del Dropdown Custom (Marcadores) */
-.mc-field {
-    position: relative;
-}
-
-.mc-trigger {
-    justify-content: space-between; /* Texto izq, flecha der */
-}
-
-.mc-trigger::after {
-    content: "▼";
-    font-size: 10px;
-    color: #666;
-    margin-left: 10px;
-}
-
-.mc-trigger.is-placeholder {
-    color: #475569;
-}
-
-/* Menú desplegable de marcadores */
-.mc-menu {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    width: 100%;
-    background: #fff;
-    border: 1px solid #ccc;
-    border-top: none;
-    border-radius: 0 0 4px 4px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-    display: none;
-    z-index: 1000; /* Encima de todo */
-    max-height: 250px;
-    overflow-y: auto;
-    margin-top: 2px;
-}
-
-.mc-menu.open {
-    display: block;
-}
-
-.mc-option {
-    padding: 10px 12px;
-    font-family: 'Roboto', sans-serif;
-    font-size: 13px;
-    cursor: pointer;
-    border-bottom: 1px solid #F8FAFC;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.mc-option:last-child {
-    border-bottom: none;
-}
-
-.mc-option:hover {
-    background-color: #F8FAFC;
-    color: #0A66C2;
-}
-
-.mc-check {
-    cursor: pointer;
-}
-
-/* =========================================
-   4. MAPA INTERACTIVO (Proporción 16:9)
-   ========================================= */
 .siarhe-map-container {
     position: relative;
     width: 100%;
-    /* 🌟 Proporción 16:9 (9 / 16 = 0.5625) 🌟 */
     padding-bottom: 56.25%; 
     height: 0;
-    background-color: #F8FAFC; /* Mismo fondo suave de identidad */
+    background-color: #F8FAFC; 
     border: 1px solid #ccc;
     border-radius: 4px;
     overflow: hidden;
 }
 
-/* El SVG debe flotar sobre el contenedor proporcional */
 .siarhe-map-container svg {
     position: absolute;
     top: 0;
@@ -218,15 +89,13 @@
 path.siarhe-feature {
     fill: var(--s-map-null); 
     stroke: #ffffff;
-    stroke-width: 0.5px;
     transition: fill 0.4s ease, stroke 0.2s ease;
     cursor: pointer;
     vector-effect: non-scaling-stroke;
 }
 
 path.siarhe-feature:hover {
-    stroke: #0F172A; /* Azul profundo en hover para más contraste */
-    stroke-width: 1.5px;
+    stroke: #0F172A; 
     filter: brightness(0.95);
     z-index: 10;
 }
@@ -235,80 +104,39 @@ path.siarhe-feature:hover {
     margin-top: 10px;
     font-size: 12px;
     color: #777;
-    text-align: center; /* Restaurado el texto centrado del tip */
-}
-
-/* Leyenda de Marcadores (Círculos) */
-.leyenda-marcadores text {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    fill: #333;
+    text-align: center;
 }
 
 /* =========================================
-   4.1 PANTALLA COMPLETA (FULLSCREEN)
-   ========================================= */
-.siarhe-map-container.is-fullscreen {
-    padding-bottom: 0;
-    height: 100vh;
-    border: none;
-    border-radius: 0;
-    background-color: #F8FAFC;
-}
-
-.siarhe-map-container:-webkit-full-screen { 
-    width: 100%; 
-    height: 100%; 
-    padding-bottom: 0; 
-    background-color: #F8FAFC; 
-}
-.siarhe-map-container:-ms-fullscreen { 
-    width: 100%; 
-    height: 100%; 
-    padding-bottom: 0; 
-    background-color: #F8FAFC; 
-}
-.siarhe-map-container:fullscreen { 
-    width: 100%; 
-    height: 100%; 
-    padding-bottom: 0; 
-    background-color: #F8FAFC; 
-}
-
-/* =========================================
-   5. TOOLTIP (Versión Adaptada a Identidad)
+   4. TOOLTIP (Versión Adaptada a Identidad)
    ========================================= */
 .siarhe-tooltip {
     position: absolute;
     padding: 10px 14px; 
-    background: #0F172A; /* Azul profundo tecnológico (Dark theme base) */
-    color: #F8FAFC; /* Blanco suave */
+    background: #0F172A; 
+    color: #F8FAFC; 
     border-radius: 6px;
-    pointer-events: none; /* Ignora el mouse para no parpadear */
-    
-    /* Z-Index Crítico: Debe estar por encima de todo */
+    pointer-events: none; 
     z-index: 10000;
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    
     display: none;
-    
-    /* Dimensiones y Texto */
     min-width: 200px;
     max-width: 300px;
-    font-family: 'Roboto', sans-serif; /* Textos de lectura */
+    font-family: 'Roboto', sans-serif; 
     font-size: 13px; 
     line-height: 1.4;
     white-space: normal;
 }
 
 .siarhe-tooltip strong {
-    font-family: 'Space Grotesk', sans-serif; /* Para resaltar indicadores numéricos */
+    font-family: 'Space Grotesk', sans-serif; 
     font-size: 14px;
     font-weight: 500;
-    color: #06B6D4; /* Cian científico / Data science accent */
+    color: #06B6D4; 
 }
 
 /* =========================================
-   6. TABLA DE DATOS (Sin !important)
+   5. TABLA DE DATOS
    ========================================= */
 .siarhe-table-container {
     margin-top: 20px;
@@ -325,18 +153,15 @@ table.siarhe-data-table {
     min-width: 600px;
 }
 
-/* Encabezados */
 table.siarhe-data-table th {
     background-color: var(--s-th-bg);
     color: var(--s-th-text);
     padding: 12px 10px;
     text-align: left;
     font-weight: 700;
-    font-family: 'IBM Plex Sans', sans-serif; /* Encabezados */
+    font-family: 'IBM Plex Sans', sans-serif; 
     border-bottom: var(--s-border);
     white-space: nowrap;
-    
-    /* Interacción de Ordenamiento */
     cursor: pointer; 
     user-select: none;
     transition: background-color 0.2s ease;
@@ -346,37 +171,28 @@ table.siarhe-data-table th:hover {
     filter: brightness(0.95);
 }
 
-/* Celdas generales */
 table.siarhe-data-table td {
     padding: 10px;
     border-bottom: var(--s-border);
 }
 
-/* Filas Impares (Odd) */
 table.siarhe-data-table tr:nth-child(odd) {
     background-color: var(--s-tr-odd);
     color: var(--s-tr-odd-txt);
 }
-table.siarhe-data-table tr:nth-child(odd) td {
-    color: var(--s-tr-odd-txt);
-}
+table.siarhe-data-table tr:nth-child(odd) td { color: var(--s-tr-odd-txt); }
 
-/* Filas Pares (Even) */
 table.siarhe-data-table tr:nth-child(even) {
     background-color: var(--s-tr-even);
     color: var(--s-tr-even-txt);
 }
-table.siarhe-data-table tr:nth-child(even) td {
-    color: var(--s-tr-even-txt);
-}
+table.siarhe-data-table tr:nth-child(even) td { color: var(--s-tr-even-txt); }
 
-/* Hover */
 table.siarhe-data-table tr:not(.siarhe-row-total):hover td {
-    background-color: rgba(6, 182, 212, 0.05); /* Hover ligero con cian científico */
+    background-color: rgba(6, 182, 212, 0.05); 
     cursor: default;
 }
 
-/* Fila de Totales (Mayor especificidad para ganar sin !important) */
 table.siarhe-data-table tbody tr.siarhe-row-total,
 table.siarhe-data-table tbody tr.siarhe-row-total td {
     background-color: var(--s-total-bg);
@@ -386,13 +202,13 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 }
 
 /* =========================================
-   7. LOADER / SPINNER
+   6. LOADER / SPINNER
    ========================================= */
 .siarhe-loading-overlay {
     position: absolute;
     top: 50%; left: 50%;
     transform: translate(-50%, -50%);
-    background: rgba(248, 250, 252, 0.95); /* Blanco suave */
+    background: rgba(248, 250, 252, 0.95); 
     padding: 20px 30px;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
@@ -410,7 +226,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     width: 30px;
     height: 30px;
     border: 4px solid #F8FAFC;
-    border-top: 4px solid #0A66C2; /* Azul clínico moderno */
+    border-top: 4px solid #0A66C2; 
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -421,7 +237,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 }
 
 /* =========================================
-   8. BOTONES & ZOOM
+   7. BOTONES INFERIORES
    ========================================= */
 .siarhe-actions {
     margin-top: 15px;
@@ -434,7 +250,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 .siarhe-map-actions {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center; /* 🌟 RESTAURADO: Botones centrados */
+    justify-content: center; 
     gap: 15px;
     margin-top: 20px;
 }
@@ -453,11 +269,8 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     text-decoration: none;
 }
 
-.btn-siarhe:active { 
-    transform: translateY(1px); 
-}
+.btn-siarhe:active { transform: translateY(1px); }
 
-/* RESTAURADA TU CLASE ESPECÍFICA PARA EL BOTÓN SECUNDARIO */
 .btn-download-map {
     background-color: #f0f0f1;
     color: #1d2327;
@@ -469,52 +282,16 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 }
 
 .btn-primary {
-    background-color: #0A66C2; /* Azul clínico moderno de tu identidad */
+    background-color: #0A66C2; 
     color: #F8FAFC;
 }
 .btn-primary:hover { 
-    background-color: #084C94; /* Azul clínico moderno oscuro */
+    background-color: #084C94; 
     color: #F8FAFC;
 }
 
-/* Controles de Zoom Flotantes */
-.zoom-controles {
-    position: absolute;
-    top: 20px; /* RESTAURADO A 20px */
-    right: 20px; /* 🌟 RESTAURADO A LA DERECHA (Right) COMO EN TU IMAGEN */
-    left: auto;  /* Aseguramos que no herede el left anterior */
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    z-index: 900; 
-}
-
-.zoom-controles .boton {
-    width: 36px;
-    height: 36px;
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 18px;
-    font-weight: bold;
-    color: #0F172A; 
-    cursor: pointer;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-    padding: 0;
-}
-
-.zoom-controles .boton:hover {
-    background: #0A66C2;
-    color: #fff;
-    border-color: #0A66C2;
-}
-
 /* =========================================
-   9. FOOTER, COLUMNAS Y ENLACES (Identidad)
+   8. FOOTER Y ENLACES LEGALES
    ========================================= */
 .siarhe-footer {
     font-family: 'Roboto', sans-serif;
@@ -525,10 +302,9 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     margin-top: 40px;
 }
 
-/* 🌟 GRILLA DE 2 COLUMNAS RESTAURADA */
 .siarhe-footer-grid {
     display: grid;
-    grid-template-columns: 1fr; /* Móvil: 1 columna por defecto */
+    grid-template-columns: 1fr; 
     gap: 20px;
 }
 
@@ -551,12 +327,11 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     line-height: 1.5;
 }
 
-/* 🌟 ESPECIFICIDAD PARA ENLACES (Vence a Elementor sin usar !important) */
 .siarhe-viz-wrapper .siarhe-legal-disclaimer a,
 .siarhe-viz-wrapper .siarhe-footer a {
-    font-family: inherit; /* Hereda Roboto */
+    font-family: inherit; 
     font-size: inherit;
-    color: #0A66C2; /* Azul clínico moderno */
+    color: #0A66C2; 
     text-decoration: underline;
     font-weight: 400;
     transition: color 0.2s ease;
@@ -564,15 +339,13 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 
 .siarhe-viz-wrapper .siarhe-legal-disclaimer a:hover,
 .siarhe-viz-wrapper .siarhe-footer a:hover {
-    color: #063A73; /* Azul clínico moderno oscuro */
+    color: #063A73; 
 }
 
-
 /* =========================================
-   10. RESPONSIVE QUERIES
+   9. RESPONSIVE QUERIES
    ========================================= */
 @media (min-width: 768px) {
-    /* Desktop: 2 Columnas para las referencias RESTAURADO */
     .siarhe-footer-grid {
         grid-template-columns: 1fr 1fr; 
     }
@@ -583,26 +356,6 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 
 @media (max-width: 767px) {
     .siarhe-title { font-size: 20px; } 
-    .siarhe-metric-select, .mc-trigger { width: 100%; min-width: 0; }
-    .siarhe-controls { flex-direction: column; align-items: flex-start; gap: 15px; }
-    
     .siarhe-map-actions { flex-direction: column; align-items: stretch; }
     .siarhe-map-actions button { width: 100%; }
-    
-    /* 🌟 BOTONES DE ZOOM MÓVIL: Abajo, en medio, horizontales y más pequeños 🌟 */
-    .zoom-controles {
-        top: auto;
-        bottom: 10px;
-        right: auto;
-        left: 50%;
-        transform: translateX(-50%);
-        flex-direction: row;
-        gap: 10px;
-    }
-
-    .zoom-controles .boton {
-        width: 32px;
-        height: 32px;
-        font-size: 16px;
-    }
 }
