@@ -231,7 +231,14 @@ document.addEventListener('DOMContentLoaded', () => {
         'tt_mk_tipo': 'mk_tipo', 'tt_mk_nivel': 'mk_nivel', 'tt_mk_juris': 'mk_juris'
     };
 
-    // Función para guardar el JSON y disparar la alerta de WP
+    const designInputs = {
+        'tt_bg_color': 'bg_color', 'tt_bg_opacity': 'bg_opacity', 'tt_text_color': 'text_color',
+        'tt_highlight_var': 'highlight_var', 'tt_highlight_color': 'highlight_color',
+        'tt_mk_bg_color': 'mk_bg_color', 'tt_mk_bg_opacity': 'mk_bg_opacity', 'tt_mk_text_color': 'mk_text_color',
+        'tt_mk_highlight_var': 'mk_highlight_var', 'tt_mk_highlight_color': 'mk_highlight_color'
+    };
+
+    // Función visual para animar el botón de guardar
     function triggerSave() {
         inputJson.value = JSON.stringify(configObj);
         inputJson.dispatchEvent(new Event('change', { bubbles: true }));
@@ -257,28 +264,40 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 2. Inicializar Opciones de Diseño
-    const designInputs = {
-        'tt_bg_color': 'bg_color', 'tt_bg_opacity': 'bg_opacity', 'tt_text_color': 'text_color',
-        'tt_highlight_var': 'highlight_var', 'tt_highlight_color': 'highlight_color',
-        'tt_mk_bg_color': 'mk_bg_color', 'tt_mk_bg_opacity': 'mk_bg_opacity', 'tt_mk_text_color': 'mk_text_color',
-        'tt_mk_highlight_var': 'mk_highlight_var', 'tt_mk_highlight_color': 'mk_highlight_color'
-    };
-
+    // 2. Inicializar Opciones de Diseño (Inputs manuales)
     for (const [uiId, jsonKey] of Object.entries(designInputs)) {
         const inputEl = document.getElementById(uiId);
         if (inputEl) {
-            // Evento change para color pickers y selects
             inputEl.addEventListener('change', () => {
                 configObj[jsonKey] = inputEl.value;
                 triggerSave();
             });
-            // Evento blur para el input numérico de opacidad
-            inputEl.addEventListener('blur', () => {
-                configObj[jsonKey] = inputEl.value;
-                triggerSave();
-            });
         }
+    }
+
+    // 🌟 FIX SUPREMO PARA GUARDAR COLORES DE WORDPRESS 🌟
+    // Interceptamos el formulario entero justo antes de guardar en la base de datos
+    // y recolectamos el valor FÍSICO que tengan todos los inputs.
+    const parentForm = inputJson.closest('form');
+    if (parentForm) {
+        parentForm.addEventListener('submit', () => {
+            // Recolectar diseño y colores
+            for (const [uiId, jsonKey] of Object.entries(designInputs)) {
+                const el = document.getElementById(uiId);
+                if (el) {
+                    configObj[jsonKey] = el.value;
+                }
+            }
+            // Recolectar toggles
+            for (const [uiId, jsonKey] of Object.entries(uiMap)) {
+                const el = document.getElementById(uiId);
+                if (el) {
+                    configObj[jsonKey] = el.checked;
+                }
+            }
+            // Inyectar el JSON definitivo y perfecto
+            inputJson.value = JSON.stringify(configObj);
+        });
     }
 
     // 3. LÓGICA DRAG & DROP MULTIPLE (Mapa y Marcadores)
@@ -294,7 +313,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if(!draggedItem) return;
             draggedItem.classList.remove('siarhe-drag-ghost');
             
-            // Determinar qué lista se modificó y guardar su orden
             const listId = list.getAttribute('id');
             const newOrder = [];
             list.querySelectorAll('.siarhe-draggable-item').forEach(item => {
@@ -310,7 +328,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         list.addEventListener('dragover', (e) => {
             e.preventDefault(); 
-            // Evitar que arrastren items de una lista a otra
             if (draggedItem && draggedItem.parentElement !== list) return;
 
             const afterElement = getDragAfterElement(list, e.clientY);
@@ -322,7 +339,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Función matemática para saber dónde soltar el elemento
     function getDragAfterElement(container, y) {
         const draggableElements = [...container.querySelectorAll('.siarhe-draggable-item:not(.siarhe-drag-ghost)')];
 
