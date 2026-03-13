@@ -1,4 +1,4 @@
-<?php 
+<?php // /admin/partials/siarhe-settings.php
 if ( ! defined( 'ABSPATH' ) ) exit; 
 
 // 1. Obtener pestaña actual (por defecto 'Tema Admin')

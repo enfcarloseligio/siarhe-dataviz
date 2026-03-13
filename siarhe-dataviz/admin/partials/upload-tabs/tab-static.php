@@ -1,4 +1,4 @@
-<?php
+<?php // /admin/partials/upload-tabs/tab-static.php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // 1. Obtener Entidades desde el Helper Centralizado

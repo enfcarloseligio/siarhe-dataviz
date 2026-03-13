@@ -1,3 +1,4 @@
+/* /public/js/siarhe-map.js */
 /**
  * SIARHE DataViz - Módulo de Mapa (Map & D3)
  * ------------------------------------------------------------------

@@ -1,3 +1,4 @@
+/* /admin/js/siarhe-admin.js */
 /**
  * SIARHE DataViz - Scripts Globales de Administración
  * ------------------------------------------------------------------

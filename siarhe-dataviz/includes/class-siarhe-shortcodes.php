@@ -1,4 +1,4 @@
-<?php
+<?php // /includes/shortcodes/class-siarhe-shortcodes.php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Siarhe_Shortcodes {
