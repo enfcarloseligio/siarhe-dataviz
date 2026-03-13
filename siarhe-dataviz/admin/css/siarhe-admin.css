@@ -24,7 +24,14 @@
 .siarhe-badge.success { background: #d1e7dd; color: #0f5132; }
 .siarhe-badge.warning { background: #fff3cd; color: #664d03; }
 .siarhe-badge.neutral { background: #e2e3e5; color: #41464b; }
-.siarhe-badge.brand { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; } /* Badge para Nativos */
+.siarhe-badge.brand { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; }
+
+/* Utilidad para forzar salto de línea en textos muy largos */
+.siarhe-break-text {
+    display: inline-block;
+    word-break: break-word;
+    white-space: normal;
+}
 
 /* =========================================
    3. TABLAS SIARHE (Diseño Universal)
@@ -46,7 +53,6 @@
     vertical-align: middle;
 }
 
-/* Cabeceras con Variables */
 .siarhe-table th {
     font-weight: 600;
     background: var(--siarhe-th-bg);
@@ -54,7 +60,6 @@
     border-bottom: 1px solid #c3c4c7;
 }
 
-/* Zebra Striping con Variables */
 .siarhe-table tr:nth-child(odd) { 
     background-color: var(--siarhe-tr-odd-bg); 
     color: var(--siarhe-tr-odd-text);
@@ -63,21 +68,78 @@
     background-color: var(--siarhe-tr-even-bg); 
     color: var(--siarhe-tr-even-text);
 }
-
 .siarhe-table td { color: inherit; }
 
-/* Utilidad para forzar salto de línea en textos muy largos */
-.siarhe-break-text {
-    display: inline-block;
-    word-break: break-word;
-    white-space: normal;
+/* =========================================
+   4. BARRA DE HERRAMIENTAS, BÚSQUEDA Y PAGINACIÓN
+   ========================================= */
+.siarhe-toolbar { 
+    padding: 15px; 
+    border-bottom: 1px solid #c3c4c7; 
+    background: #f8fafc; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    flex-wrap: wrap; 
+    gap: 15px; 
 }
 
+.siarhe-search-box { 
+    position: relative; 
+    width: 100%; 
+    max-width: 400px; 
+    flex: 1 1 250px; 
+}
+.siarhe-search-box .dashicons { 
+    position: absolute; 
+    left: 10px; 
+    top: 6px; 
+    color: #8c8f94; 
+}
+.siarhe-search-box input { 
+    width: 100%; 
+    padding: 4px 8px 4px 35px; 
+    border-radius: 4px; 
+    border: 1px solid #8c8f94; 
+}
+
+.siarhe-table-controls { 
+    display: flex; 
+    align-items: center; 
+    gap: 15px; 
+    flex-wrap: wrap; 
+}
+
+.siarhe-pagination { 
+    padding: 15px; 
+    background: #f8fafc; 
+    border-top: 1px solid #c3c4c7; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    flex-wrap: wrap; 
+    gap: 10px; 
+}
+.siarhe-page-numbers { display: flex; gap: 5px; }
+.siarhe-page-btn { 
+    cursor: pointer; 
+    padding: 4px 10px; 
+    border: 1px solid #c3c4c7; 
+    background: #fff; 
+    border-radius: 3px; 
+    color: #2271b1; 
+    text-decoration: none; 
+    font-size: 13px; 
+}
+.siarhe-page-btn:hover { background: #f0f6fc; border-color: #2271b1; }
+.siarhe-page-btn.active { background: #2271b1; color: #fff; border-color: #2271b1; pointer-events: none; }
+.siarhe-page-btn.disabled { opacity: 0.5; pointer-events: none; cursor: default; color: #a7aaad; }
+
 /* =========================================
-   4. VENTANA MODAL (ESTO ES LO QUE FALTABA)
+   5. VENTANA MODAL
    ========================================= */
 .siarhe-modal-overlay {
-    display: none; /* Oculto por defecto */
+    display: none;
     position: fixed; 
     z-index: 99999; 
     left: 0; 
@@ -96,61 +158,43 @@
     border: 1px solid #888;
     border-radius: 8px;
     box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-    width: 50%; /* Desktop */
+    width: 50%; 
     max-width: 600px;
     position: relative;
 }
 
 /* =========================================
-   5. RESPONSIVE (Tablets y Móviles)
+   6. RESPONSIVE (Tablets y Móviles)
    ========================================= */
 
-/* Tablet (ajustar modal) */
 @media screen and (min-width: 768px) and (max-width: 1023px) {
     .siarhe-modal-content { width: 80%; }
 }
 
-/* Móvil (< 768px) - Acordeón, Formularios y Modales Full */
 @media screen and (max-width: 767px) {
     
-    /* 🌟 SOLUCIÓN: Formularios de Subida Adaptables (Tarjetas blancas) 🌟 */
     .siarhe-upload-card .form-table, 
     .siarhe-upload-card .form-table tbody, 
     .siarhe-upload-card .form-table tr, 
     .siarhe-upload-card .form-table th, 
     .siarhe-upload-card .form-table td {
-        display: block;
-        width: 100%;
-        padding: 0;
+        display: block; width: 100%; padding: 0;
     }
+    .siarhe-upload-card .form-table th { padding-top: 15px; padding-bottom: 5px; }
+    .siarhe-upload-card .form-table td { padding-bottom: 10px; }
     
-    .siarhe-upload-card .form-table th {
-        padding-top: 15px;
-        padding-bottom: 5px;
-    }
-    
-    .siarhe-upload-card .form-table td {
-        padding-bottom: 10px;
-    }
-    
-    /* Forzar que los inputs no desborden */
     .siarhe-upload-card .form-table input,
     .siarhe-upload-card .form-table select,
     .siarhe-upload-card .form-table textarea {
-        width: 100% !important;
-        max-width: 100%;
-        box-sizing: border-box;
+        width: 100% !important; max-width: 100%; box-sizing: border-box;
     }
 
-    /* Lo mismo para el formulario del Modal */
     .siarhe-modal-content .form-table,
     .siarhe-modal-content .form-table tbody,
     .siarhe-modal-content .form-table tr,
     .siarhe-modal-content .form-table th,
     .siarhe-modal-content .form-table td {
-        display: block;
-        width: 100%;
-        padding: 0;
+        display: block; width: 100%; padding: 0;
     }
     .siarhe-modal-content .form-table th { padding-top: 10px; padding-bottom: 5px; }
     .siarhe-modal-content .form-table td { padding-bottom: 10px; }
@@ -158,31 +202,17 @@
     .siarhe-modal-content .form-table select,
     .siarhe-modal-content .form-table textarea { width: 100% !important; max-width: 100%; box-sizing: border-box; }
 
-
-    /* Ajuste del Modal en Móvil */
-    .siarhe-modal-content {
-        width: 95%;
-        margin: 10% auto;
-        padding: 15px;
-    }
-
-    /* Reset de tabla para modo tarjetas */
-    .siarhe-table { border: 0; background: transparent; box-shadow: none; }
-    .siarhe-table thead { display: none; }
+    .siarhe-modal-content { width: 95%; margin: 10% auto; padding: 15px; }
 
     /* Tarjetas (Acordeón) */
+    .siarhe-table { border: 0; background: transparent; box-shadow: none; }
+    .siarhe-table thead { display: none; }
     .siarhe-table tr {
-        display: block;
-        margin-bottom: 15px;
-        background: #fff;
-        border: 1px solid #c3c4c7;
-        border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        position: relative;
-        cursor: pointer;
+        display: block; margin-bottom: 15px; background: #fff;
+        border: 1px solid #c3c4c7; border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: relative; cursor: pointer;
     }
 
-    /* Flecha Indicadora */
     .siarhe-table tr::after {
         content: "\f140"; font-family: dashicons; position: absolute;
         top: 15px; right: 15px; font-size: 20px; color: #a7aaad;
@@ -190,25 +220,20 @@
     }
     .siarhe-table tr.is-open::after { transform: rotate(180deg); color: #2271b1; }
 
-    /* Celdas Ocultas por defecto */
     .siarhe-table td { display: none; padding: 10px 15px; text-align: right; }
 
-    /* Título (Visible) */
     .siarhe-table td[data-mobile-role="primary"] {
         display: block; font-size: 15px; font-weight: 600; color: #2271b1;
         padding: 15px; padding-right: 40px; text-align: left; border-bottom: 1px solid #eee;
     }
 
-    /* Subtítulo (Visible) */
     .siarhe-table td[data-mobile-role="secondary"] {
         display: block; text-align: left; padding: 0 15px 15px 15px; font-size: 13px; border-bottom: none;
     }
 
-    /* Al abrir */
     .siarhe-table tr.is-open td { display: block; border-bottom: 1px solid #f0f0f1; }
     .siarhe-table tr.is-open td:last-child { border-bottom: none; background: #f6f7f7; text-align: center; border-radius: 0 0 8px 8px; }
 
-    /* Labels */
     .siarhe-table td::before {
         content: attr(data-label); float: left; font-weight: 700; color: #646970;
         text-transform: uppercase; font-size: 10px; margin-top: 4px;

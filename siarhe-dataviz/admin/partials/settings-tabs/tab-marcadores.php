@@ -1,12 +1,10 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// 1. Obtener usuario actual y hora para la auditoría
 $current_user = wp_get_current_user();
 $editor_name = $current_user->display_name ?: $current_user->user_login;
 $current_time = current_time('mysql');
 
-// 2. Leer los archivos CSV disponibles en la carpeta de marcadores
 $upload_dir = wp_upload_dir();
 $markers_dir = $upload_dir['basedir'] . '/siarhe-data/markers/';
 $available_csvs = [];
@@ -20,7 +18,6 @@ if ( file_exists($markers_dir) && is_dir($markers_dir) ) {
     }
 }
 
-// 3. Definir el diccionario base (Los 6 marcadores actuales para no romper el mapa)
 $defaults = [
     'CATETER' => ['label' => 'Clínicas de catéteres', 'tipo' => 'posicion', 'archivo' => 'clinicas-cateteres.csv', 'filtro_col' => '', 'filtro_val' => '', 'visibilidad' => 'publico', 'is_core' => true],
     'HERIDAS' => ['label' => 'Clínicas de heridas', 'tipo' => 'posicion', 'archivo' => 'clinicas-heridas.csv', 'filtro_col' => '', 'filtro_val' => '', 'visibilidad' => 'publico', 'is_core' => true],
@@ -32,7 +29,6 @@ $defaults = [
 
 $defaults_json = wp_json_encode($defaults);
 
-// 4. Obtener configuración guardada
 $marcadores_json = get_option( 'siarhe_marcadores_config', '' );
 if ( empty($marcadores_json) ) {
     $marcadores_json = $defaults_json;
@@ -42,14 +38,13 @@ if ( empty($marcadores_json) ) {
 ?>
 
 <style>
-    /* Estilos para el constructor de reglas del Tooltip */
+    /* Estilos específicos para reglas (Mantenidos aquí porque son únicos de esta pestaña) */
     .siarhe-rule-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; background: #fff; padding: 10px; border: 1px solid #e2e8f0; border-radius: 4px; }
     .siarhe-rule-row input { width: 100%; }
     .siarhe-rule-col { flex: 1; }
     .btn-remove-rule { color: #d63638; cursor: pointer; font-size: 20px; line-height: 1; padding: 5px; }
     .btn-remove-rule:hover { color: #a00; }
     
-    /* Toggle Switch Personalizado para el Modal */
     .siarhe-switch { position: relative; display: inline-block; width: 44px; height: 24px; vertical-align: middle; margin-right: 10px; }
     .siarhe-switch input { opacity: 0; width: 0; height: 0; }
     .siarhe-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .3s; border-radius: 24px; }
@@ -81,7 +76,28 @@ if ( empty($marcadores_json) ) {
     <input type="hidden" id="siarhe_current_time_mk" value="<?php echo esc_attr($current_time); ?>">
 </div>
 
-<div class="card" style="max-width: 100%; padding: 0;">
+<div class="card" style="max-width: 100%; padding: 0; overflow: hidden;">
+    
+    <div class="siarhe-toolbar">
+        <div class="siarhe-table-controls">
+            <label style="font-size: 13px; color: #3c434a;">
+                Mostrar 
+                <select id="siarhe-items-per-page" style="margin: 0 5px; padding: 2px 24px 2px 8px; font-size: 13px; min-height: 28px;">
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="all">Todos</option>
+                </select> 
+                registros
+            </label>
+        </div>
+
+        <div class="siarhe-search-box">
+            <span class="dashicons dashicons-search"></span>
+            <input type="text" id="siarhe-search-marcadores" placeholder="Buscar por clave, etiqueta, tipo o archivo...">
+        </div>
+    </div>
+
     <table id="siarhe-marcadores-table" class="siarhe-table">
         <thead>
             <tr>
@@ -96,6 +112,11 @@ if ( empty($marcadores_json) ) {
         <tbody id="siarhe-marcadores-tbody">
             </tbody>
     </table>
+
+    <div class="siarhe-pagination">
+        <div id="siarhe-marcadores-count" style="font-size: 13px; color: #64748b;"></div>
+        <div class="siarhe-page-numbers" id="siarhe-pagination-controls"></div>
+    </div>
 </div>
 
 <div id="siarhe-edit-marcador-modal" class="siarhe-modal-overlay">
@@ -241,6 +262,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const tipoSelect = document.getElementById('modal-mk-tipo');
     const espectroRow = document.getElementById('mk-espectro-row');
+    
+    const searchInput = document.getElementById('siarhe-search-marcadores');
+    const itemsPerPageSelect = document.getElementById('siarhe-items-per-page');
+    const paginationControls = document.getElementById('siarhe-pagination-controls');
+    const countDisplay = document.getElementById('siarhe-marcadores-count');
 
     tipoSelect.addEventListener('change', (e) => {
         espectroRow.style.display = e.target.value === 'espectro' ? 'table-row' : 'none';
@@ -249,13 +275,17 @@ document.addEventListener('DOMContentLoaded', function() {
     let marcadoresObj = {};
     try { marcadoresObj = JSON.parse(inputJson.value); } catch (e) {}
 
+    let currentPage = 1;
+    let itemsPerPage = 25;
+    let filteredKeys = [];
+
     const rulesContainer = document.getElementById('rules-container');
     const btnAddRule = document.getElementById('btn-add-rule');
     const MAX_RULES = 5;
 
     function renderRules(rulesArray = []) {
         rulesContainer.innerHTML = '';
-        rulesArray.forEach((rule, index) => addRuleRow(rule.label, rule.col, rule.val));
+        rulesArray.forEach((rule) => addRuleRow(rule.label, rule.col, rule.val));
         updateAddRuleBtn();
     }
 
@@ -310,83 +340,187 @@ document.addEventListener('DOMContentLoaded', function() {
         return `${dia} ${mes} ${anio}, ${horas}:${minutos} ${ampm}`;
     }
 
+    function applySearchFilter() {
+        const term = searchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const allKeys = Object.keys(marcadoresObj);
+
+        filteredKeys = allKeys.filter(key => {
+            const item = marcadoresObj[key];
+            const searchableText = `${key} ${item.label} ${item.tipo} ${item.archivo} ${item.filtro_col || ''} ${item.filtro_val || ''}`
+                .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            return searchableText.includes(term);
+        });
+
+        currentPage = 1;
+        renderTable();
+    }
+
+    searchInput.addEventListener('input', applySearchFilter);
+    
+    itemsPerPageSelect.addEventListener('change', (e) => {
+        itemsPerPage = e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10);
+        currentPage = 1;
+        renderTable();
+    });
+
     function renderTable() {
         tbody.innerHTML = '';
         
-        Object.keys(marcadoresObj).forEach(key => {
-            const item = marcadoresObj[key];
-            const isCore = item.is_core === true;
-            const vis = item.visibilidad || 'publico'; 
-            const badgeType = item.tipo === 'posicion' ? 'neutral' : 'warning';
-            const badgeLabel = item.tipo === 'posicion' ? '📍 Posición' : '🔴 Espectro';
-            const coreBadge = isCore ? '<span class="siarhe-badge brand" style="margin-left:5px;"><span class="dashicons dashicons-lock" style="font-size:12px;width:12px;height:12px;margin-top:2px;"></span> Nativo</span>' : '';
-            const autorOriginal = isCore ? 'Sistema' : (item.created_by || item.last_edited_by || 'Desconocido');
-            const fechaOriginal = isCore ? 'Integrado en el código' : (item.created_at || item.last_edited_at || '');
-            
-            let auditHtml = `
-                <div style="margin-bottom: 8px; line-height: 1.3;">
-                    <span style="font-size:10px; font-weight:bold; color:#94a3b8; text-transform:uppercase;">Creado por:</span><br>
-                    <span style="font-size:12px; color:#0f172a; font-weight:500;">${autorOriginal}</span><br>
-                    <span style="color:#64748b; font-size:11px;">${formatDate(fechaOriginal)}</span>
-                </div>
-            `;
+        const totalItems = filteredKeys.length;
+        let totalPages = 1;
+        let keysToRender = filteredKeys;
 
-            if (!isCore && item.last_edited_by && item.last_edited_at !== item.created_at) {
-                auditHtml += `
-                    <div style="line-height: 1.3; border-top: 1px dashed #e2e8f0; padding-top: 6px;">
-                        <span style="font-size:10px; font-weight:bold; color:#0ea5e9; text-transform:uppercase;">Última edición:</span><br>
-                        <span style="font-size:12px; color:#0f172a; font-weight:500;">${item.last_edited_by}</span><br>
-                        <span style="color:#64748b; font-size:11px;">${formatDate(item.last_edited_at)}</span>
+        if (itemsPerPage !== 'all') {
+            totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+            
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            keysToRender = filteredKeys.slice(start, end);
+        }
+
+        if (keysToRender.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 20px; color:#8c8f94;">No se encontraron marcadores con los criterios de búsqueda especificados.</td></tr>`;
+        } else {
+            keysToRender.forEach(key => {
+                const item = marcadoresObj[key];
+                const isCore = item.is_core === true;
+                const vis = item.visibilidad || 'publico'; 
+                const badgeType = item.tipo === 'posicion' ? 'neutral' : 'warning';
+                const badgeLabel = item.tipo === 'posicion' ? '📍 Posición' : '🔴 Espectro';
+                const coreBadge = isCore ? '<span class="siarhe-badge brand" style="margin-left:5px;"><span class="dashicons dashicons-lock" style="font-size:12px;width:12px;height:12px;margin-top:2px;"></span> Nativo</span>' : '';
+                const autorOriginal = isCore ? 'Sistema' : (item.created_by || item.last_edited_by || 'Desconocido');
+                const fechaOriginal = isCore ? 'Integrado en el código' : (item.created_at || item.last_edited_at || '');
+                
+                let auditHtml = `
+                    <div style="margin-bottom: 8px; line-height: 1.3;">
+                        <span style="font-size:10px; font-weight:bold; color:#94a3b8; text-transform:uppercase;">Creado por:</span><br>
+                        <span style="font-size:12px; color:#0f172a; font-weight:500;">${autorOriginal}</span><br>
+                        <span style="color:#64748b; font-size:11px;">${formatDate(fechaOriginal)}</span>
                     </div>
                 `;
-            }
 
-            const btnDelete = isCore 
-                ? `<span class="dashicons dashicons-lock" style="color:#ccc; margin-left:10px;" title="Los marcadores nativos no se pueden eliminar"></span>` 
-                : `<button type="button" class="button button-small button-link-delete btn-delete-mk" data-key="${key}" title="Eliminar marcador"><span class="dashicons dashicons-trash" style="color:#d63638;"></span></button>`;
-                
-            let eyeIcon = 'dashicons-visibility';
-            let eyeColor = '#007cba';
-            let eyeTitle = 'Público: Visible para todos';
-            if (vis === 'registrados') { eyeIcon = 'dashicons-admin-users'; eyeColor = '#e68a00'; eyeTitle = 'Privado: Solo usuarios registrados'; }
-            if (vis === 'oculto') { eyeIcon = 'dashicons-hidden'; eyeColor = '#8c8f94'; eyeTitle = 'Oculto: No se mostrará en frontend'; }
+                if (!isCore && item.last_edited_by && item.last_edited_at !== item.created_at) {
+                    auditHtml += `
+                        <div style="line-height: 1.3; border-top: 1px dashed #e2e8f0; padding-top: 6px;">
+                            <span style="font-size:10px; font-weight:bold; color:#0ea5e9; text-transform:uppercase;">Última edición:</span><br>
+                            <span style="font-size:12px; color:#0f172a; font-weight:500;">${item.last_edited_by}</span><br>
+                            <span style="color:#64748b; font-size:11px;">${formatDate(item.last_edited_at)}</span>
+                        </div>
+                    `;
+                }
 
-            let fuenteHtml = `<strong>📄 ${item.archivo || '—'}</strong>`;
-            if (item.filtro_col && item.filtro_val) {
-                fuenteHtml += `<br><small style="color:#0A66C2;">Filtro: ${item.filtro_col} = ${item.filtro_val}</small>`;
-            }
+                const btnDelete = isCore 
+                    ? `<span class="dashicons dashicons-lock" style="color:#ccc; margin-left:10px;" title="Los marcadores nativos no se pueden eliminar"></span>` 
+                    : `<button type="button" class="button button-small button-link-delete btn-delete-mk" data-key="${key}" title="Eliminar marcador"><span class="dashicons dashicons-trash" style="color:#d63638;"></span></button>`;
+                    
+                let eyeIcon = 'dashicons-visibility';
+                let eyeColor = '#007cba';
+                let eyeTitle = 'Público: Visible para todos';
+                if (vis === 'registrados') { eyeIcon = 'dashicons-admin-users'; eyeColor = '#e68a00'; eyeTitle = 'Privado: Solo usuarios registrados'; }
+                if (vis === 'oculto') { eyeIcon = 'dashicons-hidden'; eyeColor = '#8c8f94'; eyeTitle = 'Oculto: No se mostrará en frontend'; }
 
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td data-label="Clave" data-mobile-role="primary">
-                    <strong style="color:#2271b1; font-family:monospace;">${key}</strong> ${coreBadge}
-                </td>
-                <td data-label="Etiqueta" data-mobile-role="secondary">
-                    <strong>${item.label}</strong>
-                </td>
-                <td data-label="Tipo">
-                    <span class="siarhe-badge ${badgeType}">${badgeLabel}</span>
-                </td>
-                <td data-label="Fuente CSV">
-                    ${fuenteHtml}
-                </td>
-                <td data-label="Auditoría">
-                    ${auditHtml}
-                </td>
-                <td data-label="Acciones">
-                    <button type="button" class="button button-small btn-toggle-vis-mk" data-key="${key}" title="${eyeTitle}">
-                        <span class="dashicons ${eyeIcon}" style="color:${eyeColor};"></span>
-                    </button>
-                    <button type="button" class="button button-small btn-edit-mk" data-key="${key}" title="Modificar parámetros">
-                        <span class="dashicons dashicons-edit"></span>
-                    </button>
-                    ${btnDelete}
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
+                let fuenteHtml = `<strong>📄 ${item.archivo || '—'}</strong>`;
+                if (item.filtro_col && item.filtro_val) {
+                    fuenteHtml += `<br><small style="color:#0A66C2;">Filtro: ${item.filtro_col} = ${item.filtro_val}</small>`;
+                }
 
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td data-label="Clave" data-mobile-role="primary">
+                        <strong style="color:#2271b1; font-family:monospace;">${key}</strong> ${coreBadge}
+                    </td>
+                    <td data-label="Etiqueta" data-mobile-role="secondary">
+                        <strong>${item.label}</strong>
+                    </td>
+                    <td data-label="Tipo">
+                        <span class="siarhe-badge ${badgeType}">${badgeLabel}</span>
+                    </td>
+                    <td data-label="Fuente CSV">
+                        ${fuenteHtml}
+                    </td>
+                    <td data-label="Auditoría">
+                        ${auditHtml}
+                    </td>
+                    <td data-label="Acciones">
+                        <button type="button" class="button button-small btn-toggle-vis-mk" data-key="${key}" title="${eyeTitle}">
+                            <span class="dashicons ${eyeIcon}" style="color:${eyeColor};"></span>
+                        </button>
+                        <button type="button" class="button button-small btn-edit-mk" data-key="${key}" title="Modificar parámetros">
+                            <span class="dashicons dashicons-edit"></span>
+                        </button>
+                        ${btnDelete}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        updatePaginationUI(totalItems, keysToRender.length, totalPages);
         attachEvents();
+    }
+
+    function updatePaginationUI(totalItems, currentItemsCount, totalPages) {
+        if (totalItems === 0) {
+            countDisplay.innerHTML = 'No hay registros para mostrar.';
+            paginationControls.innerHTML = '';
+            return;
+        }
+
+        let startRange = 1;
+        let endRange = totalItems;
+
+        if (itemsPerPage !== 'all') {
+            startRange = ((currentPage - 1) * itemsPerPage) + 1;
+            endRange = startRange + currentItemsCount - 1;
+        }
+
+        countDisplay.innerHTML = `Mostrando del <strong>${startRange}</strong> al <strong>${endRange}</strong> de <strong>${totalItems}</strong> registros`;
+
+        paginationControls.innerHTML = '';
+        if (totalPages <= 1) return;
+
+        const btnPrev = document.createElement('a');
+        btnPrev.className = `siarhe-page-btn ${currentPage === 1 ? 'disabled' : ''}`;
+        btnPrev.innerHTML = '« Ant';
+        btnPrev.addEventListener('click', (e) => { e.preventDefault(); if(currentPage > 1) { currentPage--; renderTable(); } });
+        paginationControls.appendChild(btnPrev);
+
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
+
+        if (currentPage <= 2) endPage = Math.min(totalPages, 5);
+        if (currentPage >= totalPages - 1) startPage = Math.max(1, totalPages - 4);
+
+        if (startPage > 1) {
+            const btnFirst = document.createElement('a');
+            btnFirst.className = 'siarhe-page-btn'; btnFirst.innerHTML = '1';
+            btnFirst.addEventListener('click', (e) => { e.preventDefault(); currentPage = 1; renderTable(); });
+            paginationControls.appendChild(btnFirst);
+            if (startPage > 2) paginationControls.insertAdjacentHTML('beforeend', '<span style="color:#8c8f94;">...</span>');
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            const btnP = document.createElement('a');
+            btnP.className = `siarhe-page-btn ${i === currentPage ? 'active' : ''}`;
+            btnP.innerHTML = i;
+            btnP.addEventListener('click', (e) => { e.preventDefault(); currentPage = i; renderTable(); });
+            paginationControls.appendChild(btnP);
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) paginationControls.insertAdjacentHTML('beforeend', '<span style="color:#8c8f94;">...</span>');
+            const btnLast = document.createElement('a');
+            btnLast.className = 'siarhe-page-btn'; btnLast.innerHTML = totalPages;
+            btnLast.addEventListener('click', (e) => { e.preventDefault(); currentPage = totalPages; renderTable(); });
+            paginationControls.appendChild(btnLast);
+        }
+
+        const btnNext = document.createElement('a');
+        btnNext.className = `siarhe-page-btn ${currentPage === totalPages ? 'disabled' : ''}`;
+        btnNext.innerHTML = 'Sig »';
+        btnNext.addEventListener('click', (e) => { e.preventDefault(); if(currentPage < totalPages) { currentPage++; renderTable(); } });
+        paginationControls.appendChild(btnNext);
     }
 
     function attachEvents() {
@@ -412,7 +546,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 marcadoresObj[key].last_edited_at = currentTime;
 
                 updateHiddenInput();
-                renderTable();
+                applySearchFilter();
             });
         });
 
@@ -423,7 +557,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (confirm(`¿Eliminar la configuración del marcador "${key}"? (El archivo CSV no se borrará)`)) {
                     delete marcadoresObj[key];
                     updateHiddenInput();
-                    renderTable();
+                    applySearchFilter();
                 }
             });
         });
@@ -498,15 +632,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!newKey) { alert('La clave es obligatoria.'); return; }
         
-        // BARRERA 1: Evitar sobreescribir una clave que ya existe (si estamos creando una nueva, o renombrando una)
         if (!originalKey && marcadoresObj.hasOwnProperty(newKey)) {
-            alert(`⚠️ ALERTA DE SEGURIDAD: La clave "${newKey}" ya existe en el sistema. No puedes crear un duplicado porque sobreescribirías el marcador existente.`);
-            return; // Bloquea la ejecución
+            alert(`⚠️ ALERTA DE SEGURIDAD: La clave "${newKey}" ya existe en el sistema.`);
+            return; 
         }
 
         if (originalKey && originalKey !== newKey && marcadoresObj.hasOwnProperty(newKey)) {
-            alert(`⚠️ ALERTA DE SEGURIDAD: No puedes renombrar la clave a "${newKey}" porque esa clave ya está en uso por otro marcador del sistema.`);
-            return; // Bloquea la ejecución
+            alert(`⚠️ ALERTA DE SEGURIDAD: No puedes renombrar la clave a "${newKey}" porque ya está en uso.`);
+            return; 
         }
         
         const archivo = document.getElementById('modal-mk-archivo');
@@ -554,7 +687,7 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         updateHiddenInput();
-        renderTable();
+        applySearchFilter();
         modal.style.display = 'none';
     });
 
@@ -587,6 +720,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    renderTable();
+    applySearchFilter();
 });
 </script>

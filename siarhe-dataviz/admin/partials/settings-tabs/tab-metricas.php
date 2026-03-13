@@ -1,12 +1,10 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// 1. Obtener usuario actual y hora para la auditoría de cambios
 $current_user = wp_get_current_user();
 $editor_name = $current_user->display_name ?: $current_user->user_login;
 $current_time = current_time('mysql');
 
-// 2. Definir el diccionario de métricas base del sistema (Protegidas)
 $defaults = [
     'tasa_total'                 => ['label' => 'Tasa Total', 'fullLabel' => 'Tasa de enfermeras por cada mil habitantes', 'abrev' => 'Tasa Total', 'tipo' => 'tasa', 'pair' => 'enfermeras_total', 'is_core' => true, 'visibilidad' => 'publico'],
     'enfermeras_total'           => ['label' => 'Total Enfermeras', 'fullLabel' => 'Total de profesionales de enfermería', 'abrev' => 'Total Enf.', 'tipo' => 'absoluto', 'pair' => 'enfermeras_total', 'is_core' => true, 'visibilidad' => 'publico'],
@@ -31,7 +29,6 @@ $defaults = [
 
 $defaults_json = wp_json_encode($defaults);
 
-// 3. Obtener configuración guardada o aplicar valores por defecto
 $metricas_json = get_option( 'siarhe_metricas_config', '' );
 if ( empty($metricas_json) ) {
     $metricas_json = $defaults_json;
@@ -44,7 +41,7 @@ if ( empty($metricas_json) ) {
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <div>
             <h2 style="margin-top: 0;">📊 Gestor de Métricas e Indicadores (CSV)</h2>
-            <p style="margin-bottom: 0;">Configura los indicadores que se mostrarán en el mapa y la tabla. Las variables <strong>nativas</strong> están protegidas, pero puedes editar sus descripciones o añadir nuevas variables (ej. Enfermeras Quirúrgicas) siempre y cuando existan en tu archivo CSV.</p>
+            <p style="margin-bottom: 0;">Configura los indicadores que se mostrarán en el mapa y la tabla. Las variables <strong>nativas</strong> están protegidas, pero puedes editar sus descripciones o añadir nuevas variables siempre y cuando existan en tu archivo CSV.</p>
         </div>
         <div style="display: flex; gap: 10px;">
             <button type="button" class="button button-secondary" id="btn-add-metrica">
@@ -57,13 +54,32 @@ if ( empty($metricas_json) ) {
     </div>
 
     <input type="hidden" name="siarhe_metricas_config" id="siarhe_metricas_config" value="<?php echo esc_attr($metricas_json); ?>">
-    
     <input type="hidden" id="siarhe_default_metricas" value="<?php echo esc_attr($defaults_json); ?>">
     <input type="hidden" id="siarhe_current_user" value="<?php echo esc_attr($editor_name); ?>">
     <input type="hidden" id="siarhe_current_time" value="<?php echo esc_attr($current_time); ?>">
 </div>
 
-<div class="card" style="max-width: 100%; padding: 0;">
+<div class="card" style="max-width: 100%; padding: 0; overflow: hidden;">
+    <div class="siarhe-toolbar">
+        <div class="siarhe-table-controls">
+            <label style="font-size: 13px; color: #3c434a;">
+                Mostrar 
+                <select id="siarhe-items-per-page" style="margin: 0 5px; padding: 2px 24px 2px 8px; font-size: 13px; min-height: 28px;">
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="all">Todos</option>
+                </select> 
+                registros
+            </label>
+        </div>
+
+        <div class="siarhe-search-box">
+            <span class="dashicons dashicons-search"></span>
+            <input type="text" id="siarhe-search-metricas" placeholder="Buscar por clave, etiqueta o tipo...">
+        </div>
+    </div>
+
     <table id="siarhe-metricas-table" class="siarhe-table">
         <thead>
             <tr>
@@ -79,6 +95,13 @@ if ( empty($metricas_json) ) {
         <tbody id="siarhe-metricas-tbody">
             </tbody>
     </table>
+
+    <div class="siarhe-pagination">
+        <div id="siarhe-metricas-count" style="font-size: 13px; color: #64748b;">
+            </div>
+        <div class="siarhe-page-numbers" id="siarhe-pagination-controls">
+            </div>
+    </div>
 </div>
 
 <div id="siarhe-edit-metric-modal" class="siarhe-modal-overlay">
@@ -169,12 +192,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const tbody = document.getElementById('siarhe-metricas-tbody');
     const modal = document.getElementById('siarhe-edit-metric-modal');
+    
+    const searchInput = document.getElementById('siarhe-search-metricas');
+    const itemsPerPageSelect = document.getElementById('siarhe-items-per-page');
+    const paginationControls = document.getElementById('siarhe-pagination-controls');
+    const countDisplay = document.getElementById('siarhe-metricas-count');
 
-    // CLAVES BLOQUEADAS PARA VISIBILIDAD
     const lockedVisibilityKeys = ['tasa_total', 'enfermeras_total', 'poblacion'];
 
     let metricasObj = {};
     try { metricasObj = JSON.parse(inputJson.value); } catch (e) {}
+
+    let currentPage = 1;
+    let itemsPerPage = 25;
+    let filteredKeys = [];
 
     function formatDate(dateStr) {
         if (!dateStr) return '—';
@@ -195,90 +226,192 @@ document.addEventListener('DOMContentLoaded', function() {
         return `${dia} ${mes} ${anio}, ${horas}:${minutos} ${ampm}`;
     }
 
+    function applySearchFilter() {
+        const term = searchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const allKeys = Object.keys(metricasObj);
+
+        filteredKeys = allKeys.filter(key => {
+            const item = metricasObj[key];
+            const searchableText = `${key} ${item.label} ${item.fullLabel} ${item.abrev} ${item.tipo} ${item.pair || ''}`
+                .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            return searchableText.includes(term);
+        });
+
+        currentPage = 1;
+        renderTable();
+    }
+
+    searchInput.addEventListener('input', applySearchFilter);
+    
+    itemsPerPageSelect.addEventListener('change', (e) => {
+        itemsPerPage = e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10);
+        currentPage = 1;
+        renderTable();
+    });
+
     function renderTable() {
         tbody.innerHTML = '';
         
-        Object.keys(metricasObj).forEach(key => {
-            const item = metricasObj[key];
-            const isCore = item.is_core === true;
-            
-            const abrev = item.abrev || item.label.substring(0,6) + '.';
-            const vis = item.visibilidad || 'publico'; 
-            
-            const badgeType = item.tipo === 'tasa' ? 'success' : 'neutral';
-            const badgeLabel = item.tipo === 'tasa' ? 'Tasa' : 'Absoluto';
-            const coreBadge = isCore ? '<span class="siarhe-badge brand" style="margin-left:5px;"><span class="dashicons dashicons-lock" style="font-size:12px;width:12px;height:12px;margin-top:2px;"></span> Nativa</span>' : '';
-            
-            // AUDITORÍA DOBLE INTEGRADA 
-            const autorOriginal = isCore ? 'Sistema' : (item.created_by || item.last_edited_by || 'Desconocido');
-            const fechaOriginal = isCore ? 'Integrado en el código' : (item.created_at || item.last_edited_at || '');
-            
-            let auditHtml = `
-                <div style="margin-bottom: 8px; line-height: 1.3;">
-                    <span style="font-size:10px; font-weight:bold; color:#94a3b8; text-transform:uppercase;">Creado por:</span><br>
-                    <span style="font-size:12px; color:#0f172a; font-weight:500;">${autorOriginal}</span><br>
-                    <span style="color:#64748b; font-size:11px;">${formatDate(fechaOriginal)}</span>
-                </div>
-            `;
+        const totalItems = filteredKeys.length;
+        let totalPages = 1;
+        let keysToRender = filteredKeys;
 
-            if (!isCore && item.last_edited_by && item.last_edited_at !== item.created_at) {
-                auditHtml += `
-                    <div style="line-height: 1.3; border-top: 1px dashed #e2e8f0; padding-top: 6px;">
-                        <span style="font-size:10px; font-weight:bold; color:#0ea5e9; text-transform:uppercase;">Última edición:</span><br>
-                        <span style="font-size:12px; color:#0f172a; font-weight:500;">${item.last_edited_by}</span><br>
-                        <span style="color:#64748b; font-size:11px;">${formatDate(item.last_edited_at)}</span>
+        if (itemsPerPage !== 'all') {
+            totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+            
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            keysToRender = filteredKeys.slice(start, end);
+        }
+
+        if (keysToRender.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 20px; color:#8c8f94;">No se encontraron métricas con los criterios de búsqueda especificados.</td></tr>`;
+        } else {
+            keysToRender.forEach(key => {
+                const item = metricasObj[key];
+                const isCore = item.is_core === true;
+                
+                const abrev = item.abrev || item.label.substring(0,6) + '.';
+                const vis = item.visibilidad || 'publico'; 
+                
+                const badgeType = item.tipo === 'tasa' ? 'success' : 'neutral';
+                const badgeLabel = item.tipo === 'tasa' ? 'Tasa' : 'Absoluto';
+                const coreBadge = isCore ? '<span class="siarhe-badge brand" style="margin-left:5px;"><span class="dashicons dashicons-lock" style="font-size:12px;width:12px;height:12px;margin-top:2px;"></span> Nativa</span>' : '';
+                
+                const autorOriginal = isCore ? 'Sistema' : (item.created_by || item.last_edited_by || 'Desconocido');
+                const fechaOriginal = isCore ? 'Integrado en el código' : (item.created_at || item.last_edited_at || '');
+                
+                let auditHtml = `
+                    <div style="margin-bottom: 8px; line-height: 1.3;">
+                        <span style="font-size:10px; font-weight:bold; color:#94a3b8; text-transform:uppercase;">Creado por:</span><br>
+                        <span style="font-size:12px; color:#0f172a; font-weight:500;">${autorOriginal}</span><br>
+                        <span style="color:#64748b; font-size:11px;">${formatDate(fechaOriginal)}</span>
                     </div>
                 `;
-            }
 
-            const btnDelete = isCore 
-                ? `<span class="dashicons dashicons-lock" style="color:#ccc; margin-left:10px;" title="Las métricas nativas no se pueden eliminar"></span>` 
-                : `<button type="button" class="button button-small button-link-delete btn-delete-metrica" data-key="${key}" title="Eliminar métrica"><span class="dashicons dashicons-trash" style="color:#d63638;"></span></button>`;
-                
-            let eyeIcon = 'dashicons-visibility';
-            let eyeColor = '#007cba';
-            let eyeTitle = 'Público: Visible para todos';
-            if (vis === 'registrados') { eyeIcon = 'dashicons-admin-users'; eyeColor = '#e68a00'; eyeTitle = 'Privado: Solo usuarios registrados'; }
-            if (vis === 'oculto') { eyeIcon = 'dashicons-hidden'; eyeColor = '#8c8f94'; eyeTitle = 'Oculto: No se mostrará en frontend'; }
+                if (!isCore && item.last_edited_by && item.last_edited_at !== item.created_at) {
+                    auditHtml += `
+                        <div style="line-height: 1.3; border-top: 1px dashed #e2e8f0; padding-top: 6px;">
+                            <span style="font-size:10px; font-weight:bold; color:#0ea5e9; text-transform:uppercase;">Última edición:</span><br>
+                            <span style="font-size:12px; color:#0f172a; font-weight:500;">${item.last_edited_by}</span><br>
+                            <span style="color:#64748b; font-size:11px;">${formatDate(item.last_edited_at)}</span>
+                        </div>
+                    `;
+                }
 
-            const visIndicator = `<span class="dashicons ${eyeIcon}" style="color:${eyeColor}; margin-right: 8px; cursor: help;" title="${eyeTitle}"></span>`;
+                const btnDelete = isCore 
+                    ? `<span class="dashicons dashicons-lock" style="color:#ccc; margin-left:10px;" title="Las métricas nativas no se pueden eliminar"></span>` 
+                    : `<button type="button" class="button button-small button-link-delete btn-delete-metrica" data-key="${key}" title="Eliminar métrica"><span class="dashicons dashicons-trash" style="color:#d63638;"></span></button>`;
+                    
+                let eyeIcon = 'dashicons-visibility';
+                let eyeColor = '#007cba';
+                let eyeTitle = 'Público: Visible para todos';
+                if (vis === 'registrados') { eyeIcon = 'dashicons-admin-users'; eyeColor = '#e68a00'; eyeTitle = 'Privado: Solo usuarios registrados'; }
+                if (vis === 'oculto') { eyeIcon = 'dashicons-hidden'; eyeColor = '#8c8f94'; eyeTitle = 'Oculto: No se mostrará en frontend'; }
 
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td data-label="Clave (CSV)" data-mobile-role="primary">
-                    <strong style="color:#2271b1; font-family:monospace;">${key}</strong> ${coreBadge}
-                </td>
-                <td data-label="Etiqueta Larga">
-                    <span class="siarhe-break-text" style="font-size:12px; color:#555;">${item.fullLabel}</span>
-                </td>
-                <td data-label="Etiqueta Corta" data-mobile-role="secondary">
-                    <strong>${item.label}</strong>
-                </td>
-                <td data-label="Abrev.">
-                    <span style="background:#f0f0f1; padding:2px 5px; border-radius:3px; font-size:11px;">${abrev}</span>
-                </td>
-                <td data-label="Tipo">
-                    <span class="siarhe-badge ${badgeType}">${badgeLabel}</span>
-                </td>
-                <td data-label="Auditoría">
-                    ${auditHtml}
-                </td>
-                <td data-label="Acciones">
-                    ${visIndicator}
-                    <button type="button" class="button button-small btn-edit-metrica" data-key="${key}" title="Modificar parámetros">
-                        <span class="dashicons dashicons-edit"></span>
-                    </button>
-                    ${btnDelete}
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
+                const visIndicator = `<span class="dashicons ${eyeIcon}" style="color:${eyeColor}; margin-right: 8px; cursor: help;" title="${eyeTitle}"></span>`;
 
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td data-label="Clave (CSV)" data-mobile-role="primary">
+                        <strong style="color:#2271b1; font-family:monospace;">${key}</strong> ${coreBadge}
+                    </td>
+                    <td data-label="Etiqueta Larga">
+                        <span class="siarhe-break-text" style="font-size:12px; color:#555;">${item.fullLabel}</span>
+                    </td>
+                    <td data-label="Etiqueta Corta" data-mobile-role="secondary">
+                        <strong>${item.label}</strong>
+                    </td>
+                    <td data-label="Abrev.">
+                        <span style="background:#f0f0f1; padding:2px 5px; border-radius:3px; font-size:11px;">${abrev}</span>
+                    </td>
+                    <td data-label="Tipo">
+                        <span class="siarhe-badge ${badgeType}">${badgeLabel}</span>
+                    </td>
+                    <td data-label="Auditoría">
+                        ${auditHtml}
+                    </td>
+                    <td data-label="Acciones">
+                        ${visIndicator}
+                        <button type="button" class="button button-small btn-edit-metrica" data-key="${key}" title="Modificar parámetros">
+                            <span class="dashicons dashicons-edit"></span>
+                        </button>
+                        ${btnDelete}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        updatePaginationUI(totalItems, keysToRender.length, totalPages);
         attachEvents();
     }
 
+    function updatePaginationUI(totalItems, currentItemsCount, totalPages) {
+        if (totalItems === 0) {
+            countDisplay.innerHTML = 'No hay registros para mostrar.';
+            paginationControls.innerHTML = '';
+            return;
+        }
+
+        let startRange = 1;
+        let endRange = totalItems;
+
+        if (itemsPerPage !== 'all') {
+            startRange = ((currentPage - 1) * itemsPerPage) + 1;
+            endRange = startRange + currentItemsCount - 1;
+        }
+
+        countDisplay.innerHTML = `Mostrando del <strong>${startRange}</strong> al <strong>${endRange}</strong> de <strong>${totalItems}</strong> registros`;
+
+        paginationControls.innerHTML = '';
+        if (totalPages <= 1) return;
+
+        const btnPrev = document.createElement('a');
+        btnPrev.className = `siarhe-page-btn ${currentPage === 1 ? 'disabled' : ''}`;
+        btnPrev.innerHTML = '« Ant';
+        btnPrev.addEventListener('click', (e) => { e.preventDefault(); if(currentPage > 1) { currentPage--; renderTable(); } });
+        paginationControls.appendChild(btnPrev);
+
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
+
+        if (currentPage <= 2) endPage = Math.min(totalPages, 5);
+        if (currentPage >= totalPages - 1) startPage = Math.max(1, totalPages - 4);
+
+        if (startPage > 1) {
+            const btnFirst = document.createElement('a');
+            btnFirst.className = 'siarhe-page-btn'; btnFirst.innerHTML = '1';
+            btnFirst.addEventListener('click', (e) => { e.preventDefault(); currentPage = 1; renderTable(); });
+            paginationControls.appendChild(btnFirst);
+            if (startPage > 2) paginationControls.insertAdjacentHTML('beforeend', '<span style="color:#8c8f94;">...</span>');
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            const btnP = document.createElement('a');
+            btnP.className = `siarhe-page-btn ${i === currentPage ? 'active' : ''}`;
+            btnP.innerHTML = i;
+            btnP.addEventListener('click', (e) => { e.preventDefault(); currentPage = i; renderTable(); });
+            paginationControls.appendChild(btnP);
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) paginationControls.insertAdjacentHTML('beforeend', '<span style="color:#8c8f94;">...</span>');
+            const btnLast = document.createElement('a');
+            btnLast.className = 'siarhe-page-btn'; btnLast.innerHTML = totalPages;
+            btnLast.addEventListener('click', (e) => { e.preventDefault(); currentPage = totalPages; renderTable(); });
+            paginationControls.appendChild(btnLast);
+        }
+
+        const btnNext = document.createElement('a');
+        btnNext.className = `siarhe-page-btn ${currentPage === totalPages ? 'disabled' : ''}`;
+        btnNext.innerHTML = 'Sig »';
+        btnNext.addEventListener('click', (e) => { e.preventDefault(); if(currentPage < totalPages) { currentPage++; renderTable(); } });
+        paginationControls.appendChild(btnNext);
+    }
+
     function attachEvents() {
-        // ACORDEÓN JS MÓVIL
         document.querySelectorAll('#siarhe-metricas-table tbody tr').forEach(row => {
             row.removeEventListener('click', handleRowClick);
             row.addEventListener('click', handleRowClick);
@@ -291,7 +424,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (confirm(`¿Proceder con la eliminación de la métrica "${key}"? Esta acción no afectará el archivo CSV pero ocultará la información en el mapa.`)) {
                     delete metricasObj[key];
                     updateHiddenInput();
-                    renderTable();
+                    applySearchFilter(); 
                 }
             });
         });
@@ -382,47 +515,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!newKey) { alert('La clave identificadora es obligatoria.'); return; }
 
-        // BARRERA 1: Evitar sobreescribir una clave que ya existe (si estamos creando una nueva, o renombrando una)
         if (!originalKey && metricasObj.hasOwnProperty(newKey)) {
-            alert(`⚠️ ALERTA DE SEGURIDAD: La clave "${newKey}" ya existe en el sistema. No puedes crear un duplicado porque sobreescribirías la métrica existente.`);
-            return; 
+            alert(`⚠️ ALERTA DE SEGURIDAD: La clave "${newKey}" ya existe en el sistema.`); return; 
         }
-
         if (originalKey && originalKey !== newKey && metricasObj.hasOwnProperty(newKey)) {
-            alert(`⚠️ ALERTA DE SEGURIDAD: No puedes renombrar la clave a "${newKey}" porque esa clave ya está en uso por otra métrica del sistema.`);
-            return; 
+            alert(`⚠️ ALERTA DE SEGURIDAD: No puedes renombrar la clave a "${newKey}" porque ya está en uso.`); return; 
         }
 
-        // BARRERA 2: Evitar que existan dos absolutos o dos tasas para el MISMO PAR
         let pairConflict = false;
         let conflictKey = '';
-
         for (const [key, item] of Object.entries(metricasObj)) {
-            // Ignoramos la métrica que estamos editando actualmente
             if (key === originalKey) continue; 
-            
-            // Verificamos si hay colisión de TIPO para el MISMO PAR
             if (item.pair === newPair && item.tipo === newTipo) {
-                pairConflict = true;
-                conflictKey = key;
-                break;
+                pairConflict = true; conflictKey = key; break;
             }
         }
 
         if (pairConflict) {
             alert(`⚠️ ALERTA ESTRUCTURAL: Ya existe una métrica ("${conflictKey}") de tipo "${newTipo}" asociada a la clave relacionada "${newPair}".\n\nEl sistema requiere que cada par tenga máximo un valor Absoluto y una Tasa para mantener la integridad de las columnas en la tabla de datos.`);
-            return; // Bloquea el guardado
+            return; 
         }
 
-        // Si pasó toda la seguridad, continuamos. Borramos la original (si cambió de nombre).
         if (!isCore && originalKey && originalKey !== newKey) {
             delete metricasObj[originalKey];
         }
 
         let finalVis = document.getElementById('modal-metric-visibilidad').value;
-        if (lockedVisibilityKeys.includes(newKey)) {
-            finalVis = 'publico';
-        }
+        if (lockedVisibilityKeys.includes(newKey)) finalVis = 'publico';
 
         const originalCreator = document.getElementById('modal-metric-created-by').value;
         const originalCreatedAt = document.getElementById('modal-metric-created-at').value;
@@ -442,7 +561,7 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         updateHiddenInput();
-        renderTable();
+        applySearchFilter();
         modal.style.display = 'none';
         
         const btnSubmit = document.querySelector('input[type="submit"]#submit');
@@ -460,24 +579,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('btn-reset-metricas').addEventListener('click', function() {
         if (confirm('⚠️ PRECAUCIÓN: Esta acción purgará cualquier métrica personalizada e inicializará el catálogo a sus valores de fábrica. El proceso es irreversible. ¿Confirmar operación?')) {
-            
             metricasObj = JSON.parse(defaultJson);
             updateHiddenInput();
-            
             this.innerHTML = '<span class="spinner is-active" style="float:none; margin:0 5px 0 0;"></span> Procesando...';
             this.disabled = true;
-            
             const form = document.querySelector('form[action="options.php"]');
-            if (form) {
-                HTMLFormElement.prototype.submit.call(form);
-            }
+            if (form) HTMLFormElement.prototype.submit.call(form);
         }
     });
 
     function updateHiddenInput() {
         inputJson.value = JSON.stringify(metricasObj);
         inputJson.dispatchEvent(new Event('change', { bubbles: true }));
-        
         const btnSubmit = document.querySelector('input[type="submit"]#submit');
         if (btnSubmit) {
             btnSubmit.removeAttribute('disabled');
@@ -485,6 +598,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    renderTable();
+    applySearchFilter();
 });
 </script>
