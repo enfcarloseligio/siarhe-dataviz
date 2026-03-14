@@ -47,7 +47,6 @@
 }
 
 .siarhe-meta {
-    color: #475569; 
     margin: 0;
 }
 
@@ -103,7 +102,6 @@ path.siarhe-feature:hover {
 .siarhe-map-footer {
     margin-top: 10px;
     font-size: 12px;
-    color: #777;
     text-align: center;
 }
 
@@ -296,7 +294,6 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 .siarhe-footer {
     font-family: 'Roboto', sans-serif;
     font-size: 13px;
-    color: #475569;
     border-top: 1px solid #eee;
     padding-top: 20px;
     margin-top: 40px;

@@ -10,7 +10,7 @@ wp_enqueue_script( 'siarhe-controls-js', SIARHE_URL . 'public/js/siarhe-controls
 
 // 2. Mapa (Solo si el shortcode incluye la letra 'M')
 if ( strpos( strtoupper($mode), 'M' ) !== false ) {
-    // 🌟 AÑADIDO: Cargamos el gestor de Tooltips antes del mapa
+    // Cargamos el gestor de Tooltips antes del mapa
     wp_enqueue_script( 'siarhe-tooltips-js', SIARHE_URL . 'public/js/siarhe-tooltips.js', array('siarhe-core-js'), $v_js, true );
     wp_enqueue_script( 'siarhe-map-js', SIARHE_URL . 'public/js/siarhe-map.js', array('siarhe-core-js', 'siarhe-controls-js', 'siarhe-tooltips-js'), $v_js, true );
 }
@@ -75,7 +75,7 @@ $marker_labels = [];
 $is_user_logged_in = is_user_logged_in();
 $upload_url = defined('SIARHE_UPLOAD_URL') ? SIARHE_UPLOAD_URL : wp_upload_dir()['baseurl'] . '/siarhe-data/';
 
-// 🌟 OBTENER GEOJSON DE LOCALIDADES (DETALLE) 🌟
+// OBTENER GEOJSON DE LOCALIDADES
 $geo_loc_meta = $wpdb->get_row( $wpdb->prepare( "SELECT ruta_archivo FROM $table_assets WHERE entidad_slug = %s AND tipo_archivo = 'localidades_geojson' AND es_activo = 1", $slug ) );
 $geojson_loc_url = ($geo_loc_meta && !empty($geo_loc_meta->ruta_archivo)) ? $upload_url . $geo_loc_meta->ruta_archivo : '';
 
@@ -251,7 +251,10 @@ if ( !empty($siarhe_links_raw['legal_aviso']) ) {
     }
 </style>
 
+<div id="content" tabindex="-1" style="outline: none;"></div>
+
 <div class="siarhe-viz-wrapper" 
+     role="main" aria-label="Visualización de Datos y Mapa SIARHE"
      id="siarhe-viz-<?php echo esc_attr($cve_ent); ?>"
      data-cve-ent="<?php echo esc_attr($cve_ent); ?>"
      data-slug="<?php echo esc_attr($slug); ?>"
@@ -277,7 +280,7 @@ if ( !empty($siarhe_links_raw['legal_aviso']) ) {
 
     <div class="siarhe-intro-text" style="line-height: 1.6; margin-bottom: 25px;">
         <p>
-            En el año <strong><?php echo esc_html($anio); ?></strong>, <?php echo $lugar_texto; ?> cuenta con un total de 
+            En el año <strong style="color: #0F172A;"><?php echo esc_html($anio); ?></strong>, <?php echo $lugar_texto; ?> cuenta con un total de 
             <strong style="color: #06B6D4;"><span class="siarhe-dynamic-nurses-sum">...</span></strong> 
             profesionales de enfermería distribuidos en <?php echo $es_nacional ? 'las 32 entidades federativas' : 'los <strong style="color: #0A66C2;"><span class="siarhe-dynamic-mun-count">...</span></strong> municipios'; ?>, según el último corte estadístico del SIARHE y proyecciones INEGI.
         </p>
