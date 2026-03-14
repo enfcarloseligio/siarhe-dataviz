@@ -1,4 +1,4 @@
-<?php
+<?php // /includes/helpers.php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**

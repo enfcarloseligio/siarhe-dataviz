@@ -1,3 +1,4 @@
+/* /public/js/siarhe-table.js */
 /**
  * SIARHE DataViz - Módulo de Tabla (Table)
  * ------------------------------------------------------------------

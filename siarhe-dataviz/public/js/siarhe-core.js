@@ -1,3 +1,4 @@
+/* /public/js/siarhe-core.js */
 /**
  * SIARHE DataViz - Módulo Principal (Core)
  * ------------------------------------------------------------------
