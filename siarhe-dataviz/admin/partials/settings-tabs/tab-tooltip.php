@@ -1,4 +1,4 @@
-<?php // /admin/partials/settings-tabs/tab-tooltip.php
+<?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // Obtener configuración o crear valores por defecto (todo encendido)

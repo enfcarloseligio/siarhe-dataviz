@@ -1,4 +1,4 @@
-<?php // /admin/class-siarhe-admin.php
+<?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Siarhe_Admin {

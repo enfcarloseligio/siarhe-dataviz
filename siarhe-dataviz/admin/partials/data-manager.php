@@ -1,5 +1,4 @@
-<?php // /admin/partials/data-manager.php
-if ( ! defined( 'ABSPATH' ) ) exit; ?>
+<?php if ( ! defined( 'ABSPATH' ) ) exit; ?>
 
 <div class="wrap">
     <h1>Dashboard SIARHE</h1>

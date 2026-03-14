@@ -1,4 +1,4 @@
-<?php // siarhe-dataviz.php
+<?php
 /**
  * Plugin Name: SIARHE Data Visualization Engine
  * Description: Sistema modular de visualización de datos de enfermería con soporte SQL y GeoJSON.

@@ -1,4 +1,4 @@
-<?php // /admin/partials/upload-tabs/tab-marcadores.php
+<?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // 1. Gestor dinámico del diccionario de archivos

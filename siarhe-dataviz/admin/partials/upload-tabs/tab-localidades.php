@@ -1,4 +1,4 @@
-<?php // /admin/partials/upload-tabs/tab-localidades.php
+<?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // 1. Obtener Entidades (Helper Centralizado)

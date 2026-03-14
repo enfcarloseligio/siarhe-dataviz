@@ -1,4 +1,3 @@
-/* /public/js/siarhe-tooltips.js */
 /**
  * SIARHE DataViz - Módulo de Tooltips
  * ------------------------------------------------------------------

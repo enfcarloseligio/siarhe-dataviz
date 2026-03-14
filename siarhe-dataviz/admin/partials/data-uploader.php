@@ -1,4 +1,4 @@
-<?php // /admin/partials/data-uploader.php
+<?php 
 if ( ! defined( 'ABSPATH' ) ) exit; 
 
 // 1. Obtener la pestaña activa

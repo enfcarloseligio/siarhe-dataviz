@@ -1,4 +1,4 @@
-<?php // /admin/partials/settings-tabs/tab-mapa.php
+<?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // 1. Obtener opciones guardadas
