@@ -146,7 +146,7 @@ if ( empty($marcadores_json) ) {
                 <th><label>Clave Interna</label></th>
                 <td>
                     <input type="text" id="modal-mk-key" class="regular-text" required placeholder="ej. ESTAB_4">
-                    <p class="description">Identificador único en el sistema (sin espacios).</p>
+                    <p class="description">Identificador único en el sistema. Respeta mayúsculas y minúsculas.</p>
                 </td>
             </tr>
             <tr>
@@ -275,6 +275,35 @@ document.addEventListener('DOMContentLoaded', function() {
     const paginationControlsTop = document.getElementById('siarhe-pagination-controls-top');
     const paginationControlsBottom = document.getElementById('siarhe-pagination-controls-bottom');
     const countDisplay = document.getElementById('siarhe-marcadores-count');
+
+    // Integración de Bypass en el botón de guardado flotante para asegurar la retención de estado
+    const btnFloatingSave = document.getElementById('btn-floating-save');
+    const originalSubmitBtn = document.querySelector('input[type="submit"]#submit');
+
+    if(btnFloatingSave && originalSubmitBtn) {
+        btnFloatingSave.addEventListener('click', () => {
+            // Eliminar temporalmente directivas restrictivas del DOM
+            originalSubmitBtn.removeAttribute('disabled');
+            originalSubmitBtn.classList.remove('disabled');
+            if (typeof jQuery !== 'undefined') {
+                jQuery(originalSubmitBtn).prop('disabled', false).removeClass('disabled');
+            }
+            
+            const form = document.querySelector('form[action="options.php"]');
+            if (form) {
+                // Inyectar un nodo invisible para asegurar el despacho del submit core de WP
+                const hiddenSubmit = document.createElement('input');
+                hiddenSubmit.type = 'hidden';
+                hiddenSubmit.name = originalSubmitBtn.name || 'submit';
+                hiddenSubmit.value = originalSubmitBtn.value || 'Guardar cambios';
+                form.appendChild(hiddenSubmit);
+                
+                HTMLFormElement.prototype.submit.call(form);
+            } else {
+                originalSubmitBtn.click();
+            }
+        });
+    }
 
     tipoSelect.addEventListener('change', (e) => {
         espectroRow.style.display = e.target.value === 'espectro' ? 'table-row' : 'none';
@@ -536,7 +565,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (confirm(`¿Eliminar la configuración del marcador "${key}"? (El archivo CSV no se borrará)`)) {
                     delete marcadoresObj[key];
                     updateHiddenInput();
-                    renderTable();
+                    
+                    // Asegurar la remoción del registro activo en el flujo de búsqueda
+                    applySearchFilter(); 
+                    
+                    if (window.SiarheAdmin && window.SiarheAdmin.showFloatingSaveBtn) {
+                        window.SiarheAdmin.showFloatingSaveBtn();
+                    }
+                    
+                    if (!document.getElementById('siarhe-save-notice')) {
+                        const headerEnd = document.querySelector('.wp-header-end');
+                        if (headerEnd) headerEnd.insertAdjacentHTML('afterend', '<div id="siarhe-save-notice" class="notice notice-warning"><p>⚠️ <strong>Atención:</strong> Existen cambios pendientes en la memoria temporal. Haz clic en <strong>"Guardar Configuración"</strong>.</p></div>');
+                    }
                 }
             });
         });
@@ -606,7 +646,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('save-mk-btn').addEventListener('click', () => {
         const originalKey = document.getElementById('modal-mk-original-key').value;
-        const newKey = document.getElementById('modal-mk-key').value.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_');
+        // Preservación de sensibilidad de caso en la clave estructural
+        const newKey = document.getElementById('modal-mk-key').value.trim().replace(/[^a-zA-Z0-9_]/g, '_');
         const isCore = document.getElementById('modal-mk-is-core').value === '1';
 
         if (!newKey) { alert('La clave es obligatoria.'); return; }
@@ -666,7 +707,9 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         updateHiddenInput();
-        renderTable(); 
+        
+        // Recalcular el estado de la vista de datos
+        applySearchFilter(); 
         
         modal.style.display = 'none';
 
@@ -689,14 +732,15 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateHiddenInput() {
         inputJson.value = JSON.stringify(marcadoresObj);
         
-        const originalSubmitBtn = document.querySelector('input[type="submit"]#submit');
-        if (originalSubmitBtn) {
-            originalSubmitBtn.removeAttribute('disabled');
-            originalSubmitBtn.classList.remove('disabled');
+        // Intercepta eventos del DOM para forzar actualización de persistencia nativa
+        if (typeof jQuery !== 'undefined') {
+            jQuery('#submit').prop('disabled', false).removeClass('disabled');
+            jQuery('form[action="options.php"]').trigger('change'); 
         }
         
         if (!document.getElementById('siarhe-save-notice')) {
-            document.querySelector('.wp-header-end').insertAdjacentHTML('afterend', '<div id="siarhe-save-notice" class="notice notice-warning"><p>⚠️ <strong>Atención:</strong> Existen cambios pendientes en la memoria temporal. Haz clic en <strong>"Guardar Configuración"</strong>.</p></div>');
+            const headerEnd = document.querySelector('.wp-header-end');
+            if (headerEnd) headerEnd.insertAdjacentHTML('afterend', '<div id="siarhe-save-notice" class="notice notice-warning"><p>⚠️ <strong>Atención:</strong> Existen cambios pendientes en la memoria temporal. Haz clic en <strong>"Guardar Configuración"</strong>.</p></div>');
         }
     }
 

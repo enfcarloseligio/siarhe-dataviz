@@ -321,6 +321,35 @@ document.addEventListener('DOMContentLoaded', function() {
     const rangesRow = document.getElementById('modal-metric-ranges-row');
     const colorsRow = document.getElementById('modal-metric-colors-row');
 
+    // 🌟 Lógica blindada para el Botón Flotante
+    const btnFloatingSave = document.getElementById('btn-floating-save');
+    const originalSubmitBtn = document.querySelector('input[type="submit"]#submit');
+
+    if(btnFloatingSave && originalSubmitBtn) {
+        btnFloatingSave.addEventListener('click', () => {
+            // Quitamos el bloqueo si existiera
+            originalSubmitBtn.removeAttribute('disabled');
+            originalSubmitBtn.classList.remove('disabled');
+            if (typeof jQuery !== 'undefined') {
+                jQuery(originalSubmitBtn).prop('disabled', false).removeClass('disabled');
+            }
+            
+            const form = document.querySelector('form[action="options.php"]');
+            if (form) {
+                // Inyectamos un input invisible para imitar el clic exacto en el botón nativo de WP
+                const hiddenSubmit = document.createElement('input');
+                hiddenSubmit.type = 'hidden';
+                hiddenSubmit.name = originalSubmitBtn.name || 'submit';
+                hiddenSubmit.value = originalSubmitBtn.value || 'Guardar cambios';
+                form.appendChild(hiddenSubmit);
+                
+                HTMLFormElement.prototype.submit.call(form);
+            } else {
+                originalSubmitBtn.click();
+            }
+        });
+    }
+
     customRangesCb.addEventListener('change', function() {
         rangesRow.style.display = this.checked ? 'table-row' : 'none';
     });
@@ -553,7 +582,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (confirm(`¿Proceder con la eliminación de la métrica "${key}"? Esta acción no afectará el archivo CSV pero ocultará la información en el mapa.`)) {
                     delete metricasObj[key];
                     updateHiddenInput();
-                    renderTable(); 
+                    // 🌟 Refiltrar todo desde cero para que el DOM se olvide de la llave eliminada
+                    applySearchFilter(); 
+                    
+                    if (window.SiarheAdmin && window.SiarheAdmin.showFloatingSaveBtn) {
+                        window.SiarheAdmin.showFloatingSaveBtn();
+                    }
+                    
+                    // 🌟 Mostrar aviso visual si no existe al borrar
+                    if (!document.getElementById('siarhe-save-notice')) {
+                        const headerEnd = document.querySelector('.wp-header-end');
+                        if (headerEnd) headerEnd.insertAdjacentHTML('afterend', '<div id="siarhe-save-notice" class="notice notice-warning"><p>⚠️ <strong>Atención:</strong> Existen cambios pendientes en la memoria temporal. Es necesario hacer clic en <strong>"Guardar Configuración"</strong> para aplicarlos al sistema.</p></div>');
+                    }
                 }
             });
         });
@@ -654,7 +694,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('save-metric-btn').addEventListener('click', () => {
         const originalKey = document.getElementById('modal-metric-original-key').value;
-        const newKey = document.getElementById('modal-metric-key').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+        // 🌟 CORRECCIÓN: Permite letras mayúsculas (a-zA-Z)
+        const newKey = document.getElementById('modal-metric-key').value.trim().replace(/[^a-zA-Z0-9_]/g, '_');
         const newTipo = document.getElementById('modal-metric-tipo').value;
         const newPair = document.getElementById('modal-metric-pair').value.trim();
         const isCore = document.getElementById('modal-metric-is-core').value === '1';
@@ -719,7 +760,7 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         updateHiddenInput();
-        renderTable(); 
+        applySearchFilter(); 
         
         modal.style.display = 'none';
         
@@ -728,7 +769,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         if (!document.getElementById('siarhe-save-notice')) {
-            document.querySelector('.wp-header-end').insertAdjacentHTML('afterend', '<div id="siarhe-save-notice" class="notice notice-warning"><p>⚠️ <strong>Atención:</strong> Existen cambios pendientes en la memoria temporal. Es necesario hacer clic en <strong>"Guardar Configuración"</strong> para aplicarlos al sistema.</p></div>');
+            const headerEnd = document.querySelector('.wp-header-end');
+            if (headerEnd) headerEnd.insertAdjacentHTML('afterend', '<div id="siarhe-save-notice" class="notice notice-warning"><p>⚠️ <strong>Atención:</strong> Existen cambios pendientes en la memoria temporal. Es necesario hacer clic en <strong>"Guardar Configuración"</strong> para aplicarlos al sistema.</p></div>');
         }
     });
 
@@ -746,6 +788,12 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateHiddenInput() {
         inputJson.value = JSON.stringify(metricasObj);
         inputJson.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        // 🌟 WP DIRTY FIX: Forzamos el formulario a reconocer el cambio
+        if (typeof jQuery !== 'undefined') {
+            jQuery('#submit').prop('disabled', false).removeClass('disabled');
+            jQuery('form[action="options.php"]').trigger('change'); 
+        }
     }
 
     applySearchFilter();
