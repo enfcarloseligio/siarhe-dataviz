@@ -344,10 +344,14 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
         },
 
+        // ☀️ LÓGICA VISUAL Y MATEMÁTICA CON BIFURCACIÓN DE RANGOS
         updateVisuals: function(container, state) {
             const metric = state.currentMetric;
-            const mode = state.colorMode || 'quartiles'; 
             
+            const metricConfig = state.metricas[metric] || {};
+            const mode = state.colorMode || metricConfig.scale_type || 'cuartiles'; 
+            
+            // CÁLCULO ESTADÍSTICO ORIGINAL INTACTO
             const values = state.csvData
                 .filter(d => !d.isTotal && !d.isSpecial && d[metric] !== null && d[metric] > 0)
                 .map(d => d[metric])
@@ -361,7 +365,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         if (!row || row[metric] === null || row[metric] === undefined) return app.colors.NULL;
                         return app.colors.ZERO;
                     });
-                app.map.renderLegend(state, {min: 0, max: 0});
+                const emptyStats = {min: 0, q1: 0, q2: 0, q3: 0, max: 0, Vmin: 0, Q1: 0, Q2: 0, Q3: 0, Vmax: 0};
+                app.map.renderLegend(state, emptyStats, mode);
             } else {
                 let colorScale;
                 let stats = {};
@@ -382,38 +387,47 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     }
                 }
                 
-                stats = { min, q1, q2, q3, max };
+                // ☀️ CREACIÓN DEL DICCIONARIO MATEMÁTICO INTACTO
+                stats = { min, q1, q2, q3, max, Vmin: min, Q1: q1, Q2: q2, Q3: q3, Vmax: max };
 
-                if (mode === 'quartiles') {
-                    colorScale = d3.scaleLinear().domain(domain).range(app.colors.RANGE).clamp(true);
+                if (mode === 'rangos') {
+                    // Lógica Discreta de Rangos
+                    const colorEvaluator = app.math.createRangeEvaluator(metricConfig, stats);
+                    
+                    state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
+                        .style("fill", d => {
+                            let cve = app.utils.getGeoKey(d.properties, state.isNacional);
+                            const row = state.dataMap.get(cve);
+                            if (!row || row[metric] === null || row[metric] === undefined) return app.colors.NULL; 
+                            return colorEvaluator(row[metric]);
+                        });
                 } else {
-                    let monoRange = app.colors.MONO;
-                    if (monoRange.length === 2) {
-                        const interpolator = d3.interpolate(monoRange[0], monoRange[1]);
-                        monoRange = [
-                            interpolator(0), 
-                            interpolator(0.25), 
-                            interpolator(0.50), 
-                            interpolator(0.75), 
-                            interpolator(1)
-                        ];
+                    // Lógica Continua Original
+                    if (mode === 'cuartiles' || mode === 'degradado' || mode === 'quartiles') {
+                        colorScale = d3.scaleLinear().domain(domain).range(app.colors.RANGE).clamp(true);
+                    } else {
+                        let monoRange = app.colors.MONO;
+                        if (monoRange.length === 2) {
+                            const interpolator = d3.interpolate(monoRange[0], monoRange[1]);
+                            monoRange = [ interpolator(0), interpolator(0.25), interpolator(0.50), interpolator(0.75), interpolator(1) ];
+                        }
+                        colorScale = d3.scaleLinear().domain(domain).range(monoRange).clamp(true);
                     }
-                    colorScale = d3.scaleLinear().domain(domain).range(monoRange).clamp(true);
+
+                    state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
+                        .style("fill", d => {
+                            let cve = app.utils.getGeoKey(d.properties, state.isNacional);
+                            const row = state.dataMap.get(cve);
+                            
+                            if (!row || row[metric] === null || row[metric] === undefined) return app.colors.NULL; 
+                            if (row[metric] === 0) return app.colors.ZERO; 
+                            
+                            return colorScale(row[metric]);
+                        });
                 }
 
-                state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
-                    .style("fill", d => {
-                        let cve = app.utils.getGeoKey(d.properties, state.isNacional);
-                        const row = state.dataMap.get(cve);
-                        
-                        if (!row) return app.colors.NULL; 
-                        if (row[metric] === null || row[metric] === undefined) return app.colors.NULL; 
-                        if (row[metric] === 0) return app.colors.ZERO; 
-                        
-                        return colorScale(row[metric]);
-                    });
-
-                app.map.renderLegend(state, stats);
+                // ☀️ ENVIAMOS MODO A LA LEYENDA
+                app.map.renderLegend(state, stats, mode);
             }
             app.map.renderLabels(state);
         },
@@ -457,64 +471,140 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 });
         },
 
-        renderLegend: function(state, stats) {
+        // ☀️ LEYENDA ADAPTADA PARA MOSTRAR RANGOS CON SÍMBOLO ≤
+        renderLegend: function(state, stats, mode) {
             const g = state.gLegend; 
             g.html("");
             
-            const info = state.metricas[state.currentMetric] || {};
-            const label = info.abrev || info.label || 'Indicador';
-            const mode = state.colorMode || 'quartiles';
+            const metricInfo = state.metricas[state.currentMetric] || {};
+            const label = metricInfo.abrev || metricInfo.label || 'Indicador';
+            const currentMode = mode || state.colorMode || 'cuartiles';
+            const isRangos = (currentMode === 'rangos');
 
-            const gradient = state.svg.select(`#${state.gradientId}`);
-            gradient.selectAll("stop").remove();
-            
-            let colorArr = [];
-            let domainVals = [stats.min, stats.q1, stats.q2, stats.q3, stats.max];
+            // ☀️ ENSANCHAMOS LA CAJA A 195PX PARA RANGOS
+            const boxWidth = isRangos ? 195 : 140;
 
-            if (mode === 'quartiles') {
-                colorArr = app.colors.RANGE;
-            } else {
-                colorArr = app.colors.MONO;
-                if (colorArr.length === 2) {
-                    const interpolator = d3.interpolate(colorArr[0], colorArr[1]);
-                    colorArr = [
-                        interpolator(0), 
-                        interpolator(0.25), 
-                        interpolator(0.50), 
-                        interpolator(0.75), 
-                        interpolator(1)
-                    ];
-                }
-            }
-
-            gradient.selectAll("stop")
-                .data(colorArr)
-                .enter().append("stop")
-                .attr("offset", (d, i) => `${(i / (colorArr.length - 1)) * 100}%`)
-                .attr("stop-color", d => d);
-
-            g.append("rect").attr("x", -10).attr("y", -25).attr("width", 140).attr("height", 270)
+            g.append("rect").attr("x", -10).attr("y", -25).attr("width", boxWidth).attr("height", isRangos ? 220 : 270)
              .attr("fill", "rgba(255,255,255,0.9)").attr("rx", 5).style("filter", "drop-shadow(2px 2px 2px rgba(0,0,0,0.1))");
-            g.append("text").attr("x", 0).attr("y", -10).text(label).style("font-size", "12px").style("font-weight", "bold").style("fill", "#0F172A");
             
-            const h = 150, w = 15, step = h/4;
-            g.append("rect").attr("x", 0).attr("y", 10).attr("width", w).attr("height", h)
-             .style("fill", `url(#${state.gradientId})`).style("stroke", "#ccc");
+            g.append("text").attr("x", 0).attr("y", -10).text(label)
+             .style("font-size", "12px").style("font-weight", "bold").style("fill", "#0F172A");
 
-            domainVals.forEach((v, i) => {
-                const y = 10 + h - (i * step);
-                g.append("line").attr("x1", w).attr("x2", w+5).attr("y1", y).attr("y2", y).style("stroke", "#666");
-                let valStr = (v !== undefined && v !== null) ? v.toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2}) : "0.00";
-                g.append("text").attr("x", w+8).attr("y", y+4).text(valStr).style("font-size", "11px").style("fill", "#475569");
-            });
+            if (isRangos) {
+                // VISTA DISCRETA (CUADRADOS DE COLOR)
+                // 🌟 LÓGICA CORREGIDA: Respetar el interruptor de colores
+                const useColors = metricInfo.custom_colors === true;
+                const c1 = (useColors && metricInfo.r1_color) ? metricInfo.r1_color : app.colors.CUSTOM_RANGE[0];
+                const c2 = (useColors && metricInfo.r2_color) ? metricInfo.r2_color : app.colors.CUSTOM_RANGE[1];
+                const c3 = (useColors && metricInfo.r3_color) ? metricInfo.r3_color : app.colors.CUSTOM_RANGE[2];
+                const c4 = (useColors && metricInfo.r4_color) ? metricInfo.r4_color : app.colors.CUSTOM_RANGE[3];
 
-            const g0 = g.append("g").attr("transform", `translate(0, ${h+40})`);
-            g0.append("rect").attr("width", 12).attr("height", 12).style("fill", app.colors.ZERO);
-            g0.append("text").attr("x", 18).attr("y", 10).text("0.00").style("font-size", "11px").style("fill", "#475569");
+                // ☀️ FORMATEADOR INTELIGENTE DE COMAS (SÓLO VISUAL)
+                const parseLabel = (raw) => {
+                    if (raw === undefined || raw === null || raw === '') return '';
+                    let v = raw.toString().trim();
+                    const key = Object.keys(stats).find(k => k.toLowerCase() === v.toLowerCase());
+                    
+                    let numToFormat = key ? stats[key] : parseFloat(v);
+                    
+                    if (!isNaN(numToFormat)) {
+                        if (metricInfo.tipo === 'tasa') {
+                            return numToFormat.toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        } else {
+                            return numToFormat.toLocaleString('es-MX', {maximumFractionDigits: 2});
+                        }
+                    }
+                    return v;
+                };
 
-            const gN = g.append("g").attr("transform", `translate(0, ${h+65})`);
-            gN.append("rect").attr("width", 12).attr("height", 12).style("fill", app.colors.NULL);
-            gN.append("text").attr("x", 18).attr("y", 10).text("S/D").style("font-size", "11px").style("fill", "#475569");
+                // 🌟 REEMPLAZADOR TIPOGRÁFICO PARA EL SÍMBOLO '≤'
+                const formatOp = (op) => op === '<=' ? '≤' : op;
+
+                // 🌟 LÓGICA CORREGIDA: Respetar el interruptor de rangos manuales
+                const useRanges = metricInfo.custom_ranges === true;
+
+                const r4min = (useRanges && metricInfo.r4_min) ? metricInfo.r4_min : 'Q3'; 
+                const r4max = (useRanges && metricInfo.r4_max) ? metricInfo.r4_max : 'Vmax'; 
+                const r4op  = formatOp((useRanges && metricInfo.r4_op) ? metricInfo.r4_op : '<=');
+                
+                const r3min = (useRanges && metricInfo.r3_min) ? metricInfo.r3_min : 'Q2'; 
+                const r3max = (useRanges && metricInfo.r3_max) ? metricInfo.r3_max : 'Q3';   
+                const r3op  = formatOp((useRanges && metricInfo.r3_op) ? metricInfo.r3_op : '<');
+                
+                const r2min = (useRanges && metricInfo.r2_min) ? metricInfo.r2_min : 'Q1'; 
+                const r2max = (useRanges && metricInfo.r2_max) ? metricInfo.r2_max : 'Q2';   
+                const r2op  = formatOp((useRanges && metricInfo.r2_op) ? metricInfo.r2_op : '<');
+                
+                const r1min = (useRanges && metricInfo.r1_min) ? metricInfo.r1_min : 'Vmin'; 
+                const r1max = (useRanges && metricInfo.r1_max) ? metricInfo.r1_max : 'Q1'; 
+                const r1op  = formatOp((useRanges && metricInfo.r1_op) ? metricInfo.r1_op : '<');
+
+                const blocks = [
+                    { color: c4, text: `${parseLabel(r4min)} a ${r4op} ${parseLabel(r4max)}` },
+                    { color: c3, text: `${parseLabel(r3min)} a ${r3op} ${parseLabel(r3max)}` },
+                    { color: c2, text: `${parseLabel(r2min)} a ${r2op} ${parseLabel(r2max)}` },
+                    { color: c1, text: `${parseLabel(r1min)} a ${r1op} ${parseLabel(r1max)}` }
+                ];
+
+                blocks.forEach((b, i) => {
+                    const y = 15 + (i * 30);
+                    g.append("rect").attr("x", 0).attr("y", y).attr("width", 20).attr("height", 20)
+                     .style("fill", b.color).style("stroke", "#cbd5e1");
+                    g.append("text").attr("x", 28).attr("y", y + 14)
+                     .text(b.text).style("font-size", "11px").style("fill", "#475569");
+                });
+
+                const g0 = g.append("g").attr("transform", `translate(0, ${15 + (4*30) + 15})`);
+                g0.append("rect").attr("width", 12).attr("height", 12).style("fill", app.colors.ZERO);
+                g0.append("text").attr("x", 18).attr("y", 10).text("0.00").style("font-size", "11px").style("fill", "#475569");
+
+                const gN = g.append("g").attr("transform", `translate(0, ${15 + (4*30) + 35})`);
+                gN.append("rect").attr("width", 12).attr("height", 12).style("fill", app.colors.NULL);
+                gN.append("text").attr("x", 18).attr("y", 10).text("S/D").style("font-size", "11px").style("fill", "#475569");
+
+            } else {
+                // VISTA CONTINUA ORIGINAL (INTACTA)
+                const gradient = state.svg.select(`#${state.gradientId}`);
+                gradient.selectAll("stop").remove();
+                
+                let colorArr = [];
+                let domainVals = [stats.min, stats.q1, stats.q2, stats.q3, stats.max];
+
+                if (currentMode === 'cuartiles' || currentMode === 'degradado' || currentMode === 'quartiles') {
+                    colorArr = app.colors.RANGE;
+                } else {
+                    colorArr = app.colors.MONO;
+                    if (colorArr.length === 2) {
+                        const interpolator = d3.interpolate(colorArr[0], colorArr[1]);
+                        colorArr = [ interpolator(0), interpolator(0.25), interpolator(0.50), interpolator(0.75), interpolator(1) ];
+                    }
+                }
+
+                gradient.selectAll("stop")
+                    .data(colorArr)
+                    .enter().append("stop")
+                    .attr("offset", (d, i) => `${(i / (colorArr.length - 1)) * 100}%`)
+                    .attr("stop-color", d => d);
+                
+                const h = 150, w = 15, step = h/4;
+                g.append("rect").attr("x", 0).attr("y", 10).attr("width", w).attr("height", h)
+                 .style("fill", `url(#${state.gradientId})`).style("stroke", "#ccc");
+
+                domainVals.forEach((v, i) => {
+                    const y = 10 + h - (i * step);
+                    g.append("line").attr("x1", w).attr("x2", w+5).attr("y1", y).attr("y2", y).style("stroke", "#666");
+                    let valStr = (v !== undefined && v !== null) ? v.toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2}) : "0.00";
+                    g.append("text").attr("x", w+8).attr("y", y+4).text(valStr).style("font-size", "11px").style("fill", "#475569");
+                });
+
+                const g0 = g.append("g").attr("transform", `translate(0, ${h+40})`);
+                g0.append("rect").attr("width", 12).attr("height", 12).style("fill", app.colors.ZERO);
+                g0.append("text").attr("x", 18).attr("y", 10).text("0.00").style("font-size", "11px").style("fill", "#475569");
+
+                const gN = g.append("g").attr("transform", `translate(0, ${h+65})`);
+                gN.append("rect").attr("width", 12).attr("height", 12).style("fill", app.colors.NULL);
+                gN.append("text").attr("x", 18).attr("y", 10).text("S/D").style("font-size", "11px").style("fill", "#475569");
+            }
         },
 
         handleMapClick: function(d, state) {
@@ -702,7 +792,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 e.preventDefault();
                 const controlsEl = container.querySelector('.siarhe-controls-layout');
                 if (controlsEl) controlsEl.classList.remove('is-hidden');
-                // Al presionar Ajustes, quitamos la clase mágica
                 mapContainer.classList.remove('controls-are-hidden');
             };
 
@@ -719,7 +808,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     btnFullscreen.innerHTML = '⤡'; 
                     mapContainer.classList.add('is-fullscreen');
                     
-                    // Al ENTRAR a fullscreen, aseguramos que los controles estén visibles y el botón oculto
                     mapContainer.classList.remove('controls-are-hidden'); 
                     if (controlsEl) {
                         mapContainer.appendChild(controlsEl);
@@ -733,7 +821,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     
                     btnFullscreen.innerHTML = '⤢'; 
                     mapContainer.classList.remove('is-fullscreen');
-                    // Al SALIR de fullscreen, reseteamos las clases mágicas
                     mapContainer.classList.remove('controls-are-hidden');
                     
                     if (controlsEl) {
@@ -767,7 +854,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 createBtn('🏠', 'Ir a Nacional', (e) => { e.preventDefault(); window.location.href = state.homeUrl; });
             }
 
-            // INYECTAMOS 🎛️ AL FINAL
             ctrlDiv.appendChild(btnShowControls);
         },
 

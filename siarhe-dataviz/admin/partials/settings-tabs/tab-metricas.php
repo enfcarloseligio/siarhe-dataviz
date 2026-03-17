@@ -5,7 +5,7 @@ $current_user = wp_get_current_user();
 $editor_name = $current_user->display_name ?: $current_user->user_login;
 $current_time = current_time('mysql');
 
-// ☀️ Diccionario base de propiedades: Ahora incluye los "toggles" booleanos
+// ☀️ Diccionario base de propiedades: R4_OP ahora usa '<=' por defecto
 $base_ranges = [
     'scale_type' => 'cuartiles',
     'custom_ranges' => false,
@@ -13,7 +13,7 @@ $base_ranges = [
     'r1_min' => 'Vmin', 'r1_op' => '<', 'r1_max' => 'Q1',   'r1_color' => '',
     'r2_min' => 'Q1',   'r2_op' => '<', 'r2_max' => 'Q2',   'r2_color' => '',
     'r3_min' => 'Q2',   'r3_op' => '<', 'r3_max' => 'Q3',   'r3_color' => '',
-    'r4_min' => 'Q3',   'r4_op' => '<', 'r4_max' => 'Vmax', 'r4_color' => ''
+    'r4_min' => 'Q3',   'r4_op' => '<=', 'r4_max' => 'Vmax', 'r4_color' => '' // ☀️ Ajuste crucial de operador
 ];
 
 $defaults = [
@@ -308,7 +308,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const scaleSelect = document.getElementById('modal-metric-scale-type');
     
-    // ☀️ Lógica de los Toggles
+    // Lógica de los Toggles
     const customRangesCb = document.getElementById('modal-enable-custom-ranges');
     const customColorsCb = document.getElementById('modal-enable-custom-colors');
     const rangesRow = document.getElementById('modal-metric-ranges-row');
@@ -583,7 +583,7 @@ document.addEventListener('DOMContentLoaded', function() {
             r1_min: 'Vmin', r1_op: '<', r1_max: 'Q1', r1_color: '',
             r2_min: 'Q1',   r2_op: '<', r2_max: 'Q2', r2_color: '',
             r3_min: 'Q2',   r3_op: '<', r3_max: 'Q3', r3_color: '',
-            r4_min: 'Q3',   r4_op: '<', r4_max: 'Vmax', r4_color: ''
+            r4_min: 'Q3',   r4_op: '<=', r4_max: 'Vmax', r4_color: '' // ☀️
         };
 
         const item = isNew ? baseItem : Object.assign({}, baseItem, metricasObj[key]);
@@ -612,7 +612,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         scaleSelect.value = item.scale_type || 'cuartiles';
 
-        // ☀️ Configuración de Toggles y despliegue inicial
         customRangesCb.checked = item.custom_ranges === true;
         customColorsCb.checked = item.custom_colors === true;
         customRangesCb.dispatchEvent(new Event('change'));
@@ -623,7 +622,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('modal-r1-min').value = item.r1_min; document.getElementById('modal-r1-op').value = item.r1_op; document.getElementById('modal-r1-max').value = item.r1_max;
         document.getElementById('modal-r2-min').value = item.r2_min; document.getElementById('modal-r2-op').value = item.r2_op; document.getElementById('modal-r2-max').value = item.r2_max;
         document.getElementById('modal-r3-min').value = item.r3_min; document.getElementById('modal-r3-op').value = item.r3_op; document.getElementById('modal-r3-max').value = item.r3_max;
-        document.getElementById('modal-r4-min').value = item.r4_min; document.getElementById('modal-r4-op').value = item.r4_op; document.getElementById('modal-r4-max').value = item.r4_max;
+        document.getElementById('modal-r4-min').value = item.r4_min; document.getElementById('modal-r4-op').value = item.r4_op || '<='; document.getElementById('modal-r4-max').value = item.r4_max; // ☀️
 
         if (typeof jQuery !== 'undefined' && jQuery.fn.wpColorPicker) {
             jQuery('#modal-r1-color').wpColorPicker('color', c1);
@@ -705,7 +704,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (v_r1_min === '') v_r1_min = 'Vmin';
         if (v_r4_max === '') v_r4_max = 'Vmax';
 
-        // ☀️ Inserción de booleanos
         metricasObj[newKey] = {
             label: document.getElementById('modal-metric-label').value.trim(),
             fullLabel: document.getElementById('modal-metric-full').value.trim(),

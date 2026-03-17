@@ -53,6 +53,7 @@ $lugar_texto = isset($catalogo_oficial[$cve_ent]) ? $catalogo_oficial[$cve_ent] 
 $map_options = get_option( 'siarhe_map_options', [] );
 $defaults = [
     'map_c1' => '#eff3ff', 'map_c2' => '#bdd7e7', 'map_c3' => '#6baed6', 'map_c4' => '#3182bd', 'map_c5' => '#08519c',
+    'range_c1' => '#ffedd5', 'range_c2' => '#fdba74', 'range_c3' => '#f59e0b', 'range_c4' => '#b45309',
     'mono_min' => '#f0f9ff', 'mono_max' => '#0369a1',
     'map_zero' => '#d9d9d9', 'map_null' => '#000000',
 ];
@@ -199,6 +200,10 @@ if ( !empty($siarhe_links_raw['legal_aviso']) ) {
         --s-map-c3: <?php echo esc_attr($opts['map_c3']); ?>;
         --s-map-c4: <?php echo esc_attr($opts['map_c4']); ?>;
         --s-map-c5: <?php echo esc_attr($opts['map_c5']); ?>;
+        --s-map-range-1: <?php echo esc_attr($opts['range_c1']); ?>;
+        --s-map-range-2: <?php echo esc_attr($opts['range_c2']); ?>;
+        --s-map-range-3: <?php echo esc_attr($opts['range_c3']); ?>;
+        --s-map-range-4: <?php echo esc_attr($opts['range_c4']); ?>;
         --s-map-mono-min: <?php echo esc_attr($opts['mono_min']); ?>;
         --s-map-mono-max: <?php echo esc_attr($opts['mono_max']); ?>;
         --s-map-zero: <?php echo esc_attr($opts['map_zero']); ?>;

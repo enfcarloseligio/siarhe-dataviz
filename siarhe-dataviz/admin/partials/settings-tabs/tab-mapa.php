@@ -128,22 +128,22 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
                 <div class="siarhe-grad-row">
                     <div class="siarhe-color-box">
                         <input type="text" name="siarhe_map_options[range_c1]" value="<?php echo esc_attr($opts['range_c1']); ?>" class="siarhe-color-field" data-alpha="true">
-                        <p class="description"><small>Rango 1<br>(Ej. < Q1)</small></p>
+                        <p class="description"><small>Rango 1<br>(Ej. Vmin < Q1)</small></p>
                     </div>
                     <span class="dashicons dashicons-arrow-right-alt" style="color:#aaa;"></span>
                     <div class="siarhe-color-box">
                         <input type="text" name="siarhe_map_options[range_c2]" value="<?php echo esc_attr($opts['range_c2']); ?>" class="siarhe-color-field">
-                        <p class="description"><small>Rango 2<br>(Ej. Q1 a Q2)</small></p>
+                        <p class="description"><small>Rango 2<br>(Ej. Q1 < Q2)</small></p>
                     </div>
                     <span class="dashicons dashicons-arrow-right-alt" style="color:#aaa;"></span>
                     <div class="siarhe-color-box">
                         <input type="text" name="siarhe_map_options[range_c3]" value="<?php echo esc_attr($opts['range_c3']); ?>" class="siarhe-color-field">
-                        <p class="description"><small>Rango 3<br>(Ej. Q2 a Q3)</small></p>
+                        <p class="description"><small>Rango 3<br>(Ej. Q2 < Q3)</small></p>
                     </div>
                     <span class="dashicons dashicons-arrow-right-alt" style="color:#aaa;"></span>
                     <div class="siarhe-color-box">
                         <input type="text" name="siarhe_map_options[range_c4]" value="<?php echo esc_attr($opts['range_c4']); ?>" class="siarhe-color-field">
-                        <p class="description"><small>Rango 4<br>(Ej. > Q3)</small></p>
+                        <p class="description"><small>Rango 4<br>(Ej. Q3 ≤ Vmax)</small></p>
                     </div>
                 </div>
             </td>

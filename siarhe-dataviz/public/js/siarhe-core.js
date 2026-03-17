@@ -1,3 +1,4 @@
+/* /public/js/siarhe-core.js */
 /**
  * SIARHE DataViz - Módulo Principal (Core)
  * ------------------------------------------------------------------
@@ -24,6 +25,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
     app.colors = {
         RANGE: [ getVar('--s-map-c1', '#eff3ff'), getVar('--s-map-c2', '#bdd7e7'), getVar('--s-map-c3', '#9ecae1'), getVar('--s-map-c4', '#6baed6'), getVar('--s-map-c5', '#08519c') ],
+        // ☀️ NUEVOS COLORES GLOBALES PARA RANGOS PERSONALIZADOS AÑADIDOS
+        CUSTOM_RANGE: [ getVar('--s-map-range-1', '#ffedd5'), getVar('--s-map-range-2', '#fdba74'), getVar('--s-map-range-3', '#f59e0b'), getVar('--s-map-range-4', '#b45309') ],
         MONO: [ getVar('--s-map-mono-min', '#f0f9ff'), getVar('--s-map-mono-max', '#0369a1') ], 
         ZERO: getVar('--s-map-zero', '#d9d9d9'),
         NULL: getVar('--s-map-null', '#000000')
@@ -89,7 +92,80 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     };
 
     // ==========================================
-    // 3. CAPA DE DATOS (Data Layer)
+    // ☀️ 3. MOTOR MATEMÁTICO DE RANGOS
+    // ==========================================
+    app.math = {
+        isInRange: function(valToEval, minRaw, op, maxRaw, statsDict) {
+            const parseVal = (raw) => {
+                if (raw === undefined || raw === null || raw === '') return NaN; 
+                let v = raw.toString().trim();
+                const key = Object.keys(statsDict).find(k => k.toLowerCase() === v.toLowerCase());
+                return key ? statsDict[key] : parseFloat(v);
+            };
+
+            const minVal = parseVal(minRaw);
+            const maxVal = parseVal(maxRaw);
+
+            if (isNaN(minVal) || isNaN(maxVal)) return false;
+
+            let lowerBoundMet = valToEval >= minVal; 
+            let upperBoundMet = false;
+            const operator = (op || '<').toString().trim();
+            
+            // 🌟 MATEMÁTICA ESTRICTA (Sin parches, respeta lo que ponga el usuario o el sistema)
+            if (operator === '<') upperBoundMet = valToEval < maxVal;
+            else if (operator === '<=') upperBoundMet = valToEval <= maxVal;
+            else if (operator === '=') upperBoundMet = valToEval === maxVal;
+            else upperBoundMet = valToEval < maxVal; // Fallback
+
+            return lowerBoundMet && upperBoundMet;
+        },
+
+        createRangeEvaluator: function(metricConfig, statsDict) {
+            return function(value) {
+                if (value === null || value === undefined || isNaN(value)) return app.colors.NULL;
+                if (value === 0) return app.colors.ZERO;
+
+                // 🌟 LÓGICA CORREGIDA: Si el interruptor de colores personalizados está apagado, forzamos los colores por defecto
+                const useColors = metricConfig.custom_colors === true;
+                const c1 = (useColors && metricConfig.r1_color) ? metricConfig.r1_color : app.colors.CUSTOM_RANGE[0];
+                const c2 = (useColors && metricConfig.r2_color) ? metricConfig.r2_color : app.colors.CUSTOM_RANGE[1];
+                const c3 = (useColors && metricConfig.r3_color) ? metricConfig.r3_color : app.colors.CUSTOM_RANGE[2];
+                const c4 = (useColors && metricConfig.r4_color) ? metricConfig.r4_color : app.colors.CUSTOM_RANGE[3];
+
+                // 🌟 LÓGICA CORREGIDA: Si el interruptor de rangos está apagado, forzamos los valores puros
+                const useRanges = metricConfig.custom_ranges === true;
+
+                const r4_min = (useRanges && metricConfig.r4_min) ? metricConfig.r4_min : 'Q3'; 
+                const r4_op  = (useRanges && metricConfig.r4_op)  ? metricConfig.r4_op  : '<='; // 🌟 Matemáticamente correcto
+                const r4_max = (useRanges && metricConfig.r4_max) ? metricConfig.r4_max : 'Vmax';
+                
+                const r3_min = (useRanges && metricConfig.r3_min) ? metricConfig.r3_min : 'Q2'; 
+                const r3_op  = (useRanges && metricConfig.r3_op)  ? metricConfig.r3_op  : '<';  
+                const r3_max = (useRanges && metricConfig.r3_max) ? metricConfig.r3_max : 'Q3';
+                
+                const r2_min = (useRanges && metricConfig.r2_min) ? metricConfig.r2_min : 'Q1'; 
+                const r2_op  = (useRanges && metricConfig.r2_op)  ? metricConfig.r2_op  : '<';  
+                const r2_max = (useRanges && metricConfig.r2_max) ? metricConfig.r2_max : 'Q2';
+                
+                const r1_min = (useRanges && metricConfig.r1_min) ? metricConfig.r1_min : 'Vmin'; 
+                const r1_op  = (useRanges && metricConfig.r1_op)  ? metricConfig.r1_op  : '<';  
+                const r1_max = (useRanges && metricConfig.r1_max) ? metricConfig.r1_max : 'Q1';
+
+                // Se evalúa de arriba hacia abajo
+                if (app.math.isInRange(value, r4_min, r4_op, r4_max, statsDict)) return c4;
+                if (app.math.isInRange(value, r3_min, r3_op, r3_max, statsDict)) return c3;
+                if (app.math.isInRange(value, r2_min, r2_op, r2_max, statsDict)) return c2;
+                if (app.math.isInRange(value, r1_min, r1_op, r1_max, statsDict)) return c1;
+
+                return app.colors.NULL; 
+            };
+        }
+    };
+
+
+    // ==========================================
+    // 4. CAPA DE DATOS (Data Layer)
     // ==========================================
     app.data = {
         processCSV: function(data, metricasConfig) {
@@ -176,7 +252,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     };
 
     // ==========================================
-    // 4. ORQUESTADOR DE INICIALIZACIÓN
+    // 5. ORQUESTADOR DE INICIALIZACIÓN
     // ==========================================
     app.initVisualization = function(container) {
         const cveEnt = container.dataset.cveEnt;
@@ -215,7 +291,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             metricas: METRICAS_CONFIG,
             tooltipConfig: TOOLTIP_CONFIG, 
             currentMetric: 'tasa_total',
-            colorMode: 'quartiles',
+            colorMode: null, // ☀️ Se arranca en null porque Controls define la escala
             zoom: null, gLegend: null, gMarkerLegend: null, gradientId: null,
             svg: null, gMain: null, gPaths: null, gLabels: null, gMarkers: null, 
             activeMarkers: new Set(), markersData: {}, 
@@ -288,7 +364,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 // 5. INYECCIÓN AL CARGAR EL DOM
 // ==========================================
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("%c 🚀 SIARHE Core V46: Marcadores Dinámicos", "background: #1e40af; color: #ffffff; padding: 2px 6px; border-radius: 4px;");
+    console.log("%c 🚀 SIARHE Core V48: Leyenda Estricta <= ", "background: #1e40af; color: #ffffff; padding: 2px 6px; border-radius: 4px;");
     
     const wrappers = document.querySelectorAll('.siarhe-viz-wrapper');
     wrappers.forEach(container => {

@@ -46,14 +46,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     .siarhe-cs-option.selected { font-weight: bold; color: #0284c7; background: #f0f9ff; border-left: 3px solid #0284c7; padding-left: 9px; }
                     .is-placeholder span { color: #94a3b8 !important; }
                     
-                    .siarhe-mode-toggle { display: flex; align-items: center; gap: 8px; margin-left: auto; font-family: 'Roboto', sans-serif; font-size: 13px; color: #475569; }
-                    .s-toggle-switch { position: relative; display: inline-block; width: 40px; height: 20px; }
-                    .s-toggle-switch input { opacity: 0; width: 0; height: 0; }
-                    .s-toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .3s; border-radius: 20px; }
-                    .s-toggle-slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-                    .s-toggle-switch input:checked + .s-toggle-slider { background-color: #0284c7; }
-                    .s-toggle-switch input:checked + .s-toggle-slider:before { transform: translateX(20px); }
-                    
                     .siarhe-smart-toast {
                         position: absolute; top: 20px; right: 20px; z-index: 10000;
                         background: #fff; border-left: 4px solid #0ea5e9; border-radius: 6px;
@@ -253,6 +245,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const optionsContainerInd = document.createElement('div');
             optionsContainerInd.className = 'siarhe-cs-options';
 
+            // ☀️ OBTENER LA ESCALA PREDETERMINADA AL CARGAR CON SEGURIDAD EXTREMA
+            if (!state.colorMode) {
+                const infoCurrent = state.metricas[state.currentMetric] || {};
+                state.colorMode = infoCurrent.scale_type || 'cuartiles';
+            }
+
             Object.entries(state.metricas).forEach(([key, info]) => {
                 const opt = document.createElement('div');
                 opt.className = 'siarhe-cs-option';
@@ -268,6 +266,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     e.stopPropagation();
                     state.currentMetric = key;
                     app.sortConfig = { key: 'tasa', direction: 'desc' };
+                    
+                    // ☀️ ACTUALIZAR LA ESCALA SEGÚN LA NUEVA MÉTRICA SELECCIONADA
+                    const newInfo = state.metricas[key] || {};
+                    state.colorMode = newInfo.scale_type || 'cuartiles';
+                    const selectEscala = container.querySelector('#siarhe-escala-select');
+                    if (selectEscala) selectEscala.value = state.colorMode;
                     
                     triggerInd.innerHTML = `<span>${info.label || info.fullLabel}</span>`;
                     optionsContainerInd.querySelectorAll('.siarhe-cs-option').forEach(o => o.classList.remove('selected'));
@@ -388,18 +392,19 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     buildMarkerDropdown('c-espectro', 'espectro', 'Seleccionar Espectros...');
                 }
 
+                // ☀️ RENDERIZAR OPCIONES DE ESCALA CONECTADAS AL ESTADO
                 const cEscala = wrapper.querySelector('#c-escala');
-                const currentStyle = state.colorMode === 'mono' ? 'mono' : 'degradado'; 
+                const currScale = state.colorMode || 'cuartiles'; 
                 
                 cEscala.innerHTML += `
                     <select class="siarhe-metric-select" id="siarhe-escala-select">
-                        <option value="degradado" ${currentStyle === 'degradado' ? 'selected' : ''}>Degradado por Colores</option>
-                        <option value="rangos" disabled>Rangos (Próximamente)</option>
-                        <option value="mono" ${currentStyle === 'mono' ? 'selected' : ''}>Escala Monocromática</option>
+                        <option value="cuartiles" ${currScale === 'cuartiles' || currScale === 'degradado' ? 'selected' : ''}>Degradado por Colores</option>
+                        <option value="rangos" ${currScale === 'rangos' ? 'selected' : ''}>Rangos</option>
+                        <option value="monocromatico" ${currScale === 'monocromatico' || currScale === 'mono' ? 'selected' : ''}>Escala Monocromática</option>
                     </select>
                 `;
                 cEscala.querySelector('select').addEventListener('change', (e) => {
-                    state.colorMode = e.target.value === 'mono' ? 'mono' : 'quartiles'; 
+                    state.colorMode = e.target.value; 
                     state.realStyleMode = e.target.value; 
                     if (app.map) app.map.updateVisuals(container, state);
                 });
