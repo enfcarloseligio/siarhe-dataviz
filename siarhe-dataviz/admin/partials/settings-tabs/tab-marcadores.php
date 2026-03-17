@@ -37,6 +37,21 @@ if ( empty($marcadores_json) ) {
 }
 ?>
 
+<style>
+    .siarhe-rule-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; background: #fff; padding: 10px; border: 1px solid #e2e8f0; border-radius: 4px; }
+    .siarhe-rule-row input { width: 100%; }
+    .siarhe-rule-col { flex: 1; }
+    .btn-remove-rule { color: #d63638; cursor: pointer; font-size: 20px; line-height: 1; padding: 5px; }
+    .btn-remove-rule:hover { color: #a00; }
+    
+    .siarhe-switch { position: relative; display: inline-block; width: 44px; height: 24px; vertical-align: middle; margin-right: 10px; }
+    .siarhe-switch input { opacity: 0; width: 0; height: 0; }
+    .siarhe-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .3s; border-radius: 24px; }
+    .siarhe-slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; }
+    .siarhe-switch input:checked + .siarhe-slider { background-color: #007cba; }
+    .siarhe-switch input:checked + .siarhe-slider:before { transform: translateX(20px); }
+</style>
+
 <button type="button" class="button button-primary siarhe-floating-save" id="btn-floating-save">
     Guardar
 </button>
@@ -261,15 +276,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const paginationControlsBottom = document.getElementById('siarhe-pagination-controls-bottom');
     const countDisplay = document.getElementById('siarhe-marcadores-count');
 
-    const btnFloatingSave = document.getElementById('btn-floating-save');
-    const originalSubmitBtn = document.querySelector('input[type="submit"]#submit');
-
-    if(btnFloatingSave && originalSubmitBtn) {
-        btnFloatingSave.addEventListener('click', () => {
-            originalSubmitBtn.click();
-        });
-    }
-
     tipoSelect.addEventListener('change', (e) => {
         espectroRow.style.display = e.target.value === 'espectro' ? 'table-row' : 'none';
     });
@@ -322,25 +328,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     btnAddRule.addEventListener('click', () => addRuleRow());
-
-    function formatDate(dateStr) {
-        if (!dateStr) return '—';
-        const d = new Date(dateStr.replace(' ', 'T')); 
-        if (isNaN(d.getTime())) return dateStr;
-        
-        const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-        const dia = d.getDate();
-        const mes = meses[d.getMonth()];
-        const anio = d.getFullYear();
-        
-        let horas = d.getHours();
-        let minutos = d.getMinutes().toString().padStart(2, '0');
-        let ampm = horas >= 12 ? 'p.m.' : 'a.m.';
-        horas = horas % 12;
-        horas = horas ? horas : 12; 
-
-        return `${dia} ${mes} ${anio}, ${horas}:${minutos} ${ampm}`;
-    }
 
     function applySearchFilter() {
         const term = searchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -398,7 +385,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div style="margin-bottom: 8px; line-height: 1.3;">
                         <span style="font-size:10px; font-weight:bold; color:#94a3b8; text-transform:uppercase;">Creado por:</span><br>
                         <span style="font-size:12px; color:#0f172a; font-weight:500;">${autorOriginal}</span><br>
-                        <span style="color:#64748b; font-size:11px;">${formatDate(fechaOriginal)}</span>
+                        <span style="color:#64748b; font-size:11px;">${window.SiarheAdmin.formatDate(fechaOriginal)}</span>
                     </div>
                 `;
 
@@ -407,7 +394,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div style="line-height: 1.3; border-top: 1px dashed #e2e8f0; padding-top: 6px;">
                             <span style="font-size:10px; font-weight:bold; color:#0ea5e9; text-transform:uppercase;">Última edición:</span><br>
                             <span style="font-size:12px; color:#0f172a; font-weight:500;">${item.last_edited_by}</span><br>
-                            <span style="color:#64748b; font-size:11px;">${formatDate(item.last_edited_at)}</span>
+                            <span style="color:#64748b; font-size:11px;">${window.SiarheAdmin.formatDate(item.last_edited_at)}</span>
                         </div>
                     `;
                 }
@@ -540,13 +527,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function attachEvents() {
-        document.querySelectorAll('#siarhe-marcadores-table tbody tr').forEach(row => {
-            row.addEventListener('click', function(e) {
-                if (window.innerWidth > 767) return;
-                if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) return;
-                this.classList.toggle('is-open');
-            });
-        });
+        if(window.SiarheAdmin) window.SiarheAdmin.initMobileTables();
 
         document.querySelectorAll('.btn-delete-mk').forEach(btn => {
             btn.addEventListener('click', function(e) {
@@ -689,10 +670,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         modal.style.display = 'none';
 
-        if (btnFloatingSave) {
-            btnFloatingSave.style.display = 'block';
-            setTimeout(() => { btnFloatingSave.style.transform = 'scale(1.05)'; }, 50);
-            setTimeout(() => { btnFloatingSave.style.transform = 'scale(1)'; }, 350);
+        if (window.SiarheAdmin && window.SiarheAdmin.showFloatingSaveBtn) {
+            window.SiarheAdmin.showFloatingSaveBtn();
         }
     });
 
@@ -710,6 +689,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateHiddenInput() {
         inputJson.value = JSON.stringify(marcadoresObj);
         
+        const originalSubmitBtn = document.querySelector('input[type="submit"]#submit');
         if (originalSubmitBtn) {
             originalSubmitBtn.removeAttribute('disabled');
             originalSubmitBtn.classList.remove('disabled');

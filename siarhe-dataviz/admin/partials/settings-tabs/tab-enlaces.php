@@ -69,13 +69,6 @@ $entidades = [
 ?>
 
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<style>
-    /* Integración de Select2 con UI de WordPress */
-    .select2-container .select2-selection--single { height: 30px; border-color: #8c8f94; border-radius: 3px; }
-    .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 28px; }
-    .select2-container--default .select2-selection--single .select2-selection__arrow { height: 28px; }
-    body .select2-container { max-width: 100%; }
-</style>
 
 <button type="button" class="button button-primary siarhe-floating-save" id="btn-floating-save">
     Guardar
@@ -198,20 +191,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    const btnFloatingSave = document.getElementById('btn-floating-save');
-    const originalSubmitBtn = document.querySelector('input[type="submit"]#submit');
+    if (window.SiarheAdmin) window.SiarheAdmin.initMobileTables();
 
-    if(btnFloatingSave && originalSubmitBtn) {
-        btnFloatingSave.addEventListener('click', () => {
-            originalSubmitBtn.click();
-        });
-
-        jQuery('.siarhe-searchable-select').on('change', function() {
-            btnFloatingSave.style.display = 'block';
-            setTimeout(() => { btnFloatingSave.style.transform = 'scale(1.05)'; }, 50);
-            setTimeout(() => { btnFloatingSave.style.transform = 'scale(1)'; }, 350);
-        });
-    }
+    jQuery('.siarhe-searchable-select').on('change', function() {
+        if(window.SiarheAdmin && window.SiarheAdmin.showFloatingSaveBtn) {
+            window.SiarheAdmin.showFloatingSaveBtn();
+        }
+    });
 
     const searchInput = document.getElementById('siarhe-search-enlaces');
     const itemsPerPageSelect = document.getElementById('siarhe-items-per-page');
@@ -348,14 +334,6 @@ document.addEventListener('DOMContentLoaded', function() {
         itemsPerPage = e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10);
         currentPage = 1;
         renderPagination();
-    });
-
-    document.querySelectorAll('.siarhe-data-row').forEach(row => {
-        row.addEventListener('click', function(e) {
-            if (window.innerWidth > 767) return;
-            if (e.target.closest('.select2') || e.target.closest('button') || e.target.closest('a') || e.target.closest('select')) return;
-            this.classList.toggle('is-open');
-        });
     });
 
     applySearchFilter();

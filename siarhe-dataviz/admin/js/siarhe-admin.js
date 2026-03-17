@@ -11,7 +11,7 @@ window.SiarheAdmin = {
     /**
      * Formatea cadenas de fecha MySQL a un formato legible y localizado.
      * Ejemplo: "2024-03-12 14:30:00" -> "12 mar 2024, 02:30 p.m."
-     * * @param {string} dateStr - Cadena de fecha y hora en formato MySQL.
+     * @param {string} dateStr - Cadena de fecha y hora en formato MySQL.
      * @returns {string} Cadena formateada.
      */
     formatDate: function(dateStr) {
@@ -34,7 +34,7 @@ window.SiarheAdmin = {
      * Se aplica únicamente en resoluciones menores a 768px.
      */
     initMobileTables: function() {
-        document.querySelectorAll('.siarhe-table tbody tr').forEach(row => {
+        document.querySelectorAll('.siarhe-data-row, .siarhe-table tbody tr').forEach(row => {
             row.removeEventListener('click', window.SiarheAdmin._handleRowClick);
             row.addEventListener('click', window.SiarheAdmin._handleRowClick);
         });
@@ -43,18 +43,49 @@ window.SiarheAdmin = {
     /**
      * Manejador interno de eventos para la expansión de filas en vista móvil.
      * Previene la expansión si el objetivo del clic es un elemento interactivo.
-     * * @private
+     * @private
      */
     _handleRowClick: function(e) {
         if (window.innerWidth > 767) return; 
         
-        if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input') || e.target.closest('select')) {
+        if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input') || e.target.closest('select') || e.target.closest('.select2')) {
             return;
         }
         
         this.classList.toggle('is-open');
+    },
+
+    /**
+     * Inicializa el comportamiento de proxy del botón flotante de guardar.
+     */
+    initFloatingSaveBtn: function() {
+        const btnFloatingSave = document.getElementById('btn-floating-save');
+        const originalSubmitBtn = document.querySelector('input[type="submit"]#submit');
+        
+        if(btnFloatingSave && originalSubmitBtn) {
+            btnFloatingSave.addEventListener('click', () => {
+                originalSubmitBtn.click();
+            });
+        }
+    },
+
+    /**
+     * Muestra y anima sutilmente el botón flotante para llamar la atención del usuario.
+     */
+    showFloatingSaveBtn: function() {
+        const btnFloatingSave = document.getElementById('btn-floating-save');
+        if (btnFloatingSave) {
+            btnFloatingSave.style.display = 'block';
+            setTimeout(() => { btnFloatingSave.style.transform = 'scale(1.05)'; }, 50);
+            setTimeout(() => { btnFloatingSave.style.transform = 'scale(1)'; }, 350);
+        }
     }
 };
+
+// Inicialización general al cargar el DOM
+document.addEventListener('DOMContentLoaded', function() {
+    window.SiarheAdmin.initFloatingSaveBtn();
+});
 
 // Inicialización de componentes basados en jQuery requeridos por WordPress
 jQuery(document).ready(function($){
@@ -67,16 +98,9 @@ jQuery(document).ready(function($){
             var element = event.target;
             var color = ui.color.toString();
             
-            // Actualiza forzosamente el atributo de valor del nodo DOM
             element.value = color;
-            
-            // Puente de eventos (Event Bridge):
-            // La API de wpColorPicker suprime la emisión del evento nativo 'change'.
-            // Se despacha manualmente para garantizar la sincronización de estado 
-            // con los controladores de eventos encargados de generar las cadenas JSON.
             element.dispatchEvent(new Event('change', { bubbles: true }));
 
-            // Mapeo de variables CSS Custom Properties para renderizado en tiempo real
             var variable = $(element).data('variable');
             if (variable) {
                 document.documentElement.style.setProperty(variable, color);

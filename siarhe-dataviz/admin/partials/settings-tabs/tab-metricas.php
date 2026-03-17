@@ -338,34 +338,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let itemsPerPage = 25;
     let filteredKeys = [];
 
-    const btnFloatingSave = document.getElementById('btn-floating-save');
-    const originalSubmitBtn = document.querySelector('input[type="submit"]#submit');
-    
-    if(btnFloatingSave && originalSubmitBtn) {
-        btnFloatingSave.addEventListener('click', () => {
-            originalSubmitBtn.click();
-        });
-    }
-
-    function formatDate(dateStr) {
-        if (!dateStr) return '—';
-        const d = new Date(dateStr.replace(' ', 'T')); 
-        if (isNaN(d.getTime())) return dateStr;
-        
-        const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-        const dia = d.getDate();
-        const mes = meses[d.getMonth()];
-        const anio = d.getFullYear();
-        
-        let horas = d.getHours();
-        let minutos = d.getMinutes().toString().padStart(2, '0');
-        let ampm = horas >= 12 ? 'p.m.' : 'a.m.';
-        horas = horas % 12;
-        horas = horas ? horas : 12; 
-
-        return `${dia} ${mes} ${anio}, ${horas}:${minutos} ${ampm}`;
-    }
-
     function applySearchFilter() {
         const term = searchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         const allKeys = Object.keys(metricasObj);
@@ -431,7 +403,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div style="margin-bottom: 8px; line-height: 1.3;">
                         <span style="font-size:10px; font-weight:bold; color:#94a3b8; text-transform:uppercase;">Creado por:</span><br>
                         <span style="font-size:12px; color:#0f172a; font-weight:500;">${autorOriginal}</span><br>
-                        <span style="color:#64748b; font-size:11px;">${formatDate(fechaOriginal)}</span>
+                        <span style="color:#64748b; font-size:11px;">${window.SiarheAdmin.formatDate(fechaOriginal)}</span>
                     </div>
                 `;
 
@@ -440,7 +412,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div style="line-height: 1.3; border-top: 1px dashed #e2e8f0; padding-top: 6px;">
                             <span style="font-size:10px; font-weight:bold; color:#0ea5e9; text-transform:uppercase;">Última edición:</span><br>
                             <span style="font-size:12px; color:#0f172a; font-weight:500;">${item.last_edited_by}</span><br>
-                            <span style="color:#64748b; font-size:11px;">${formatDate(item.last_edited_at)}</span>
+                            <span style="color:#64748b; font-size:11px;">${window.SiarheAdmin.formatDate(item.last_edited_at)}</span>
                         </div>
                     `;
                 }
@@ -572,10 +544,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function attachEvents() {
-        document.querySelectorAll('#siarhe-metricas-table tbody tr').forEach(row => {
-            row.removeEventListener('click', handleRowClick);
-            row.addEventListener('click', handleRowClick);
-        });
+        if(window.SiarheAdmin) window.SiarheAdmin.initMobileTables();
 
         document.querySelectorAll('.btn-delete-metrica').forEach(btn => {
             btn.addEventListener('click', function(e) {
@@ -595,12 +564,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 openModal(this.getAttribute('data-key'));
             });
         });
-    }
-
-    function handleRowClick(e) {
-        if (window.innerWidth > 767) return;
-        if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) return;
-        this.classList.toggle('is-open');
     }
 
     function openModal(key = null) {
@@ -760,10 +723,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         modal.style.display = 'none';
         
-        if (btnFloatingSave) {
-            btnFloatingSave.style.display = 'block';
-            setTimeout(() => { btnFloatingSave.style.transform = 'scale(1.05)'; }, 50);
-            setTimeout(() => { btnFloatingSave.style.transform = 'scale(1)'; }, 350);
+        if (window.SiarheAdmin && window.SiarheAdmin.showFloatingSaveBtn) {
+            window.SiarheAdmin.showFloatingSaveBtn();
         }
         
         if (!document.getElementById('siarhe-save-notice')) {
@@ -785,10 +746,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateHiddenInput() {
         inputJson.value = JSON.stringify(metricasObj);
         inputJson.dispatchEvent(new Event('change', { bubbles: true }));
-        if (originalSubmitBtn) {
-            originalSubmitBtn.removeAttribute('disabled');
-            originalSubmitBtn.classList.remove('disabled');
-        }
     }
 
     applySearchFilter();
