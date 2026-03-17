@@ -28,101 +28,139 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             return `rgba(15, 23, 42, ${alpha})`; 
         },
 
+        // 🌟 MEJORA UX: Calcula los márgenes negros del SVG y ancla las leyendas a las esquinas físicas
+        initResponsiveLegends: function(container, state) {
+            const mapDiv = container.querySelector('.siarhe-map-container');
+            if (!mapDiv) return;
+
+            const observer = new ResizeObserver(() => {
+                if (!state.gLegend || !state.gMarkerLegend) return;
+                
+                const rect = mapDiv.getBoundingClientRect();
+                // Protección críctica contra "División por Cero" si el mapa está oculto en otra pestaña
+                if (rect.width <= 0 || rect.height <= 0) return; 
+                
+                const svgW = 1600;
+                const svgH = 900;
+                
+                let scale = Math.min(rect.width / svgW, rect.height / svgH);
+                if (scale <= 0) return;
+
+                let actualW = svgW * scale;
+                let actualH = svgH * scale;
+
+                let emptyX = (rect.width - actualW) / 2;
+                let emptyY = (rect.height - actualH) / 2;
+
+                let svgOffsetX = -(emptyX / scale);
+                let svgOffsetY = -(emptyY / scale);
+
+                let padX = 20 / scale; 
+                let padY = 20 / scale;
+
+                // Lógica de magnificación para Fullscreen en Móvil
+                let isMobile = window.innerWidth <= 767;
+                let isFullscreen = mapDiv.classList.contains('is-fullscreen');
+                let legendScale = (isMobile && isFullscreen) ? 1.4 : 1; 
+
+                // Leyenda de Colores (Arriba Izquierda)
+                state.gLegend.attr("transform", `translate(${svgOffsetX + padX}, ${svgOffsetY + padY}) scale(${legendScale})`);
+                
+                // Leyenda de Marcadores (Abajo Izquierda)
+                let bottomY = svgH + (emptyY / scale) - padY;
+                state.gMarkerLegend.attr("transform", `translate(${svgOffsetX + padX}, ${bottomY}) scale(${legendScale})`);
+            });
+            
+            observer.observe(mapDiv);
+            state.legendObserver = observer;
+        },
+
         render: function(container, state, cveEnt) {
             
-            // 🌟 CSS DEL MAPA, BOTONES ZOOM Y LÓGICA DE OCULTAMIENTO DE 🎛️ 🌟
+            // CSS 
             if (!document.getElementById('siarhe-fullscreen-styles')) {
                 const style = document.createElement('style');
                 style.id = 'siarhe-fullscreen-styles';
                 style.innerHTML = `
-                    .siarhe-map-container { position: relative !important; overflow: hidden !important; }
+                    div.siarhe-map-container { position: relative; overflow: hidden; }
                     
-                    /* Botones Zoom (Base) */
-                    .siarhe-map-container .zoom-controles {
-                        position: absolute !important;
-                        z-index: 1000 !important;
-                        display: flex !important;
+                    div.siarhe-map-container div.zoom-controles {
+                        position: absolute;
+                        z-index: 1000;
+                        display: flex;
                     }
-                    .siarhe-map-container .zoom-controles button {
-                        padding: 0 !important; margin: 0 !important; line-height: 1 !important;
-                        display: flex !important; align-items: center !important; justify-content: center !important;
-                        background: rgba(255, 255, 255, 0.95) !important;
-                        border: 1px solid #cbd5e1 !important; border-radius: 4px !important;
-                        cursor: pointer !important; color: #334155 !important;
-                        box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important; transition: all 0.2s;
+                    div.siarhe-map-container div.zoom-controles button.boton {
+                        padding: 0; margin: 0; line-height: 1;
+                        display: flex; align-items: center; justify-content: center;
+                        background: rgba(255, 255, 255, 0.95);
+                        border: 1px solid #cbd5e1; border-radius: 4px;
+                        cursor: pointer; color: #334155;
+                        box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: all 0.2s;
                     }
-                    .siarhe-map-container .zoom-controles button:hover { background: #f1f5f9 !important; }
+                    div.siarhe-map-container div.zoom-controles button.boton:hover { background: #f1f5f9; }
                     
-                    /* 🌟 LÓGICA DEL BOTÓN AJUSTES 🎛️ 🌟 */
-                    .siarhe-map-container .zoom-controles button.btn-show-controls {
-                        background: #0ea5e9 !important; color: #fff !important; border-color: #0284c7 !important;
-                        display: none !important; /* Siempre oculto por defecto */
+                    div.siarhe-map-container div.zoom-controles button.btn-show-controls {
+                        background: #0ea5e9; color: #fff; border-color: #0284c7;
+                        display: none; 
                     }
-                    /* SOLO aparece si el mapa es Fullscreen Y los controles fueron cerrados (Clase mágica) */
-                    .siarhe-map-container.is-fullscreen.controls-are-hidden .zoom-controles button.btn-show-controls {
-                        display: flex !important; 
+                    div.siarhe-map-container.is-fullscreen.controls-are-hidden div.zoom-controles button.btn-show-controls {
+                        display: flex; 
                     }
 
-                    /* 🌟 PC Y TABLET (≥ 768px): Botones SIEMPRE arriba derecha 🌟 */
                     @media (min-width: 768px) {
-                        .siarhe-map-container .zoom-controles {
-                            top: 15px !important; right: 15px !important; bottom: auto !important; left: auto !important;
-                            flex-direction: column !important; gap: 8px !important;
+                        div.siarhe-map-container div.zoom-controles {
+                            top: 15px; right: 15px; bottom: auto; left: auto;
+                            flex-direction: column; gap: 8px;
                         }
-                        .siarhe-map-container .zoom-controles button {
-                            width: 34px !important; height: 34px !important; font-size: 16px !important;
+                        div.siarhe-map-container div.zoom-controles button.boton {
+                            width: 34px; height: 34px; font-size: 16px;
                         }
                     }
 
-                    /* 🌟 MÓVIL (< 767px): Lógica Dinámica de Botones 🌟 */
                     @media (max-width: 767px) {
-                        /* Modo Navegador Normal: Abajo, en medio, horizontales y pequeños */
-                        .siarhe-map-container:not(.is-fullscreen) .zoom-controles {
-                            top: auto !important; bottom: 10px !important;
-                            left: 50% !important; right: auto !important;
-                            transform: translateX(-50%) !important;
-                            flex-direction: row !important; gap: 10px !important;
+                        /* Móvil Web Normal: Botones Abajo a la Derecha para no tapar leyendas */
+                        div.siarhe-map-container:not(.is-fullscreen) div.zoom-controles {
+                            top: auto; bottom: 15px;
+                            left: auto; right: 15px;
+                            transform: none;
+                            flex-direction: row; gap: 10px;
                         }
-                        .siarhe-map-container:not(.is-fullscreen) .zoom-controles button {
-                            width: 28px !important; height: 28px !important; font-size: 14px !important;
+                        div.siarhe-map-container:not(.is-fullscreen) div.zoom-controles button.boton {
+                            width: 32px; height: 32px; font-size: 16px;
                         }
                         
-                        /* Modo Fullscreen (Vertical u Horizontal): Arriba derecha en columna */
-                        .siarhe-map-container.is-fullscreen .zoom-controles {
-                            top: 10px !important; right: 10px !important;
-                            bottom: auto !important; left: auto !important;
-                            transform: none !important;
-                            flex-direction: column !important; gap: 8px !important;
+                        /* Móvil Fullscreen: Botones Arriba a la Derecha */
+                        div.siarhe-map-container.is-fullscreen div.zoom-controles {
+                            top: 10px; right: 10px;
+                            bottom: auto; left: auto;
+                            transform: none;
+                            flex-direction: column; gap: 8px;
                         }
-                        .siarhe-map-container.is-fullscreen .zoom-controles button {
-                            width: 32px !important; height: 32px !important; font-size: 15px !important;
+                        div.siarhe-map-container.is-fullscreen div.zoom-controles button.boton {
+                            width: 36px; height: 36px; font-size: 16px;
                         }
                     }
 
-                    /* =========================================
-                       ESTILOS FULLSCREEN GENERALES
-                       ========================================= */
-                    .siarhe-map-container.is-fullscreen {
-                        position: fixed !important;
-                        top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
-                        width: 100vw !important; height: 100vh !important;
-                        padding-bottom: 0 !important; 
-                        background: #e6f0f8 !important;
-                        z-index: 99999 !important;
-                        border: none !important; border-radius: 0 !important;
+                    div.siarhe-map-container.is-fullscreen {
+                        position: fixed;
+                        top: 0; left: 0; right: 0; bottom: 0;
+                        width: 100vw; height: 100vh;
+                        padding-bottom: 0; 
+                        background: #e6f0f8;
+                        z-index: 99999;
+                        border: none; border-radius: 0;
                     }
-                    .siarhe-map-container.is-fullscreen > svg {
-                        width: 100% !important; height: 100% !important; display: block !important;
+                    div.siarhe-map-container.is-fullscreen > svg {
+                        width: 100%; height: 100%; display: block;
                     }
                     
-                    /* Panel en Fullscreen PC */
                     @media (min-width: 768px) {
-                        .siarhe-controls-layout.is-fullscreen-mode {
-                            position: absolute !important; top: 15px !important; left: 50% !important;
-                            transform: translateX(-50%) scale(0.75) !important; transform-origin: top center !important;
-                            background: rgba(255, 255, 255, 0.95) !important; padding: 15px 25px !important;
-                            border-radius: 8px !important; box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
-                            z-index: 1000 !important; width: 90% !important; max-width: 1000px !important;
+                        div.siarhe-controls-layout.is-fullscreen-mode {
+                            position: absolute; top: 15px; left: 50%;
+                            transform: translateX(-50%) scale(0.75); transform-origin: top center;
+                            background: rgba(255, 255, 255, 0.95); padding: 15px 25px;
+                            border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                            z-index: 1000; width: 90%; max-width: 1000px;
                         }
                     }
                 `;
@@ -162,8 +200,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             state.gLabels = gMain.append("g").attr("class", "labels-layer").style("display", "none").style("pointer-events", "none");
             state.gMarkers = gMain.append("g").attr("class", "markers-layer");
             
-            state.gLegend = svg.append("g").attr("class", "siarhe-legend-group").attr("transform", `translate(30, 40)`); 
-            state.gMarkerLegend = svg.append("g").attr("class", "siarhe-marker-legend-group").attr("transform", `translate(30, ${height - 180})`);
+            // Grupos SVG con posición inicial segura (el ResizeObserver lo moverá de inmediato)
+            state.gLegend = svg.append("g").attr("class", "siarhe-legend-group").attr("transform", "translate(20, 20)"); 
+            state.gMarkerLegend = svg.append("g").attr("class", "siarhe-marker-legend-group").attr("transform", `translate(20, ${height - 20})`);
 
             const projection = d3.geoMercator().fitSize([width, height], state.geoData); 
             state.projection = projection;
@@ -291,6 +330,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             
             app.map.renderZoomButtons(container, mapDiv, svg, zoom, state); 
             app.map.updateVisuals(container, state);
+
+            // 🌟 Inicializamos el observador responsivo
+            app.map.initResponsiveLegends(container, state);
         },
 
         updateGeography: function(container, state) {
@@ -344,14 +386,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
         },
 
-        // ☀️ LÓGICA VISUAL Y MATEMÁTICA CON BIFURCACIÓN DE RANGOS
         updateVisuals: function(container, state) {
             const metric = state.currentMetric;
             
             const metricConfig = state.metricas[metric] || {};
             const mode = state.colorMode || metricConfig.scale_type || 'cuartiles'; 
             
-            // CÁLCULO ESTADÍSTICO ORIGINAL INTACTO
             const values = state.csvData
                 .filter(d => !d.isTotal && !d.isSpecial && d[metric] !== null && d[metric] > 0)
                 .map(d => d[metric])
@@ -387,11 +427,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     }
                 }
                 
-                // ☀️ CREACIÓN DEL DICCIONARIO MATEMÁTICO INTACTO
                 stats = { min, q1, q2, q3, max, Vmin: min, Q1: q1, Q2: q2, Q3: q3, Vmax: max };
 
                 if (mode === 'rangos') {
-                    // Lógica Discreta de Rangos
                     const colorEvaluator = app.math.createRangeEvaluator(metricConfig, stats);
                     
                     state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
@@ -402,7 +440,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                             return colorEvaluator(row[metric]);
                         });
                 } else {
-                    // Lógica Continua Original
                     if (mode === 'cuartiles' || mode === 'degradado' || mode === 'quartiles') {
                         colorScale = d3.scaleLinear().domain(domain).range(app.colors.RANGE).clamp(true);
                     } else {
@@ -426,7 +463,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         });
                 }
 
-                // ☀️ ENVIAMOS MODO A LA LEYENDA
                 app.map.renderLegend(state, stats, mode);
             }
             app.map.renderLabels(state);
@@ -471,7 +507,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 });
         },
 
-        // ☀️ LEYENDA ADAPTADA PARA MOSTRAR RANGOS CON SÍMBOLO ≤
         renderLegend: function(state, stats, mode) {
             const g = state.gLegend; 
             g.html("");
@@ -481,7 +516,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const currentMode = mode || state.colorMode || 'cuartiles';
             const isRangos = (currentMode === 'rangos');
 
-            // ☀️ ENSANCHAMOS LA CAJA A 195PX PARA RANGOS
             const boxWidth = isRangos ? 195 : 140;
 
             g.append("rect").attr("x", -10).attr("y", -25).attr("width", boxWidth).attr("height", isRangos ? 220 : 270)
@@ -491,15 +525,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
              .style("font-size", "12px").style("font-weight", "bold").style("fill", "#0F172A");
 
             if (isRangos) {
-                // VISTA DISCRETA (CUADRADOS DE COLOR)
-                // 🌟 LÓGICA CORREGIDA: Respetar el interruptor de colores
                 const useColors = metricInfo.custom_colors === true;
                 const c1 = (useColors && metricInfo.r1_color) ? metricInfo.r1_color : app.colors.CUSTOM_RANGE[0];
                 const c2 = (useColors && metricInfo.r2_color) ? metricInfo.r2_color : app.colors.CUSTOM_RANGE[1];
                 const c3 = (useColors && metricInfo.r3_color) ? metricInfo.r3_color : app.colors.CUSTOM_RANGE[2];
                 const c4 = (useColors && metricInfo.r4_color) ? metricInfo.r4_color : app.colors.CUSTOM_RANGE[3];
 
-                // ☀️ FORMATEADOR INTELIGENTE DE COMAS (SÓLO VISUAL)
                 const parseLabel = (raw) => {
                     if (raw === undefined || raw === null || raw === '') return '';
                     let v = raw.toString().trim();
@@ -517,10 +548,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     return v;
                 };
 
-                // 🌟 REEMPLAZADOR TIPOGRÁFICO PARA EL SÍMBOLO '≤'
                 const formatOp = (op) => op === '<=' ? '≤' : op;
-
-                // 🌟 LÓGICA CORREGIDA: Respetar el interruptor de rangos manuales
                 const useRanges = metricInfo.custom_ranges === true;
 
                 const r4min = (useRanges && metricInfo.r4_min) ? metricInfo.r4_min : 'Q3'; 
@@ -563,7 +591,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 gN.append("text").attr("x", 18).attr("y", 10).text("S/D").style("font-size", "11px").style("fill", "#475569");
 
             } else {
-                // VISTA CONTINUA ORIGINAL (INTACTA)
                 const gradient = state.svg.select(`#${state.gradientId}`);
                 gradient.selectAll("stop").remove();
                 
@@ -727,6 +754,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             app.map.renderMarkerLegend(state);
         },
 
+        // 🌟 MEJORA UX: La caja de marcadores crece impecablemente hacia arriba (eje Y negativo)
         renderMarkerLegend: function(state) {
             const g = state.gMarkerLegend;
             g.html(""); 
@@ -734,30 +762,33 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const actives = Array.from(state.activeMarkers);
             if (actives.length === 0) return; 
 
+            // Crecimiento hacia arriba:
+            const boxHeight = (actives.length * 20) + 30;
+            const startY = -boxHeight; 
+
             g.append("rect")
-                .attr("x", -10).attr("y", -20)
+                .attr("x", -10).attr("y", startY)
                 .attr("width", 230) 
-                .attr("height", (actives.length * 20) + 30)
+                .attr("height", boxHeight)
                 .attr("fill", "rgba(255,255,255,0.9)")
                 .attr("rx", 5)
                 .style("filter", "drop-shadow(2px 2px 2px rgba(0,0,0,0.1))");
             
-            g.append("text").attr("x", 0).attr("y", -5).text("Marcadores Activos").style("font-size", "12px").style("font-weight", "bold").style("fill", "#0F172A");
+            g.append("text").attr("x", 0).attr("y", startY + 15).text("Marcadores Activos").style("font-size", "12px").style("font-weight", "bold").style("fill", "#0F172A");
 
             actives.forEach((tipo, i) => {
-                const yPos = 12 + (i * 20);
+                const yPos = startY + 32 + (i * 20); 
                 const styleCfg = app.utils.getMarkerStyle(tipo, state);
-                
                 const markerLabel = state.markerLabels[tipo] ? state.markerLabels[tipo].label : tipo;
 
                 g.append("path")
                     .attr("d", d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)).size(50)())
-                    .attr("transform", `translate(5, ${yPos})`)
+                    .attr("transform", `translate(5, ${yPos - 4})`)
                     .attr("fill", styleCfg.fill)
                     .attr("stroke", styleCfg.stroke)
                     .attr("stroke-width", 1);
                 
-                g.append("text").attr("x", 15).attr("y", yPos + 4).text(markerLabel).style("font-size", "11px").style("fill", "#475569");
+                g.append("text").attr("x", 15).attr("y", yPos).text(markerLabel).style("font-size", "11px").style("fill", "#475569");
             });
         },
 
