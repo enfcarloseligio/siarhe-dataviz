@@ -1,4 +1,4 @@
-<?php
+<?php // /admin/partials/settings-tabs/tab-tema.php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // 1. Obtener opciones guardadas (o defaults)

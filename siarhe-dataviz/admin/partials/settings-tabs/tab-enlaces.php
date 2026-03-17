@@ -1,4 +1,4 @@
-<?php
+<?php // /admin/partials/settings-tabs/tab-enlaces.php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // 1. Obtener listado de todas las páginas de WordPress

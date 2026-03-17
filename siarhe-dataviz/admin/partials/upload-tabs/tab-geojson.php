@@ -1,4 +1,4 @@
-<?php
+<?php // /admin/partials/upload-tabs/tab-geojson.php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // 1. Obtener Entidades (Helper Centralizado)

@@ -1,18 +1,24 @@
-<?php
+<?php // /admin/partials/settings-tabs/tab-mapa.php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // 1. Obtener opciones guardadas
 $map_options = get_option( 'siarhe_map_options', [] );
 
-// 2. Valores por defecto (Actualizados con los 4 niveles y monocromático)
+// 2. Valores por defecto
 $defaults = [
-    // Mapa (Secuencial 5 pasos)
+    // Mapa (Secuencial 5 pasos - Cuartiles Antiguos)
     'map_c1' => '#eff3ff', // Mínimo
     'map_c2' => '#bdd7e7', // Q1 (25%)
     'map_c3' => '#6baed6', // Q2 (50%)
     'map_c4' => '#3182bd', // Q3 (75%)
     'map_c5' => '#08519c', // Máximo
     
+    // Mapa (4 Rangos Personalizados - Valores iniciales)
+    'range_c1' => '#ffedd5', // Rango 1 (Ej. < Q1)
+    'range_c2' => '#fdba74', // Rango 2 (Ej. Q1 a Q2)
+    'range_c3' => '#f59e0b', // Rango 3 (Ej. Q2 a Q3)
+    'range_c4' => '#b45309', // Rango 4 (Ej. > Q3)
+
     // Mapa (Secuencial Monocromático)
     'mono_min' => '#f0f9ff', // Color más claro
     'mono_max' => '#0369a1', // Color más oscuro
@@ -36,7 +42,7 @@ $defaults = [
 
 $opts = wp_parse_args( $map_options, $defaults );
 
-// 3. OBTENER MARCADORES DINÁMICOS DESDE LA BD
+// 3. Obtener marcadores dinámicos desde la BD
 $marcadores_json = get_option( 'siarhe_marcadores_config', '' );
 $marcadores = json_decode( wp_unslash( $marcadores_json ), true );
 
@@ -52,7 +58,7 @@ if (empty($marcadores)) {
     ];
 }
 
-// Colores heredados para que los nativos no pierdan su diseño original si no se han guardado
+// Colores heredados para que los nativos no pierdan su diseño original
 $legacy_colors = [ 'cateter' => '#1E5B4F', 'heridas' => '#9B2247', 'estab_1' => '#4daf4a', 'estab_2' => '#377eb8', 'estab_3' => '#e41a1c', 'estab_6' => '#984ea3' ];
 $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'circle', 'estab_2' => 'square', 'estab_3' => 'star', 'estab_6' => 'cross' ];
 ?>
@@ -61,21 +67,18 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
     .siarhe-admin-card { padding: 20px; max-width: 100%; box-sizing: border-box; background: #fff; border: 1px solid #ccd0d4; box-shadow: 0 1px 1px rgba(0,0,0,.04); }
     .siarhe-flex-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end; }
     
-    /* Fila especial para marcadores */
     .siarhe-marker-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; border-bottom: 1px dashed #eee; padding-bottom: 15px; margin-bottom: 15px; }
     .siarhe-marker-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 
     .siarhe-grad-row { display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
     .siarhe-color-box { min-width: 60px; text-align: center; }
     
-    /* Cajita de la Vista Previa */
     .siarhe-preview-box {
         background: #f0f6fc; border: 1px dashed #c3c4c7; border-radius: 6px; padding: 10px;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         min-width: 80px; height: 75px; box-sizing: border-box;
     }
 
-    /* Insignias para clasificar el tipo de marcador */
     .siarhe-badge { padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; display: inline-block; border: 1px solid transparent; }
     .siarhe-badge.neutral { background: #f0f0f1; color: #3c434a; border-color: #c3c4c7; }
     .siarhe-badge.espectro { background: #fef3c7; color: #92400e; border-color: #fde68a; }
@@ -101,8 +104,9 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
     
     <table class="form-table" role="presentation">
         <tr>
-            <th scope="row">Gradiente Cuartiles (Valores > 0)</th>
+            <th scope="row">Gradiente Cuartiles (Distribución Matemática)</th>
             <td>
+                <p class="description" style="margin-top:0; margin-bottom:10px;">Se aplica cuando el indicador requiere división en cuartiles porcentuales estadísticos estandarizados.</p>
                 <div class="siarhe-grad-row">
                     <div class="siarhe-color-box"><input type="text" name="siarhe_map_options[map_c1]" value="<?php echo esc_attr($opts['map_c1']); ?>" class="siarhe-color-field" data-alpha="true"><p class="description"><small>Mínimo</small></p></div>
                     <span class="dashicons dashicons-arrow-right-alt" style="color:#aaa;"></span>
@@ -116,7 +120,34 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
                 </div>
             </td>
         </tr>
-        
+
+        <tr>
+            <th scope="row">Gradiente por Rangos (4 Niveles Personalizados)</th>
+            <td>
+                <p class="description" style="margin-top:0; margin-bottom:10px;">Se aplica en indicadores donde el usuario ha definido manualmente 4 rangos de valores absolutos o tasas (Ej: Rango 1, Rango 2, etc.).</p>
+                <div class="siarhe-grad-row">
+                    <div class="siarhe-color-box">
+                        <input type="text" name="siarhe_map_options[range_c1]" value="<?php echo esc_attr($opts['range_c1']); ?>" class="siarhe-color-field" data-alpha="true">
+                        <p class="description"><small>Rango 1<br>(Ej. < Q1)</small></p>
+                    </div>
+                    <span class="dashicons dashicons-arrow-right-alt" style="color:#aaa;"></span>
+                    <div class="siarhe-color-box">
+                        <input type="text" name="siarhe_map_options[range_c2]" value="<?php echo esc_attr($opts['range_c2']); ?>" class="siarhe-color-field">
+                        <p class="description"><small>Rango 2<br>(Ej. Q1 a Q2)</small></p>
+                    </div>
+                    <span class="dashicons dashicons-arrow-right-alt" style="color:#aaa;"></span>
+                    <div class="siarhe-color-box">
+                        <input type="text" name="siarhe_map_options[range_c3]" value="<?php echo esc_attr($opts['range_c3']); ?>" class="siarhe-color-field">
+                        <p class="description"><small>Rango 3<br>(Ej. Q2 a Q3)</small></p>
+                    </div>
+                    <span class="dashicons dashicons-arrow-right-alt" style="color:#aaa;"></span>
+                    <div class="siarhe-color-box">
+                        <input type="text" name="siarhe_map_options[range_c4]" value="<?php echo esc_attr($opts['range_c4']); ?>" class="siarhe-color-field">
+                        <p class="description"><small>Rango 4<br>(Ej. > Q3)</small></p>
+                    </div>
+                </div>
+            </td>
+        </tr>
         <tr>
             <th scope="row">Gradiente Monocromático</th>
             <td>
@@ -231,8 +262,6 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
                     <div>
                         <label>Relleno:</label><br>
                         <input type="text" name="siarhe_map_options[m_<?php echo esc_attr($s_key); ?>_fill]" id="m_<?php echo esc_attr($s_key); ?>_fill" value="<?php echo esc_attr($fill_val); ?>" class="siarhe-color-field" <?php if($is_espectro) echo 'data-alpha="true"'; ?>>
-                        <?php if ($is_espectro): ?>                            
-                        <?php endif; ?>
                     </div>
                     
                     <div>
@@ -279,7 +308,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Generamos la lista de IDs dinámicamente desde PHP para Javascript
+    // Generación dinámica de array de claves
     const types = <?php echo wp_json_encode(array_map('strtolower', array_keys($marcadores))); ?>;
 
     types.forEach(t => updatePreview(t));

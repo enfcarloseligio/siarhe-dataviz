@@ -1,4 +1,4 @@
-<?php
+<?php // /includes/db/class-db-installer.php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Siarhe_DB_Installer {

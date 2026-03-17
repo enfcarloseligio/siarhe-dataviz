@@ -1,4 +1,4 @@
-<?php
+<?php // /admin/partials/settings-tabs/tab-metricas.php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 $current_user = wp_get_current_user();

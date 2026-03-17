@@ -1,4 +1,4 @@
-<?php
+<?php // /public/partials/siarhe-view.php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // CARGA INTELIGENTE DE MÓDULOS JAVASCRIPT SEGÚN EL MODO

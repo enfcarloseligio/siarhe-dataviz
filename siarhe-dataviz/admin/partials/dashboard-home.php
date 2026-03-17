@@ -1,4 +1,5 @@
-<?php if ( ! defined( 'ABSPATH' ) ) exit; ?>
+<?php // /admin/partials/dashboard-home.php
+if ( ! defined( 'ABSPATH' ) ) exit; ?>
 
 <div class="wrap">
     <h1>Dashboard SIARHE</h1>
