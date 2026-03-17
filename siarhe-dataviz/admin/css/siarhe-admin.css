@@ -1,3 +1,4 @@
+/* /admin/css/siarhe-admin.css */
 /* =========================================
    1. VARIABLES POR DEFECTO (Fallback)
    ========================================= */
@@ -186,7 +187,7 @@
     .siarhe-upload-card .form-table input,
     .siarhe-upload-card .form-table select,
     .siarhe-upload-card .form-table textarea {
-        width: 100% !important; max-width: 100%; box-sizing: border-box;
+        width: 100%; max-width: 100%; box-sizing: border-box;
     }
 
     .siarhe-modal-content .form-table,
@@ -200,7 +201,7 @@
     .siarhe-modal-content .form-table td { padding-bottom: 10px; }
     .siarhe-modal-content .form-table input,
     .siarhe-modal-content .form-table select,
-    .siarhe-modal-content .form-table textarea { width: 100% !important; max-width: 100%; box-sizing: border-box; }
+    .siarhe-modal-content .form-table textarea { width: 100%; max-width: 100%; box-sizing: border-box; }
 
     .siarhe-modal-content { width: 95%; margin: 10% auto; padding: 15px; }
 
@@ -240,4 +241,36 @@
     }
     .siarhe-table td[data-mobile-role="primary"]::before,
     .siarhe-table td[data-mobile-role="secondary"]::before { display: none; }
+}
+
+/* =========================================
+   7. BOTÓN FLOTANTE GLOBAL (Guardar Configuración)
+   ========================================= */
+button#btn-floating-save.siarhe-floating-save {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 99999;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+    border-radius: 20px;
+    padding: 4px 18px;
+    font-size: 14px;
+    height: auto;
+    line-height: 1.6;
+    display: block; /* 🌟 Cambiado de 'none' a 'block' para que siempre esté visible */
+    transition: all 0.2s ease;
+}
+
+button#btn-floating-save.siarhe-floating-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+}
+
+@media (max-width: 767px) {
+    button#btn-floating-save.siarhe-floating-save {
+        bottom: 20px;
+        right: 20px;
+        padding: 4px 14px;
+        font-size: 13px;
+    }
 }

@@ -74,8 +74,12 @@ $entidades = [
     .select2-container .select2-selection--single { height: 30px; border-color: #8c8f94; border-radius: 3px; }
     .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 28px; }
     .select2-container--default .select2-selection--single .select2-selection__arrow { height: 28px; }
-    .select2-container { max-width: 100% !important; }
+    body .select2-container { max-width: 100%; }
 </style>
+
+<button type="button" class="button button-primary siarhe-floating-save" id="btn-floating-save">
+    Guardar
+</button>
 
 <div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
     <h2>🔗 Mapa de Navegación del Sitio</h2>
@@ -99,6 +103,10 @@ $entidades = [
                 </select> 
                 registros
             </label>
+        </div>
+
+        <div class="siarhe-pagination" style="border-top: none; padding: 0; background: transparent;">
+            <div class="siarhe-page-numbers" id="siarhe-pagination-controls-top"></div>
         </div>
 
         <div class="siarhe-search-box">
@@ -170,7 +178,7 @@ $entidades = [
 
     <div class="siarhe-pagination">
         <div id="siarhe-enlaces-count" style="font-size: 13px; color: #64748b;"></div>
-        <div class="siarhe-page-numbers" id="siarhe-pagination-controls"></div>
+        <div class="siarhe-page-numbers" id="siarhe-pagination-controls-bottom"></div>
     </div>
 </div>
 
@@ -182,7 +190,6 @@ $entidades = [
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     
-    // Inicialización de Select2 (Dependencia jQuery)
     if (typeof jQuery !== 'undefined') {
         jQuery('.siarhe-searchable-select').select2({
             placeholder: "-- Escribe para buscar --",
@@ -191,10 +198,25 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ☀️ Motor de Paginación y Filtrado por DOM Hiding
+    const btnFloatingSave = document.getElementById('btn-floating-save');
+    const originalSubmitBtn = document.querySelector('input[type="submit"]#submit');
+
+    if(btnFloatingSave && originalSubmitBtn) {
+        btnFloatingSave.addEventListener('click', () => {
+            originalSubmitBtn.click();
+        });
+
+        jQuery('.siarhe-searchable-select').on('change', function() {
+            btnFloatingSave.style.display = 'block';
+            setTimeout(() => { btnFloatingSave.style.transform = 'scale(1.05)'; }, 50);
+            setTimeout(() => { btnFloatingSave.style.transform = 'scale(1)'; }, 350);
+        });
+    }
+
     const searchInput = document.getElementById('siarhe-search-enlaces');
     const itemsPerPageSelect = document.getElementById('siarhe-items-per-page');
-    const paginationControls = document.getElementById('siarhe-pagination-controls');
+    const paginationControlsTop = document.getElementById('siarhe-pagination-controls-top');
+    const paginationControlsBottom = document.getElementById('siarhe-pagination-controls-bottom');
     const countDisplay = document.getElementById('siarhe-enlaces-count');
     
     const allRows = Array.from(document.querySelectorAll('.siarhe-data-row'));
@@ -208,11 +230,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const term = searchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         
         matchedRows = allRows.filter(row => {
-            // Evaluamos el contenido textual de la primera columna (Entidad)
             const text = row.cells[0].textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             const match = text.includes(term);
             
-            // Si no hay match, ocultamos inmediatamente
             if (!match) row.style.display = 'none';
             return match;
         });
@@ -225,7 +245,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const totalItems = matchedRows.length;
         let totalPages = 1;
         
-        // Ocultar todos los matches temporalmente
         matchedRows.forEach(row => row.style.display = 'none');
         emptyRow.style.display = totalItems === 0 ? '' : 'none';
 
@@ -238,7 +257,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const start = (currentPage - 1) * itemsPerPage;
             const end = start + itemsPerPage;
             
-            // Mostrar solo los elementos de la página actual
             matchedRows.slice(start, end).forEach(row => {
                 row.style.display = '';
             });
@@ -247,10 +265,62 @@ document.addEventListener('DOMContentLoaded', function() {
         updatePaginationUI(totalItems, itemsPerPage === 'all' ? totalItems : Math.min(itemsPerPage, totalItems - (currentPage-1)*itemsPerPage), totalPages);
     }
 
+    function generatePaginationHTML(totalPages) {
+        let html = '';
+        if (totalPages <= 1) return html;
+
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
+
+        if (currentPage <= 2) endPage = Math.min(totalPages, 5);
+        if (currentPage >= totalPages - 1) startPage = Math.max(1, totalPages - 4);
+
+        html += `<a href="#" class="siarhe-page-btn ${currentPage === 1 ? 'disabled' : ''}" data-page="prev">« Ant</a>`;
+
+        if (startPage > 1) {
+            html += `<a href="#" class="siarhe-page-btn" data-page="1">1</a>`;
+            if (startPage > 2) html += `<span style="color:#8c8f94;">...</span>`;
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            html += `<a href="#" class="siarhe-page-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</a>`;
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) html += `<span style="color:#8c8f94;">...</span>`;
+            html += `<a href="#" class="siarhe-page-btn" data-page="${totalPages}">${totalPages}</a>`;
+        }
+
+        html += `<a href="#" class="siarhe-page-btn ${currentPage === totalPages ? 'disabled' : ''}" data-page="next">Sig »</a>`;
+        
+        return html;
+    }
+
+    function handlePaginationClick(e) {
+        if (!e.target.classList.contains('siarhe-page-btn')) return;
+        e.preventDefault();
+        
+        if (e.target.classList.contains('disabled')) return;
+
+        const pageTarget = e.target.getAttribute('data-page');
+        let totalPages = Math.ceil(matchedRows.length / itemsPerPage);
+
+        if (pageTarget === 'prev' && currentPage > 1) {
+            currentPage--;
+        } else if (pageTarget === 'next' && currentPage < totalPages) {
+            currentPage++;
+        } else if (!isNaN(parseInt(pageTarget))) {
+            currentPage = parseInt(pageTarget);
+        }
+
+        renderPagination();
+    }
+
     function updatePaginationUI(totalItems, currentItemsCount, totalPages) {
         if (totalItems === 0) {
             countDisplay.innerHTML = 'No hay registros para mostrar.';
-            paginationControls.innerHTML = '';
+            paginationControlsTop.innerHTML = '';
+            paginationControlsBottom.innerHTML = '';
             return;
         }
 
@@ -264,50 +334,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         countDisplay.innerHTML = `Mostrando del <strong>${startRange}</strong> al <strong>${endRange}</strong> de <strong>${totalItems}</strong> registros`;
 
-        paginationControls.innerHTML = '';
-        if (totalPages <= 1) return;
+        const phtml = generatePaginationHTML(totalPages);
+        paginationControlsTop.innerHTML = phtml;
+        paginationControlsBottom.innerHTML = phtml;
 
-        const btnPrev = document.createElement('a');
-        btnPrev.className = `siarhe-page-btn ${currentPage === 1 ? 'disabled' : ''}`;
-        btnPrev.innerHTML = '« Ant';
-        btnPrev.addEventListener('click', (e) => { e.preventDefault(); if(currentPage > 1) { currentPage--; renderPagination(); } });
-        paginationControls.appendChild(btnPrev);
-
-        let startPage = Math.max(1, currentPage - 2);
-        let endPage = Math.min(totalPages, currentPage + 2);
-
-        if (currentPage <= 2) endPage = Math.min(totalPages, 5);
-        if (currentPage >= totalPages - 1) startPage = Math.max(1, totalPages - 4);
-
-        if (startPage > 1) {
-            const btnFirst = document.createElement('a');
-            btnFirst.className = 'siarhe-page-btn'; btnFirst.innerHTML = '1';
-            btnFirst.addEventListener('click', (e) => { e.preventDefault(); currentPage = 1; renderPagination(); });
-            paginationControls.appendChild(btnFirst);
-            if (startPage > 2) paginationControls.insertAdjacentHTML('beforeend', '<span style="color:#8c8f94;">...</span>');
-        }
-
-        for (let i = startPage; i <= endPage; i++) {
-            const btnP = document.createElement('a');
-            btnP.className = `siarhe-page-btn ${i === currentPage ? 'active' : ''}`;
-            btnP.innerHTML = i;
-            btnP.addEventListener('click', (e) => { e.preventDefault(); currentPage = i; renderPagination(); });
-            paginationControls.appendChild(btnP);
-        }
-
-        if (endPage < totalPages) {
-            if (endPage < totalPages - 1) paginationControls.insertAdjacentHTML('beforeend', '<span style="color:#8c8f94;">...</span>');
-            const btnLast = document.createElement('a');
-            btnLast.className = 'siarhe-page-btn'; btnLast.innerHTML = totalPages;
-            btnLast.addEventListener('click', (e) => { e.preventDefault(); currentPage = totalPages; renderPagination(); });
-            paginationControls.appendChild(btnLast);
-        }
-
-        const btnNext = document.createElement('a');
-        btnNext.className = `siarhe-page-btn ${currentPage === totalPages ? 'disabled' : ''}`;
-        btnNext.innerHTML = 'Sig »';
-        btnNext.addEventListener('click', (e) => { e.preventDefault(); if(currentPage < totalPages) { currentPage++; renderPagination(); } });
-        paginationControls.appendChild(btnNext);
+        paginationControlsTop.querySelectorAll('a').forEach(a => a.addEventListener('click', handlePaginationClick));
+        paginationControlsBottom.querySelectorAll('a').forEach(a => a.addEventListener('click', handlePaginationClick));
     }
 
     searchInput.addEventListener('input', applySearchFilter);
@@ -318,17 +350,14 @@ document.addEventListener('DOMContentLoaded', function() {
         renderPagination();
     });
 
-    // Lógica interna para acordeón móvil aislando clicks en Select2
     document.querySelectorAll('.siarhe-data-row').forEach(row => {
         row.addEventListener('click', function(e) {
             if (window.innerWidth > 767) return;
-            // Previene expansión si se interactúa con UI del Select2 o botones nativos
             if (e.target.closest('.select2') || e.target.closest('button') || e.target.closest('a') || e.target.closest('select')) return;
             this.classList.toggle('is-open');
         });
     });
 
-    // Inicialización del módulo
     applySearchFilter();
 });
 </script>

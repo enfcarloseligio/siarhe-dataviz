@@ -5,7 +5,6 @@ $current_user = wp_get_current_user();
 $editor_name = $current_user->display_name ?: $current_user->user_login;
 $current_time = current_time('mysql');
 
-// ☀️ Diccionario base de propiedades: R4_OP ahora usa '<=' por defecto
 $base_ranges = [
     'scale_type' => 'cuartiles',
     'custom_ranges' => false,
@@ -13,7 +12,7 @@ $base_ranges = [
     'r1_min' => 'Vmin', 'r1_op' => '<', 'r1_max' => 'Q1',   'r1_color' => '',
     'r2_min' => 'Q1',   'r2_op' => '<', 'r2_max' => 'Q2',   'r2_color' => '',
     'r3_min' => 'Q2',   'r3_op' => '<', 'r3_max' => 'Q3',   'r3_color' => '',
-    'r4_min' => 'Q3',   'r4_op' => '<=', 'r4_max' => 'Vmax', 'r4_color' => '' // ☀️ Ajuste crucial de operador
+    'r4_min' => 'Q3',   'r4_op' => '<=', 'r4_max' => 'Vmax', 'r4_color' => '' 
 ];
 
 $defaults = [
@@ -47,6 +46,10 @@ if ( empty($metricas_json) ) {
     $metricas_json = wp_unslash($metricas_json);
 }
 ?>
+
+<button type="button" class="button button-primary siarhe-floating-save" id="btn-floating-save">
+    Guardar
+</button>
 
 <div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
@@ -85,6 +88,10 @@ if ( empty($metricas_json) ) {
             </label>
         </div>
 
+        <div class="siarhe-pagination" style="border-top: none; padding: 0; background: transparent;">
+            <div class="siarhe-page-numbers" id="siarhe-pagination-controls-top"></div>
+        </div>
+
         <div class="siarhe-search-box">
             <span class="dashicons dashicons-search"></span>
             <input type="text" id="siarhe-search-metricas" placeholder="Buscar por clave, etiqueta o tipo...">
@@ -109,7 +116,7 @@ if ( empty($metricas_json) ) {
 
     <div class="siarhe-pagination">
         <div id="siarhe-metricas-count" style="font-size: 13px; color: #64748b;"></div>
-        <div class="siarhe-page-numbers" id="siarhe-pagination-controls"></div>
+        <div class="siarhe-page-numbers" id="siarhe-pagination-controls-bottom"></div>
     </div>
 </div>
 
@@ -303,12 +310,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const searchInput = document.getElementById('siarhe-search-metricas');
     const itemsPerPageSelect = document.getElementById('siarhe-items-per-page');
-    const paginationControls = document.getElementById('siarhe-pagination-controls');
+    const paginationControlsTop = document.getElementById('siarhe-pagination-controls-top');
+    const paginationControlsBottom = document.getElementById('siarhe-pagination-controls-bottom');
     const countDisplay = document.getElementById('siarhe-metricas-count');
 
     const scaleSelect = document.getElementById('modal-metric-scale-type');
     
-    // Lógica de los Toggles
     const customRangesCb = document.getElementById('modal-enable-custom-ranges');
     const customColorsCb = document.getElementById('modal-enable-custom-colors');
     const rangesRow = document.getElementById('modal-metric-ranges-row');
@@ -330,6 +337,15 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentPage = 1;
     let itemsPerPage = 25;
     let filteredKeys = [];
+
+    const btnFloatingSave = document.getElementById('btn-floating-save');
+    const originalSubmitBtn = document.querySelector('input[type="submit"]#submit');
+    
+    if(btnFloatingSave && originalSubmitBtn) {
+        btnFloatingSave.addEventListener('click', () => {
+            originalSubmitBtn.click();
+        });
+    }
 
     function formatDate(dateStr) {
         if (!dateStr) return '—';
@@ -478,10 +494,62 @@ document.addEventListener('DOMContentLoaded', function() {
         attachEvents();
     }
 
+    function generatePaginationHTML(totalPages) {
+        let html = '';
+        if (totalPages <= 1) return html;
+
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
+
+        if (currentPage <= 2) endPage = Math.min(totalPages, 5);
+        if (currentPage >= totalPages - 1) startPage = Math.max(1, totalPages - 4);
+
+        html += `<a href="#" class="siarhe-page-btn ${currentPage === 1 ? 'disabled' : ''}" data-page="prev">« Ant</a>`;
+
+        if (startPage > 1) {
+            html += `<a href="#" class="siarhe-page-btn" data-page="1">1</a>`;
+            if (startPage > 2) html += `<span style="color:#8c8f94;">...</span>`;
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            html += `<a href="#" class="siarhe-page-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</a>`;
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) html += `<span style="color:#8c8f94;">...</span>`;
+            html += `<a href="#" class="siarhe-page-btn" data-page="${totalPages}">${totalPages}</a>`;
+        }
+
+        html += `<a href="#" class="siarhe-page-btn ${currentPage === totalPages ? 'disabled' : ''}" data-page="next">Sig »</a>`;
+        
+        return html;
+    }
+
+    function handlePaginationClick(e) {
+        if (!e.target.classList.contains('siarhe-page-btn')) return;
+        e.preventDefault();
+        
+        if (e.target.classList.contains('disabled')) return;
+
+        const pageTarget = e.target.getAttribute('data-page');
+        let totalPages = Math.ceil(filteredKeys.length / itemsPerPage);
+
+        if (pageTarget === 'prev' && currentPage > 1) {
+            currentPage--;
+        } else if (pageTarget === 'next' && currentPage < totalPages) {
+            currentPage++;
+        } else if (!isNaN(parseInt(pageTarget))) {
+            currentPage = parseInt(pageTarget);
+        }
+
+        renderTable();
+    }
+
     function updatePaginationUI(totalItems, currentItemsCount, totalPages) {
         if (totalItems === 0) {
             countDisplay.innerHTML = 'No hay registros para mostrar.';
-            paginationControls.innerHTML = '';
+            paginationControlsTop.innerHTML = '';
+            paginationControlsBottom.innerHTML = '';
             return;
         }
 
@@ -495,50 +563,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         countDisplay.innerHTML = `Mostrando del <strong>${startRange}</strong> al <strong>${endRange}</strong> de <strong>${totalItems}</strong> registros`;
 
-        paginationControls.innerHTML = '';
-        if (totalPages <= 1) return;
+        const phtml = generatePaginationHTML(totalPages);
+        paginationControlsTop.innerHTML = phtml;
+        paginationControlsBottom.innerHTML = phtml;
 
-        const btnPrev = document.createElement('a');
-        btnPrev.className = `siarhe-page-btn ${currentPage === 1 ? 'disabled' : ''}`;
-        btnPrev.innerHTML = '« Ant';
-        btnPrev.addEventListener('click', (e) => { e.preventDefault(); if(currentPage > 1) { currentPage--; renderTable(); } });
-        paginationControls.appendChild(btnPrev);
-
-        let startPage = Math.max(1, currentPage - 2);
-        let endPage = Math.min(totalPages, currentPage + 2);
-
-        if (currentPage <= 2) endPage = Math.min(totalPages, 5);
-        if (currentPage >= totalPages - 1) startPage = Math.max(1, totalPages - 4);
-
-        if (startPage > 1) {
-            const btnFirst = document.createElement('a');
-            btnFirst.className = 'siarhe-page-btn'; btnFirst.innerHTML = '1';
-            btnFirst.addEventListener('click', (e) => { e.preventDefault(); currentPage = 1; renderTable(); });
-            paginationControls.appendChild(btnFirst);
-            if (startPage > 2) paginationControls.insertAdjacentHTML('beforeend', '<span style="color:#8c8f94;">...</span>');
-        }
-
-        for (let i = startPage; i <= endPage; i++) {
-            const btnP = document.createElement('a');
-            btnP.className = `siarhe-page-btn ${i === currentPage ? 'active' : ''}`;
-            btnP.innerHTML = i;
-            btnP.addEventListener('click', (e) => { e.preventDefault(); currentPage = i; renderTable(); });
-            paginationControls.appendChild(btnP);
-        }
-
-        if (endPage < totalPages) {
-            if (endPage < totalPages - 1) paginationControls.insertAdjacentHTML('beforeend', '<span style="color:#8c8f94;">...</span>');
-            const btnLast = document.createElement('a');
-            btnLast.className = 'siarhe-page-btn'; btnLast.innerHTML = totalPages;
-            btnLast.addEventListener('click', (e) => { e.preventDefault(); currentPage = totalPages; renderTable(); });
-            paginationControls.appendChild(btnLast);
-        }
-
-        const btnNext = document.createElement('a');
-        btnNext.className = `siarhe-page-btn ${currentPage === totalPages ? 'disabled' : ''}`;
-        btnNext.innerHTML = 'Sig »';
-        btnNext.addEventListener('click', (e) => { e.preventDefault(); if(currentPage < totalPages) { currentPage++; renderTable(); } });
-        paginationControls.appendChild(btnNext);
+        paginationControlsTop.querySelectorAll('a').forEach(a => a.addEventListener('click', handlePaginationClick));
+        paginationControlsBottom.querySelectorAll('a').forEach(a => a.addEventListener('click', handlePaginationClick));
     }
 
     function attachEvents() {
@@ -554,7 +584,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (confirm(`¿Proceder con la eliminación de la métrica "${key}"? Esta acción no afectará el archivo CSV pero ocultará la información en el mapa.`)) {
                     delete metricasObj[key];
                     updateHiddenInput();
-                    applySearchFilter(); 
+                    renderTable(); 
                 }
             });
         });
@@ -583,7 +613,7 @@ document.addEventListener('DOMContentLoaded', function() {
             r1_min: 'Vmin', r1_op: '<', r1_max: 'Q1', r1_color: '',
             r2_min: 'Q1',   r2_op: '<', r2_max: 'Q2', r2_color: '',
             r3_min: 'Q2',   r3_op: '<', r3_max: 'Q3', r3_color: '',
-            r4_min: 'Q3',   r4_op: '<=', r4_max: 'Vmax', r4_color: '' // ☀️
+            r4_min: 'Q3',   r4_op: '<=', r4_max: 'Vmax', r4_color: ''
         };
 
         const item = isNew ? baseItem : Object.assign({}, baseItem, metricasObj[key]);
@@ -622,7 +652,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('modal-r1-min').value = item.r1_min; document.getElementById('modal-r1-op').value = item.r1_op; document.getElementById('modal-r1-max').value = item.r1_max;
         document.getElementById('modal-r2-min').value = item.r2_min; document.getElementById('modal-r2-op').value = item.r2_op; document.getElementById('modal-r2-max').value = item.r2_max;
         document.getElementById('modal-r3-min').value = item.r3_min; document.getElementById('modal-r3-op').value = item.r3_op; document.getElementById('modal-r3-max').value = item.r3_max;
-        document.getElementById('modal-r4-min').value = item.r4_min; document.getElementById('modal-r4-op').value = item.r4_op || '<='; document.getElementById('modal-r4-max').value = item.r4_max; // ☀️
+        document.getElementById('modal-r4-min').value = item.r4_min; document.getElementById('modal-r4-op').value = item.r4_op || '<='; document.getElementById('modal-r4-max').value = item.r4_max;
 
         if (typeof jQuery !== 'undefined' && jQuery.fn.wpColorPicker) {
             jQuery('#modal-r1-color').wpColorPicker('color', c1);
@@ -726,15 +756,14 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         updateHiddenInput();
-        applySearchFilter();
+        renderTable(); 
+        
         modal.style.display = 'none';
         
-        const btnSubmit = document.querySelector('input[type="submit"]#submit');
-        if (btnSubmit) {
-            btnSubmit.style.boxShadow = '0 0 0 4px rgba(0, 115, 170, 0.4)';
-            btnSubmit.style.transform = 'scale(1.05)';
-            btnSubmit.style.transition = 'all 0.3s ease';
-            setTimeout(() => { btnSubmit.style.transform = 'scale(1)'; }, 300);
+        if (btnFloatingSave) {
+            btnFloatingSave.style.display = 'block';
+            setTimeout(() => { btnFloatingSave.style.transform = 'scale(1.05)'; }, 50);
+            setTimeout(() => { btnFloatingSave.style.transform = 'scale(1)'; }, 350);
         }
         
         if (!document.getElementById('siarhe-save-notice')) {
@@ -756,10 +785,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateHiddenInput() {
         inputJson.value = JSON.stringify(metricasObj);
         inputJson.dispatchEvent(new Event('change', { bubbles: true }));
-        const btnSubmit = document.querySelector('input[type="submit"]#submit');
-        if (btnSubmit) {
-            btnSubmit.removeAttribute('disabled');
-            btnSubmit.classList.remove('disabled');
+        if (originalSubmitBtn) {
+            originalSubmitBtn.removeAttribute('disabled');
+            originalSubmitBtn.classList.remove('disabled');
         }
     }
 
