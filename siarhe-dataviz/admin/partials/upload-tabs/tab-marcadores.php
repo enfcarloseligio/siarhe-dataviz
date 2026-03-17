@@ -60,20 +60,11 @@ if ( isset($_GET['status']) ) {
     if ( $_GET['status'] == 'success' ) echo '<div class="notice notice-success is-dismissible"><p>Marcador procesado y actualizado correctamente.</p></div>';
     if ( $_GET['status'] == 'updated' ) echo '<div class="notice notice-success is-dismissible"><p>Metadatos sincronizados exitosamente.</p></div>';
 }
-
-// Utilidad local para formato legible de marcas de tiempo
-if (!function_exists('format_custom_date')) {
-    function format_custom_date($db_date) {
-        if (!$db_date) return '—';
-        $timestamp = strtotime($db_date);
-        $meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-        $mes = $meses[date('n', $timestamp) - 1];
-        $hora = date('h:i a', $timestamp);
-        $hora = str_replace(['am', 'pm'], ['a.m.', 'p.m.'], $hora);
-        return date('j', $timestamp) . ' ' . $mes . ' ' . date('Y', $timestamp) . ', ' . $hora;
-    }
-}
 ?>
+
+<button type="button" class="button button-primary siarhe-floating-save" id="btn-floating-save">
+    Guardar
+</button>
 
 <div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
     <h2>📍 Gestión de Marcadores (Clínicas y Espectros)</h2>
@@ -136,7 +127,7 @@ if (!function_exists('format_custom_date')) {
         </table>
 
         <p class="submit">
-            <input type="submit" name="submit" class="button button-primary" value="Subir y Reemplazar">
+            <input type="submit" name="submit" id="submit" class="button button-primary" value="Subir y Reemplazar">
         </p>
     </form>
 </div>
@@ -156,6 +147,10 @@ if (!function_exists('format_custom_date')) {
                 </select> 
                 registros
             </label>
+        </div>
+
+        <div class="siarhe-pagination" style="border-top: none; padding: 0; background: transparent;">
+            <div class="siarhe-page-numbers" id="siarhe-pagination-controls-top"></div>
         </div>
 
         <div class="siarhe-search-box">
@@ -222,8 +217,8 @@ if (!function_exists('format_custom_date')) {
                             <span style="font-size:12px; color:#0f172a; font-weight:500;">
                                 <?php echo esc_html($autor_original); ?>
                             </span><br>
-                            <span style="color:#64748b; font-size:11px;">
-                                <?php echo format_custom_date($fecha_original); ?>
+                            <span style="color:#64748b; font-size:11px;" class="siarhe-date-formatter" data-date="<?php echo esc_attr($fecha_original); ?>">
+                                <?php echo esc_html($fecha_original); ?>
                             </span>
                         </div>
 
@@ -233,8 +228,8 @@ if (!function_exists('format_custom_date')) {
                                 <span style="font-size:12px; color:#0f172a; font-weight:500;">
                                     <?php echo esc_html($db_file->modificado_por ?: 'Sistema'); ?>
                                 </span><br>
-                                <span style="color:#64748b; font-size:11px;">
-                                    <?php echo format_custom_date($db_file->fecha_modificacion); ?>
+                                <span style="color:#64748b; font-size:11px;" class="siarhe-date-formatter" data-date="<?php echo esc_attr($db_file->fecha_modificacion); ?>">
+                                    <?php echo esc_html($db_file->fecha_modificacion); ?>
                                 </span>
                             </div>
                         <?php endif; ?>
@@ -243,8 +238,8 @@ if (!function_exists('format_custom_date')) {
                         <div style="line-height: 1.3;">
                             <span style="font-size:10px; font-weight:bold; color:#94a3b8; text-transform:uppercase;">Subido por:</span><br>
                             <span style="font-size:12px; color:#0f172a; font-weight:500;">Sistema (Vía FTP/Cpanel)</span><br>
-                            <span style="color:#64748b; font-size:11px;">
-                                <?php echo format_custom_date(date("Y-m-d H:i:s", filemtime($ruta_fisica))); ?>
+                            <span style="color:#64748b; font-size:11px;" class="siarhe-date-formatter" data-date="<?php echo esc_attr(date("Y-m-d H:i:s", filemtime($ruta_fisica))); ?>">
+                                <?php echo esc_html(date("Y-m-d H:i:s", filemtime($ruta_fisica))); ?>
                             </span>
                         </div>
                     <?php else : ?>
@@ -261,7 +256,7 @@ if (!function_exists('format_custom_date')) {
                 <td data-label="Acciones">
                     <?php if ($existe_fisico) : ?>
                         <button type="button" class="button button-small copy-url-btn" 
-                                data-url="<?php echo esc_url($url_publica); ?>" title="Copiar URL">
+                                data-url="<?php echo esc_url($url_publica); ?>" title="Copiar Enlace">
                             <span class="dashicons dashicons-admin-links"></span>
                         </button>
 
@@ -273,7 +268,7 @@ if (!function_exists('format_custom_date')) {
                                 data-corte="<?php echo esc_attr($db_file->fecha_corte); ?>" 
                                 data-ref="<?php echo esc_attr($db_file->referencia_bibliografica); ?>" 
                                 data-notes="<?php echo esc_attr($db_file->comentarios); ?>"
-                                title="Editar Info">
+                                title="Ver Info / Editar">
                             <span class="dashicons dashicons-edit"></span>
                         </button>
                         <?php endif; ?>
@@ -283,7 +278,7 @@ if (!function_exists('format_custom_date')) {
                         </a>
 
                         <?php if ($db_file) : ?>
-                        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display:inline;" onsubmit="return confirm('⚠️ ¿Estás seguro de eliminar este archivo?');">
+                        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display:inline;" onsubmit="return confirm('⚠️ ¿Estás seguro de eliminar este archivo de la base de datos?');">
                             <input type="hidden" name="action" value="siarhe_delete_static">
                             <input type="hidden" name="file_id" value="<?php echo $db_file->id; ?>">
                             <?php wp_nonce_field( 'siarhe_delete_static_nonce_' . $db_file->id ); ?>
@@ -310,7 +305,7 @@ if (!function_exists('format_custom_date')) {
 
     <div class="siarhe-pagination">
         <div id="siarhe-marcadores-count" style="font-size: 13px; color: #64748b;"></div>
-        <div class="siarhe-page-numbers" id="siarhe-pagination-controls"></div>
+        <div class="siarhe-page-numbers" id="siarhe-pagination-controls-bottom"></div>
     </div>
 </div>
 
@@ -368,6 +363,19 @@ if (!function_exists('format_custom_date')) {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     
+    // Formateo de fechas vía JS global
+    if (window.SiarheAdmin && window.SiarheAdmin.formatDate) {
+        document.querySelectorAll('.siarhe-date-formatter').forEach(el => {
+            const rawDate = el.getAttribute('data-date');
+            if(rawDate) el.textContent = window.SiarheAdmin.formatDate(rawDate);
+        });
+    }
+
+    // Inicialización del acordeón móvil vía JS global
+    if (window.SiarheAdmin && window.SiarheAdmin.initMobileTables) {
+        window.SiarheAdmin.initMobileTables();
+    }
+
     // Configuración Modal
     const modal = document.getElementById('siarhe-edit-modal');
     const closeBtn = document.getElementById('close-modal-btn');
@@ -406,7 +414,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Motor de Paginación y Filtrado vía DOM Hiding
     const searchInput = document.getElementById('siarhe-search-marcadores-file');
     const itemsPerPageSelect = document.getElementById('siarhe-items-per-page');
-    const paginationControls = document.getElementById('siarhe-pagination-controls');
+    // Paginadores
+    const paginationControlsTop = document.getElementById('siarhe-pagination-controls-top');
+    const paginationControlsBottom = document.getElementById('siarhe-pagination-controls-bottom');
     const countDisplay = document.getElementById('siarhe-marcadores-count');
     
     const allRows = Array.from(document.querySelectorAll('.siarhe-data-row'));
@@ -454,10 +464,62 @@ document.addEventListener('DOMContentLoaded', function() {
         updatePaginationUI(totalItems, itemsPerPage === 'all' ? totalItems : Math.min(itemsPerPage, totalItems - (currentPage-1)*itemsPerPage), totalPages);
     }
 
+    function generatePaginationHTML(totalPages) {
+        let html = '';
+        if (totalPages <= 1) return html;
+
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
+
+        if (currentPage <= 2) endPage = Math.min(totalPages, 5);
+        if (currentPage >= totalPages - 1) startPage = Math.max(1, totalPages - 4);
+
+        html += `<a href="#" class="siarhe-page-btn ${currentPage === 1 ? 'disabled' : ''}" data-page="prev">« Ant</a>`;
+
+        if (startPage > 1) {
+            html += `<a href="#" class="siarhe-page-btn" data-page="1">1</a>`;
+            if (startPage > 2) html += `<span style="color:#8c8f94;">...</span>`;
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            html += `<a href="#" class="siarhe-page-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</a>`;
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) html += `<span style="color:#8c8f94;">...</span>`;
+            html += `<a href="#" class="siarhe-page-btn" data-page="${totalPages}">${totalPages}</a>`;
+        }
+
+        html += `<a href="#" class="siarhe-page-btn ${currentPage === totalPages ? 'disabled' : ''}" data-page="next">Sig »</a>`;
+        
+        return html;
+    }
+
+    function handlePaginationClick(e) {
+        if (!e.target.classList.contains('siarhe-page-btn')) return;
+        e.preventDefault();
+        
+        if (e.target.classList.contains('disabled')) return;
+
+        const pageTarget = e.target.getAttribute('data-page');
+        let totalPages = Math.ceil(matchedRows.length / itemsPerPage);
+
+        if (pageTarget === 'prev' && currentPage > 1) {
+            currentPage--;
+        } else if (pageTarget === 'next' && currentPage < totalPages) {
+            currentPage++;
+        } else if (!isNaN(parseInt(pageTarget))) {
+            currentPage = parseInt(pageTarget);
+        }
+
+        renderPagination();
+    }
+
     function updatePaginationUI(totalItems, currentItemsCount, totalPages) {
         if (totalItems === 0) {
             countDisplay.innerHTML = 'No hay registros para mostrar.';
-            paginationControls.innerHTML = '';
+            paginationControlsTop.innerHTML = '';
+            paginationControlsBottom.innerHTML = '';
             return;
         }
 
@@ -471,50 +533,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         countDisplay.innerHTML = `Mostrando del <strong>${startRange}</strong> al <strong>${endRange}</strong> de <strong>${totalItems}</strong> registros`;
 
-        paginationControls.innerHTML = '';
-        if (totalPages <= 1) return;
+        const phtml = generatePaginationHTML(totalPages);
+        paginationControlsTop.innerHTML = phtml;
+        paginationControlsBottom.innerHTML = phtml;
 
-        const btnPrev = document.createElement('a');
-        btnPrev.className = `siarhe-page-btn ${currentPage === 1 ? 'disabled' : ''}`;
-        btnPrev.innerHTML = '« Ant';
-        btnPrev.addEventListener('click', (e) => { e.preventDefault(); if(currentPage > 1) { currentPage--; renderPagination(); } });
-        paginationControls.appendChild(btnPrev);
-
-        let startPage = Math.max(1, currentPage - 2);
-        let endPage = Math.min(totalPages, currentPage + 2);
-
-        if (currentPage <= 2) endPage = Math.min(totalPages, 5);
-        if (currentPage >= totalPages - 1) startPage = Math.max(1, totalPages - 4);
-
-        if (startPage > 1) {
-            const btnFirst = document.createElement('a');
-            btnFirst.className = 'siarhe-page-btn'; btnFirst.innerHTML = '1';
-            btnFirst.addEventListener('click', (e) => { e.preventDefault(); currentPage = 1; renderPagination(); });
-            paginationControls.appendChild(btnFirst);
-            if (startPage > 2) paginationControls.insertAdjacentHTML('beforeend', '<span style="color:#8c8f94;">...</span>');
-        }
-
-        for (let i = startPage; i <= endPage; i++) {
-            const btnP = document.createElement('a');
-            btnP.className = `siarhe-page-btn ${i === currentPage ? 'active' : ''}`;
-            btnP.innerHTML = i;
-            btnP.addEventListener('click', (e) => { e.preventDefault(); currentPage = i; renderPagination(); });
-            paginationControls.appendChild(btnP);
-        }
-
-        if (endPage < totalPages) {
-            if (endPage < totalPages - 1) paginationControls.insertAdjacentHTML('beforeend', '<span style="color:#8c8f94;">...</span>');
-            const btnLast = document.createElement('a');
-            btnLast.className = 'siarhe-page-btn'; btnLast.innerHTML = totalPages;
-            btnLast.addEventListener('click', (e) => { e.preventDefault(); currentPage = totalPages; renderPagination(); });
-            paginationControls.appendChild(btnLast);
-        }
-
-        const btnNext = document.createElement('a');
-        btnNext.className = `siarhe-page-btn ${currentPage === totalPages ? 'disabled' : ''}`;
-        btnNext.innerHTML = 'Sig »';
-        btnNext.addEventListener('click', (e) => { e.preventDefault(); if(currentPage < totalPages) { currentPage++; renderPagination(); } });
-        paginationControls.appendChild(btnNext);
+        paginationControlsTop.querySelectorAll('a').forEach(a => a.addEventListener('click', handlePaginationClick));
+        paginationControlsBottom.querySelectorAll('a').forEach(a => a.addEventListener('click', handlePaginationClick));
     }
 
     if(searchInput) searchInput.addEventListener('input', applySearchFilter);
@@ -526,15 +550,6 @@ document.addEventListener('DOMContentLoaded', function() {
             renderPagination();
         });
     }
-
-    // Lógica interna para acordeón móvil aislando controles interactivos
-    document.querySelectorAll('.siarhe-data-row').forEach(row => {
-        row.addEventListener('click', function(e) {
-            if (window.innerWidth > 767) return;
-            if (e.target.closest('button') || e.target.closest('a') || e.target.closest('form')) return;
-            this.classList.toggle('is-open');
-        });
-    });
 
     // Inicialización del módulo
     applySearchFilter();
