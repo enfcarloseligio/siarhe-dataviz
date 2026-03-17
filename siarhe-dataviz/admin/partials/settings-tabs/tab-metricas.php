@@ -5,26 +5,37 @@ $current_user = wp_get_current_user();
 $editor_name = $current_user->display_name ?: $current_user->user_login;
 $current_time = current_time('mysql');
 
+// ☀️ Diccionario base de propiedades: Ahora incluye los "toggles" booleanos
+$base_ranges = [
+    'scale_type' => 'cuartiles',
+    'custom_ranges' => false,
+    'custom_colors' => false,
+    'r1_min' => 'Vmin', 'r1_op' => '<', 'r1_max' => 'Q1',   'r1_color' => '',
+    'r2_min' => 'Q1',   'r2_op' => '<', 'r2_max' => 'Q2',   'r2_color' => '',
+    'r3_min' => 'Q2',   'r3_op' => '<', 'r3_max' => 'Q3',   'r3_color' => '',
+    'r4_min' => 'Q3',   'r4_op' => '<', 'r4_max' => 'Vmax', 'r4_color' => ''
+];
+
 $defaults = [
-    'tasa_total'                 => ['label' => 'Tasa Total', 'fullLabel' => 'Tasa de enfermeras por cada mil habitantes', 'abrev' => 'Tasa Total', 'tipo' => 'tasa', 'pair' => 'enfermeras_total', 'is_core' => true, 'visibilidad' => 'publico'],
-    'enfermeras_total'           => ['label' => 'Total Enfermeras', 'fullLabel' => 'Total de profesionales de enfermería', 'abrev' => 'Total Enf.', 'tipo' => 'absoluto', 'pair' => 'enfermeras_total', 'is_core' => true, 'visibilidad' => 'publico'],
-    'tasa_primer'                => ['label' => 'Tasa Primer Nivel', 'fullLabel' => 'Tasa de enfermeras en Primer Nivel de Atención', 'abrev' => 'Tasa Enf. 1er Nivel', 'tipo' => 'tasa', 'pair' => 'enfermeras_primer', 'is_core' => true, 'visibilidad' => 'publico'],
-    'enfermeras_primer'          => ['label' => 'Enfermeras Primer Nivel', 'fullLabel' => 'Enfermeras en Primer Nivel de Atención', 'abrev' => 'Enf. 1er Nivel', 'tipo' => 'absoluto', 'pair' => 'enfermeras_primer', 'is_core' => true, 'visibilidad' => 'publico'],
-    'tasa_segundo'               => ['label' => 'Tasa Segundo Nivel', 'fullLabel' => 'Tasa de enfermeras en Segundo Nivel de Atención', 'abrev' => 'Tasa Enf. 2do Nivel', 'tipo' => 'tasa', 'pair' => 'enfermeras_segundo', 'is_core' => true, 'visibilidad' => 'publico'],
-    'enfermeras_segundo'         => ['label' => 'Enfermeras Segundo Nivel', 'fullLabel' => 'Enfermeras en Segundo Nivel de Atención', 'abrev' => 'Enf. 2do Nivel', 'tipo' => 'absoluto', 'pair' => 'enfermeras_segundo', 'is_core' => true, 'visibilidad' => 'publico'],
-    'tasa_tercer'                => ['label' => 'Tasa Tercer Nivel', 'fullLabel' => 'Tasa de enfermeras en Tercer Nivel de Atención', 'abrev' => 'Tasa Enf. 3er Nivel', 'tipo' => 'tasa', 'pair' => 'enfermeras_tercer', 'is_core' => true, 'visibilidad' => 'publico'],
-    'enfermeras_tercer'          => ['label' => 'Enfermeras Tercer Nivel', 'fullLabel' => 'Enfermeras en Tercer Nivel de Atención', 'abrev' => 'Enf. 3er Nivel', 'tipo' => 'absoluto', 'pair' => 'enfermeras_tercer', 'is_core' => true, 'visibilidad' => 'publico'],
-    'tasa_apoyo'                 => ['label' => 'Tasa Apoyo', 'fullLabel' => 'Tasa de enfermeras en establecimientos de apoyo', 'abrev' => 'Tasa Enf. Apoyo', 'tipo' => 'tasa', 'pair' => 'enfermeras_apoyo', 'is_core' => true, 'visibilidad' => 'publico'],
-    'enfermeras_apoyo'           => ['label' => 'Enfermeras Apoyo', 'fullLabel' => 'Enfermeras en establecimientos de apoyo', 'abrev' => 'Enf. Apoyo', 'tipo' => 'absoluto', 'pair' => 'enfermeras_apoyo', 'is_core' => true, 'visibilidad' => 'publico'],
-    'tasa_administrativas'       => ['label' => 'Tasa Enfermeras Administrativas', 'fullLabel' => 'Tasa de enfermeras con funciones administrativas', 'abrev' => 'Tasa Enf. Admin.', 'tipo' => 'tasa', 'pair' => 'enfermeras_administrativas', 'is_core' => true, 'visibilidad' => 'publico'],
-    'enfermeras_administrativas' => ['label' => 'Enfermeras Administrativas', 'fullLabel' => 'Enfermeras con funciones administrativas', 'abrev' => 'Enf. Admin.', 'tipo' => 'absoluto', 'pair' => 'enfermeras_administrativas', 'is_core' => true, 'visibilidad' => 'publico'],
-    'tasa_escuelas'              => ['label' => 'Tasa Enfermeras Escuelas', 'fullLabel' => 'Tasa de enfermeras en escuelas de enfermería', 'abrev' => 'Tasa Enf. Escuelas', 'tipo' => 'tasa', 'pair' => 'enfermeras_escuelas', 'is_core' => true, 'visibilidad' => 'publico'],
-    'enfermeras_escuelas'        => ['label' => 'Enfermeras Escuelas', 'fullLabel' => 'Enfermeras en escuelas de enfermería', 'abrev' => 'Enf. Escuelas', 'tipo' => 'absoluto', 'pair' => 'enfermeras_escuelas', 'is_core' => true, 'visibilidad' => 'publico'],
-    'tasa_no_aplica'             => ['label' => 'Tasa Enfermeras Otros', 'fullLabel' => 'Tasa de enfermeras en otros establecimientos', 'abrev' => 'Tasa Enf. Otros', 'tipo' => 'tasa', 'pair' => 'enfermeras_no_aplica', 'is_core' => true, 'visibilidad' => 'publico'],
-    'enfermeras_no_aplica'       => ['label' => 'Enfermeras Otros', 'fullLabel' => 'Enfermeras en otros establecimientos', 'abrev' => 'Enf. Otros', 'tipo' => 'absoluto', 'pair' => 'enfermeras_no_aplica', 'is_core' => true, 'visibilidad' => 'publico'],
-    'tasa_no_asignado'           => ['label' => 'Tasa Enfermeras No Asignado', 'fullLabel' => 'Tasa de enfermeras con funciones no asignadas', 'abrev' => 'Tasa Enf. No Asignado', 'tipo' => 'tasa', 'pair' => 'enfermeras_no_asignado', 'is_core' => true, 'visibilidad' => 'publico'],
-    'enfermeras_no_asignado'     => ['label' => 'Enfermeras No Asignado', 'fullLabel' => 'Enfermeras con funciones no asignadas', 'abrev' => 'Enf. No Asignado', 'tipo' => 'absoluto', 'pair' => 'enfermeras_no_asignado', 'is_core' => true, 'visibilidad' => 'publico'],
-    'poblacion'                  => ['label' => 'Población', 'fullLabel' => 'Población total', 'abrev' => 'Población', 'tipo' => 'absoluto', 'pair' => 'poblacion', 'is_core' => true, 'visibilidad' => 'publico']
+    'tasa_total'                 => array_merge(['label' => 'Tasa Total', 'fullLabel' => 'Tasa de enfermeras por cada mil habitantes', 'abrev' => 'Tasa Total', 'tipo' => 'tasa', 'pair' => 'enfermeras_total', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
+    'enfermeras_total'           => array_merge(['label' => 'Total Enfermeras', 'fullLabel' => 'Total de profesionales de enfermería', 'abrev' => 'Total Enf.', 'tipo' => 'absoluto', 'pair' => 'enfermeras_total', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
+    'tasa_primer'                => array_merge(['label' => 'Tasa Primer Nivel', 'fullLabel' => 'Tasa de enfermeras en Primer Nivel de Atención', 'abrev' => 'Tasa Enf. 1er Nivel', 'tipo' => 'tasa', 'pair' => 'enfermeras_primer', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
+    'enfermeras_primer'          => array_merge(['label' => 'Enfermeras Primer Nivel', 'fullLabel' => 'Enfermeras en Primer Nivel de Atención', 'abrev' => 'Enf. 1er Nivel', 'tipo' => 'absoluto', 'pair' => 'enfermeras_primer', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
+    'tasa_segundo'               => array_merge(['label' => 'Tasa Segundo Nivel', 'fullLabel' => 'Tasa de enfermeras en Segundo Nivel de Atención', 'abrev' => 'Tasa Enf. 2do Nivel', 'tipo' => 'tasa', 'pair' => 'enfermeras_segundo', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
+    'enfermeras_segundo'         => array_merge(['label' => 'Enfermeras Segundo Nivel', 'fullLabel' => 'Enfermeras en Segundo Nivel de Atención', 'abrev' => 'Enf. 2do Nivel', 'tipo' => 'absoluto', 'pair' => 'enfermeras_segundo', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
+    'tasa_tercer'                => array_merge(['label' => 'Tasa Tercer Nivel', 'fullLabel' => 'Tasa de enfermeras en Tercer Nivel de Atención', 'abrev' => 'Tasa Enf. 3er Nivel', 'tipo' => 'tasa', 'pair' => 'enfermeras_tercer', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
+    'enfermeras_tercer'          => array_merge(['label' => 'Enfermeras Tercer Nivel', 'fullLabel' => 'Enfermeras en Tercer Nivel de Atención', 'abrev' => 'Enf. 3er Nivel', 'tipo' => 'absoluto', 'pair' => 'enfermeras_tercer', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
+    'tasa_apoyo'                 => array_merge(['label' => 'Tasa Apoyo', 'fullLabel' => 'Tasa de enfermeras en establecimientos de apoyo', 'abrev' => 'Tasa Enf. Apoyo', 'tipo' => 'tasa', 'pair' => 'enfermeras_apoyo', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
+    'enfermeras_apoyo'           => array_merge(['label' => 'Enfermeras Apoyo', 'fullLabel' => 'Enfermeras en establecimientos de apoyo', 'abrev' => 'Enf. Apoyo', 'tipo' => 'absoluto', 'pair' => 'enfermeras_apoyo', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
+    'tasa_administrativas'       => array_merge(['label' => 'Tasa Enfermeras Administrativas', 'fullLabel' => 'Tasa de enfermeras con funciones administrativas', 'abrev' => 'Tasa Enf. Admin.', 'tipo' => 'tasa', 'pair' => 'enfermeras_administrativas', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
+    'enfermeras_administrativas' => array_merge(['label' => 'Enfermeras Administrativas', 'fullLabel' => 'Enfermeras con funciones administrativas', 'abrev' => 'Enf. Admin.', 'tipo' => 'absoluto', 'pair' => 'enfermeras_administrativas', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
+    'tasa_escuelas'              => array_merge(['label' => 'Tasa Enfermeras Escuelas', 'fullLabel' => 'Tasa de enfermeras en escuelas de enfermería', 'abrev' => 'Tasa Enf. Escuelas', 'tipo' => 'tasa', 'pair' => 'enfermeras_escuelas', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
+    'enfermeras_escuelas'        => array_merge(['label' => 'Enfermeras Escuelas', 'fullLabel' => 'Enfermeras en escuelas de enfermería', 'abrev' => 'Enf. Escuelas', 'tipo' => 'absoluto', 'pair' => 'enfermeras_escuelas', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
+    'tasa_no_aplica'             => array_merge(['label' => 'Tasa Enfermeras Otros', 'fullLabel' => 'Tasa de enfermeras en otros establecimientos', 'abrev' => 'Tasa Enf. Otros', 'tipo' => 'tasa', 'pair' => 'enfermeras_no_aplica', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
+    'enfermeras_no_aplica'       => array_merge(['label' => 'Enfermeras Otros', 'fullLabel' => 'Enfermeras en otros establecimientos', 'abrev' => 'Enf. Otros', 'tipo' => 'absoluto', 'pair' => 'enfermeras_no_aplica', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
+    'tasa_no_asignado'           => array_merge(['label' => 'Tasa Enfermeras No Asignado', 'fullLabel' => 'Tasa de enfermeras con funciones no asignadas', 'abrev' => 'Tasa Enf. No Asignado', 'tipo' => 'tasa', 'pair' => 'enfermeras_no_asignado', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
+    'enfermeras_no_asignado'     => array_merge(['label' => 'Enfermeras No Asignado', 'fullLabel' => 'Enfermeras con funciones no asignadas', 'abrev' => 'Enf. No Asignado', 'tipo' => 'absoluto', 'pair' => 'enfermeras_no_asignado', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
+    'poblacion'                  => array_merge(['label' => 'Población', 'fullLabel' => 'Población total', 'abrev' => 'Población', 'tipo' => 'absoluto', 'pair' => 'poblacion', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges)
 ];
 
 $defaults_json = wp_json_encode($defaults);
@@ -87,7 +98,7 @@ if ( empty($metricas_json) ) {
                 <th style="width: 25%;">Etiqueta Larga</th>
                 <th style="width: 15%;">Etiqueta Corta</th>
                 <th style="width: 10%;">Abrev.</th>
-                <th style="width: 10%;">Tipo</th>
+                <th style="width: 10%;">Tipo / Escala</th>
                 <th style="width: 15%;">Auditoría</th>
                 <th style="width: 10%;">Acciones</th>
             </tr>
@@ -97,15 +108,13 @@ if ( empty($metricas_json) ) {
     </table>
 
     <div class="siarhe-pagination">
-        <div id="siarhe-metricas-count" style="font-size: 13px; color: #64748b;">
-            </div>
-        <div class="siarhe-page-numbers" id="siarhe-pagination-controls">
-            </div>
+        <div id="siarhe-metricas-count" style="font-size: 13px; color: #64748b;"></div>
+        <div class="siarhe-page-numbers" id="siarhe-pagination-controls"></div>
     </div>
 </div>
 
 <div id="siarhe-edit-metric-modal" class="siarhe-modal-overlay">
-    <div class="siarhe-modal-content">
+    <div class="siarhe-modal-content" style="max-width: 750px;">
         <h2 style="margin-top:0; border-bottom: 1px solid #eee; padding-bottom: 15px;">
             <span class="dashicons dashicons-edit"></span> <span id="modal-metric-title">Editar Métrica</span>
         </h2>
@@ -131,14 +140,14 @@ if ( empty($metricas_json) ) {
                 <th><label>Etiqueta Larga</label></th>
                 <td>
                     <input type="text" id="modal-metric-full" class="regular-text" style="width:100%;" required placeholder="ej. Tasa de enfermeras quirúrgicas por mil hab.">
-                    <p class="description">Texto descriptivo para el selector del menú desplegable.</p>
                 </td>
             </tr>
+            
             <tr>
                 <th><label>Etiqueta Corta</label></th>
                 <td>
                     <input type="text" id="modal-metric-label" class="regular-text" required placeholder="ej. Tasa Quirúr.">
-                    <p class="description">Utilizada para las columnas de la tabla de datos y la leyenda visual.</p>
+                    <p class="description">Utilizada para las columnas de la tabla y la leyenda visual.</p>
                 </td>
             </tr>
             <tr>
@@ -149,32 +158,126 @@ if ( empty($metricas_json) ) {
                 </td>
             </tr>
             <tr>
-                <th><label>Visibilidad</label></th>
-                <td>
-                    <select id="modal-metric-visibilidad">
-                        <option value="publico">Público (Visible para todos)</option>
-                        <option value="registrados">Privado (Solo usuarios registrados)</option>
-                        <option value="oculto">Oculto (No mostrar en frontend)</option>
-                    </select>
-                    <p class="description" id="desc-visibilidad">Controla quién puede ver y seleccionar esta métrica.</p>
-                </td>
-            </tr>
-            <tr>
                 <th><label>Tipo de Valor</label></th>
                 <td>
                     <select id="modal-metric-tipo">
-                        <option value="tasa">Tasa (Representación visual en mapa / Formato decimal)</option>
-                        <option value="absoluto">Absoluto (Conteo numérico estándar)</option>
+                        <option value="tasa">Tasa (Decimal)</option>
+                        <option value="absoluto">Absoluto (Entero)</option>
                     </select>
+                </td>
+            </tr>
+            <tr>
+                <th><label>Visibilidad</label></th>
+                <td>
+                    <select id="modal-metric-visibilidad">
+                        <option value="publico">Público</option>
+                        <option value="registrados">Privado</option>
+                        <option value="oculto">Oculto</option>
+                    </select>
+                    <p class="description" id="desc-visibilidad" style="margin-top: 5px;">Controla quién puede ver y seleccionar esta métrica.</p>
                 </td>
             </tr>
             <tr>
                 <th><label>Clave Relacionada (Par)</label></th>
                 <td>
                     <input type="text" id="modal-metric-pair" class="regular-text" required placeholder="ej. enfermeras_quirurgicas">
-                    <p class="description">Vincula el valor de una tasa con su conteo absoluto para la visualización combinada en el Tooltip y la Tabla.</p>
                 </td>
             </tr>
+            
+            <tr style="border-top: 1px dashed #ccc;">
+                <th><label>Escala de Mapa por Defecto</label></th>
+                <td>
+                    <select id="modal-metric-scale-type" style="width: 100%;">
+                        <option value="cuartiles">Degradado por Colores (Cuartiles autocalculados)</option>
+                        <option value="rangos">Rangos (Personalizados)</option>
+                        <option value="monocromatico">Escala Monocromática</option>
+                    </select>
+                    <p class="description">Esta es la vista inicial que tomará el mapa al cargar esta métrica.</p>
+                </td>
+            </tr>
+
+            <tr>
+                <th><label>Opciones Avanzadas</label></th>
+                <td>
+                    <fieldset>
+                        <label style="display:block; margin-bottom:8px;">
+                            <input type="checkbox" id="modal-enable-custom-ranges"> Activar configuración de cortes de rango manuales
+                        </label>
+                        <label style="display:block;">
+                            <input type="checkbox" id="modal-enable-custom-colors"> Activar colores personalizados exclusivos para esta métrica
+                        </label>
+                    </fieldset>
+                </td>
+            </tr>
+            
+            <tr id="modal-metric-ranges-row" style="display: none;">
+                <th><label>Valores de Corte</label></th>
+                <td>
+                    <p class="description" style="margin-top:0; margin-bottom:10px;">
+                        Comodines autocalculables: <code>Vmin</code>, <code>Q1</code>, <code>Q2</code>, <code>Q3</code>, <code>Vmax</code> o ingresa valores numéricos fijos.
+                    </p>
+                    
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="width:60px; font-weight:bold; font-size:11px; color:#2271b1;">Rango 1:</span>
+                            <span style="font-size:12px; color:#646970;">De</span>
+                            <input type="text" id="modal-r1-min" class="small-text" placeholder="Vmin" style="width:70px; text-align:center;">
+                            <span style="font-size:12px; color:#646970;">a</span>
+                            <select id="modal-r1-op"><option value="<">&lt;</option><option value="<=">&lt;=</option><option value="=">=</option></select>
+                            <input type="text" id="modal-r1-max" class="small-text" placeholder="Q1" style="width:70px; text-align:center;">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="width:60px; font-weight:bold; font-size:11px; color:#2271b1;">Rango 2:</span>
+                            <span style="font-size:12px; color:#646970;">De</span>
+                            <input type="text" id="modal-r2-min" class="small-text" placeholder="Q1" style="width:70px; text-align:center;">
+                            <span style="font-size:12px; color:#646970;">a</span>
+                            <select id="modal-r2-op"><option value="<">&lt;</option><option value="<=">&lt;=</option><option value="=">=</option></select>
+                            <input type="text" id="modal-r2-max" class="small-text" placeholder="Q2" style="width:70px; text-align:center;">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="width:60px; font-weight:bold; font-size:11px; color:#2271b1;">Rango 3:</span>
+                            <span style="font-size:12px; color:#646970;">De</span>
+                            <input type="text" id="modal-r3-min" class="small-text" placeholder="Q2" style="width:70px; text-align:center;">
+                            <span style="font-size:12px; color:#646970;">a</span>
+                            <select id="modal-r3-op"><option value="<">&lt;</option><option value="<=">&lt;=</option><option value="=">=</option></select>
+                            <input type="text" id="modal-r3-max" class="small-text" placeholder="Q3" style="width:70px; text-align:center;">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="width:60px; font-weight:bold; font-size:11px; color:#2271b1;">Rango 4:</span>
+                            <span style="font-size:12px; color:#646970;">De</span>
+                            <input type="text" id="modal-r4-min" class="small-text" placeholder="Q3" style="width:70px; text-align:center;">
+                            <span style="font-size:12px; color:#646970;">a</span>
+                            <select id="modal-r4-op"><option value="<">&lt;</option><option value="<=">&lt;=</option><option value="=">=</option></select>
+                            <input type="text" id="modal-r4-max" class="small-text" placeholder="Vmax" style="width:70px; text-align:center;">
+                        </div>
+                    </div>
+                </td>
+            </tr>
+
+            <tr id="modal-metric-colors-row" style="display: none;">
+                <th><label>Colores de Nivel</label></th>
+                <td>
+                    <div style="display:flex; flex-direction:column; gap:12px;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="width:60px; font-weight:bold; font-size:11px; color:#2271b1;">Rango 1:</span>
+                            <input type="text" id="modal-r1-color" class="siarhe-color-field-modal" value="">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="width:60px; font-weight:bold; font-size:11px; color:#2271b1;">Rango 2:</span>
+                            <input type="text" id="modal-r2-color" class="siarhe-color-field-modal" value="">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="width:60px; font-weight:bold; font-size:11px; color:#2271b1;">Rango 3:</span>
+                            <input type="text" id="modal-r3-color" class="siarhe-color-field-modal" value="">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="width:60px; font-weight:bold; font-size:11px; color:#2271b1;">Rango 4:</span>
+                            <input type="text" id="modal-r4-color" class="siarhe-color-field-modal" value="">
+                        </div>
+                    </div>
+                </td>
+            </tr>
+
         </table>
         <div style="text-align:right; margin-top:20px; border-top: 1px solid #eee; padding-top: 15px;">
             <button type="button" class="button button-secondary" id="close-metric-modal">Cancelar</button>
@@ -185,6 +288,11 @@ if ( empty($metricas_json) ) {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    
+    if (typeof jQuery !== 'undefined' && jQuery.fn.wpColorPicker) {
+        jQuery('.siarhe-color-field-modal').wpColorPicker();
+    }
+
     const inputJson = document.getElementById('siarhe_metricas_config');
     const defaultJson = document.getElementById('siarhe_default_metricas').value;
     const currentUser = document.getElementById('siarhe_current_user').value;
@@ -197,6 +305,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const itemsPerPageSelect = document.getElementById('siarhe-items-per-page');
     const paginationControls = document.getElementById('siarhe-pagination-controls');
     const countDisplay = document.getElementById('siarhe-metricas-count');
+
+    const scaleSelect = document.getElementById('modal-metric-scale-type');
+    
+    // ☀️ Lógica de los Toggles
+    const customRangesCb = document.getElementById('modal-enable-custom-ranges');
+    const customColorsCb = document.getElementById('modal-enable-custom-colors');
+    const rangesRow = document.getElementById('modal-metric-ranges-row');
+    const colorsRow = document.getElementById('modal-metric-colors-row');
+
+    customRangesCb.addEventListener('change', function() {
+        rangesRow.style.display = this.checked ? 'table-row' : 'none';
+    });
+
+    customColorsCb.addEventListener('change', function() {
+        colorsRow.style.display = this.checked ? 'table-row' : 'none';
+    });
 
     const lockedVisibilityKeys = ['tasa_total', 'enfermeras_total', 'poblacion'];
 
@@ -279,6 +403,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const badgeLabel = item.tipo === 'tasa' ? 'Tasa' : 'Absoluto';
                 const coreBadge = isCore ? '<span class="siarhe-badge brand" style="margin-left:5px;"><span class="dashicons dashicons-lock" style="font-size:12px;width:12px;height:12px;margin-top:2px;"></span> Nativa</span>' : '';
                 
+                let scaleBadge = '';
+                if (item.scale_type === 'rangos') scaleBadge = '<br><span style="font-size:10px; color:#b45309;">(Rangos)</span>';
+                if (item.scale_type === 'monocromatico') scaleBadge = '<br><span style="font-size:10px; color:#0369a1;">(Mono)</span>';
+                if (!item.scale_type || item.scale_type === 'cuartiles') scaleBadge = '<br><span style="font-size:10px; color:#8c8f94;">(Cuartiles)</span>';
+
                 const autorOriginal = isCore ? 'Sistema' : (item.created_by || item.last_edited_by || 'Desconocido');
                 const fechaOriginal = isCore ? 'Integrado en el código' : (item.created_at || item.last_edited_at || '');
                 
@@ -326,8 +455,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td data-label="Abrev.">
                         <span style="background:#f0f0f1; padding:2px 5px; border-radius:3px; font-size:11px;">${abrev}</span>
                     </td>
-                    <td data-label="Tipo">
+                    <td data-label="Tipo / Escala">
                         <span class="siarhe-badge ${badgeType}">${badgeLabel}</span>
+                        ${scaleBadge}
                     </td>
                     <td data-label="Auditoría">
                         ${auditHtml}
@@ -445,7 +575,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function openModal(key = null) {
         const isNew = key === null;
-        const item = isNew ? { label: '', fullLabel: '', abrev: '', tipo: 'absoluto', pair: '', visibilidad: 'publico', is_core: false, created_by: currentUser, created_at: currentTime } : metricasObj[key];
+        
+        const baseItem = { 
+            label: '', fullLabel: '', abrev: '', tipo: 'absoluto', pair: '', visibilidad: 'publico', is_core: false, 
+            created_by: currentUser, created_at: currentTime,
+            scale_type: 'cuartiles', custom_ranges: false, custom_colors: false,
+            r1_min: 'Vmin', r1_op: '<', r1_max: 'Q1', r1_color: '',
+            r2_min: 'Q1',   r2_op: '<', r2_max: 'Q2', r2_color: '',
+            r3_min: 'Q2',   r3_op: '<', r3_max: 'Q3', r3_color: '',
+            r4_min: 'Q3',   r4_op: '<', r4_max: 'Vmax', r4_color: ''
+        };
+
+        const item = isNew ? baseItem : Object.assign({}, baseItem, metricasObj[key]);
 
         document.getElementById('modal-metric-title').textContent = isNew ? 'Añadir Nueva Métrica' : 'Editar Propiedades';
         document.getElementById('modal-metric-original-key').value = isNew ? '' : key;
@@ -469,32 +610,45 @@ document.addEventListener('DOMContentLoaded', function() {
         pairInput.value = item.pair;
         visInput.value = item.visibilidad || 'publico';
 
+        scaleSelect.value = item.scale_type || 'cuartiles';
+
+        // ☀️ Configuración de Toggles y despliegue inicial
+        customRangesCb.checked = item.custom_ranges === true;
+        customColorsCb.checked = item.custom_colors === true;
+        customRangesCb.dispatchEvent(new Event('change'));
+        customColorsCb.dispatchEvent(new Event('change'));
+
+        const c1 = item.r1_color || ''; const c2 = item.r2_color || ''; const c3 = item.r3_color || ''; const c4 = item.r4_color || '';
+        
+        document.getElementById('modal-r1-min').value = item.r1_min; document.getElementById('modal-r1-op').value = item.r1_op; document.getElementById('modal-r1-max').value = item.r1_max;
+        document.getElementById('modal-r2-min').value = item.r2_min; document.getElementById('modal-r2-op').value = item.r2_op; document.getElementById('modal-r2-max').value = item.r2_max;
+        document.getElementById('modal-r3-min').value = item.r3_min; document.getElementById('modal-r3-op').value = item.r3_op; document.getElementById('modal-r3-max').value = item.r3_max;
+        document.getElementById('modal-r4-min').value = item.r4_min; document.getElementById('modal-r4-op').value = item.r4_op; document.getElementById('modal-r4-max').value = item.r4_max;
+
+        if (typeof jQuery !== 'undefined' && jQuery.fn.wpColorPicker) {
+            jQuery('#modal-r1-color').wpColorPicker('color', c1);
+            jQuery('#modal-r2-color').wpColorPicker('color', c2);
+            jQuery('#modal-r3-color').wpColorPicker('color', c3);
+            jQuery('#modal-r4-color').wpColorPicker('color', c4);
+        }
+
         if (item.is_core) {
-            keyInput.readOnly = true;
-            keyInput.style.background = '#f0f0f1';
-            pairInput.readOnly = true;
-            pairInput.style.background = '#f0f0f1';
-            typeInput.disabled = true;
-            typeInput.style.background = '#f0f0f1';
+            keyInput.readOnly = true; keyInput.style.background = '#f0f0f1';
+            pairInput.readOnly = true; pairInput.style.background = '#f0f0f1';
+            typeInput.disabled = true; typeInput.style.background = '#f0f0f1';
             notice.style.display = 'block';
         } else {
-            keyInput.readOnly = false;
-            keyInput.style.background = '#fff';
-            pairInput.readOnly = false;
-            pairInput.style.background = '#fff';
-            typeInput.disabled = false;
-            typeInput.style.background = '#fff';
+            keyInput.readOnly = false; keyInput.style.background = '#fff';
+            pairInput.readOnly = false; pairInput.style.background = '#fff';
+            typeInput.disabled = false; typeInput.style.background = '#fff';
             notice.style.display = 'none';
         }
 
         if (!isNew && lockedVisibilityKeys.includes(key)) {
-            visInput.value = 'publico';
-            visInput.disabled = true;
-            visInput.style.background = '#f0f0f1';
+            visInput.value = 'publico'; visInput.disabled = true; visInput.style.background = '#f0f0f1';
             descVis.innerHTML = '<span style="color:#d63638;">🔒 La visibilidad de esta métrica crítica no puede ser alterada.</span>';
         } else {
-            visInput.disabled = false;
-            visInput.style.background = '#fff';
+            visInput.disabled = false; visInput.style.background = '#fff';
             descVis.innerHTML = 'Controla quién puede ver y seleccionar esta métrica.';
         }
 
@@ -546,6 +700,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const originalCreator = document.getElementById('modal-metric-created-by').value;
         const originalCreatedAt = document.getElementById('modal-metric-created-at').value;
 
+        let v_r1_min = document.getElementById('modal-r1-min').value.trim();
+        let v_r4_max = document.getElementById('modal-r4-max').value.trim();
+        if (v_r1_min === '') v_r1_min = 'Vmin';
+        if (v_r4_max === '') v_r4_max = 'Vmax';
+
+        // ☀️ Inserción de booleanos
         metricasObj[newKey] = {
             label: document.getElementById('modal-metric-label').value.trim(),
             fullLabel: document.getElementById('modal-metric-full').value.trim(),
@@ -557,7 +717,14 @@ document.addEventListener('DOMContentLoaded', function() {
             created_by: originalCreator,
             created_at: originalCreatedAt,
             last_edited_by: currentUser,
-            last_edited_at: currentTime
+            last_edited_at: currentTime,
+            scale_type: scaleSelect.value,
+            custom_ranges: customRangesCb.checked,
+            custom_colors: customColorsCb.checked,
+            r1_color: document.getElementById('modal-r1-color').value.trim(), r1_min: v_r1_min, r1_op: document.getElementById('modal-r1-op').value, r1_max: document.getElementById('modal-r1-max').value.trim(),
+            r2_color: document.getElementById('modal-r2-color').value.trim(), r2_min: document.getElementById('modal-r2-min').value.trim(), r2_op: document.getElementById('modal-r2-op').value, r2_max: document.getElementById('modal-r2-max').value.trim(),
+            r3_color: document.getElementById('modal-r3-color').value.trim(), r3_min: document.getElementById('modal-r3-min').value.trim(), r3_op: document.getElementById('modal-r3-op').value, r3_max: document.getElementById('modal-r3-max').value.trim(),
+            r4_color: document.getElementById('modal-r4-color').value.trim(), r4_min: document.getElementById('modal-r4-min').value.trim(), r4_op: document.getElementById('modal-r4-op').value, r4_max: v_r4_max
         };
 
         updateHiddenInput();

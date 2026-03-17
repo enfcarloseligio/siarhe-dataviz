@@ -14,10 +14,10 @@ $defaults = [
     'map_c5' => '#08519c', // Máximo
     
     // Mapa (4 Rangos Personalizados - Valores iniciales)
-    'range_c1' => '#ffedd5', // Rango 1 (Ej. < Q1)
-    'range_c2' => '#fdba74', // Rango 2 (Ej. Q1 a Q2)
-    'range_c3' => '#f59e0b', // Rango 3 (Ej. Q2 a Q3)
-    'range_c4' => '#b45309', // Rango 4 (Ej. > Q3)
+    'range_c1' => '#0A66C2', // Rango 1 (Ej. < Q1)
+    'range_c2' => '#063A73', // Rango 2 (Ej. Q1 a Q2)
+    'range_c3' => '#063A73', // Rango 3 (Ej. Q2 a Q3)
+    'range_c4' => '#172540', // Rango 4 (Ej. > Q3)
 
     // Mapa (Secuencial Monocromático)
     'mono_min' => '#f0f9ff', // Color más claro
