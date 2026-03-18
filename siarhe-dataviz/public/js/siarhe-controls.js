@@ -681,11 +681,14 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 
                 const metricInfo = state.metricas[state.currentMetric];
                 const mKey = state.currentMetric; 
-                const pKey = metricInfo.pair || mKey; 
+                
+                // 🌟 CORRECCIÓN ARQUITECTÓNICA AL EXPORTAR
+                // Extraemos el gafete (pairGroup) y buscamos los nombres REALES de las columnas
+                const pairGroup = metricInfo.pair || mKey; 
                 const isPob = (mKey === 'poblacion');
                 
-                const enfDataKey = isPob ? null : pKey; 
-                const tasaDataKey = isPob ? null : ((metricInfo.tipo === 'tasa') ? mKey : app.utils.findRateKeyForAbsolute(pKey, state.metricas));
+                const enfDataKey = isPob ? null : app.utils.findAbsoluteKeyForPair(pairGroup, state.metricas); 
+                const tasaDataKey = isPob ? null : ((metricInfo.tipo === 'tasa') ? mKey : app.utils.findRateKeyForAbsolute(pairGroup, state.metricas));
                 
                 const getVal = (r, colId) => {
                     if (colId === 'estado') return r.estado;
@@ -713,12 +716,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const pob = r.poblacion || 0;
                     
                     let enfStr = '-';
-                    if (!isPob && r[enfDataKey] !== null && r[enfDataKey] !== undefined) {
+                    if (!isPob && enfDataKey && r[enfDataKey] !== null && r[enfDataKey] !== undefined) {
                         enfStr = r[enfDataKey];
                     }
                     
                     let tasaStr = '-';
-                    if (!isPob && r[tasaDataKey] !== null && r[tasaDataKey] !== undefined) {
+                    if (!isPob && tasaDataKey && r[tasaDataKey] !== null && r[tasaDataKey] !== undefined) {
                         tasaStr = r[tasaDataKey].toFixed(2);
                     }
                     

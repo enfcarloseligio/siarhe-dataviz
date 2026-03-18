@@ -83,11 +83,21 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             return "";
         },
 
-        findRateKeyForAbsolute: function(absKey, metricasConfig) {
+        // 🌟 CORRECCIÓN ARQUITECTÓNICA: Helper Inteligente para Tasas
+        // Busca en el diccionario qué columna CSV REAL tiene tipo="tasa" y pertenece al gafete(pairGroup)
+        findRateKeyForAbsolute: function(pairGroup, metricasConfig) {
             const foundRate = Object.keys(metricasConfig).find(k => 
-                metricasConfig[k].pair === absKey && metricasConfig[k].tipo === 'tasa'
+                (metricasConfig[k].pair || k) === pairGroup && metricasConfig[k].tipo === 'tasa'
             );
             return foundRate || null;
+        },
+
+        // 🌟 NUEVO HELPER INTELIGENTE: Busca la columna absoluta real basada en el gafete
+        findAbsoluteKeyForPair: function(pairGroup, metricasConfig) {
+            const foundAbs = Object.keys(metricasConfig).find(k => 
+                (metricasConfig[k].pair || k) === pairGroup && metricasConfig[k].tipo === 'absoluto'
+            );
+            return foundAbs || null;
         }
     };
 
@@ -126,18 +136,16 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (value === null || value === undefined || isNaN(value)) return app.colors.NULL;
                 if (value === 0) return app.colors.ZERO;
 
-                // 🌟 LÓGICA CORREGIDA: Si el interruptor de colores personalizados está apagado, forzamos los colores por defecto
                 const useColors = metricConfig.custom_colors === true;
                 const c1 = (useColors && metricConfig.r1_color) ? metricConfig.r1_color : app.colors.CUSTOM_RANGE[0];
                 const c2 = (useColors && metricConfig.r2_color) ? metricConfig.r2_color : app.colors.CUSTOM_RANGE[1];
                 const c3 = (useColors && metricConfig.r3_color) ? metricConfig.r3_color : app.colors.CUSTOM_RANGE[2];
                 const c4 = (useColors && metricConfig.r4_color) ? metricConfig.r4_color : app.colors.CUSTOM_RANGE[3];
 
-                // 🌟 LÓGICA CORREGIDA: Si el interruptor de rangos está apagado, forzamos los valores puros
                 const useRanges = metricConfig.custom_ranges === true;
 
                 const r4_min = (useRanges && metricConfig.r4_min) ? metricConfig.r4_min : 'Q3'; 
-                const r4_op  = (useRanges && metricConfig.r4_op)  ? metricConfig.r4_op  : '<='; // 🌟 Matemáticamente correcto
+                const r4_op  = (useRanges && metricConfig.r4_op)  ? metricConfig.r4_op  : '<=';
                 const r4_max = (useRanges && metricConfig.r4_max) ? metricConfig.r4_max : 'Vmax';
                 
                 const r3_min = (useRanges && metricConfig.r3_min) ? metricConfig.r3_min : 'Q2'; 
@@ -152,7 +160,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const r1_op  = (useRanges && metricConfig.r1_op)  ? metricConfig.r1_op  : '<';  
                 const r1_max = (useRanges && metricConfig.r1_max) ? metricConfig.r1_max : 'Q1';
 
-                // Se evalúa de arriba hacia abajo
                 if (app.math.isInRange(value, r4_min, r4_op, r4_max, statsDict)) return c4;
                 if (app.math.isInRange(value, r3_min, r3_op, r3_max, statsDict)) return c3;
                 if (app.math.isInRange(value, r2_min, r2_op, r2_max, statsDict)) return c2;
@@ -226,17 +233,22 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const info = state.metricas[state.currentMetric];
             if(!info) return;
 
-            const pairKey = info.pair || state.currentMetric;
+            // 🌟 CORRECCIÓN ARQUITECTÓNICA:
+            // Extraemos el gafete (pairGroup) y buscamos el nombre REAL de la columna absoluta
+            const pairGroup = info.pair || state.currentMetric;
+            const absCsvKey = app.utils.findAbsoluteKeyForPair(pairGroup, state.metricas);
+
             let totalAbs = 0, valorMuestra = null;
             
             const rowTotal = state.csvData.find(r => r.isTotal);
             if (rowTotal) { 
-                totalAbs = rowTotal[pairKey] || 0; 
+                totalAbs = absCsvKey ? (rowTotal[absCsvKey] || 0) : 0; 
                 valorMuestra = rowTotal[state.currentMetric]; 
             } else {
                 state.csvData.forEach(row => { 
-                    if (!row.isTotal && !row.isSpecial && state.metricas[pairKey] && state.metricas[pairKey].tipo === 'absoluto') {
-                        totalAbs += (row[pairKey] || 0); 
+                    // Sumamos usando absCsvKey (el nombre real de la columna), no el gafete
+                    if (!row.isTotal && !row.isSpecial && absCsvKey && state.metricas[absCsvKey] && state.metricas[absCsvKey].tipo === 'absoluto') {
+                        totalAbs += (row[absCsvKey] || 0); 
                     }
                 });
                 valorMuestra = (info.tipo === 'tasa') ? null : totalAbs;
@@ -273,7 +285,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         
         let MARCADOR_ESTILOS = safeParseJSON(container.dataset.markerConfig, {});
         let MARCADOR_URLS = safeParseJSON(container.dataset.markerUrls, {});
-        // 🌟 NUEVO: LECTURA DE DICCIONARIO DINÁMICO DE MARCADORES 🌟
         let MARCADOR_LABELS = safeParseJSON(container.dataset.markerLabels, {});
         let ENTITY_URLS = safeParseJSON(container.dataset.entityUrls, {});
         let METRICAS_CONFIG = safeParseJSON(container.dataset.metricas, {});
@@ -291,16 +302,15 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             metricas: METRICAS_CONFIG,
             tooltipConfig: TOOLTIP_CONFIG, 
             currentMetric: 'tasa_total',
-            colorMode: null, // ☀️ Se arranca en null porque Controls define la escala
+            colorMode: null,
             zoom: null, gLegend: null, gMarkerLegend: null, gradientId: null,
             svg: null, gMain: null, gPaths: null, gLabels: null, gMarkers: null, 
             activeMarkers: new Set(), markersData: {}, 
             markerStyles: MARCADOR_ESTILOS, markerUrls: MARCADOR_URLS,
-            markerLabels: MARCADOR_LABELS, // 🌟 GUARDADO EN EL ESTADO
+            markerLabels: MARCADOR_LABELS, 
             entityUrls: ENTITY_URLS, homeUrl: container.dataset.homeUrl || '', 
             isNacional: isNacional, 
             tooltip: null, markerTrigger: null, lastClickTime: 0,
-            // 🌟 NUEVO: Caché para MÚLTIPLES archivos base
             rawCSVDataCache: {},
             initialTransform: d3.zoomIdentity 
         };
@@ -364,7 +374,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 // 5. INYECCIÓN AL CARGAR EL DOM
 // ==========================================
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("%c 🚀 SIARHE Core V48: Leyenda Estricta <= ", "background: #1e40af; color: #ffffff; padding: 2px 6px; border-radius: 4px;");
+    console.log("%c 🚀 SIARHE Core V50: Multi-Pass Logic <= ", "background: #1e40af; color: #ffffff; padding: 2px 6px; border-radius: 4px;");
     
     const wrappers = document.querySelectorAll('.siarhe-viz-wrapper');
     wrappers.forEach(container => {

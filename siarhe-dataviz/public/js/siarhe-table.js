@@ -51,15 +51,17 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             // Verificación de seguridad por si la métrica fue eliminada
             if (!state.metricas[mKey]) return;
 
-            const pKey = state.metricas[mKey].pair || mKey;
+            // 🌟 CORRECCIÓN ARQUITECTÓNICA: 
+            // La Clave Par solo es un GAFETE (grupo), no el nombre de la columna.
+            const pairGroup = state.metricas[mKey].pair || mKey;
             const isPob = (mKey === 'poblacion');
             
-            const enfDataKey = isPob ? null : pKey; 
+            // 🌟 EXTRAEMOS LOS NOMBRES REALES DE LAS COLUMNAS USANDO LOS HELPERS DEL CORE
+            const enfDataKey = isPob ? null : app.utils.findAbsoluteKeyForPair(pairGroup, state.metricas); 
             
-            // Búsqueda dinámica de la columna Tasa
             let tasaDataKey = null;
             if (!isPob) {
-                tasaDataKey = (state.metricas[mKey].tipo === 'tasa') ? mKey : app.utils.findRateKeyForAbsolute(pKey, state.metricas);
+                tasaDataKey = (state.metricas[mKey].tipo === 'tasa') ? mKey : app.utils.findRateKeyForAbsolute(pairGroup, state.metricas);
             }
 
             const labelEntidad = state.isNacional ? 'Entidad Federativa' : 'Municipio';
@@ -146,7 +148,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         const v = (c.id === 'poblacion') ? r.poblacion : r[c.dataKey];
                         
                         // 🌟 Si el valor es null (celda vacía), pintar el guion elegante
-                        if (v === null || v === undefined) {
+                        if (v === null || v === undefined || isNaN(v)) {
                             td.textContent = '—';
                         } else {
                             if (c.id === 'tasa') td.textContent = v.toFixed(2);
