@@ -15,8 +15,10 @@ if ( empty($tipos_marcadores) || !is_array($tipos_marcadores) || (isset($tipos_m
     update_option( 'siarhe_archivos_marcadores', wp_json_encode($tipos_marcadores, JSON_UNESCAPED_UNICODE) );
 }
 
-// Interceptor de transacciones locales vía POST para gestión de ranuras
+// 🌟 INTERCEPTOR MEJORADO: Procesa variables y limpieza profunda
 if ( isset($_POST['action']) ) {
+    
+    // Acción: Agregar nueva variable
     if ( $_POST['action'] === 'add_archivo_marcador' && isset($_POST['new_file_key']) ) {
         $new_key = sanitize_text_field(strtoupper(str_replace(' ', '_', $_POST['new_file_key'])));
         $new_label = sanitize_text_field($_POST['new_file_label']);
@@ -30,13 +32,58 @@ if ( isset($_POST['action']) ) {
         }
     }
     
+    // Acción: Eliminar variable individual (Limpia DB y Archivo Físico)
     if ( $_POST['action'] === 'delete_archivo_marcador' && isset($_POST['del_file_key']) ) {
         $del_key = sanitize_text_field($_POST['del_file_key']);
         if (isset($tipos_marcadores[$del_key]) && empty($tipos_marcadores[$del_key]['is_core'])) {
+            
+            global $wpdb;
+            $table_assets = $wpdb->prefix . 'siarhe_static_assets';
+            $upload_base_dir_del = (defined('SIARHE_UPLOAD_DIR') ? SIARHE_UPLOAD_DIR : wp_upload_dir()['basedir'] . '/siarhe-data/') . 'markers/';
+            
+            $asset = $wpdb->get_row($wpdb->prepare("SELECT id, ruta_archivo FROM $table_assets WHERE tipo_archivo = %s AND entidad_slug = %s", 'marcador', $del_key));
+            if ($asset) {
+                $file_path = $upload_base_dir_del . basename($asset->ruta_archivo);
+                if (file_exists($file_path)) @unlink($file_path);
+                $wpdb->delete($table_assets, ['id' => $asset->id]);
+            } else {
+                $file_path = $upload_base_dir_del . $tipos_marcadores[$del_key]['filename'];
+                if (file_exists($file_path)) @unlink($file_path);
+            }
+
             unset($tipos_marcadores[$del_key]);
             update_option( 'siarhe_archivos_marcadores', wp_json_encode($tipos_marcadores, JSON_UNESCAPED_UNICODE) );
-            echo '<div class="notice notice-success is-dismissible"><p>Ranura de variable eliminada del registro.</p></div>';
+            echo '<div class="notice notice-success is-dismissible"><p>Ranura de variable y archivo físico asociado eliminados permanentemente.</p></div>';
         }
+    }
+
+    // 🌟 NUEVA ACCIÓN: Restaurar Iniciales (Borra todas las personalizadas)
+    if ( $_POST['action'] === 'reset_archivos_marcadores' && isset($_POST['reset_nonce']) && wp_verify_nonce($_POST['reset_nonce'], 'reset_variables_nonce') ) {
+        global $wpdb;
+        $table_assets = $wpdb->prefix . 'siarhe_static_assets';
+        $upload_base_dir_del = (defined('SIARHE_UPLOAD_DIR') ? SIARHE_UPLOAD_DIR : wp_upload_dir()['basedir'] . '/siarhe-data/') . 'markers/';
+
+        foreach ($tipos_marcadores as $k => $inf) {
+            if (empty($inf['is_core'])) {
+                $asset = $wpdb->get_row($wpdb->prepare("SELECT id, ruta_archivo FROM $table_assets WHERE tipo_archivo = %s AND entidad_slug = %s", 'marcador', $k));
+                if ($asset) {
+                    $file_path = $upload_base_dir_del . basename($asset->ruta_archivo);
+                    if (file_exists($file_path)) @unlink($file_path);
+                    $wpdb->delete($table_assets, ['id' => $asset->id]);
+                } else {
+                    $file_path = $upload_base_dir_del . $inf['filename'];
+                    if (file_exists($file_path)) @unlink($file_path);
+                }
+            }
+        }
+
+        $tipos_marcadores = [
+            'CATETER' => [ 'label' => 'Clínicas de Catéteres', 'filename' => 'clinicas-cateteres.csv', 'is_core' => true ],
+            'HERIDAS' => [ 'label' => 'Clínicas de Heridas', 'filename' => 'clinicas-heridas.csv', 'is_core' => true ],
+            'ESTABLECIMIENTOS' => [ 'label' => 'Establecimientos de Salud (Todas)', 'filename' => 'establecimientos-salud.csv', 'is_core' => true ]
+        ];
+        update_option( 'siarhe_archivos_marcadores', wp_json_encode($tipos_marcadores, JSON_UNESCAPED_UNICODE) );
+        echo '<div class="notice notice-success is-dismissible"><p>Se han restaurado las variables iniciales. Todos los archivos personalizados fueron eliminados de la base de datos y del servidor.</p></div>';
     }
 }
 
@@ -62,6 +109,8 @@ if ( isset($_GET['status']) ) {
 }
 ?>
 
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
 <button type="button" class="button button-primary siarhe-floating-save" id="btn-floating-save">
     Guardar
 </button>
@@ -78,15 +127,15 @@ if ( isset($_GET['status']) ) {
         </ul>
     </div>
 
-    <form method="post" enctype="multipart/form-data" action="<?php echo admin_url('admin-post.php'); ?>">
+    <form method="post" enctype="multipart/form-data" action="<?php echo admin_url('admin-post.php'); ?>" id="form-upload-marker">
         <input type="hidden" name="action" value="siarhe_upload_marker">
         <?php wp_nonce_field( 'siarhe_upload_marker_nonce', 'marker_nonce' ); ?>
 
         <table class="form-table">
             <tr>
                 <th scope="row"><label for="marker_type">Tipo de Marcador</label></th>
-                <td>
-                    <select name="marker_type" id="marker_type" class="regular-text" required>
+                <td style="max-width: 400px;">
+                    <select name="marker_type" id="marker_type" class="siarhe-searchable-select" required>
                         <option value="">-- Selecciona el tipo --</option>
                         <?php foreach ($tipos_marcadores as $key => $info) : ?>
                             <option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($info['label']); ?></option>
@@ -128,6 +177,43 @@ if ( isset($_GET['status']) ) {
 
         <p class="submit">
             <input type="submit" name="submit" id="submit" class="button button-primary" value="Subir y Reemplazar">
+        </p>
+    </form>
+</div>
+
+<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
+        <h3 style="margin: 0;">➕ Incorporar Nueva Variable (CSV)</h3>
+        
+        <button type="button" class="button button-link-delete" style="color: #d63638; border: 1px solid #d63638; padding: 0 10px; border-radius: 3px; background: #fff;" onclick="if(confirm('⚠️ PRECAUCIÓN EXTREMA: Esta acción borrará permanentemente TODAS las variables personalizadas y sus ARCHIVOS CSV físicos asociados del servidor. ¿Deseas continuar?')) { document.getElementById('form-reset-variables').submit(); }">
+            <span class="dashicons dashicons-undo" style="margin-top:3px;"></span> Restaurar Iniciales
+        </button>
+        <form id="form-reset-variables" method="post" action="" style="display:none;">
+            <input type="hidden" name="action" value="reset_archivos_marcadores">
+            <?php wp_nonce_field('reset_variables_nonce', 'reset_nonce'); ?>
+        </form>
+
+    </div>
+    <p class="description">Agrega una nueva ranura de archivo para cargar marcadores adicionales (ej. Casos Epidemiológicos, Unidades Móviles).</p>
+    
+    <form method="post" action="">
+        <input type="hidden" name="action" value="add_archivo_marcador">
+        <table class="form-table" role="presentation">
+            <tr>
+                <th scope="row"><label>Clave Interna (Sin espacios):</label></th>
+                <td><input type="text" name="new_file_key" placeholder="Ej: CASOS_DENGUE" required class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label>Etiqueta Pública:</label></th>
+                <td><input type="text" name="new_file_label" placeholder="Ej: Casos de Dengue 2026" required class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label>Nombre del Archivo (con .csv):</label></th>
+                <td><input type="text" name="new_file_name" placeholder="ej: casos-dengue.csv" required class="regular-text"></td>
+            </tr>
+        </table>
+        <p class="submit">
+            <button type="submit" class="button button-secondary">Agregar Variable</button>
         </p>
     </form>
 </div>
@@ -254,9 +340,13 @@ if ( isset($_GET['status']) ) {
                 </td>
                 
                 <td data-label="Acciones">
-                    <?php if ($existe_fisico) : ?>
+                    <?php if ($existe_fisico) : 
+                        // 🌟 CACHE BUSTING APLICADO
+                        $cache_version = filemtime($ruta_fisica);
+                        $url_con_version = esc_url($url_publica) . '?v=' . $cache_version;
+                    ?>
                         <button type="button" class="button button-small copy-url-btn" 
-                                data-url="<?php echo esc_url($url_publica); ?>" title="Copiar Enlace">
+                                data-url="<?php echo $url_con_version; ?>" title="Copiar Enlace">
                             <span class="dashicons dashicons-admin-links"></span>
                         </button>
 
@@ -273,25 +363,17 @@ if ( isset($_GET['status']) ) {
                         </button>
                         <?php endif; ?>
 
-                        <a href="<?php echo esc_url($url_publica); ?>" target="_blank" class="button button-small" title="Descargar">
+                        <a href="<?php echo $url_con_version; ?>" target="_blank" class="button button-small" title="Descargar">
                             <span class="dashicons dashicons-download"></span>
                         </a>
 
-                        <?php if ($db_file) : ?>
-                        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display:inline;" onsubmit="return confirm('⚠️ ¿Estás seguro de eliminar este archivo de la base de datos?');">
-                            <input type="hidden" name="action" value="siarhe_delete_static">
-                            <input type="hidden" name="file_id" value="<?php echo $db_file->id; ?>">
-                            <?php wp_nonce_field( 'siarhe_delete_static_nonce_' . $db_file->id ); ?>
-                            <button type="submit" class="button button-small button-link-delete" title="Eliminar Archivo"><span class="dashicons dashicons-trash" style="color: #a00;"></span></button>
-                        </form>
-                        <?php endif; ?>
                     <?php else : ?>—<?php endif; ?>
                     
                     <?php if (empty($info['is_core'])): ?>
-                        <form method="post" style="display:inline;" onsubmit="return confirm('¿Eliminar esta variable de la lista? (El archivo CSV seguirá en el servidor si existe)');">
+                        <form method="post" action="" style="display:inline;" onsubmit="return confirm('¿Eliminar esta variable de forma permanente? El archivo CSV y su registro en la base de datos también serán borrados.');">
                             <input type="hidden" name="action" value="delete_archivo_marcador">
                             <input type="hidden" name="del_file_key" value="<?php echo esc_attr($key); ?>">
-                            <button type="submit" class="button button-small button-link-delete" title="Borrar Variable" style="color:#d63638; border-color:#d63638;"><span class="dashicons dashicons-dismiss"></span></button>
+                            <button type="submit" class="button button-small button-link-delete" title="Borrar Variable" style="color:#d63638; border-color:#d63638; margin-left:5px;"><span class="dashicons dashicons-dismiss"></span></button>
                         </form>
                     <?php endif; ?>
                 </td>
@@ -309,39 +391,13 @@ if ( isset($_GET['status']) ) {
     </div>
 </div>
 
-<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px;">
-    <h3 style="margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px;">➕ Incorporar Nueva Variable (CSV)</h3>
-    <p class="description">Agrega una nueva ranura de archivo para cargar marcadores adicionales (ej. Casos Epidemiológicos, Unidades Móviles).</p>
-    
-    <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
-        <input type="hidden" name="action" value="add_archivo_marcador">
-        <table class="form-table" role="presentation">
-            <tr>
-                <th scope="row"><label>Clave Interna (Sin espacios):</label></th>
-                <td><input type="text" name="new_file_key" placeholder="Ej: CASOS_DENGUE" required class="regular-text"></td>
-            </tr>
-            <tr>
-                <th scope="row"><label>Etiqueta Pública:</label></th>
-                <td><input type="text" name="new_file_label" placeholder="Ej: Casos de Dengue 2026" required class="regular-text"></td>
-            </tr>
-            <tr>
-                <th scope="row"><label>Nombre del Archivo (con .csv):</label></th>
-                <td><input type="text" name="new_file_name" placeholder="ej: casos-dengue.csv" required class="regular-text"></td>
-            </tr>
-        </table>
-        <p class="submit">
-            <button type="submit" class="button button-secondary">Agregar Variable</button>
-        </p>
-    </form>
-</div>
-
 <div id="siarhe-edit-modal" class="siarhe-modal-overlay">
     <div class="siarhe-modal-content">
         <h2 style="margin-top:0; border-bottom: 1px solid #eee; padding-bottom: 15px;">
             Editar Metadatos: <span id="modal-entidad-name" style="color: #2271b1;"></span>
         </h2>
         
-        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
+        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" id="form-update-meta">
             <input type="hidden" name="action" value="siarhe_update_static_meta">
             <input type="hidden" name="file_id" id="modal-file-id">
             <?php wp_nonce_field( 'siarhe_update_static_meta_nonce', 'siarhe_meta_nonce' ); ?>
@@ -354,15 +410,25 @@ if ( isset($_GET['status']) ) {
             </table>
             <div style="text-align:right; margin-top:20px; border-top: 1px solid #eee; padding-top: 15px;">
                 <button type="button" class="button button-secondary" id="close-modal-btn">Cancelar</button>
-                <button type="submit" class="button button-primary">Guardar Cambios</button>
+                <button type="submit" class="button button-primary" id="btn-modal-submit">Guardar Cambios</button>
             </div>
         </form>
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     
+    // Inicialización del buscador dentro del select de Entidad
+    if (typeof jQuery !== 'undefined') {
+        jQuery('.siarhe-searchable-select').select2({
+            placeholder: "-- Escribe para buscar entidad --",
+            allowClear: true,
+            width: '100%' 
+        });
+    }
+
     // Formateo de fechas vía JS global
     if (window.SiarheAdmin && window.SiarheAdmin.formatDate) {
         document.querySelectorAll('.siarhe-date-formatter').forEach(el => {
@@ -371,7 +437,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Inicialización del acordeón móvil vía JS global
+    // Inicialización de comportamiento responsivo para tablas
     if (window.SiarheAdmin && window.SiarheAdmin.initMobileTables) {
         window.SiarheAdmin.initMobileTables();
     }
@@ -390,12 +456,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('modal-corte').value = this.dataset.corte;
                 document.getElementById('modal-ref').value = this.dataset.ref;
                 document.getElementById('modal-notes').value = this.dataset.notes;
+                
+                if(window.SiarheAdmin && window.SiarheAdmin.showFloatingSaveBtn) {
+                    window.SiarheAdmin.showFloatingSaveBtn();
+                }
+
                 modal.style.display = 'block';
             });
         });
 
         closeBtn.addEventListener('click', () => { modal.style.display = 'none'; });
         window.addEventListener('click', function(e) { if (e.target == modal) { modal.style.display = 'none'; } });
+    }
+
+    // 🌟 Lógica de "Guardar Inteligente" para el Botón Flotante
+    const btnFloatingSave = document.getElementById('btn-floating-save');
+    if (btnFloatingSave) {
+        btnFloatingSave.addEventListener('click', () => {
+            if (modal && modal.style.display === 'block') {
+                document.getElementById('btn-modal-submit').click();
+            } else {
+                document.querySelector('input[type="submit"]#submit').click();
+            }
+        });
+    }
+
+    // Mostrar botón flotante en input
+    const formUpload = document.getElementById('form-upload-marker');
+    if (formUpload) {
+        formUpload.addEventListener('input', () => {
+            if(window.SiarheAdmin && window.SiarheAdmin.showFloatingSaveBtn) {
+                window.SiarheAdmin.showFloatingSaveBtn();
+            }
+        });
     }
 
     // Utilidad: Copiar URL

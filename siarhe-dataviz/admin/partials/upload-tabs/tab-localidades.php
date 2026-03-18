@@ -4,29 +4,31 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 // 1. Obtener Entidades (Helper Centralizado)
 $entidades_data = siarhe_get_entities();
 
-// 2. Obtener archivos GeoJSON de Localidades existentes
+// 2. Obtener archivos GeoJSON de Localidades existentes desde la base de datos
 global $wpdb;
 $table_assets = $wpdb->prefix . 'siarhe_static_assets';
 $existing_files = $wpdb->get_results( 
     $wpdb->prepare( "SELECT * FROM $table_assets WHERE tipo_archivo = %s AND es_activo = 1", 'localidades_geojson' )
 );
 
-// Indexar por slug
+// 3. Indexar resultados por slug para acceso rápido
 $files_by_slug = [];
 foreach ($existing_files as $file) {
     $files_by_slug[$file->entidad_slug] = $file;
 }
 
-// Directorio base para comprobaciones físicas
+// 4. Directorio base para comprobaciones de integridad física
 $upload_base_dir = defined('SIARHE_UPLOAD_DIR') ? SIARHE_UPLOAD_DIR : wp_upload_dir()['basedir'] . '/siarhe-data/';
 
-// Mensajes de estado
+// 5. Gestión de Notificaciones (Feedback Transaccional)
 if ( isset($_GET['status']) ) {
-    if ( $_GET['status'] == 'success' ) echo '<div class="notice notice-success is-dismissible"><p>Mapa GeoJSON de Localidades cargado correctamente.</p></div>';
-    if ( $_GET['status'] == 'updated' ) echo '<div class="notice notice-success is-dismissible"><p>Metadatos del mapa de localidades actualizados.</p></div>';
-    if ( $_GET['status'] == 'deleted' ) echo '<div class="notice notice-warning is-dismissible"><p>Mapa de localidades eliminado correctamente.</p></div>';
+    if ( $_GET['status'] == 'success' ) echo '<div class="notice notice-success is-dismissible"><p>Mapa GeoJSON de Localidades cargado y procesado correctamente.</p></div>';
+    if ( $_GET['status'] == 'updated' ) echo '<div class="notice notice-success is-dismissible"><p>Metadatos del mapa de localidades actualizados en el sistema.</p></div>';
+    if ( $_GET['status'] == 'deleted' ) echo '<div class="notice notice-warning is-dismissible"><p>Mapa de localidades y metadatos eliminados permanentemente.</p></div>';
 }
 ?>
+
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
 <button type="button" class="button button-primary siarhe-floating-save" id="btn-floating-save">
     Guardar
@@ -38,21 +40,21 @@ if ( isset($_GET['status']) ) {
     <div class="notice notice-info inline" style="margin: 10px 0 20px 0;">
         <p><strong>Política de Archivos Únicos:</strong></p>
         <ul style="list-style: disc; margin-left: 20px;">
-            <li><strong>Formatos admitidos:</strong> Archivos .json o .geojson.</li>
-            <li><strong>Nomenclatura:</strong> El archivo se guardará automáticamente con el nombre estándar <code>{entidad}.geojson</code> dentro de la carpeta de localidades.</li>
-            <li><strong>Proyección:</strong> Es obligatorio que el mapa esté exportado en formato <strong>WGS84 (EPSG:4326)</strong>.</li>
+            <li><strong>Formatos admitidos:</strong> Archivos estructurados <code>.json</code> o <code>.geojson</code>.</li>
+            <li><strong>Nomenclatura:</strong> El archivo se normalizará automáticamente con el nombre estándar <code>{entidad}.geojson</code> dentro de la carpeta de localidades.</li>
+            <li><strong>Proyección:</strong> Es estrictamente obligatorio que el mapa esté exportado en formato <strong>WGS84 (EPSG:4326)</strong> para garantizar la alineación de coordenadas.</li>
         </ul>
     </div>
     
-    <form method="post" enctype="multipart/form-data" action="<?php echo admin_url('admin-post.php'); ?>">
+    <form method="post" enctype="multipart/form-data" action="<?php echo admin_url('admin-post.php'); ?>" id="form-upload-localidades">
         <input type="hidden" name="action" value="siarhe_upload_localidades">
         <?php wp_nonce_field( 'siarhe_upload_localidades_nonce', 'siarhe_nonce' ); ?>
 
         <table class="form-table" role="presentation">
             <tr>
                 <th scope="row"><label for="entidad_slug">Entidad Federativa</label></th>
-                <td>
-                    <select name="entidad_slug" id="entidad_slug" class="regular-text" required>
+                <td style="max-width: 400px;">
+                    <select name="entidad_slug" id="entidad_slug" class="siarhe-searchable-select" required>
                         <option value="">-- Selecciona la entidad --</option>
                         <?php foreach ($entidades_data as $slug => $data) : ?>
                             <option value="<?php echo esc_attr($slug); ?>">
@@ -89,12 +91,12 @@ if ( isset($_GET['status']) ) {
             <tr>
                 <th scope="row"><label for="comentarios">Comentarios Internos</label></th>
                 <td>
-                    <textarea name="comentarios" id="comentarios" rows="2" class="large-text" placeholder="Notas sobre la simplificación del mapa..."></textarea>
+                    <textarea name="comentarios" id="comentarios" rows="2" class="large-text" placeholder="Notas sobre la simplificación topológica del mapa..."></textarea>
                 </td>
             </tr>
         </table>
         <p class="submit">
-            <input type="submit" name="submit" id="submit" class="button button-primary" value="Subir / Reemplazar">
+            <input type="submit" name="submit" id="submit" class="button button-primary" value="Subir / Reemplazar Archivo">
         </p>
     </form>
 </div>
@@ -250,12 +252,16 @@ if ( isset($_GET['status']) ) {
                 </td>
 
                 <td data-label="Acciones">
-                    <?php if ($exists) : ?>
+                    <?php if ($exists) : 
+                        // 🌟 CACHE BUSTING: Añade la firma de tiempo al enlace final
+                        $cache_version = filemtime($row['ruta_fisica']);
+                        $url_con_version = SIARHE_UPLOAD_URL . ltrim($archivo->ruta_archivo, '/') . '?v=' . $cache_version;
+                    ?>
                         <button type="button" class="button button-small copy-url-btn" 
-                                data-url="<?php echo esc_url(SIARHE_UPLOAD_URL . $archivo->ruta_archivo); ?>" title="Copiar Enlace">
+                                data-url="<?php echo esc_url($url_con_version); ?>" title="Copiar Enlace al Archivo">
                             <span class="dashicons dashicons-admin-links"></span>
                         </button>
-                        
+
                         <?php if ($archivo) : ?>
                         <button type="button" class="button button-small edit-meta-btn" 
                                 data-id="<?php echo $archivo->id; ?>" 
@@ -264,21 +270,21 @@ if ( isset($_GET['status']) ) {
                                 data-corte="<?php echo esc_attr($archivo->fecha_corte); ?>" 
                                 data-ref="<?php echo esc_attr($archivo->referencia_bibliografica); ?>" 
                                 data-notes="<?php echo esc_attr($archivo->comentarios); ?>"
-                                title="Editar Info">
+                                title="Ver Información / Editar Metadatos">
                             <span class="dashicons dashicons-edit"></span>
                         </button>
                         <?php endif; ?>
-                        
-                        <a href="<?php echo esc_url(SIARHE_UPLOAD_URL . $archivo->ruta_archivo); ?>" target="_blank" class="button button-small" title="Descargar">
+
+                        <a href="<?php echo esc_url($url_con_version); ?>" target="_blank" class="button button-small" title="Descargar Archivo Físico">
                             <span class="dashicons dashicons-download"></span>
                         </a>
 
                         <?php if ($archivo) : ?>
-                        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display:inline;" onsubmit="return confirm('⚠️ ¿Estás seguro de eliminar este mapa GEOJSON?');">
+                        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display:inline;" onsubmit="return confirm('⚠️ ATENCIÓN: ¿Estás seguro de eliminar este mapa GEOJSON de localidades? Esta acción borrará el registro y el archivo físico del servidor de forma irreversible.');">
                             <input type="hidden" name="action" value="siarhe_delete_localidades">
                             <input type="hidden" name="file_id" value="<?php echo $archivo->id; ?>">
                             <?php wp_nonce_field( 'siarhe_delete_localidades_nonce_' . $archivo->id ); ?>
-                            <button type="submit" class="button button-small button-link-delete" title="Eliminar"><span class="dashicons dashicons-trash" style="color: #a00;"></span></button>
+                            <button type="submit" class="button button-small button-link-delete" title="Eliminar Mapa y Registro"><span class="dashicons dashicons-trash" style="color: #a00;"></span></button>
                         </form>
                         <?php endif; ?>
                     <?php else : ?><span class="description">—</span><?php endif; ?>
@@ -302,7 +308,7 @@ if ( isset($_GET['status']) ) {
         <h2 style="margin-top:0; border-bottom: 1px solid #eee; padding-bottom: 15px;">
             Editar Metadatos GeoJSON: <span id="modal-entidad-name" style="color: #2271b1;"></span>
         </h2>
-        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
+        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" id="form-update-meta">
             <input type="hidden" name="action" value="siarhe_update_localidades_meta">
             <input type="hidden" name="file_id" id="modal-file-id">
             <?php wp_nonce_field( 'siarhe_update_localidades_meta_nonce', 'siarhe_meta_nonce' ); ?>
@@ -315,15 +321,25 @@ if ( isset($_GET['status']) ) {
             </table>
             <div style="text-align:right; margin-top:20px; border-top: 1px solid #eee; padding-top: 15px;">
                 <button type="button" class="button button-secondary" id="close-modal-btn">Cancelar</button>
-                <button type="submit" class="button button-primary">Guardar Cambios</button>
+                <button type="submit" class="button button-primary" id="btn-modal-submit">Guardar Cambios</button>
             </div>
         </form>
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     
+    // Inicialización del buscador dentro del select de Entidad
+    if (typeof jQuery !== 'undefined') {
+        jQuery('.siarhe-searchable-select').select2({
+            placeholder: "-- Escribe para buscar entidad --",
+            allowClear: true,
+            width: '100%' 
+        });
+    }
+
     // Formateo de fechas vía JS global
     if (window.SiarheAdmin && window.SiarheAdmin.formatDate) {
         document.querySelectorAll('.siarhe-date-formatter').forEach(el => {
@@ -332,12 +348,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Inicialización del acordeón móvil vía JS global
+    // Inicialización de comportamiento responsivo para tablas
     if (window.SiarheAdmin && window.SiarheAdmin.initMobileTables) {
         window.SiarheAdmin.initMobileTables();
     }
 
-    // 1. Configuración de Modales
+    // Lógica del Modal de Edición
     const modal = document.getElementById('siarhe-edit-modal');
     const closeBtn = document.getElementById('close-modal-btn');
     if(modal) {
@@ -350,14 +366,42 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('modal-corte').value = this.dataset.corte;
                 document.getElementById('modal-ref').value = this.dataset.ref;
                 document.getElementById('modal-notes').value = this.dataset.notes;
+                
+                // Mostrar el botón flotante al editar metadatos
+                if(window.SiarheAdmin && window.SiarheAdmin.showFloatingSaveBtn) {
+                    window.SiarheAdmin.showFloatingSaveBtn();
+                }
+
                 modal.style.display = 'block';
             });
         });
         closeBtn.addEventListener('click', () => { modal.style.display = 'none'; });
         window.addEventListener('click', function(e) { if (e.target == modal) { modal.style.display = 'none'; } });
     }
+
+    // 🌟 Lógica de "Guardar Inteligente" para el Botón Flotante
+    const btnFloatingSave = document.getElementById('btn-floating-save');
+    if (btnFloatingSave) {
+        btnFloatingSave.addEventListener('click', () => {
+            if (modal && modal.style.display === 'block') {
+                document.getElementById('btn-modal-submit').click();
+            } else {
+                document.querySelector('input[type="submit"]#submit').click();
+            }
+        });
+    }
+
+    // Mostrar el botón flotante si se interactúa con el formulario de subida
+    const formUpload = document.getElementById('form-upload-localidades');
+    if (formUpload) {
+        formUpload.addEventListener('input', () => {
+            if(window.SiarheAdmin && window.SiarheAdmin.showFloatingSaveBtn) {
+                window.SiarheAdmin.showFloatingSaveBtn();
+            }
+        });
+    }
     
-    // 2. Utilidad: Copiar URL
+    // Motor de copiado al portapapeles
     document.querySelectorAll('.copy-url-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.preventDefault(); e.stopPropagation();
@@ -370,10 +414,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // 3. Motor de Paginación y Filtrado por DOM Hiding
+    // Motor de Búsqueda y Paginación (Homologado)
     const searchInput = document.getElementById('siarhe-search-localidades');
     const itemsPerPageSelect = document.getElementById('siarhe-items-per-page');
-    // Paginadores superior e inferior
     const paginationControlsTop = document.getElementById('siarhe-pagination-controls-top');
     const paginationControlsBottom = document.getElementById('siarhe-pagination-controls-bottom');
     const countDisplay = document.getElementById('siarhe-localidades-count');
@@ -403,7 +446,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const totalItems = matchedRows.length;
         let totalPages = 1;
         
-        matchedRows.forEach(row => row.style.display = 'none');
+        // Ocultar todos los registros previamente a la paginación
+        allRows.forEach(row => row.style.display = 'none');
         emptyRow.style.display = totalItems === 0 ? '' : 'none';
 
         if (itemsPerPage === 'all') {
@@ -510,7 +554,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Inicialización del módulo
+    // Inicializar la tabla al cargar la vista
     applySearchFilter();
 });
 </script>

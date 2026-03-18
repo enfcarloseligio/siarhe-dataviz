@@ -193,9 +193,44 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (window.SiarheAdmin) window.SiarheAdmin.initMobileTables();
 
+    // Integración de Bypass en el botón de guardado flotante para asegurar la retención de estado
+    const btnFloatingSave = document.getElementById('btn-floating-save');
+    const originalSubmitBtn = document.querySelector('input[type="submit"]#submit');
+
+    if(btnFloatingSave && originalSubmitBtn) {
+        btnFloatingSave.addEventListener('click', () => {
+            // Eliminar temporalmente directivas restrictivas del DOM
+            originalSubmitBtn.removeAttribute('disabled');
+            originalSubmitBtn.classList.remove('disabled');
+            if (typeof jQuery !== 'undefined') {
+                jQuery(originalSubmitBtn).prop('disabled', false).removeClass('disabled');
+            }
+            
+            const form = document.querySelector('form[action="options.php"]');
+            if (form) {
+                // Inyectar un nodo invisible para asegurar el despacho del submit core de WP
+                const hiddenSubmit = document.createElement('input');
+                hiddenSubmit.type = 'hidden';
+                hiddenSubmit.name = originalSubmitBtn.name || 'submit';
+                hiddenSubmit.value = originalSubmitBtn.value || 'Guardar cambios';
+                form.appendChild(hiddenSubmit);
+                
+                HTMLFormElement.prototype.submit.call(form);
+            } else {
+                originalSubmitBtn.click();
+            }
+        });
+    }
+
+    // Despacho de notificaciones de estado al detectar modificaciones
     jQuery('.siarhe-searchable-select').on('change', function() {
         if(window.SiarheAdmin && window.SiarheAdmin.showFloatingSaveBtn) {
             window.SiarheAdmin.showFloatingSaveBtn();
+        }
+        
+        if (!document.getElementById('siarhe-save-notice')) {
+            const headerEnd = document.querySelector('.wp-header-end');
+            if (headerEnd) headerEnd.insertAdjacentHTML('afterend', '<div id="siarhe-save-notice" class="notice notice-warning"><p>⚠️ <strong>Atención:</strong> Existen cambios pendientes en la memoria temporal. Haz clic en <strong>"Guardar Configuración"</strong>.</p></div>');
         }
     });
 

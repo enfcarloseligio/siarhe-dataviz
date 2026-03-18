@@ -2,7 +2,7 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // CARGA INTELIGENTE DE MÓDULOS JAVASCRIPT SEGÚN EL MODO
-$v_js = time(); // Rompe-caché para desarrollo
+$v_js = time(); // Rompe-caché para desarrollo (Considerar cambiar a filemtime en producción)
 
 // 1. Core y Controles (Siempre se necesitan para leer datos y selectores)
 wp_enqueue_script( 'siarhe-core-js', SIARHE_URL . 'public/js/siarhe-core.js', array(), $v_js, true );
@@ -59,6 +59,10 @@ $defaults = [
 ];
 $opts = wp_parse_args( $map_options, $defaults );
 
+// 🌟 UTILIDADES BASE PARA CACHE BUSTING
+$upload_base_dir_front = defined('SIARHE_UPLOAD_DIR') ? SIARHE_UPLOAD_DIR : wp_upload_dir()['basedir'] . '/siarhe-data/';
+$upload_base_url_front = defined('SIARHE_UPLOAD_URL') ? SIARHE_UPLOAD_URL : wp_upload_dir()['baseurl'] . '/siarhe-data/';
+
 // 2. MOTOR DINÁMICO DE MARCADORES
 $marcadores_json = get_option( 'siarhe_marcadores_config', '' );
 $marcadores_array = json_decode( wp_unslash( $marcadores_json ), true );
@@ -74,11 +78,15 @@ $marker_config = [];
 $marker_urls = [];
 $marker_labels = []; 
 $is_user_logged_in = is_user_logged_in();
-$upload_url = defined('SIARHE_UPLOAD_URL') ? SIARHE_UPLOAD_URL : wp_upload_dir()['baseurl'] . '/siarhe-data/';
 
-// OBTENER GEOJSON DE LOCALIDADES
+// OBTENER Y FIRMAR GEOJSON DE LOCALIDADES
 $geo_loc_meta = $wpdb->get_row( $wpdb->prepare( "SELECT ruta_archivo FROM $table_assets WHERE entidad_slug = %s AND tipo_archivo = 'localidades_geojson' AND es_activo = 1", $slug ) );
-$geojson_loc_url = ($geo_loc_meta && !empty($geo_loc_meta->ruta_archivo)) ? $upload_url . $geo_loc_meta->ruta_archivo : '';
+$geojson_loc_url = '';
+if ($geo_loc_meta && !empty($geo_loc_meta->ruta_archivo)) {
+    $ruta_fisica_loc = $upload_base_dir_front . ltrim($geo_loc_meta->ruta_archivo, '/');
+    $v_loc = file_exists($ruta_fisica_loc) ? filemtime($ruta_fisica_loc) : time();
+    $geojson_loc_url = $upload_base_url_front . ltrim($geo_loc_meta->ruta_archivo, '/') . '?v=' . $v_loc;
+}
 
 foreach ($marcadores_array as $key => $mk) {
     $visibilidad = isset($mk['visibilidad']) ? $mk['visibilidad'] : 'publico';
@@ -87,7 +95,12 @@ foreach ($marcadores_array as $key => $mk) {
     if ($visibilidad === 'registrados' && !$is_user_logged_in) continue;
     
     $s_key = strtolower($key);
-    $marker_urls[$key] = $upload_url . 'markers/' . $mk['archivo'] . '?v=' . time();
+    
+    // 🌟 CACHE BUSTING PARA MARCADORES
+    $ruta_mk = $upload_base_dir_front . 'markers/' . $mk['archivo'];
+    $v_mk = file_exists($ruta_mk) ? filemtime($ruta_mk) : time();
+    
+    $marker_urls[$key] = $upload_base_url_front . 'markers/' . $mk['archivo'] . '?v=' . $v_mk;
     $marker_labels[$key] = $mk; 
     
     $marker_config[$key] = [
@@ -189,6 +202,19 @@ if ( !empty($siarhe_links_raw['legal_aviso']) ) {
     $val = $siarhe_links_raw['legal_aviso'];
     $url = (strpos((string)$val, 'cat_') === 0) ? get_term_link((int)str_replace('cat_', '', $val), 'category') : get_permalink((int)$val);
     if ( !is_wp_error($url) && !empty($url) ) $url_aviso = $url;
+}
+
+// 🌟 FIRMAR LOS ARCHIVOS PRINCIPALES CON CACHE BUSTING ANTES DE ENVIARLOS A JS
+if (!empty($csv_url) && strpos($csv_url, '?v=') === false) {
+    $rel_path = str_replace($upload_base_url_front, '', $csv_url);
+    $phys_path = $upload_base_dir_front . ltrim($rel_path, '/');
+    $csv_url .= '?v=' . (file_exists($phys_path) ? filemtime($phys_path) : time());
+}
+
+if (!empty($geojson_url) && strpos($geojson_url, '?v=') === false) {
+    $rel_path = str_replace($upload_base_url_front, '', $geojson_url);
+    $phys_path = $upload_base_dir_front . ltrim($rel_path, '/');
+    $geojson_url .= '?v=' . (file_exists($phys_path) ? filemtime($phys_path) : time());
 }
 ?>
 
