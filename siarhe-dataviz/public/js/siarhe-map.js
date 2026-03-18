@@ -82,85 +82,94 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const style = document.createElement('style');
                 style.id = 'siarhe-fullscreen-styles';
                 style.innerHTML = `
-                    div.siarhe-map-container { position: relative; overflow: hidden; }
+                    .siarhe-map-container { position: relative !important; overflow: hidden !important; }
                     
-                    div.siarhe-map-container div.zoom-controles {
-                        position: absolute;
-                        z-index: 1000;
-                        display: flex;
+                    /* Botones Zoom (Base) */
+                    .siarhe-map-container .zoom-controles {
+                        position: absolute !important;
+                        z-index: 1000 !important;
+                        display: flex !important;
                     }
-                    div.siarhe-map-container div.zoom-controles button.boton {
-                        padding: 0; margin: 0; line-height: 1;
-                        display: flex; align-items: center; justify-content: center;
-                        background: rgba(255, 255, 255, 0.95);
-                        border: 1px solid #cbd5e1; border-radius: 4px;
-                        cursor: pointer; color: #334155;
-                        box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: all 0.2s;
+                    .siarhe-map-container .zoom-controles button {
+                        padding: 0 !important; margin: 0 !important; line-height: 1 !important;
+                        display: flex !important; align-items: center !important; justify-content: center !important;
+                        background: rgba(255, 255, 255, 0.95) !important;
+                        border: 1px solid #cbd5e1 !important; border-radius: 4px !important;
+                        cursor: pointer !important; color: #334155 !important;
+                        box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important; transition: all 0.2s;
                     }
-                    div.siarhe-map-container div.zoom-controles button.boton:hover { background: #f1f5f9; }
+                    .siarhe-map-container .zoom-controles button:hover { background: #f1f5f9 !important; }
                     
-                    div.siarhe-map-container div.zoom-controles button.btn-show-controls {
-                        background: #0ea5e9; color: #fff; border-color: #0284c7;
-                        display: none; 
+                    /* 🌟 LÓGICA DEL BOTÓN AJUSTES 🎛️ 🌟 */
+                    .siarhe-map-container .zoom-controles button.btn-show-controls {
+                        background: #0ea5e9 !important; color: #fff !important; border-color: #0284c7 !important;
+                        display: none !important; /* Siempre oculto por defecto */
                     }
-                    div.siarhe-map-container.is-fullscreen.controls-are-hidden div.zoom-controles button.btn-show-controls {
-                        display: flex; 
+                    /* SOLO aparece si el mapa es Fullscreen Y los controles fueron cerrados (Clase mágica) */
+                    .siarhe-map-container.is-fullscreen.controls-are-hidden .zoom-controles button.btn-show-controls {
+                        display: flex !important; 
                     }
 
+                    /* 🌟 PC Y TABLET (≥ 768px): Botones SIEMPRE arriba derecha 🌟 */
                     @media (min-width: 768px) {
-                        div.siarhe-map-container div.zoom-controles {
-                            top: 15px; right: 15px; bottom: auto; left: auto;
-                            flex-direction: column; gap: 8px;
+                        .siarhe-map-container .zoom-controles {
+                            top: 15px !important; right: 15px !important; bottom: auto !important; left: auto !important;
+                            flex-direction: column !important; gap: 8px !important;
                         }
-                        div.siarhe-map-container div.zoom-controles button.boton {
-                            width: 34px; height: 34px; font-size: 16px;
+                        .siarhe-map-container .zoom-controles button {
+                            width: 34px !important; height: 34px !important; font-size: 16px !important;
                         }
                     }
 
+                    /* 🌟 MÓVIL (< 767px): Lógica Dinámica de Botones 🌟 */
                     @media (max-width: 767px) {
-                        /* Móvil Web Normal: Botones Abajo a la Derecha para no tapar leyendas */
-                        div.siarhe-map-container:not(.is-fullscreen) div.zoom-controles {
-                            top: auto; bottom: 15px;
-                            left: auto; right: 15px;
-                            transform: none;
-                            flex-direction: row; gap: 10px;
+                        /* Modo Navegador Normal: Abajo, a la derecha */
+                        .siarhe-map-container:not(.is-fullscreen) .zoom-controles {
+                            top: auto !important; bottom: 15px !important;
+                            left: auto !important; right: 15px !important;
+                            transform: none !important;
+                            flex-direction: row !important; gap: 10px !important;
                         }
-                        div.siarhe-map-container:not(.is-fullscreen) div.zoom-controles button.boton {
-                            width: 32px; height: 32px; font-size: 16px;
+                        .siarhe-map-container:not(.is-fullscreen) .zoom-controles button {
+                            width: 32px !important; height: 32px !important; font-size: 16px !important;
                         }
                         
-                        /* Móvil Fullscreen: Botones Arriba a la Derecha */
-                        div.siarhe-map-container.is-fullscreen div.zoom-controles {
-                            top: 10px; right: 10px;
-                            bottom: auto; left: auto;
-                            transform: none;
-                            flex-direction: column; gap: 8px;
+                        /* Modo Fullscreen (Vertical u Horizontal): Arriba derecha en columna */
+                        .siarhe-map-container.is-fullscreen .zoom-controles {
+                            top: 10px !important; right: 10px !important;
+                            bottom: auto !important; left: auto !important;
+                            transform: none !important;
+                            flex-direction: column !important; gap: 8px !important;
                         }
-                        div.siarhe-map-container.is-fullscreen div.zoom-controles button.boton {
-                            width: 36px; height: 36px; font-size: 16px;
+                        .siarhe-map-container.is-fullscreen .zoom-controles button {
+                            width: 36px !important; height: 36px !important; font-size: 16px !important;
                         }
                     }
 
-                    div.siarhe-map-container.is-fullscreen {
-                        position: fixed;
-                        top: 0; left: 0; right: 0; bottom: 0;
-                        width: 100vw; height: 100vh;
-                        padding-bottom: 0; 
-                        background: #e6f0f8;
-                        z-index: 99999;
-                        border: none; border-radius: 0;
+                    /* =========================================
+                       ESTILOS FULLSCREEN GENERALES
+                       ========================================= */
+                    .siarhe-map-container.is-fullscreen {
+                        position: fixed !important;
+                        top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+                        width: 100vw !important; height: 100vh !important;
+                        padding-bottom: 0 !important; 
+                        background: #e6f0f8 !important;
+                        z-index: 99999 !important;
+                        border: none !important; border-radius: 0 !important;
                     }
-                    div.siarhe-map-container.is-fullscreen > svg {
-                        width: 100%; height: 100%; display: block;
+                    .siarhe-map-container.is-fullscreen > svg {
+                        width: 100% !important; height: 100% !important; display: block !important;
                     }
                     
+                    /* Panel en Fullscreen PC */
                     @media (min-width: 768px) {
-                        div.siarhe-controls-layout.is-fullscreen-mode {
-                            position: absolute; top: 15px; left: 50%;
-                            transform: translateX(-50%) scale(0.75); transform-origin: top center;
-                            background: rgba(255, 255, 255, 0.95); padding: 15px 25px;
-                            border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-                            z-index: 1000; width: 90%; max-width: 1000px;
+                        .siarhe-controls-layout.is-fullscreen-mode {
+                            position: absolute !important; top: 15px !important; left: 50% !important;
+                            transform: translateX(-50%) scale(0.75) !important; transform-origin: top center !important;
+                            background: rgba(255, 255, 255, 0.95) !important; padding: 15px 25px !important;
+                            border-radius: 8px !important; box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+                            z-index: 1000 !important; width: 90% !important; max-width: 1000px !important;
                         }
                     }
                 `;
@@ -290,11 +299,14 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     let shrinkFactor = 1;
                     if (k > 8) shrinkFactor = 1 + ((k - 8) * 0.15); 
                     
-                    const isMobile = window.innerWidth <= 767;
-                    let baseSize = isMobile ? 350 : 250;
+                    // 🌟 MEJORA UX: Áreas táctiles más grandes para móvil/tablet
+                    const isTouch = window.innerWidth < 1024;
+                    let baseSize = isTouch ? 500 : 250; // Área base mayor en touch
 
                     let symbolSize = (baseSize / shrinkFactor) / (k * k);
-                    let minSymbolSize = isMobile ? 0.08 : 0.05;
+                    
+                    // Límite mínimo mucho más permisivo para no perder el área de TAP
+                    let minSymbolSize = isTouch ? 0.25 : 0.05; 
                     if (symbolSize < minSymbolSize) symbolSize = minSymbolSize;
 
                     const symbolCache = {};
@@ -666,11 +678,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             let shrinkFactor = 1;
             if (currentK > 8) shrinkFactor = 1 + ((currentK - 8) * 0.15); 
             
-            const isMobile = window.innerWidth <= 767;
-            let baseSize = isMobile ? 350 : 250;
+            // 🌟 MEJORA UX: Identificamos pantallas táctiles (móvil y tablet)
+            const isTouch = window.innerWidth < 1024;
+            let baseSize = isTouch ? 500 : 250;
 
             let symbolSize = (baseSize / shrinkFactor) / (currentK * currentK);
-            let minSymbolSize = isMobile ? 0.08 : 0.05;
+            let minSymbolSize = isTouch ? 0.25 : 0.05;
             if (symbolSize < minSymbolSize) symbolSize = minSymbolSize;
 
             state.espectroMaxVals = {};
@@ -754,7 +767,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             app.map.renderMarkerLegend(state);
         },
 
-        // 🌟 MEJORA UX: La caja de marcadores crece impecablemente hacia arriba (eje Y negativo)
         renderMarkerLegend: function(state) {
             const g = state.gMarkerLegend;
             g.html(""); 
@@ -762,7 +774,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const actives = Array.from(state.activeMarkers);
             if (actives.length === 0) return; 
 
-            // Crecimiento hacia arriba:
             const boxHeight = (actives.length * 20) + 30;
             const startY = -boxHeight; 
 

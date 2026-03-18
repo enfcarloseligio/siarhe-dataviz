@@ -399,8 +399,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 cEscala.innerHTML += `
                     <select class="siarhe-metric-select" id="siarhe-escala-select">
                         <option value="cuartiles" ${currScale === 'cuartiles' || currScale === 'degradado' ? 'selected' : ''}>Degradado por Colores</option>
-                        <option value="rangos" ${currScale === 'rangos' ? 'selected' : ''}>Rangos</option>
                         <option value="monocromatico" ${currScale === 'monocromatico' || currScale === 'mono' ? 'selected' : ''}>Escala Monocromática</option>
+                        <option value="rangos" ${currScale === 'rangos' ? 'selected' : ''}>Rangos</option>
                     </select>
                 `;
                 cEscala.querySelector('select').addEventListener('change', (e) => {
