@@ -55,12 +55,15 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 let svgOffsetX = -(emptyX / scale);
                 let svgOffsetY = -(emptyY / scale);
 
-                let padX = 20 / scale; 
-                let padY = 20 / scale;
+                // 🌟 CORRECCIÓN 1: Margen de seguridad dinámico para evitar cortes en Fullscreen
+                const isFullscreen = mapDiv.classList.contains('is-fullscreen');
+                const padValue = isFullscreen ? 40 : 20;
+
+                let padX = padValue / scale; 
+                let padY = padValue / scale;
 
                 // Lógica de magnificación para Fullscreen en Móvil
                 let isMobile = window.innerWidth <= 767;
-                let isFullscreen = mapDiv.classList.contains('is-fullscreen');
                 let legendScale = (isMobile && isFullscreen) ? 1.4 : 1; 
 
                 // Leyenda de Colores (Arriba Izquierda)
@@ -135,8 +138,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         }
                         
                         /* Modo Fullscreen (Vertical u Horizontal): Arriba derecha en columna */
+                        /* 🌟 CORRECCIÓN 2: Bajamos los controles para evitar avisos del navegador */
                         .siarhe-map-container.is-fullscreen .zoom-controles {
-                            top: 10px !important; right: 10px !important;
+                            top: 40px !important; right: 10px !important;
                             bottom: auto !important; left: auto !important;
                             transform: none !important;
                             flex-direction: column !important; gap: 8px !important;
@@ -165,7 +169,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     /* Panel en Fullscreen PC */
                     @media (min-width: 768px) {
                         .siarhe-controls-layout.is-fullscreen-mode {
-                            position: absolute !important; top: 15px !important; left: 50% !important;
+                            position: absolute !important; 
+                            /* 🌟 CORRECCIÓN 3: Ajuste de offset superior para evitar cortes visuales */
+                            top: 45px !important; 
+                            left: 50% !important;
                             transform: translateX(-50%) scale(0.75) !important; transform-origin: top center !important;
                             background: rgba(255, 255, 255, 0.95) !important; padding: 15px 25px !important;
                             border-radius: 8px !important; box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
@@ -660,16 +667,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             });
 
             allPoints.sort((a, b) => {
-                const isSpecA = (state.markerLabels[a.tipo] || {}).tipo === 'espectro';
-                const isSpecB = (state.markerLabels[b.tipo] || {}).tipo === 'espectro';
-                if (isSpecA && !isSpecB) return -1; 
-                if (!isSpecA && isSpecB) return 1;  
-                if (isSpecA && isSpecB) {
-                    let valA = a._agrupados_total || 1;
-                    let valB = b._agrupados_total || 1;
-                    return valB - valA; 
-                }
-                return 0;
+                const iA = (state.markerLabels[a.tipo] || {}).tipo === 'espectro', iB = (state.markerLabels[b.tipo] || {}).tipo === 'espectro'; return iA && !iB ? -1 : (!iA && iB ? 1 : (iA ? (b._agrupados_total || 1) - (a._agrupados_total || 1) : 0));
             });
 
             let currentK = 1; 
