@@ -39,6 +39,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     // 2. UTILIDADES DE PROCESAMIENTO (Parsers)
     // ==========================================
     app.utils = {
+        /** Escapa texto de datos (CSV/GeoJSON/config) antes de insertarlo en innerHTML. */
+        esc: function(val) {
+            return (val === undefined || val === null) ? '' : String(val).replace(/[&<>"']/g, function(c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        },
+
         cleanKey: function(val) { 
             return (val === undefined || val === null) ? "" : val.toString().trim(); 
         },
@@ -258,8 +265,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const valFmt = (valorMuestra === null || valorMuestra === undefined) ? '—' : valorMuestra.toLocaleString('es-MX', { maximumFractionDigits: 2 });
             
             headerDiv.innerHTML = info.tipo === 'tasa' 
-                ? `<span style="margin-right:15px;">${info.fullLabel}: <strong style="color:#0A66C2; font-size:1.2em;">${valFmt}</strong></span><span>Enfermeras: <strong style="color:#0A66C2; font-size:1.2em;">${absFmt}</strong></span>`
-                : `<span>${info.fullLabel}: <strong style="color:#0A66C2; font-size:1.2em;">${valFmt}</strong></span>`;
+                ? `<span style="margin-right:15px;">${app.utils.esc(info.fullLabel)}: <strong style="color:#0A66C2; font-size:1.2em;">${valFmt}</strong></span><span>Enfermeras: <strong style="color:#0A66C2; font-size:1.2em;">${absFmt}</strong></span>`
+                : `<span>${app.utils.esc(info.fullLabel)}: <strong style="color:#0A66C2; font-size:1.2em;">${valFmt}</strong></span>`;
         }
     };
 

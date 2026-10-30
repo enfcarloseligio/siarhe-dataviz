@@ -24,9 +24,9 @@ $tabs = [
 
     <nav class="nav-tab-wrapper">
         <?php foreach ( $tabs as $slug => $name ) : ?>
-            <a href="?page=siarhe-uploader&tab=<?php echo $slug; ?>" 
+            <a href="?page=siarhe-uploader&tab=<?php echo esc_attr( $slug ); ?>" 
                class="nav-tab <?php echo $active_tab === $slug ? 'nav-tab-active' : ''; ?>">
-                <?php echo $name; ?>
+                <?php echo esc_html( $name ); ?>
             </a>
         <?php endforeach; ?>
     </nav>

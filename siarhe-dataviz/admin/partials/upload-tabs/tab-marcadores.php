@@ -347,13 +347,13 @@ if ( isset($_GET['status']) ) {
                         $url_con_version = esc_url($url_publica) . '?v=' . $cache_version;
                     ?>
                         <button type="button" class="button button-small copy-url-btn" 
-                                data-url="<?php echo $url_con_version; ?>" title="Copiar Enlace">
+                                data-url="<?php echo esc_url( $url_con_version ); ?>" title="Copiar Enlace">
                             <span class="dashicons dashicons-admin-links"></span>
                         </button>
 
                         <?php if ($db_file) : ?>
                         <button type="button" class="button button-small edit-meta-btn" 
-                                data-id="<?php echo $db_file->id; ?>" 
+                                data-id="<?php echo absint( $db_file->id ); ?>" 
                                 data-nombre="<?php echo esc_attr($info['label']); ?>" 
                                 data-anio="<?php echo esc_attr($db_file->anio_reporte); ?>" 
                                 data-corte="<?php echo esc_attr($db_file->fecha_corte); ?>" 
@@ -364,7 +364,7 @@ if ( isset($_GET['status']) ) {
                         </button>
                         <?php endif; ?>
 
-                        <a href="<?php echo $url_con_version; ?>" target="_blank" class="button button-small" title="Descargar">
+                        <a href="<?php echo esc_url( $url_con_version ); ?>" target="_blank" class="button button-small" title="Descargar">
                             <span class="dashicons dashicons-download"></span>
                         </a>
 

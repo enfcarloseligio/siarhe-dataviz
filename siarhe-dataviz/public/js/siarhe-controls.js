@@ -257,7 +257,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 
                 if (key === state.currentMetric) {
                     opt.classList.add('selected');
-                    triggerInd.innerHTML = `<span>${info.label || info.fullLabel}</span>`;
+                    triggerInd.innerHTML = `<span>${app.utils.esc(info.label || info.fullLabel)}</span>`;
                 }
                 
                 opt.textContent = info.fullLabel;
@@ -273,7 +273,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const selectEscala = container.querySelector('#siarhe-escala-select');
                     if (selectEscala) selectEscala.value = state.colorMode;
                     
-                    triggerInd.innerHTML = `<span>${info.label || info.fullLabel}</span>`;
+                    triggerInd.innerHTML = `<span>${app.utils.esc(info.label || info.fullLabel)}</span>`;
                     optionsContainerInd.querySelectorAll('.siarhe-cs-option').forEach(o => o.classList.remove('selected'));
                     opt.classList.add('selected');
                     menuInd.classList.remove('open');
@@ -321,7 +321,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
                     const field = document.createElement('div'); field.className = 'mc-field';
                     const triggerMc = document.createElement('div'); triggerMc.className = `mc-trigger is-placeholder trigger-${typeFilter}`; 
-                    triggerMc.innerHTML = `<span>${placeholderTitle}</span>`;
+                    triggerMc.innerHTML = `<span>${app.utils.esc(placeholderTitle)}</span>`;
                     
                     if(typeFilter === 'posicion') state.posTrigger = triggerMc;
                     if(typeFilter === 'espectro') state.specTrigger = triggerMc;
@@ -349,7 +349,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         const mkData = state.markerLabels[key] || {};
                         const label = mkData.label || key;
                         const opt = document.createElement('div'); opt.className = 'mc-option';
-                        opt.innerHTML = `<input type="checkbox" class="mc-check" value="${key}"> <span>${label}</span>`;
+                        opt.innerHTML = `<input type="checkbox" class="mc-check" value="${app.utils.esc(key)}"> <span>${app.utils.esc(label)}</span>`;
                         
                         opt.addEventListener('click', (e) => {
                             if (e.target.tagName !== 'INPUT') {
@@ -671,7 +671,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     trigger.classList.add('is-placeholder'); 
                 } else {
                     const labels = sel.map(k => state.markerLabels[k].label || k);
-                    trigger.innerHTML = `<span>${labels.join(', ')}</span>`; 
+                    trigger.innerHTML = `<span>${app.utils.esc(labels.join(', '))}</span>`; 
                     trigger.classList.remove('is-placeholder');
                 }
             };

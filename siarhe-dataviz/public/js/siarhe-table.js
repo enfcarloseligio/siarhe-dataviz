@@ -85,7 +85,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     arrow = app.sortConfig.direction === 'asc' ? '▲' : '▼';
                 }
                 
-                th.innerHTML = `${c.label} <small>${arrow}</small>`;
+                th.innerHTML = `${app.utils.esc(c.label)} <small>${arrow}</small>`;
                 
                 // Evento de ordenamiento
                 th.onclick = () => {
@@ -139,7 +139,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     td.style.textAlign = c.align; 
                     
                     if (c.id === 'estado') { 
-                        td.innerHTML = !r.isTotal ? `<strong>${r.estado}</strong>` : r.estado; 
+                        td.innerHTML = !r.isTotal ? `<strong>${app.utils.esc(r.estado)}</strong>` : app.utils.esc(r.estado); 
                     } 
                     else if (c.dash) { 
                         td.textContent = '—'; 

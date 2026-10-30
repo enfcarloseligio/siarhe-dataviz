@@ -264,7 +264,7 @@ if ( isset($_GET['status']) ) {
 
                         <?php if ($archivo) : ?>
                         <button type="button" class="button button-small edit-meta-btn" 
-                                data-id="<?php echo $archivo->id; ?>" 
+                                data-id="<?php echo absint( $archivo->id ); ?>" 
                                 data-nombre="<?php echo esc_attr($nombre); ?>" 
                                 data-anio="<?php echo esc_attr($archivo->anio_reporte); ?>" 
                                 data-corte="<?php echo esc_attr($archivo->fecha_corte); ?>" 
@@ -282,7 +282,7 @@ if ( isset($_GET['status']) ) {
                         <?php if ($archivo) : ?>
                         <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display:inline;" onsubmit="return confirm('⚠️ ATENCIÓN: ¿Estás seguro de eliminar este mapa GEOJSON de localidades? Esta acción borrará el registro y el archivo físico del servidor de forma irreversible.');">
                             <input type="hidden" name="action" value="siarhe_delete_localidades">
-                            <input type="hidden" name="file_id" value="<?php echo $archivo->id; ?>">
+                            <input type="hidden" name="file_id" value="<?php echo absint( $archivo->id ); ?>">
                             <?php wp_nonce_field( 'siarhe_delete_localidades_nonce_' . $archivo->id ); ?>
                             <button type="submit" class="button button-small button-link-delete" title="Eliminar Mapa y Registro"><span class="dashicons dashicons-trash" style="color: #a00;"></span></button>
                         </form>

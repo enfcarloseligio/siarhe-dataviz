@@ -133,7 +133,7 @@ $entidades = [
                 $is_legal = (strpos($slug, 'legal_') === 0);
                 $row_style = $is_legal ? 'background-color: #f8fafc;' : '';
             ?>
-            <tr style="<?php echo $row_style; ?>" class="siarhe-data-row">
+            <tr style="<?php echo esc_attr( $row_style ); ?>" class="siarhe-data-row">
                 <td data-label="Entidad / Mapa" data-mobile-role="primary" style="word-wrap: break-word;">
                     <strong><?php echo esc_html($label); ?></strong><br>
                     <code style="color:#999; font-size:10px;">ID: <?php echo esc_html($slug); ?></code>

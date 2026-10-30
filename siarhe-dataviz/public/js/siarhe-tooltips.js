@@ -24,7 +24,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
             
             // LÓGICA INTELIGENTE DE TÍTULOS (NACIONAL VS ESTATAL)
-            let nombre = row ? row.estado : (d.properties.NOMGEO || d.properties.NOM_ENT || "Sin Datos");
+            let nombre = app.utils.esc(row ? row.estado : (d.properties.NOMGEO || d.properties.NOM_ENT || "Sin Datos"));
             
             if (state.isGeoLocMode) {
                 let ent = row ? row.estado : (d.properties.NOM_ENT || "");
@@ -34,15 +34,15 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (state.isNacional) {
                     if (!mun && d.properties.NOMGEO) mun = d.properties.NOMGEO; 
                     if (mun) {
-                        nombre = `${ent} / <span style="opacity:0.8; font-weight:normal;">${mun}</span>`;
+                        nombre = `${app.utils.esc(ent)} / <span style="opacity:0.8; font-weight:normal;">${app.utils.esc(mun)}</span>`;
                     }
                 } else {
                     let munName = row ? row.estado : (d.properties.NOM_MUN || d.properties.MUNICIPIO || "Municipio");
                     if (!loc && d.properties.NOMGEO) loc = d.properties.NOMGEO; 
                     if (munName && loc && munName !== loc) {
-                        nombre = `${munName} / <span style="opacity:0.8; font-weight:normal;">${loc}</span>`;
+                        nombre = `${app.utils.esc(munName)} / <span style="opacity:0.8; font-weight:normal;">${app.utils.esc(loc)}</span>`;
                     } else if (loc) {
-                        nombre = loc;
+                        nombre = app.utils.esc(loc);
                     }
                 }
             }
@@ -92,14 +92,14 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (hlVar === itemKey) {
                     htmlHighlight = `
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.2);">
-                            <span style="font-size:12px; opacity:0.9;">${b.label}:</span> 
-                            <strong style="color:${hlColor}; font-size:14px; margin-left:15px;">${b.value}</strong>
+                            <span style="font-size:12px; opacity:0.9;">${app.utils.esc(b.label)}:</span> 
+                            <strong style="color:${hlColor}; font-size:14px; margin-left:15px;">${app.utils.esc(b.value)}</strong>
                         </div>`;
                 } else {
                     htmlStandard += `
                         <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px;">
-                            <span style="opacity:0.8; margin-right:15px;">${b.label}:</span> 
-                            <b>${b.value}</b>
+                            <span style="opacity:0.8; margin-right:15px;">${app.utils.esc(b.label)}:</span> 
+                            <b>${app.utils.esc(b.value)}</b>
                         </div>`;
                 }
             });
@@ -157,7 +157,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                                     <div style="margin-top:12px; padding-top:8px; border-top:1px dashed rgba(255,255,255,0.3);">
                                         <div style="font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; color:${mkLabelColor}; font-weight:bold; display:flex; align-items:center; gap:5px;">
                                             <div style="width:8px; height:8px; background:${mkLabelColor}; border-radius:50%;"></div>
-                                            ${mkLabelNombre}
+                                            ${app.utils.esc(mkLabelNombre)}
                                         </div>
                                 `;
 
@@ -178,7 +178,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                                         if (rVal > 0) {
                                             htmlResumenMarcadores += `
                                                 <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:2px; padding-left:10px; border-left:1px solid rgba(255,255,255,0.1);">
-                                                    <span style="opacity:0.75;">↳ ${rLabel}:</span> 
+                                                    <span style="opacity:0.75;">↳ ${app.utils.esc(rLabel)}:</span> 
                                                     <strong style="color:#f8fafc; font-size:10px;">${rVal.toLocaleString('es-MX')}</strong>
                                                 </div>`;
                                         }
@@ -283,14 +283,14 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (hlVar === itemKey) {
                     htmlHighlight = `
                         <div style="margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.2);">
-                            <span style="font-size:11px; opacity:0.8;">${b.label}:</span><br>
-                            <strong style="color:${hlColor}; font-size:12px;">${b.value}</strong>
+                            <span style="font-size:11px; opacity:0.8;">${app.utils.esc(b.label)}:</span><br>
+                            <strong style="color:${hlColor}; font-size:12px;">${app.utils.esc(b.value)}</strong>
                         </div>`;
                 } else {
                     htmlStandard += `
                         <div style="font-size:11px; line-height: 1.4; margin-bottom: 3px;">
-                            <span style="color:#06B6D4; opacity:0.9;">${b.label}:</span> 
-                            <strong style="color:${txtColor}; font-family:'IBM Plex Sans', sans-serif;">${b.value}</strong>
+                            <span style="color:#06B6D4; opacity:0.9;">${app.utils.esc(b.label)}:</span> 
+                            <strong style="color:${txtColor}; font-family:'IBM Plex Sans', sans-serif;">${app.utils.esc(b.value)}</strong>
                         </div>`;
                 }
             });
@@ -309,7 +309,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     Object.entries(d._conteo_reglas).forEach(([ruleLabel, ruleCount]) => {
                         if (ruleCount > 0) {
                             htmlReglas += `<div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
-                                            <span style="opacity:0.9;">${ruleLabel}:</span> 
+                                            <span style="opacity:0.9;">${app.utils.esc(ruleLabel)}:</span> 
                                             <strong style="color:#f8fafc;">${ruleCount.toLocaleString('es-MX')}</strong>
                                            </div>`;
                         }
@@ -319,8 +319,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
 
             let html = `<div style="font-family:'Roboto', sans-serif; color:${txtColor};">`;
-            html += `<div style="color: #06B6D4; font-weight:bold; font-size:12px; margin-bottom:4px; padding-bottom:4px;">${titleLabel}</div>`;
-            html += `<div style="font-weight:bold; font-size:13px; font-family:'IBM Plex Sans', sans-serif; text-transform: uppercase; margin-bottom: 8px;">${d.nombre || 'Desconocido'}</div>`;
+            html += `<div style="color: #06B6D4; font-weight:bold; font-size:12px; margin-bottom:4px; padding-bottom:4px;">${app.utils.esc(titleLabel)}</div>`;
+            html += `<div style="font-weight:bold; font-size:13px; font-family:'IBM Plex Sans', sans-serif; text-transform: uppercase; margin-bottom: 8px;">${app.utils.esc(d.nombre || 'Desconocido')}</div>`;
             html += htmlStandard;
             html += htmlHighlight;
             html += htmlReglas; 

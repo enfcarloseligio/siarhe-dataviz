@@ -77,7 +77,7 @@ class Siarhe_Shortcodes {
         if ( empty($geojson_url) && strpos($mode, 'M') !== false ) {
             return "<div style='background:#fff5f5; border:1px solid #fc8181; padding:20px; color:#c53030; border-radius:4px; margin:20px 0;'>
                         <strong>⚠️ Configuración Incompleta (Mapa):</strong><br>
-                        No se encontró un archivo GeoJSON activo para <em>$nombre_entidad ($slug)</em>.<br>
+                        No se encontró un archivo GeoJSON activo para <em>" . esc_html( $nombre_entidad . ' (' . $slug . ')' ) . "</em>.<br>
                         <small>Ve al Admin > SIARHE > Carga de Datos y sube el mapa correspondiente.</small>
                    </div>";
         }
@@ -85,7 +85,7 @@ class Siarhe_Shortcodes {
         if ( empty($csv_url) && strpos($mode, 'T') !== false ) {
             return "<div style='background:#fff5f5; border:1px solid #fc8181; padding:20px; color:#c53030; border-radius:4px; margin:20px 0;'>
                         <strong>⚠️ Configuración Incompleta (Datos):</strong><br>
-                        No se encontró un archivo CSV activo para <em>$nombre_entidad ($slug)</em>.<br>
+                        No se encontró un archivo CSV activo para <em>" . esc_html( $nombre_entidad . ' (' . $slug . ')' ) . "</em>.<br>
                         <small>Ve al Admin > SIARHE > Carga de Datos y sube la base estática correspondiente.</small>
                    </div>";
         }
@@ -100,7 +100,7 @@ class Siarhe_Shortcodes {
             include $template_path;
         } else {
             if ( current_user_can('manage_options') ) {
-                echo "<div style='border:1px solid red; padding:10px;'>Error CRÍTICO SIARHE: No se encuentra la plantilla en <code>$template_path</code></div>";
+                echo "<div style='border:1px solid red; padding:10px;'>Error CRÍTICO SIARHE: No se encuentra la plantilla en <code>" . esc_html( $template_path ) . "</code></div>";
             }
         }
 
@@ -130,6 +130,8 @@ class Siarhe_Shortcodes {
         ];
         
         $c = wp_parse_args( $opts, $defaults );
+        // Solo caracteres validos en un valor CSS de color/medida (evita inyectar CSS arbitrario).
+        $c = array_map( function( $v ) { return preg_replace( '/[^#a-zA-Z0-9(),.%\s-]/', '', (string) $v ); }, $c );
 
         // Generamos el bloque de CSS Variables
         $custom_css = "
