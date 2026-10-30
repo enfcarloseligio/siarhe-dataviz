@@ -41,10 +41,15 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             // Proteccion contra division por cero si el mapa esta oculto (otra pestana)
             if (rect.width <= 0 || rect.height <= 0) return;
 
+            // Margen unico a los bordes para TODO lo flotante (leyendas, zoom, panel de controles, medicion):
+            // 2.5 % del lado menor del mapa en movil, tablet y PC, nunca menor a 5 px. El CSS lo lee con var(--siarhe-edge)
+            const edgePx = Math.max(5, Math.round(Math.min(rect.width, rect.height) * 0.025));
+            container.style.setProperty('--siarhe-edge', edgePx + 'px');
+
             const svgW = 1600;
             const svgH = 900;
 
-            const s = Math.min(rect.width / svgW, rect.height / svgH);
+            const s =Math.min(rect.width / svgW, rect.height / svgH);
             if (s <= 0) return;
 
             // Margenes vacios del SVG (letterbox) en unidades del viewBox: las leyendas se anclan a las esquinas fisicas
@@ -56,7 +61,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             const isFullscreen = mapDiv.classList.contains('is-fullscreen');
             const isMobile = window.innerWidth <= 767;
-            const padPx = isFullscreen ? 40 : (isMobile ? 8 : 16);
+            const padPx = edgePx;
             const padX = padPx / s;
             const padY = padPx / s;
 
@@ -1040,6 +1045,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         },
 
         renderMarkerLegend: function(state) {
+            app.map.updateMeasureAvailability(state);
             const g = state.gMarkerLegend;
             g.html("");
             g.style("font-family", "Roboto, Arial, sans-serif");
@@ -1232,6 +1238,17 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     if (ms.btn) ms.btn.focus();
                 }
             });
+        },
+
+        // El boton de medir solo se habilita si hay al menos un marcador de posicion activo
+        updateMeasureAvailability: function(state) {
+            const ms = state.measure;
+            if (!ms || !ms.btn) return;
+            const labels = state.markerLabels || {};
+            const enabled = Array.from(state.activeMarkers || []).some(k => (labels[k] || {}).tipo === 'posicion');
+            if (!enabled && ms.active) app.map.setMeasureMode(state, false);
+            // Sin marcadores de posicion activos el boton ni se muestra (el vacio lo ocupan los demas controles)
+            ms.btn.style.display = enabled ? '' : 'none';
         },
 
         setMeasureMode: function(state, on) {
@@ -1536,6 +1553,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 });
                 btnMeasure.setAttribute('aria-pressed', 'false');
                 app.map.initMeasure(container, state, mapDiv, btnMeasure);
+                app.map.updateMeasureAvailability(state);
             }
             
             const btnFullscreen = document.createElement('button');

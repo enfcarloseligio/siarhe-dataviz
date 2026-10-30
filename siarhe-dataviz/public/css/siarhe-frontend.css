@@ -560,6 +560,9 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 .siarhe-viz-wrapper .siarhe-map-container .zoom-controles button:hover {
     background: #f1f5f9;
 }
+.siarhe-viz-wrapper .siarhe-map-container .zoom-controles button:disabled {
+    opacity: 0.4; cursor: not-allowed; background: #fff;
+}
 /* 🌟 LÓGICA DEL BOTÓN AJUSTES 🎛️ 🌟 */
 .siarhe-viz-wrapper .siarhe-map-container .zoom-controles button.btn-show-controls {
     background: #0ea5e9; color: #fff; border-color: #0284c7;
@@ -572,7 +575,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 /* 🌟 PC Y TABLET (≥ 768px): Botones SIEMPRE arriba derecha 🌟 */
 @media (min-width: 768px) {
     .siarhe-viz-wrapper .siarhe-map-container .zoom-controles {
-        top: 15px; right: 15px; bottom: auto; left: auto;
+        top: var(--siarhe-edge, 14px); right: var(--siarhe-edge, 14px); bottom: auto; left: auto;
         flex-direction: column; gap: 8px;
     }
     .siarhe-viz-wrapper .siarhe-map-container .zoom-controles button {
@@ -583,8 +586,8 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 @media (max-width: 767px) {
     /* Modo Navegador Normal: Abajo, a la derecha */
     .siarhe-viz-wrapper .siarhe-map-container:not(.is-fullscreen) .zoom-controles {
-        top: auto; bottom: 15px;
-        left: auto; right: 15px;
+        top: auto; bottom: var(--siarhe-edge, 14px);
+        left: auto; right: var(--siarhe-edge, 14px);
         transform: none;
         flex-direction: row; gap: 10px;
     }
@@ -594,7 +597,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     /* Modo Fullscreen (Vertical u Horizontal): Arriba derecha en columna */
     /* 🌟 CORRECCIÓN 2: Bajamos los controles para evitar avisos del navegador */
     .siarhe-viz-wrapper .siarhe-map-container.is-fullscreen .zoom-controles {
-        top: 40px; right: 10px;
+        top: var(--siarhe-edge, 14px); right: var(--siarhe-edge, 14px);
         bottom: auto; left: auto;
         transform: none;
         flex-direction: column; gap: 8px;
@@ -620,8 +623,8 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 @media (min-width: 768px) {
     .siarhe-viz-wrapper .siarhe-controls-layout.is-fullscreen-mode {
         position: absolute;
-        /* 🌟 CORRECCIÓN 3: Ajuste de offset superior para evitar cortes visuales */
-        top: 45px;
+        /* Mismo margen superior que leyendas y controles de zoom */
+        top: var(--siarhe-edge, 14px);
         left: 50%;
         transform: translateX(-50%) scale(0.75); transform-origin: top center;
         background: rgba(255, 255, 255, 0.95); padding: 15px 25px;
@@ -779,12 +782,12 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 
 .siarhe-viz-wrapper .siarhe-measure-panel {
     position: absolute;
-    bottom: 14px;
+    bottom: var(--siarhe-edge, 14px);
     left: 50%;
     transform: translateX(-50%);
     z-index: 1100;
     width: max-content;
-    max-width: min(480px, calc(100% - 24px));
+    max-width: min(480px, calc(100% - 2 * var(--siarhe-edge, 14px)));
     padding: 8px 12px;
     background: rgba(255, 255, 255, 0.97);
     border: 1px solid #cbd5e1;

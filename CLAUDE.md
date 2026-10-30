@@ -31,3 +31,31 @@ Distance measuring (`app.map.initMeasure/setMeasureMode/measureAddPoint/renderMe
 
 - `.gitignore` excludes `*.csv`, `*.json`, `*.geojson`, `*.xlsx` — data files aren't versioned.
 - `estructura.bat`/`estructura.txt` just dump the directory tree.
+
+## Roadmap / pending work
+
+Agreed direction: this is the **static** version of the map (admin uploads GeoJSON + CSV). A **dynamic map backed by SQL** comes later; the admin "Gestor de Bases" is where it will live.
+
+### Admin (backend) overhaul — proposed, awaiting go-ahead
+
+Findings that motivate it: the action buttons in the upload tables misalign (inline `<form style="display:inline">` around the delete button + `.button-small` + dashicons baselines; fix with a flex row); Dashboard and Gestor de Bases are identical 6-line placeholders; partials total ~5,500 lines mixing PHP, inline JS and 20–90 inline `style=""` attributes each (400+ overall); the three upload tabs (geojson/localidades/static) are ~90% duplicated (~530 lines each); `siarhe-admin.css` is only ~275 lines with no design tokens; `tab-mapa.php` refreshes previews with a 400 ms `setInterval`; the UI uses native `alert()`/`confirm()`; no loading/empty states or upload progress.
+
+Open decisions (recommended defaults in bold):
+1. Style: **stay inside the WordPress admin look with a modern component layer** (cards, tokens; respects WP admin color schemes and dark modes) vs. a fully custom app-like skin.
+2. Order: **Phase 1 + Phase 2 (Dashboard) first, then Phase 3, Gestor de Bases last.**
+
+Phases:
+- **Phase 1 – design system + fixes:** CSS variables (colors, spacing scale, radii, shadows) and reusable components (cards, buttons, badges, tables, grid forms); flex `.siarhe-row-actions` with uniform sizes; move inline styles to classes; consistent page header (title, description, actions); replace `alert`/`confirm` with a modal + toasts; replace the preview `setInterval` with events; responsive on mobile.
+- **Phase 2 – real Dashboard:** 34-entity matrix showing which have GeoJSON / CSV / localidades / markers and last update; copy-shortcode button per entity (`[siarhe_mapa_MT_CVE_ENT_09]`); health checks (upload dir writable, `upload_max_filesize`, PHP memory, plugin version, D3 CDN reachability).
+- **Phase 3 – unify and improve uploads:** one parametrized upload component for GeoJSON/localidades/static CSV; drag & drop, progress bar, preview of the first rows before uploading; **version history UI with restore** (the last 3 versions already live in `_versions/` but there is no UI to use them); search/filters on every table.
+- **Phase 4 – Gestor de Bases (dynamic map):** ingest CSV/XLSX into SQL in batches of 50 or 100 rows via AJAX (`admin-ajax`, nonces + `current_user_can`) with progress, resume, validation report and import log. Reuse the Phase 3 upload component and the existing CSV validation (`validate_csv_file`).
+
+Additional admin ideas: export/import of the whole configuration as one JSON (colors, metrics, markers, tooltips) to move staging → production; audit log ("who uploaded/changed what"; today only the last editor is stored); a dedicated plugin capability so editors can upload data without being administrators; "restore defaults" button for the color settings.
+
+### Map / frontend — known open items
+- Spike markers: heights are fixed at 25–100 viewBox units (×1.5 on touch), linear between the marker's min and max value. Possible follow-ups: make max height and scale type (linear / square root / percentile cap) configurable in Personalizar; with outliers most spikes sit near the minimum height. Heights are not comparable across entity pages (min/max are computed per loaded dataset).
+- Markers have no keyboard focus (thousands of points); selection for measuring is mouse/touch only. The measure panel is the accessible part (live announcements, copy, CSV).
+- On non-fullscreen mobile the legends top out around 6 px text because of the map's small width; fullscreen gets ~10 px.
+- D3/Select2 CDN fallback only triggers on failure or an incomplete library; a very slow (not failing) CDN waits for the browser timeout (no explicit timeout yet).
+- `parseCSV` via `d3.csv` is still synchronous for very large files; a Web Worker would remove that last long task.
+
