@@ -328,7 +328,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                             if (config.tipo === 'espectro') {
                                 let val = d._agrupados_total || 1;
                                 if (config.espectro_col && config.espectro_col.trim() !== '') {
-                                    const realCol = Object.keys(d._raw).find(k => k.toLowerCase().trim() === config.espectro_col.toLowerCase().trim());
+                                    // 🚀 Reutilizamos la columna ya resuelta en updateMarkers en vez de
+                                    // recalcularla con Object.keys().find() por marcador en cada tick de zoom.
+                                    const realCol = (state._espectroColKeyCache && state._espectroColKeyCache[d.tipo] !== undefined)
+                                        ? state._espectroColKeyCache[d.tipo]
+                                        : Object.keys(d._raw).find(k => k.toLowerCase().trim() === config.espectro_col.toLowerCase().trim());
                                     val = realCol ? parseFloat(d._raw[realCol]) || 0 : 0;
                                 }
                                 const max = (state.espectroMaxVals && state.espectroMaxVals[d.tipo]) ? state.espectroMaxVals[d.tipo] : 1;
@@ -684,17 +688,22 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             let minSymbolSize = isTouch ? 0.25 : 0.05;
             if (symbolSize < minSymbolSize) symbolSize = minSymbolSize;
 
+            // 🚀 OPTIMIZACIÓN: resolvemos la columna real de "espectro" UNA vez
+            // por tipo de marcador (no por cada punto). Antes, Object.keys(d._raw).find(...)
+            // se ejecutaba por cada marcador tanto aquí como en cada evento de zoom,
+            // lo cual es muy costoso con miles de puntos (ej. hospitales a nivel nacional).
             state.espectroMaxVals = {};
+            state._espectroColKeyCache = {};
             state.activeMarkers.forEach(type => {
                 const config = state.markerLabels[type] || {};
                 if (config.tipo === 'espectro') {
                     const data = state.markersData[type] || [];
                     let max = 0;
                     if (config.espectro_col && config.espectro_col.trim() !== '') {
-                        max = d3.max(data, d => {
-                             const realCol = Object.keys(d._raw).find(k => k.toLowerCase().trim() === config.espectro_col.toLowerCase().trim());
-                             return realCol ? parseFloat(d._raw[realCol]) || 0 : 0;
-                        });
+                        const sample = data.find(d => d._raw);
+                        const realCol = sample ? Object.keys(sample._raw).find(k => k.toLowerCase().trim() === config.espectro_col.toLowerCase().trim()) : null;
+                        state._espectroColKeyCache[type] = realCol || null;
+                        max = d3.max(data, d => realCol ? (parseFloat(d._raw[realCol]) || 0) : 0);
                     } else {
                         max = d3.max(data, d => d._agrupados_total || 1);
                     }
@@ -705,46 +714,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const markers = state.gMarkers.selectAll("path.siarhe-marker").data(allPoints);
             markers.exit().remove();
             
-            markers.enter().append("path")
+            const merged = markers.enter().append("path")
                 .attr("class", "siarhe-marker")
                 .merge(markers)
-                .attr("d", d => {
-                    const config = state.markerLabels[d.tipo] || {};
-                    let finalSize = symbolSize; 
-                    
-                    if (config.tipo === 'espectro') {
-                        let val = d._agrupados_total || 1;
-                        if (config.espectro_col && config.espectro_col.trim() !== '') {
-                            const realCol = Object.keys(d._raw).find(k => k.toLowerCase().trim() === config.espectro_col.toLowerCase().trim());
-                            val = realCol ? parseFloat(d._raw[realCol]) || 0 : 0;
-                        }
-                        const max = state.espectroMaxVals[d.tipo] || 1;
-                        
-                        if (val <= 0) {
-                            finalSize = 0; 
-                        } else {
-                            const scaleArea = d3.scaleLinear().domain([1, max]).range([symbolSize * 2.5, symbolSize * 25]).clamp(true);
-                            finalSize = scaleArea(val);
-                        }
-                    }
-
-                    const styleCfg = app.utils.getMarkerStyle(d.tipo, state);
-                    return d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)).size(finalSize)();
-                })
-                .attr("transform", d => {
-                    const coords = state.projection([d.lon, d.lat]);
-                    return coords ? `translate(${coords[0]}, ${coords[1]})` : "translate(0,0)";
-                })
-                .attr("fill", d => {
-                    const styleCfg = app.utils.getMarkerStyle(d.tipo, state);
-                    const config = state.markerLabels[d.tipo] || {};
-                    if (config.tipo === 'espectro') {
-                        return styleCfg.fill.startsWith('rgba') ? styleCfg.fill : app.map.hexToRgba(styleCfg.fill, 0.75);
-                    }
-                    return styleCfg.fill;
-                })
-                .attr("stroke", d => app.utils.getMarkerStyle(d.tipo, state).stroke)
-                .attr("stroke-width", 1.5 / currentK)
                 .style("cursor", "pointer")
                 .on("mouseover", function(e, d) {
                     let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
@@ -763,6 +735,69 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 });
 
             app.map.renderMarkerLegend(state);
+
+            // 🚀 RENDERIZADO POR LOTES:
+            // Antes, el cálculo de forma/tamaño/posición/color de CADA marcador
+            // (d3.symbol(), proyección, colores) se hacía de golpe para TODOS los
+            // puntos en una sola pasada síncrona. Con pocos puntos (un estado) no
+            // se nota, pero con miles (ej. hospitales a nivel nacional) esto congela
+            // el hilo principal y los marcadores "aparecen todos de golpe" al final.
+            // Ahora lo hacemos en lotes con requestAnimationFrame: el navegador
+            // puede pintar entre lotes y los marcadores se ven aparecer progresivamente.
+            state._markersRenderGen = (state._markersRenderGen || 0) + 1;
+            const renderGen = state._markersRenderGen;
+            const nodes = merged.nodes();
+            const CHUNK_SIZE = 400;
+            let idx = 0;
+
+            function paintChunk() {
+                // Si mientras tanto se activó/desactivó otro marcador, esta pasada quedó obsoleta
+                if (state._markersRenderGen !== renderGen) return;
+
+                const end = Math.min(idx + CHUNK_SIZE, nodes.length);
+                for (let i = idx; i < end; i++) {
+                    const node = nodes[i];
+                    const d = node.__data__;
+                    const config = state.markerLabels[d.tipo] || {};
+                    let finalSize = symbolSize;
+
+                    if (config.tipo === 'espectro') {
+                        let val = d._agrupados_total || 1;
+                        if (config.espectro_col && config.espectro_col.trim() !== '') {
+                            const realCol = state._espectroColKeyCache[d.tipo];
+                            val = realCol ? (parseFloat(d._raw[realCol]) || 0) : 0;
+                        }
+                        const max = state.espectroMaxVals[d.tipo] || 1;
+
+                        if (val <= 0) {
+                            finalSize = 0;
+                        } else {
+                            const scaleArea = d3.scaleLinear().domain([1, max]).range([symbolSize * 2.5, symbolSize * 25]).clamp(true);
+                            finalSize = scaleArea(val);
+                        }
+                    }
+
+                    const styleCfg = app.utils.getMarkerStyle(d.tipo, state);
+                    const coords = state.projection([d.lon, d.lat]);
+                    let fillColor = styleCfg.fill;
+                    if (config.tipo === 'espectro') {
+                        fillColor = styleCfg.fill.startsWith('rgba') ? styleCfg.fill : app.map.hexToRgba(styleCfg.fill, 0.75);
+                    }
+
+                    node.setAttribute("d", d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)).size(finalSize)());
+                    node.setAttribute("transform", coords ? `translate(${coords[0]}, ${coords[1]})` : "translate(0,0)");
+                    node.setAttribute("fill", fillColor);
+                    node.setAttribute("stroke", styleCfg.stroke);
+                    node.setAttribute("stroke-width", 1.5 / currentK);
+                }
+
+                idx = end;
+                if (idx < nodes.length) {
+                    requestAnimationFrame(paintChunk);
+                }
+            }
+
+            if (nodes.length > 0) requestAnimationFrame(paintChunk);
         },
 
         renderMarkerLegend: function(state) {

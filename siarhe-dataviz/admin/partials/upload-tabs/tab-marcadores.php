@@ -16,10 +16,10 @@ if ( empty($tipos_marcadores) || !is_array($tipos_marcadores) || (isset($tipos_m
 }
 
 // 🌟 INTERCEPTOR MEJORADO: Procesa variables y limpieza profunda
-if ( isset($_POST['action']) ) {
+if ( isset($_POST['action']) && current_user_can( 'manage_options' ) ) {
     
     // Acción: Agregar nueva variable
-    if ( $_POST['action'] === 'add_archivo_marcador' && isset($_POST['new_file_key']) ) {
+    if ( $_POST['action'] === 'add_archivo_marcador' && isset($_POST['new_file_key']) && isset($_POST['add_nonce']) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['add_nonce'] ) ), 'siarhe_add_variable_nonce' ) ) {
         $new_key = sanitize_text_field(strtoupper(str_replace(' ', '_', $_POST['new_file_key'])));
         $new_label = sanitize_text_field($_POST['new_file_label']);
         $new_filename = sanitize_file_name(strtolower(str_replace(' ', '-', $_POST['new_file_name'])));
@@ -33,7 +33,7 @@ if ( isset($_POST['action']) ) {
     }
     
     // Acción: Eliminar variable individual (Limpia DB y Archivo Físico)
-    if ( $_POST['action'] === 'delete_archivo_marcador' && isset($_POST['del_file_key']) ) {
+    if ( $_POST['action'] === 'delete_archivo_marcador' && isset($_POST['del_file_key']) && isset($_POST['del_nonce']) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['del_nonce'] ) ), 'siarhe_delete_variable_nonce' ) ) {
         $del_key = sanitize_text_field($_POST['del_file_key']);
         if (isset($tipos_marcadores[$del_key]) && empty($tipos_marcadores[$del_key]['is_core'])) {
             
@@ -198,6 +198,7 @@ if ( isset($_GET['status']) ) {
     
     <form method="post" action="">
         <input type="hidden" name="action" value="add_archivo_marcador">
+        <?php wp_nonce_field( 'siarhe_add_variable_nonce', 'add_nonce' ); ?>
         <table class="form-table" role="presentation">
             <tr>
                 <th scope="row"><label>Clave Interna (Sin espacios):</label></th>
@@ -372,6 +373,7 @@ if ( isset($_GET['status']) ) {
                     <?php if (empty($info['is_core'])): ?>
                         <form method="post" action="" style="display:inline;" onsubmit="return confirm('¿Eliminar esta variable de forma permanente? El archivo CSV y su registro en la base de datos también serán borrados.');">
                             <input type="hidden" name="action" value="delete_archivo_marcador">
+                            <?php wp_nonce_field( 'siarhe_delete_variable_nonce', 'del_nonce' ); ?>
                             <input type="hidden" name="del_file_key" value="<?php echo esc_attr($key); ?>">
                             <button type="submit" class="button button-small button-link-delete" title="Borrar Variable" style="color:#d63638; border-color:#d63638; margin-left:5px;"><span class="dashicons dashicons-dismiss"></span></button>
                         </form>

@@ -504,30 +504,61 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                             const reglas = config.reglas_tooltip || [];
                             let processedData = [];
 
+                            // 🚀 OPTIMIZACIÓN: resolvemos los nombres REALES de columna una sola
+                            // vez por CSV (no por fila). Antes, cada fila pagaba varios
+                            // Object.keys().find() (uno por cada campo, ~12 por fila), lo cual
+                            // es muy costoso en datasets nacionales grandes.
+                            const colMap = {};
+                            if (rawData.length > 0) {
+                                Object.keys(rawData[0]).forEach(k => { colMap[k.trim().toLowerCase()] = k; });
+                            }
+                            const resolveKey = (names) => {
+                                for (let n of names) {
+                                    const real = colMap[n.toLowerCase().trim()];
+                                    if (real) return real;
+                                }
+                                return null;
+                            };
+                            const fastVal = (d, key) => (key && d[key] !== undefined && d[key] !== null) ? d[key].toString().trim() : '';
+
+                            const latKey = resolveKey(['latitud', 'lat']);
+                            const lonKey = resolveKey(['longitud', 'lon']);
+                            const cveEntKey = resolveKey(['cve_ent', 'cve ent', 'entidad', 'clave_entidad']);
+                            const cluesKey = resolveKey(['clues']);
+                            const institucionKey = resolveKey(['institución', 'institucion', 'clave_institucion']);
+                            const nombreKey = resolveKey(['nombre_unidad', 'nombre de la unidad', 'unidad']);
+                            const municipioKey = resolveKey(['municipio']);
+                            const tipoEstabKey = resolveKey(['tipo_establecimiento', 'tipo establecimiento']);
+                            const tipologiaKey = resolveKey(['nombre_tipologia', 'nombre tipologia']);
+                            const nivelAtencionKey = resolveKey(['nivel_atencion', 'nivel atencion']);
+                            const cveNivelKey = resolveKey(['cve_n_atencion', 'cve_ n_atencion', 'cve n atencion']);
+                            const jurisdiccionKey = resolveKey(['jurisdiccion', 'jurisdicción']);
+                            const estratoKey = resolveKey(['estrato_unidad', 'estrato unidad']);
+
+                            const filtroColKey = filtroCol ? resolveKey([filtroCol]) : null;
+                            const agruparColKey = agruparCol ? resolveKey([agruparCol]) : null;
+                            const reglasResolved = reglas.map(r => ({ ...r, _colKey: resolveKey([r.col]) }));
+
                             const filteredData = rawData.filter(d => {
-                                const latText = app.utils.getColValue(d, ['latitud', 'lat']);
-                                const lonText = app.utils.getColValue(d, ['longitud', 'lon']);
-                                const lat = parseFloat(latText);
-                                const lon = parseFloat(lonText);
+                                const lat = parseFloat(fastVal(d, latKey));
+                                const lon = parseFloat(fastVal(d, lonKey));
 
                                 const isValidCoord = !isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0;
                                 if (!isValidCoord) return false;
                                 
-                                const cveEntMarker = app.utils.getColValue(d, ['cve_ent', 'cve ent', 'entidad', 'clave_entidad']);
-                                if (!state.isNacional && cveEntMarker) {
-                                    let markerEnt = cveEntMarker.toString().padStart(2, '0');
-                                    let currentEnt = container.dataset.cveEnt.toString().padStart(2, '0');
-                                    if (markerEnt !== currentEnt) return false; 
+                                if (!state.isNacional && cveEntKey) {
+                                    const cveEntMarker = fastVal(d, cveEntKey);
+                                    if (cveEntMarker) {
+                                        let markerEnt = cveEntMarker.toString().padStart(2, '0');
+                                        let currentEnt = container.dataset.cveEnt.toString().padStart(2, '0');
+                                        if (markerEnt !== currentEnt) return false; 
+                                    }
                                 }
                                 
                                 if (filtroCol && filtroVal) {
-                                    const realColName = Object.keys(d).find(k => k.toLowerCase().trim() === filtroCol);
-                                    if (realColName) {
-                                        const rowVal = (d[realColName] || '').toString().toLowerCase().trim();
-                                        if (rowVal !== filtroVal) return false; 
-                                    } else {
-                                        return false; 
-                                    }
+                                    if (!filtroColKey) return false;
+                                    const rowVal = fastVal(d, filtroColKey).toLowerCase();
+                                    if (rowVal !== filtroVal) return false; 
                                 }
                                 return true; 
                             });
@@ -535,48 +566,46 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                             if (agruparCol) {
                                 const mapGroup = new Map();
                                 filteredData.forEach(d => {
-                                    const realAgruparCol = Object.keys(d).find(k => k.toLowerCase().trim() === agruparCol);
-                                    if (!realAgruparCol) return; 
+                                    if (!agruparColKey) return; 
 
-                                    const groupKey = (d[realAgruparCol] || '').toString().trim();
+                                    const groupKey = fastVal(d, agruparColKey);
                                     if (!groupKey) return;
 
                                     if (!mapGroup.has(groupKey)) {
-                                        const lat = parseFloat(app.utils.getColValue(d, ['latitud', 'lat']));
-                                        const lon = parseFloat(app.utils.getColValue(d, ['longitud', 'lon']));
-                                        const cveNivel = app.utils.getColValue(d, ['cve_n_atencion', 'cve_ n_atencion', 'cve n atencion']);
-                                        const cveEntMarker = app.utils.getColValue(d, ['cve_ent', 'cve ent', 'entidad', 'clave_entidad']);
+                                        const lat = parseFloat(fastVal(d, latKey));
+                                        const lon = parseFloat(fastVal(d, lonKey));
+                                        const cveNivel = fastVal(d, cveNivelKey);
+                                        const cveEntMarker = fastVal(d, cveEntKey);
 
                                         let baseObj = {
-                                            clues: app.utils.getColValue(d, ['clues']),
-                                            institucion: app.utils.getColValue(d, ['institución', 'institucion', 'clave_institucion']),
-                                            nombre: app.utils.getColValue(d, ['nombre_unidad', 'nombre de la unidad', 'unidad']),
-                                            municipio: app.utils.getColValue(d, ['municipio']),
+                                            clues: fastVal(d, cluesKey),
+                                            institucion: fastVal(d, institucionKey),
+                                            nombre: fastVal(d, nombreKey),
+                                            municipio: fastVal(d, municipioKey),
                                             lat: lat, lon: lon,
                                             cve_ent: cveEntMarker, 
-                                            tipo_estab: app.utils.getColValue(d, ['tipo_establecimiento', 'tipo establecimiento']),
-                                            tipologia: app.utils.getColValue(d, ['nombre_tipologia', 'nombre tipologia']),
-                                            nivel_atencion: app.utils.getColValue(d, ['nivel_atencion', 'nivel atencion']),
+                                            tipo_estab: fastVal(d, tipoEstabKey),
+                                            tipologia: fastVal(d, tipologiaKey),
+                                            nivel_atencion: fastVal(d, nivelAtencionKey),
                                             cve_nivel: cveNivel,
-                                            jurisdiccion: app.utils.getColValue(d, ['jurisdiccion', 'jurisdicción']),
-                                            estrato: app.utils.getColValue(d, ['estrato_unidad', 'estrato unidad']),
+                                            jurisdiccion: fastVal(d, jurisdiccionKey),
+                                            estrato: fastVal(d, estratoKey),
                                             tipo: type,
                                             _raw: d,
                                             _agrupados_total: 0,
                                             _conteo_reglas: {}
                                         };
 
-                                        reglas.forEach(r => { baseObj._conteo_reglas[r.label] = 0; });
+                                        reglasResolved.forEach(r => { baseObj._conteo_reglas[r.label] = 0; });
                                         mapGroup.set(groupKey, baseObj);
                                     }
 
                                     const targetObj = mapGroup.get(groupKey);
                                     targetObj._agrupados_total += 1;
 
-                                    reglas.forEach(r => {
-                                        const realRuleCol = Object.keys(d).find(k => k.toLowerCase().trim() === r.col.toLowerCase().trim());
-                                        if (realRuleCol) {
-                                            const rowVal = (d[realRuleCol] || '').toString().toLowerCase().trim();
+                                    reglasResolved.forEach(r => {
+                                        if (r._colKey) {
+                                            const rowVal = fastVal(d, r._colKey).toLowerCase();
                                             const targetVal = r.val.toString().toLowerCase().trim();
                                             if (rowVal === targetVal) {
                                                 targetObj._conteo_reglas[r.label] += 1;
@@ -589,24 +618,24 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
                             } else {
                                 processedData = filteredData.map(d => {
-                                    const lat = parseFloat(app.utils.getColValue(d, ['latitud', 'lat']));
-                                    const lon = parseFloat(app.utils.getColValue(d, ['longitud', 'lon']));
-                                    const cveNivel = app.utils.getColValue(d, ['cve_n_atencion', 'cve_ n_atencion', 'cve n atencion']);
-                                    const cveEntMarker = app.utils.getColValue(d, ['cve_ent', 'cve ent', 'entidad', 'clave_entidad']);
+                                    const lat = parseFloat(fastVal(d, latKey));
+                                    const lon = parseFloat(fastVal(d, lonKey));
+                                    const cveNivel = fastVal(d, cveNivelKey);
+                                    const cveEntMarker = fastVal(d, cveEntKey);
                                     
                                     return {
-                                        clues: app.utils.getColValue(d, ['clues']),
-                                        institucion: app.utils.getColValue(d, ['institución', 'institucion', 'clave_institucion']),
-                                        nombre: app.utils.getColValue(d, ['nombre_unidad', 'nombre de la unidad', 'unidad']),
-                                        municipio: app.utils.getColValue(d, ['municipio']),
+                                        clues: fastVal(d, cluesKey),
+                                        institucion: fastVal(d, institucionKey),
+                                        nombre: fastVal(d, nombreKey),
+                                        municipio: fastVal(d, municipioKey),
                                         lat: lat, lon: lon,
                                         cve_ent: cveEntMarker, 
-                                        tipo_estab: app.utils.getColValue(d, ['tipo_establecimiento', 'tipo establecimiento']),
-                                        tipologia: app.utils.getColValue(d, ['nombre_tipologia', 'nombre tipologia']),
-                                        nivel_atencion: app.utils.getColValue(d, ['nivel_atencion', 'nivel atencion']),
+                                        tipo_estab: fastVal(d, tipoEstabKey),
+                                        tipologia: fastVal(d, tipologiaKey),
+                                        nivel_atencion: fastVal(d, nivelAtencionKey),
                                         cve_nivel: cveNivel,
-                                        jurisdiccion: app.utils.getColValue(d, ['jurisdiccion', 'jurisdicción']),
-                                        estrato: app.utils.getColValue(d, ['estrato_unidad', 'estrato unidad']),
+                                        jurisdiccion: fastVal(d, jurisdiccionKey),
+                                        estrato: fastVal(d, estratoKey),
                                         tipo: type,
                                         _raw: d
                                     };
