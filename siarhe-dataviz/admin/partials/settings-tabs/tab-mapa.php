@@ -2,45 +2,8 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // 1. Obtener opciones guardadas
-$map_options = get_option( 'siarhe_map_options', [] );
-
-// 2. Valores por defecto
-$defaults = [
-    // Mapa (Secuencial 5 pasos - Cuartiles Antiguos)
-    'map_c1' => '#eff3ff', // Mínimo
-    'map_c2' => '#bdd7e7', // Q1 (25%)
-    'map_c3' => '#6baed6', // Q2 (50%)
-    'map_c4' => '#3182bd', // Q3 (75%)
-    'map_c5' => '#08519c', // Máximo
-    
-    // Mapa (4 Rangos Personalizados - Valores iniciales)
-    'range_c1' => '#0A66C2', // Rango 1 (Ej. < Q1)
-    'range_c2' => '#063A73', // Rango 2 (Ej. Q1 a Q2)
-    'range_c3' => '#063A73', // Rango 3 (Ej. Q2 a Q3)
-    'range_c4' => '#172540', // Rango 4 (Ej. > Q3)
-
-    // Mapa (Secuencial Monocromático)
-    'mono_min' => '#f0f9ff', // Color más claro
-    'mono_max' => '#0369a1', // Color más oscuro
-    
-    // Casos Especiales
-    'map_zero' => '#d9d9d9', // Valor es 0
-    'map_null' => '#000000', // Sin datos en CSV
-
-    // Tabla Frontend
-    'th_bg'        => '#f4f4f4',
-    'th_text'      => '#333333',
-    'tr_odd'       => '#ffffff',
-    'tr_odd_txt'   => '#555555',
-    'tr_even'      => '#f9f9f9',
-    'tr_even_txt'  => '#555555',
-    'tr_total_bg'  => '#e8f4fd',
-    'tr_total_txt' => '#000000',
-    'border_color' => '#dddddd',
-    'border_width' => '1',
-];
-
-$opts = wp_parse_args( $map_options, $defaults );
+$defaults = siarhe_get_map_defaults();
+$opts     = siarhe_get_map_options();
 
 // 3. Obtener marcadores dinámicos desde la BD
 $marcadores_json = get_option( 'siarhe_marcadores_config', '' );

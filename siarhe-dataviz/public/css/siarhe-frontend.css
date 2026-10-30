@@ -694,3 +694,51 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
         width: 100%;
     }
 }
+
+/* =========================================
+   14. CONTENEDOR Y PIE (antes en un <style> en linea repetido por cada shortcode)
+   ========================================= */
+.siarhe-viz-wrapper {
+    width: 100%; max-width: 100%; box-sizing: border-box; position: relative; z-index: 1;
+}
+.siarhe-viz-wrapper * { box-sizing: inherit; }
+.siarhe-break-text { overflow-wrap: break-word; word-wrap: break-word; word-break: break-word; hyphens: auto; }
+.siarhe-viz-wrapper .siarhe-legal-disclaimer a,
+.siarhe-viz-wrapper .siarhe-legal-disclaimer a:link,
+.siarhe-viz-wrapper .siarhe-legal-disclaimer a:visited,
+.siarhe-viz-wrapper .siarhe-legal-disclaimer a:hover,
+.siarhe-viz-wrapper .siarhe-legal-disclaimer a:active,
+.siarhe-viz-wrapper .siarhe-legal-disclaimer a:focus {
+    font-size: 1em; 
+    font-family: inherit;
+    font-weight: normal; 
+    line-height: inherit;
+    letter-spacing: normal;
+    transform: none; 
+    display: inline;
+    margin: 0;
+    padding: 0;
+    transition: none; 
+    text-decoration: underline;
+}
+
+/* REGLAS USABILIDAD PARA LAS COLUMNAS DEL FOOTER */
+.siarhe-viz-wrapper .siarhe-footer-grid {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: 1fr; /* Móvil (<= 767px): Todo en 1 columna */
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+    /* Tablet (768px - 1023px): 2 Columnas. El tercer elemento queda en su propia celda abajo a la izq. */
+    .siarhe-viz-wrapper .siarhe-footer-grid {
+        grid-template-columns: 1fr 1fr; 
+    }
+}
+
+@media (min-width: 1024px) {
+    /* PC Desktop (>= 1024px): 3 Columnas simétricas */
+    .siarhe-viz-wrapper .siarhe-footer-grid {
+        grid-template-columns: repeat(3, 1fr); 
+    }
+}

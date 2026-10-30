@@ -40,28 +40,13 @@ $mk_date = ($mk_meta && !empty($mk_meta->fecha_corte)) ? date_i18n('d/M/Y', strt
 
 
 // Catálogo de Entidades Federativas (INEGI)
-$catalogo_oficial = [
-    '01' => 'Aguascalientes', '02' => 'Baja California', '03' => 'Baja California Sur', '04' => 'Campeche',
-    '05' => 'Coahuila de Zaragoza', '06' => 'Colima', '07' => 'Chiapas', '08' => 'Chihuahua', '09' => 'Ciudad de México',
-    '10' => 'Durango', '11' => 'Guanajuato', '12' => 'Guerrero', '13' => 'Hidalgo', '14' => 'Jalisco',
-    '15' => 'Estado de México', '16' => 'Michoacán de Ocampo', '17' => 'Morelos', '18' => 'Nayarit', '19' => 'Nuevo León',
-    '20' => 'Oaxaca', '21' => 'Puebla', '22' => 'Querétaro', '23' => 'Quintana Roo', '24' => 'San Luis Potosí',
-    '25' => 'Sinaloa', '26' => 'Sonora', '27' => 'Tabasco', '28' => 'Tamaulipas', '29' => 'Tlaxcala',
-    '30' => 'Veracruz de Ignacio de la Llave', '31' => 'Yucatán', '32' => 'Zacatecas', '33' => 'México', '34' => 'Extranjero'
-];
+$catalogo_oficial = siarhe_get_entity_catalog();
 
 $es_nacional = ($slug === 'republica-mexicana' || $cve_ent === '33');
-$lugar_texto = isset($catalogo_oficial[$cve_ent]) ? $catalogo_oficial[$cve_ent] : esc_html($nombre_entidad);
+$lugar_texto = esc_html( isset($catalogo_oficial[$cve_ent]) ? $catalogo_oficial[$cve_ent] : $nombre_entidad );
 
 // 1. OBTENER CONFIGURACIÓN DE COLORES BASE
-$map_options = get_option( 'siarhe_map_options', [] );
-$defaults = [
-    'map_c1' => '#eff3ff', 'map_c2' => '#bdd7e7', 'map_c3' => '#6baed6', 'map_c4' => '#3182bd', 'map_c5' => '#08519c',
-    'range_c1' => '#ffedd5', 'range_c2' => '#fdba74', 'range_c3' => '#f59e0b', 'range_c4' => '#b45309',
-    'mono_min' => '#f0f9ff', 'mono_max' => '#0369a1',
-    'map_zero' => '#d9d9d9', 'map_null' => '#000000',
-];
-$opts = wp_parse_args( $map_options, $defaults );
+$opts = siarhe_get_map_options();
 
 // 🌟 UTILIDADES BASE PARA CACHE BUSTING
 $upload_base_dir_front = defined('SIARHE_UPLOAD_DIR') ? SIARHE_UPLOAD_DIR : wp_upload_dir()['basedir'] . '/siarhe-data/';
@@ -222,70 +207,6 @@ if (!empty($geojson_url) && strpos($geojson_url, '?v=') === false) {
 }
 ?>
 
-<style>
-    /* INYECCIÓN DE VARIABLES CSS PARA EL FRONTEND */
-    :root {
-        --s-map-c1: <?php echo esc_attr($opts['map_c1']); ?>;
-        --s-map-c2: <?php echo esc_attr($opts['map_c2']); ?>;
-        --s-map-c3: <?php echo esc_attr($opts['map_c3']); ?>;
-        --s-map-c4: <?php echo esc_attr($opts['map_c4']); ?>;
-        --s-map-c5: <?php echo esc_attr($opts['map_c5']); ?>;
-        --s-map-range-1: <?php echo esc_attr($opts['range_c1']); ?>;
-        --s-map-range-2: <?php echo esc_attr($opts['range_c2']); ?>;
-        --s-map-range-3: <?php echo esc_attr($opts['range_c3']); ?>;
-        --s-map-range-4: <?php echo esc_attr($opts['range_c4']); ?>;
-        --s-map-mono-min: <?php echo esc_attr($opts['mono_min']); ?>;
-        --s-map-mono-max: <?php echo esc_attr($opts['mono_max']); ?>;
-        --s-map-zero: <?php echo esc_attr($opts['map_zero']); ?>;
-        --s-map-null: <?php echo esc_attr($opts['map_null']); ?>;
-    }
-
-    .siarhe-viz-wrapper {
-        width: 100%; max-width: 100%; box-sizing: border-box; position: relative; z-index: 1;
-    }
-    .siarhe-viz-wrapper * { box-sizing: inherit; }
-    .siarhe-break-text { overflow-wrap: break-word; word-wrap: break-word; word-break: break-word; hyphens: auto; }
-    .siarhe-viz-wrapper .siarhe-legal-disclaimer a,
-    .siarhe-viz-wrapper .siarhe-legal-disclaimer a:link,
-    .siarhe-viz-wrapper .siarhe-legal-disclaimer a:visited,
-    .siarhe-viz-wrapper .siarhe-legal-disclaimer a:hover,
-    .siarhe-viz-wrapper .siarhe-legal-disclaimer a:active,
-    .siarhe-viz-wrapper .siarhe-legal-disclaimer a:focus {
-        font-size: 1em; 
-        font-family: inherit;
-        font-weight: normal; 
-        line-height: inherit;
-        letter-spacing: normal;
-        transform: none; 
-        display: inline;
-        margin: 0;
-        padding: 0;
-        transition: none; 
-        text-decoration: underline;
-    }
-
-    /* REGLAS USABILIDAD PARA LAS COLUMNAS DEL FOOTER */
-    .siarhe-viz-wrapper .siarhe-footer-grid {
-        display: grid;
-        gap: 20px;
-        grid-template-columns: 1fr; /* Móvil (<= 767px): Todo en 1 columna */
-    }
-    
-    @media (min-width: 768px) and (max-width: 1023px) {
-        /* Tablet (768px - 1023px): 2 Columnas. El tercer elemento queda en su propia celda abajo a la izq. */
-        .siarhe-viz-wrapper .siarhe-footer-grid {
-            grid-template-columns: 1fr 1fr; 
-        }
-    }
-    
-    @media (min-width: 1024px) {
-        /* PC Desktop (>= 1024px): 3 Columnas simétricas */
-        .siarhe-viz-wrapper .siarhe-footer-grid {
-            grid-template-columns: repeat(3, 1fr); 
-        }
-    }
-</style>
-
 <div id="content" tabindex="-1" style="outline: none;"></div>
 
 <div class="siarhe-viz-wrapper" 
@@ -303,7 +224,6 @@ if (!empty($geojson_url) && strpos($geojson_url, '?v=') === false) {
      data-entity-urls='<?php echo esc_attr(wp_json_encode($entity_urls)); ?>' 
      data-metricas='<?php echo esc_attr($metricas_clean_json); ?>' 
      data-tooltips='<?php echo esc_attr($tooltip_json); ?>' 
-     data-catalogo='<?php echo esc_attr(wp_json_encode($catalogo_oficial)); ?>'
      data-home-url="<?php echo esc_url($home_url); ?>"> 
 
     <?php 

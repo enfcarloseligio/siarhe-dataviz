@@ -118,49 +118,8 @@ class Siarhe_Shortcodes {
         // 1. Cargar estilos Frontend
         wp_register_style( 'siarhe-frontend-css', SIARHE_URL . 'public/css/siarhe-frontend.css', array(), SIARHE_VERSION );
 
-        // 2. INYECTAR VARIABLES CSS DINÁMICAS (Colores)
-        $opts = get_option( 'siarhe_map_options', [] );
-        
-        $defaults = [
-            'map_c1' => '#eff3ff', 'map_c2' => '#bdd7e7', 'map_c3' => '#9ecae1', 'map_c4' => '#6baed6', 'map_c5' => '#08519c',
-            'map_zero' => '#d9d9d9', 'map_null' => '#000000',
-            
-            'th_bg' => '#f4f4f4', 'th_text' => '#333', 
-            'tr_odd' => '#fff', 'tr_odd_txt' => '#555',
-            'tr_even' => '#f9f9f9', 'tr_even_txt' => '#555',
-            'tr_total_bg' => '#e8f4fd', 'tr_total_txt' => '#000', 
-            'border_color' => '#ddd', 'border_width' => '1'
-        ];
-        
-        $c = wp_parse_args( $opts, $defaults );
-        // Solo caracteres validos en un valor CSS de color/medida (evita inyectar CSS arbitrario).
-        $c = array_map( function( $v ) { return preg_replace( '/[^#a-zA-Z0-9(),.%\s-]/', '', (string) $v ); }, $c );
-
-        // Generamos el bloque de CSS Variables
-        $custom_css = "
-            :root {
-                /* Mapa */
-                --s-map-c1: {$c['map_c1']};
-                --s-map-c2: {$c['map_c2']};
-                --s-map-c3: {$c['map_c3']};
-                --s-map-c4: {$c['map_c4']};
-                --s-map-c5: {$c['map_c5']};
-                --s-map-zero: {$c['map_zero']};
-                --s-map-null: {$c['map_null']};
-                
-                /* Tabla */
-                --s-th-bg: {$c['th_bg']};
-                --s-th-text: {$c['th_text']};
-                --s-tr-odd: {$c['tr_odd']};
-                --s-tr-odd-txt: {$c['tr_odd_txt']};
-                --s-tr-even: {$c['tr_even']};
-                --s-tr-even-txt: {$c['tr_even_txt']};
-                --s-total-bg: {$c['tr_total_bg']};
-                --s-total-txt: {$c['tr_total_txt']};
-                --s-border: {$c['border_width']}px solid {$c['border_color']};
-            }
-        ";
-        wp_add_inline_style( 'siarhe-frontend-css', $custom_css );
+        // 2. Variables CSS dinamicas (colores): unico punto de inyeccion, ver siarhe_get_css_variables_css()
+        wp_add_inline_style( 'siarhe-frontend-css', siarhe_get_css_variables_css() );
 
         // 3. Registrar D3.js (se encola como dependencia de siarhe-core-js solo cuando hay un shortcode)
         wp_register_script( 'd3-js', 'https://d3js.org/d3.v7.min.js', array(), '7.0.0', true );
