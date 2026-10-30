@@ -2,22 +2,26 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // CARGA INTELIGENTE DE MÓDULOS JAVASCRIPT SEGÚN EL MODO
-$v_js = time(); // Rompe-caché para desarrollo (Considerar cambiar a filemtime en producción)
+// Version por archivo (filemtime): el navegador cachea el JS y se invalida solo al modificarlo.
+$siarhe_js_ver = function( $file ) {
+    $path = SIARHE_PATH . 'public/js/' . $file;
+    return file_exists( $path ) ? filemtime( $path ) : SIARHE_VERSION;
+};
 
 // 1. Core y Controles (Siempre se necesitan para leer datos y selectores)
-wp_enqueue_script( 'siarhe-core-js', SIARHE_URL . 'public/js/siarhe-core.js', array(), $v_js, true );
-wp_enqueue_script( 'siarhe-controls-js', SIARHE_URL . 'public/js/siarhe-controls.js', array('siarhe-core-js'), $v_js, true );
+wp_enqueue_script( 'siarhe-core-js', SIARHE_URL . 'public/js/siarhe-core.js', array('d3-js'), $siarhe_js_ver('siarhe-core.js'), true );
+wp_enqueue_script( 'siarhe-controls-js', SIARHE_URL . 'public/js/siarhe-controls.js', array('siarhe-core-js'), $siarhe_js_ver('siarhe-controls.js'), true );
 
 // 2. Mapa (Solo si el shortcode incluye la letra 'M')
 if ( strpos( strtoupper($mode), 'M' ) !== false ) {
     // Cargamos el gestor de Tooltips antes del mapa
-    wp_enqueue_script( 'siarhe-tooltips-js', SIARHE_URL . 'public/js/siarhe-tooltips.js', array('siarhe-core-js'), $v_js, true );
-    wp_enqueue_script( 'siarhe-map-js', SIARHE_URL . 'public/js/siarhe-map.js', array('siarhe-core-js', 'siarhe-controls-js', 'siarhe-tooltips-js'), $v_js, true );
+    wp_enqueue_script( 'siarhe-tooltips-js', SIARHE_URL . 'public/js/siarhe-tooltips.js', array('siarhe-core-js'), $siarhe_js_ver('siarhe-tooltips.js'), true );
+    wp_enqueue_script( 'siarhe-map-js', SIARHE_URL . 'public/js/siarhe-map.js', array('siarhe-core-js', 'siarhe-controls-js', 'siarhe-tooltips-js'), $siarhe_js_ver('siarhe-map.js'), true );
 }
 
 // 3. Tabla (Solo si el shortcode incluye la letra 'T')
 if ( strpos( strtoupper($mode), 'T' ) !== false ) {
-    wp_enqueue_script( 'siarhe-table-js', SIARHE_URL . 'public/js/siarhe-table.js', array('siarhe-core-js', 'siarhe-controls-js'), $v_js, true );
+    wp_enqueue_script( 'siarhe-table-js', SIARHE_URL . 'public/js/siarhe-table.js', array('siarhe-core-js', 'siarhe-controls-js'), $siarhe_js_ver('siarhe-table.js'), true );
 }
 
 // Año de los metadatos de la Base Estática (CSV)

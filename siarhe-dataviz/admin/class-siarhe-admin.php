@@ -3,6 +3,9 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Siarhe_Admin {
 
+    // Subir este valor cuando maybe_update_database() deba aplicar nuevas columnas.
+    const DB_VERSION = '1';
+
     public function init() {
         // Hooks Visuales
         add_action( 'admin_menu', array( $this, 'add_plugin_menu' ) );
@@ -34,13 +37,16 @@ class Siarhe_Admin {
 
     // 🌟 AQUÍ ESTÁ LA CORRECCIÓN: Verifica columna por columna
     public function maybe_update_database() {
+        // Solo se revisa el esquema cuando cambia la version de BD (evita SHOW TABLES/DESCRIBE en cada carga del admin)
+        if ( get_option( 'siarhe_db_version' ) === self::DB_VERSION ) return;
+
         global $wpdb;
         $table = $wpdb->prefix . 'siarhe_static_assets';
-        
+
         // Verificar si la tabla existe primero
         if($wpdb->get_var("SHOW TABLES LIKE '$table'") == $table) {
             $cols = $wpdb->get_col("DESCRIBE `$table`", 0);
-            
+
             if (!in_array('subido_por', $cols)) {
                 $wpdb->query("ALTER TABLE `$table` ADD `subido_por` varchar(100) DEFAULT NULL");
             }
@@ -50,6 +56,7 @@ class Siarhe_Admin {
             if (!in_array('fecha_modificacion', $cols)) {
                 $wpdb->query("ALTER TABLE `$table` ADD `fecha_modificacion` datetime DEFAULT NULL");
             }
+            update_option( 'siarhe_db_version', self::DB_VERSION );
         }
     }
 
@@ -65,6 +72,7 @@ class Siarhe_Admin {
     }
 
     public function enqueue_styles( $hook ) {
+        if ( strpos( $hook, 'siarhe' ) === false ) return; // Solo en las pantallas del plugin
         wp_enqueue_style( 'siarhe-admin-css', SIARHE_URL . 'admin/css/siarhe-admin.css', array(), SIARHE_VERSION, 'all' );
         if ( strpos( $hook, 'siarhe-settings' ) !== false ) {
             wp_enqueue_style( 'wp-color-picker' );
@@ -73,6 +81,8 @@ class Siarhe_Admin {
     }
 
     public function inject_dynamic_css() {
+        $screen = get_current_screen();
+        if ( ! $screen || strpos( $screen->id, 'siarhe' ) === false ) return;
         $options = get_option( 'siarhe_theme_options' );
         $map_options = get_option( 'siarhe_map_options' ); 
         ?>

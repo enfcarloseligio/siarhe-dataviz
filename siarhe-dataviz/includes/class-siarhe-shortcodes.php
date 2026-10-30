@@ -44,6 +44,9 @@ class Siarhe_Shortcodes {
      * Renderiza la vista utilizando la plantilla PHP separada.
      */
     public function render_viz( $slug, $cve_ent, $mode, $nombre_entidad = '' ) {
+        // Respaldo: shortcodes fuera del contenido principal (widgets, builders)
+        wp_enqueue_style( 'siarhe-frontend-css' );
+
         global $wpdb;
         $table_assets = $wpdb->prefix . 'siarhe_static_assets';
         
@@ -113,7 +116,7 @@ class Siarhe_Shortcodes {
      */
     public function enqueue_frontend_scripts() {
         // 1. Cargar estilos Frontend
-        wp_enqueue_style( 'siarhe-frontend-css', SIARHE_URL . 'public/css/siarhe-frontend.css', array(), SIARHE_VERSION );
+        wp_register_style( 'siarhe-frontend-css', SIARHE_URL . 'public/css/siarhe-frontend.css', array(), SIARHE_VERSION );
 
         // 2. INYECTAR VARIABLES CSS DINÁMICAS (Colores)
         $opts = get_option( 'siarhe_map_options', [] );
@@ -159,26 +162,12 @@ class Siarhe_Shortcodes {
         ";
         wp_add_inline_style( 'siarhe-frontend-css', $custom_css );
 
-        // 3. Cargar D3.js (Librería Externa - Versión 7)
-        wp_enqueue_script( 'd3-js', 'https://d3js.org/d3.v7.min.js', array(), '7.0.0', true );
+        // 3. Registrar D3.js (se encola como dependencia de siarhe-core-js solo cuando hay un shortcode)
+        wp_register_script( 'd3-js', 'https://d3js.org/d3.v7.min.js', array(), '7.0.0', true );
 
-        // 4. Cargar nuestro Script Principal (Depende de D3.js)
-        wp_enqueue_script( 'siarhe-viz-js', SIARHE_URL . 'public/js/siarhe-viz.js', array('d3-js'), SIARHE_VERSION, true );
-
-        // 5. INYECTAR DATOS DINÁMICOS A JS (Legacy support)
-        // Aunque ahora pasamos la info vía data-attributes en el HTML, mantenemos esto por retrocompatibilidad.
-        $entities = siarhe_get_entities();
-        $urls_map = [];
-        foreach ( $entities as $slug => $data ) {
-            $urls_map[$data['CVE_ENT']] = home_url( "/entidad/$slug/" );
+        // 4. Si el contenido actual ya usa un shortcode del plugin, el CSS se encola en <head>
+        if ( is_singular() && preg_match( '/\[siarhe_mapa_(?:M|T|MT)_CVE_ENT_/', (string) get_post_field( 'post_content', get_queried_object_id() ) ) ) {
+            wp_enqueue_style( 'siarhe-frontend-css' );
         }
-
-        $siarhe_data = [
-            'entity_urls' => $urls_map,
-            'home_url'    => home_url( '/mapa-nacional/' ),
-            'markers'     => [] 
-        ];
-
-        wp_localize_script( 'siarhe-viz-js', 'siarheData', $siarhe_data );
     }
 }

@@ -112,67 +112,60 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     // ☀️ 3. MOTOR MATEMÁTICO DE RANGOS
     // ==========================================
     app.math = {
-        isInRange: function(valToEval, minRaw, op, maxRaw, statsDict) {
+        /**
+         * Resuelve una vez los limites de un rango (Vmin, Q1, Q2... o numeros) y devuelve
+         * un predicado reutilizable, para no recalcularlos por cada municipio.
+         */
+        buildRange: function(minRaw, op, maxRaw, statsDict) {
+            const lower = {};
+            Object.keys(statsDict).forEach(k => { lower[k.toLowerCase()] = statsDict[k]; });
             const parseVal = (raw) => {
-                if (raw === undefined || raw === null || raw === '') return NaN; 
-                let v = raw.toString().trim();
-                const key = Object.keys(statsDict).find(k => k.toLowerCase() === v.toLowerCase());
-                return key ? statsDict[key] : parseFloat(v);
+                if (raw === undefined || raw === null || raw === '') return NaN;
+                const v = raw.toString().trim();
+                const hit = lower[v.toLowerCase()];
+                return hit !== undefined ? hit : parseFloat(v);
             };
 
             const minVal = parseVal(minRaw);
             const maxVal = parseVal(maxRaw);
+            if (isNaN(minVal) || isNaN(maxVal)) return function() { return false; };
 
-            if (isNaN(minVal) || isNaN(maxVal)) return false;
-
-            let lowerBoundMet = valToEval >= minVal; 
-            let upperBoundMet = false;
             const operator = (op || '<').toString().trim();
-            
-            // 🌟 MATEMÁTICA ESTRICTA (Sin parches, respeta lo que ponga el usuario o el sistema)
-            if (operator === '<') upperBoundMet = valToEval < maxVal;
-            else if (operator === '<=') upperBoundMet = valToEval <= maxVal;
-            else if (operator === '=') upperBoundMet = valToEval === maxVal;
-            else upperBoundMet = valToEval < maxVal; // Fallback
+            // MATEMATICA ESTRICTA (respeta lo que ponga el usuario o el sistema)
+            if (operator === '<=') return function(v) { return v >= minVal && v <= maxVal; };
+            if (operator === '=')  return function(v) { return v >= minVal && v === maxVal; };
+            return function(v) { return v >= minVal && v < maxVal; };
+        },
 
-            return lowerBoundMet && upperBoundMet;
+        isInRange: function(valToEval, minRaw, op, maxRaw, statsDict) {
+            return app.math.buildRange(minRaw, op, maxRaw, statsDict)(valToEval);
         },
 
         createRangeEvaluator: function(metricConfig, statsDict) {
+            const useColors = metricConfig.custom_colors === true;
+            const useRanges = metricConfig.custom_ranges === true;
+            const color = (n) => (useColors && metricConfig['r' + n + '_color']) ? metricConfig['r' + n + '_color'] : app.colors.CUSTOM_RANGE[n - 1];
+            const pick = (n, field, def) => (useRanges && metricConfig['r' + n + '_' + field]) ? metricConfig['r' + n + '_' + field] : def;
+
+            // Rangos de mayor a menor, resueltos una sola vez
+            const defs = [
+                [4, 'Q3',   '<=', 'Vmax'],
+                [3, 'Q2',   '<',  'Q3'],
+                [2, 'Q1',   '<',  'Q2'],
+                [1, 'Vmin', '<',  'Q1']
+            ];
+            const ranges = defs.map(d => ({
+                color: color(d[0]),
+                test: app.math.buildRange(pick(d[0], 'min', d[1]), pick(d[0], 'op', d[2]), pick(d[0], 'max', d[3]), statsDict)
+            }));
+
             return function(value) {
                 if (value === null || value === undefined || isNaN(value)) return app.colors.NULL;
                 if (value === 0) return app.colors.ZERO;
-
-                const useColors = metricConfig.custom_colors === true;
-                const c1 = (useColors && metricConfig.r1_color) ? metricConfig.r1_color : app.colors.CUSTOM_RANGE[0];
-                const c2 = (useColors && metricConfig.r2_color) ? metricConfig.r2_color : app.colors.CUSTOM_RANGE[1];
-                const c3 = (useColors && metricConfig.r3_color) ? metricConfig.r3_color : app.colors.CUSTOM_RANGE[2];
-                const c4 = (useColors && metricConfig.r4_color) ? metricConfig.r4_color : app.colors.CUSTOM_RANGE[3];
-
-                const useRanges = metricConfig.custom_ranges === true;
-
-                const r4_min = (useRanges && metricConfig.r4_min) ? metricConfig.r4_min : 'Q3'; 
-                const r4_op  = (useRanges && metricConfig.r4_op)  ? metricConfig.r4_op  : '<=';
-                const r4_max = (useRanges && metricConfig.r4_max) ? metricConfig.r4_max : 'Vmax';
-                
-                const r3_min = (useRanges && metricConfig.r3_min) ? metricConfig.r3_min : 'Q2'; 
-                const r3_op  = (useRanges && metricConfig.r3_op)  ? metricConfig.r3_op  : '<';  
-                const r3_max = (useRanges && metricConfig.r3_max) ? metricConfig.r3_max : 'Q3';
-                
-                const r2_min = (useRanges && metricConfig.r2_min) ? metricConfig.r2_min : 'Q1'; 
-                const r2_op  = (useRanges && metricConfig.r2_op)  ? metricConfig.r2_op  : '<';  
-                const r2_max = (useRanges && metricConfig.r2_max) ? metricConfig.r2_max : 'Q2';
-                
-                const r1_min = (useRanges && metricConfig.r1_min) ? metricConfig.r1_min : 'Vmin'; 
-                const r1_op  = (useRanges && metricConfig.r1_op)  ? metricConfig.r1_op  : '<';  
-                const r1_max = (useRanges && metricConfig.r1_max) ? metricConfig.r1_max : 'Q1';
-
-                if (app.math.isInRange(value, r4_min, r4_op, r4_max, statsDict)) return c4;
-                if (app.math.isInRange(value, r3_min, r3_op, r3_max, statsDict)) return c3;
-                if (app.math.isInRange(value, r2_min, r2_op, r2_max, statsDict)) return c2;
-                if (app.math.isInRange(value, r1_min, r1_op, r1_max, statsDict)) return c1;
-
-                return app.colors.NULL; 
+                for (let i = 0; i < ranges.length; i++) {
+                    if (ranges[i].test(value)) return ranges[i].color;
+                }
+                return app.colors.NULL;
             };
         }
     };
