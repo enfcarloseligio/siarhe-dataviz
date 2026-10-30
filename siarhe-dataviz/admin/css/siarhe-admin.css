@@ -206,41 +206,41 @@
     .siarhe-modal-content { width: 95%; margin: 10% auto; padding: 15px; }
 
     /* Tarjetas (Acordeón) */
-    .siarhe-table { border: 0; background: transparent; box-shadow: none; }
-    .siarhe-table thead { display: none; }
-    .siarhe-table tr {
+    .siarhe-table:not(.siarhe-table--static) { border: 0; background: transparent; box-shadow: none; }
+    .siarhe-table:not(.siarhe-table--static) thead { display: none; }
+    .siarhe-table:not(.siarhe-table--static) tr {
         display: block; margin-bottom: 15px; background: #fff;
         border: 1px solid #c3c4c7; border-radius: 8px;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: relative; cursor: pointer;
     }
 
-    .siarhe-table tr::after {
+    .siarhe-table:not(.siarhe-table--static) tr::after {
         content: "\f140"; font-family: dashicons; position: absolute;
         top: 15px; right: 15px; font-size: 20px; color: #a7aaad;
         transition: transform 0.3s ease; pointer-events: none;
     }
-    .siarhe-table tr.is-open::after { transform: rotate(180deg); color: #2271b1; }
+    .siarhe-table:not(.siarhe-table--static) tr.is-open::after { transform: rotate(180deg); color: #2271b1; }
 
-    .siarhe-table td { display: none; padding: 10px 15px; text-align: right; }
+    .siarhe-table:not(.siarhe-table--static) td { display: none; padding: 10px 15px; text-align: right; }
 
-    .siarhe-table td[data-mobile-role="primary"] {
+    .siarhe-table:not(.siarhe-table--static) td[data-mobile-role="primary"] {
         display: block; font-size: 15px; font-weight: 600; color: #2271b1;
         padding: 15px; padding-right: 40px; text-align: left; border-bottom: 1px solid #eee;
     }
 
-    .siarhe-table td[data-mobile-role="secondary"] {
+    .siarhe-table:not(.siarhe-table--static) td[data-mobile-role="secondary"] {
         display: block; text-align: left; padding: 0 15px 15px 15px; font-size: 13px; border-bottom: none;
     }
 
-    .siarhe-table tr.is-open td { display: block; border-bottom: 1px solid #f0f0f1; }
-    .siarhe-table tr.is-open td:last-child { border-bottom: none; background: #f6f7f7; text-align: center; border-radius: 0 0 8px 8px; }
+    .siarhe-table:not(.siarhe-table--static) tr.is-open td { display: block; border-bottom: 1px solid #f0f0f1; }
+    .siarhe-table:not(.siarhe-table--static) tr.is-open td:last-child { border-bottom: none; background: #f6f7f7; text-align: center; border-radius: 0 0 8px 8px; }
 
-    .siarhe-table td::before {
+    .siarhe-table:not(.siarhe-table--static) td::before {
         content: attr(data-label); float: left; font-weight: 700; color: #646970;
         text-transform: uppercase; font-size: 10px; margin-top: 4px;
     }
-    .siarhe-table td[data-mobile-role="primary"]::before,
-    .siarhe-table td[data-mobile-role="secondary"]::before { display: none; }
+    .siarhe-table:not(.siarhe-table--static) td[data-mobile-role="primary"]::before,
+    .siarhe-table:not(.siarhe-table--static) td[data-mobile-role="secondary"]::before { display: none; }
 }
 
 /* =========================================

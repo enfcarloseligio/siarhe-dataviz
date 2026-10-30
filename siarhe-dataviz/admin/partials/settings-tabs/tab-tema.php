@@ -23,39 +23,9 @@ $colors = wp_parse_args( $theme_options, $defaults );
     .siarhe-tema-flex { display: flex; gap: 25px; flex-wrap: wrap; }
     .siarhe-tema-col label { display: block; margin-bottom: 5px; font-weight: 600; color: #50575e; }
 
-    /* Excepción para que la tabla de vista previa no se convierta en acordeón en móviles */
+    /* (La tabla de vista previa lleva .siarhe-table--static: el acordeón móvil del admin no le aplica) */
     @media screen and (max-width: 767px) {
         .siarhe-tema-flex { flex-direction: column; gap: 15px; }
-        
-        #siarhe-preview-table {
-            display: table !important;
-            border: 1px solid #c3c4c7 !important;
-            box-shadow: 0 1px 1px rgba(0,0,0,0.04) !important;
-            background: transparent !important;
-            width: 100% !important; 
-            min-width: 0 !important;
-        }
-        #siarhe-preview-table thead { display: table-header-group !important; }
-        #siarhe-preview-table tr {
-            display: table-row !important;
-            margin-bottom: 0 !important;
-            border: none !important;
-            border-radius: 0 !important;
-            box-shadow: none !important;
-            cursor: default !important;
-        }
-        #siarhe-preview-table tr::after { display: none !important; }
-        #siarhe-preview-table th,
-        #siarhe-preview-table td {
-            display: table-cell !important;
-            padding: 10px !important;
-            text-align: left !important;
-            border-bottom: 1px solid #f0f0f1 !important;
-            font-size: 13px !important; /* Ajuste para que no desborde en móvil */
-        }
-        #siarhe-preview-table td::before { display: none !important; }
-        /* Evitar que el color cambie en el primer td */
-        #siarhe-preview-table td:first-child { color: inherit !important; font-weight: normal !important; font-size: inherit !important; }
     }
 </style>
 
@@ -117,7 +87,7 @@ $colors = wp_parse_args( $theme_options, $defaults );
 
     <h3>Vista Previa</h3>
     <div style="overflow-x: auto;">
-        <table id="siarhe-preview-table" class="siarhe-table" style="min-width: 400px; max-width: 100%;">
+        <table id="siarhe-preview-table" class="siarhe-table siarhe-table--static" style="min-width: 400px; max-width: 100%;">
             <thead>
                 <tr>
                     <th>Columna 1</th>

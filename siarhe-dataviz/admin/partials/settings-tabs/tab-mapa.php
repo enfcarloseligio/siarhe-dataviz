@@ -78,6 +78,7 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         min-width: 80px; height: 75px; box-sizing: border-box;
     }
+    .siarhe-preview-box label { font-size:10px; color:#888; margin-bottom:5px; }
 
     .siarhe-badge { padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; display: inline-block; border: 1px solid transparent; }
     .siarhe-badge.neutral { background: #f0f0f1; color: #3c434a; border-color: #c3c4c7; }
@@ -92,7 +93,7 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
             width: 100%; flex-direction: row; justify-content: flex-start;
             gap: 15px; height: auto; padding: 10px 15px;
         }
-        .siarhe-preview-box label { margin-bottom: 0 !important; }
+        .siarhe-preview-box label { margin-bottom: 0; }
     }
 </style>
 
@@ -236,7 +237,7 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
             <td>
                 <div class="siarhe-marker-row" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
                     <div class="siarhe-preview-box">
-                        <label style="font-size:10px; color:#888; margin-bottom:5px;">Vista Previa</label>
+                        <label>Vista Previa</label>
                         <svg id="preview-<?php echo esc_attr($s_key); ?>" width="<?php echo $is_espectro ? '36' : '30'; ?>" height="<?php echo $is_espectro ? '36' : '30'; ?>" viewBox="0 0 30 30"></svg>
                     </div>
                     

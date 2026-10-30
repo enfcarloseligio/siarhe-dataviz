@@ -30,3 +30,6 @@ build.ps1
 builds/
 estructura.bat
 estructura.txt
+
+# Archivos de contexto para Claude (NO subir al repo)
+gitignore/
