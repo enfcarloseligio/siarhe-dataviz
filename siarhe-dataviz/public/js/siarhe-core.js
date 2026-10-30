@@ -39,6 +39,19 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     // 2. UTILIDADES DE PROCESAMIENTO (Parsers)
     // ==========================================
     app.utils = {
+        /**
+         * Cede el hilo principal hasta el siguiente cuadro (con respaldo por timer si la pestana
+         * esta en segundo plano). Permite trocear trabajos largos sin congelar la pagina.
+         */
+        nextFrame: function() {
+            return new Promise(function(resolve) {
+                let done = false;
+                const go = function() { if (!done) { done = true; resolve(); } };
+                requestAnimationFrame(go);
+                setTimeout(go, 50);
+            });
+        },
+
         /** Escapa texto de datos (CSV/GeoJSON/config) antes de insertarlo en innerHTML. */
         esc: function(val) {
             return (val === undefined || val === null) ? '' : String(val).replace(/[&<>"']/g, function(c) {
@@ -323,7 +336,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             csvUrl ? d3.csv(csvUrl) : Promise.resolve(null)
         ])
         .then(([geo, csv]) => {
-            if(loading) loading.style.display = 'none';
             state.geoData = geo;
             
             if (csv) {
@@ -361,6 +373,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 app.table.init(container, state);
                 if (app.controls) app.controls.setupExcelExport(container, state);
             }
+
+            // El overlay se oculta hasta que todo se haya construido (antes se ocultaba antes de renderizar)
+            if (loading) loading.style.display = 'none';
         })
         .catch(err => { 
             console.error("[SIARHE Core] Falla en la red o parseo:", err); 

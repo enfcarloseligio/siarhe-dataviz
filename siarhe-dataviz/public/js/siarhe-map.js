@@ -79,6 +79,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         },
 
         render: function(container, state, cveEnt) {
+            // Sin geometrias no hay nada que dibujar: avisamos en vez de romper el render
+            if (!state.geoData || !Array.isArray(state.geoData.features) || state.geoData.features.length === 0) {
+                const emptyDiv = container.querySelector('.siarhe-map-container');
+                if (emptyDiv) emptyDiv.textContent = 'No hay datos geográficos disponibles para esta vista.';
+                return;
+            }
             
             // CSS 
 
@@ -122,6 +128,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const projection = d3.geoMercator().fitSize([width, height], state.geoData); 
             state.projection = projection;
             const path = d3.geoPath().projection(projection); 
+            // Menos decimales por coordenada = cadenas 'd' mucho mas cortas (miles de poligonos)
+            if (typeof path.digits === 'function') path.digits(2);
             state.path = path; 
 
             let initialTransform = d3.zoomIdentity;
@@ -257,55 +265,141 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             app.map.initResponsiveLegends(container, state);
         },
 
-        updateGeography: function(container, state) {
+        /**
+         * Registra una sola vez los eventos de la capa de localidades/municipios por delegacion
+         * (antes: 3 closures por poligono, decenas de miles en entidades grandes).
+         */
+        _bindLocEvents: function(layer, state, mapDiv) {
+            if (state._locEventsBound) return;
+            state._locEventsBound = true;
+
+            const isLoc = (t) => t && t.classList && t.classList.contains('siarhe-loc-feature');
+            const zoomK = () => {
+                let k = 1;
+                if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch (err) {} }
+                return k;
+            };
+
+            layer
+                .on("mouseover", function(e) {
+                    const t = e.target;
+                    if (!isLoc(t)) return;
+                    d3.select(t).attr("stroke", "#ffffff").attr("stroke-width", 1.5 / zoomK());
+                    if (app.tooltips) app.tooltips.showGeoTooltip(e, t.__data__, state, mapDiv);
+                })
+                .on("mousemove", function(e) {
+                    if (!isLoc(e.target)) return;
+                    const [mx, my] = d3.pointer(e, mapDiv);
+                    if (state.tooltip) state.tooltip.style("left", (mx + 15) + "px").style("top", (my - 28) + "px");
+                })
+                .on("mouseout", function(e) {
+                    const t = e.target;
+                    if (!isLoc(t)) return;
+                    d3.select(t).attr("stroke", "rgba(255, 255, 255, 0.4)").attr("stroke-width", 0.5 / zoomK());
+                    if (state.tooltip) state.tooltip.style("opacity", 0).style("display", "none");
+                })
+                .on("click", function(e) {
+                    const t = e.target;
+                    if (!isLoc(t)) return;
+                    const ahora = Date.now();
+                    if (ahora - (state.lastClickTime || 0) < 400) {
+                        app.map.handleMapClick(t.__data__, state);
+                    } else if (app.tooltips) {
+                        app.tooltips.showGeoTooltip(e, t.__data__, state, mapDiv);
+                    }
+                    state.lastClickTime = ahora;
+                });
+        },
+
+        /**
+         * Muestra u oculta la segunda vista (municipios / localidades).
+         * Los poligonos se construyen UNA sola vez, en lotes por cuadro (sin congelar la pagina),
+         * y despues solo se muestran con un fundido. Devuelve una Promise que se resuelve al terminar.
+         * onProgress(pct) permite informar el avance en el overlay de carga.
+         */
+        updateGeography: function(container, state, onProgress) {
             const mapDiv = container.querySelector('.siarhe-map-container');
-            if (!mapDiv || !state.gLocPaths || !state.path) return;
+            if (!mapDiv || !state.gLocPaths || !state.path) return Promise.resolve();
 
-            if (state.isGeoLocMode && state.locGeoData) {
-                const paths = state.gLocPaths.selectAll("path.siarhe-loc-feature")
-                    .data(state.locGeoData.features, d => d.properties.CVEGEO || Math.random());
+            const layer = state.gLocPaths;
 
-                paths.exit().remove();
-
-                const pathsEnter = paths.enter().append("path")
-                    .attr("class", "siarhe-loc-feature")
-                    .attr("stroke", "rgba(255, 255, 255, 0.4)") 
-                    .style("fill", "transparent") 
-                    .style("cursor", "pointer")
-                    .on("mouseover", function(e, d) {
-                        let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
-                        d3.select(this).attr("stroke", "#ffffff").attr("stroke-width", 1.5 / k);
-                        if(app.tooltips) app.tooltips.showGeoTooltip(e, d, state, mapDiv);
-                    }) 
-                    .on("mousemove", (e) => {
-                        const [mx, my] = d3.pointer(e, mapDiv);
-                        if (state.tooltip) state.tooltip.style("left", (mx + 15) + "px").style("top", (my - 28) + "px");
-                    })
-                    .on("mouseout", function() { 
-                        let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
-                        d3.select(this).attr("stroke", "rgba(255, 255, 255, 0.4)").attr("stroke-width", 0.5 / k);
-                        if (state.tooltip) state.tooltip.style("opacity", 0).style("display", "none"); 
-                    })
-                    .on("click", (e, d) => {
-                        const ahora = Date.now();
-                        if (ahora - (state.lastClickTime || 0) < 400) { 
-                            app.map.handleMapClick(d, state); 
-                        } else { 
-                            if(app.tooltips) app.tooltips.showGeoTooltip(e, d, state, mapDiv); 
-                        }
-                        state.lastClickTime = ahora;
-                    });
-
-                pathsEnter.merge(paths).attr("d", state.path);
-                
-                state.gLocPaths.style("display", "block");
-                let currentK = 1; 
-                if (state.svg) { try { currentK = d3.zoomTransform(state.svg.node()).k; } catch(e) {} }
-                state.gLocPaths.selectAll("path.siarhe-loc-feature").attr("stroke-width", 0.5 / currentK);
-
-            } else {
-                state.gLocPaths.style("display", "none");
+            if (!(state.isGeoLocMode && state.locGeoData)) {
+                state._locBuildGen = (state._locBuildGen || 0) + 1; // cancela una construccion en curso
+                layer.style("display", "none");
+                return Promise.resolve();
             }
+
+            const features = Array.isArray(state.locGeoData.features) ? state.locGeoData.features : [];
+            if (features.length === 0) {
+                layer.style("display", "none");
+                return Promise.resolve();
+            }
+
+            app.map._bindLocEvents(layer, state, mapDiv);
+
+            const zoomK = () => {
+                let k = 1;
+                if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch (e) {} }
+                return k;
+            };
+
+            const reveal = () => {
+                layer.style("display", "block").style("opacity", 0)
+                    .transition().duration(400).style("opacity", 1);
+                layer.selectAll("path.siarhe-loc-feature").attr("stroke-width", 0.5 / zoomK());
+            };
+
+            // Ya construida: solo se vuelve a mostrar (antes se recalculaba el 'd' de todos los poligonos)
+            if (state._locBuilt === state.locGeoData) {
+                reveal();
+                return Promise.resolve();
+            }
+
+            state._locBuildGen = (state._locBuildGen || 0) + 1;
+            const gen = state._locBuildGen;
+            layer.selectAll("*").remove();
+            layer.interrupt().style("display", "block").style("opacity", 1);
+
+            const ns = "http://www.w3.org/2000/svg";
+            const layerNode = layer.node();
+            const total = features.length;
+            const strokeW = 0.5 / zoomK();
+            let i = 0;
+
+            return new Promise((resolve) => {
+                const step = () => {
+                    if (state._locBuildGen !== gen) { resolve(); return; }
+
+                    const t0 = performance.now();
+                    const frag = document.createDocumentFragment();
+                    do {
+                        const f = features[i++];
+                        const dStr = f ? state.path(f) : null;
+                        if (dStr) {
+                            const el = document.createElementNS(ns, "path");
+                            el.setAttribute("class", "siarhe-loc-feature");
+                            el.setAttribute("d", dStr);
+                            el.setAttribute("stroke", "rgba(255, 255, 255, 0.4)");
+                            el.setAttribute("stroke-width", strokeW);
+                            el.style.fill = "transparent";
+                            el.style.cursor = "pointer";
+                            el.__data__ = f;
+                            frag.appendChild(el);
+                        }
+                    } while (i < total && performance.now() - t0 < 10);
+                    layerNode.appendChild(frag);
+
+                    if (typeof onProgress === 'function') onProgress(Math.min(100, Math.round((i / total) * 100)));
+
+                    if (i < total) {
+                        requestAnimationFrame(step);
+                    } else {
+                        state._locBuilt = state.locGeoData; // los poligonos ya fueron apareciendo por lotes: sin fundido extra
+                        resolve();
+                    }
+                };
+                requestAnimationFrame(step);
+            });
         },
 
         updateVisuals: function(container, state) {
@@ -391,29 +485,37 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         },
 
         renderLabels: function(state) {
-            let currentK = 1; 
+            let currentK = 1;
             if (state.svg) { try { currentK = d3.zoomTransform(state.svg.node()).k; } catch(e) {} }
 
             const baseGeoData = state.baseGeoData || state.geoData;
-            const maxAreaFeatures = new Map();
-            
-            baseGeoData.features.forEach(d => {
-                let cve = app.utils.getGeoKey(d.properties, state.isNacional); 
-                let area = d3.geoArea(d);
-                if (!maxAreaFeatures.has(cve) || area > maxAreaFeatures.get(cve).area) { 
-                    maxAreaFeatures.set(cve, { feature: d, area: area }); 
-                }
-            });
-            const featuresUnicas = Array.from(maxAreaFeatures.values()).map(item => item.feature);
+            if (!baseGeoData || !Array.isArray(baseGeoData.features)) return;
 
-            const labels = state.gLabels.selectAll("text.siarhe-label").data(featuresUnicas);
+            // Area y centroide se calculan UNA vez por geometria (antes se repetian en cada cambio de metrica)
+            if (!state._labelFeatures || state._labelFeaturesSrc !== baseGeoData) {
+                const maxAreaFeatures = new Map();
+                baseGeoData.features.forEach(d => {
+                    let cve = app.utils.getGeoKey(d.properties, state.isNacional);
+                    let area = d3.geoArea(d);
+                    if (!maxAreaFeatures.has(cve) || area > maxAreaFeatures.get(cve).area) {
+                        maxAreaFeatures.set(cve, { feature: d, area: area });
+                    }
+                });
+                state._labelFeatures = Array.from(maxAreaFeatures.values()).map(item => {
+                    const c = state.path.centroid(item.feature);
+                    return { feature: item.feature, x: isNaN(c[0]) ? 0 : c[0], y: isNaN(c[1]) ? 0 : c[1] };
+                });
+                state._labelFeaturesSrc = baseGeoData;
+            }
+
+            const labels = state.gLabels.selectAll("text.siarhe-label").data(state._labelFeatures);
             labels.exit().remove();
-            
+
             labels.enter().append("text")
                 .attr("class", "siarhe-label")
                 .merge(labels)
-                .attr("x", d => { const c = state.path.centroid(d); return isNaN(c[0]) ? 0 : c[0]; })
-                .attr("y", d => { const c = state.path.centroid(d); return isNaN(c[1]) ? 0 : c[1]; })
+                .attr("x", d => d.x)
+                .attr("y", d => d.y)
                 .attr("text-anchor", "middle")
                 .attr("fill", "#0F172A")
                 .attr("stroke", "#ffffff")
@@ -422,10 +524,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .attr("stroke-linejoin", "round")
                 .style("font-size", `${14 / currentK}px`)
                 .style("font-weight", "bold")
-                .text(d => { 
-                    let cve = app.utils.getGeoKey(d.properties, state.isNacional); 
-                    const row = state.dataMap.get(cve); 
-                    return row ? row.estado : (d.properties.NOMGEO || d.properties.NOM_ENT || ""); 
+                .text(d => {
+                    let cve = app.utils.getGeoKey(d.feature.properties, state.isNacional);
+                    const row = state.dataMap.get(cve);
+                    return row ? row.estado : (d.feature.properties.NOMGEO || d.feature.properties.NOM_ENT || "");
                 });
         },
 
@@ -563,34 +665,45 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
         },
 
+        // Tamano de simbolo segun el zoom actual (compartido por updateMarkers y el pintado por cuadros)
+        _markerMetrics: function(state) {
+            let k = 1;
+            if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(e) {} }
+
+            let shrinkFactor = 1;
+            if (k > 8) shrinkFactor = 1 + ((k - 8) * 0.15);
+
+            // Areas tactiles mas grandes para movil/tablet
+            const isTouch = window.innerWidth < 1024;
+            const baseSize = isTouch ? 500 : 250;
+            const minSymbolSize = isTouch ? 0.25 : 0.05;
+
+            return { k: k, symbolSize: Math.max((baseSize / shrinkFactor) / (k * k), minSymbolSize) };
+        },
+
         updateMarkers: function(state) {
+            if (!state.gMarkers) return Promise.resolve();
+
             let allPoints = [];
-            state.activeMarkers.forEach(type => { 
-                if(state.markersData[type]) allPoints = allPoints.concat(state.markersData[type]); 
+            state.activeMarkers.forEach(type => {
+                const data = state.markersData[type];
+                if (!Array.isArray(data)) return;
+                // Id estable por punto: permite a d3 reutilizar los nodos ya pintados al activar/desactivar otro tipo
+                if (data.length > 0 && data[0]._uid === undefined) {
+                    for (let i = 0; i < data.length; i++) data[i]._uid = type + ':' + i;
+                }
+                allPoints = allPoints.concat(data);
             });
 
+            let hasEspectro = false;
+            state.activeMarkers.forEach(type => { if ((state.markerLabels[type] || {}).tipo === 'espectro') hasEspectro = true; });
+
+            // Los de espectro (burbujas) van debajo, los grandes antes que los chicos
             allPoints.sort((a, b) => {
                 const iA = (state.markerLabels[a.tipo] || {}).tipo === 'espectro', iB = (state.markerLabels[b.tipo] || {}).tipo === 'espectro'; return iA && !iB ? -1 : (!iA && iB ? 1 : (iA ? (b._agrupados_total || 1) - (a._agrupados_total || 1) : 0));
             });
 
-            let currentK = 1; 
-            if (state.svg) { try { currentK = d3.zoomTransform(state.svg.node()).k; } catch(e) {} }
-            
-            let shrinkFactor = 1;
-            if (currentK > 8) shrinkFactor = 1 + ((currentK - 8) * 0.15); 
-            
-            // 🌟 MEJORA UX: Identificamos pantallas táctiles (móvil y tablet)
-            const isTouch = window.innerWidth < 1024;
-            let baseSize = isTouch ? 500 : 250;
-
-            let symbolSize = (baseSize / shrinkFactor) / (currentK * currentK);
-            let minSymbolSize = isTouch ? 0.25 : 0.05;
-            if (symbolSize < minSymbolSize) symbolSize = minSymbolSize;
-
-            // 🚀 OPTIMIZACIÓN: resolvemos la columna real de "espectro" UNA vez
-            // por tipo de marcador (no por cada punto). Antes, Object.keys(d._raw).find(...)
-            // se ejecutaba por cada marcador tanto aquí como en cada evento de zoom,
-            // lo cual es muy costoso con miles de puntos (ej. hospitales a nivel nacional).
+            // Resolvemos la columna real y el maximo de "espectro" UNA vez por tipo (no por punto)
             state.espectroMaxVals = {};
             state._espectroColKeyCache = {};
             state.activeMarkers.forEach(type => {
@@ -610,93 +723,150 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 }
             });
 
-            const markers = state.gMarkers.selectAll("path.siarhe-marker").data(allPoints);
+            const markers = state.gMarkers.selectAll("path.siarhe-marker").data(allPoints, d => d._uid);
             markers.exit().remove();
-            
-            const merged = markers.enter().append("path")
+
+            // Solo los nodos NUEVOS se crean, se enlazan a eventos y se pintan; los existentes no se tocan
+            const entered = markers.enter().append("path")
                 .attr("class", "siarhe-marker")
-                .merge(markers)
                 .style("cursor", "pointer")
+                .style("opacity", 0)
+                .style("transition", "opacity 0.5s ease-out")
                 .on("mouseover", function(e, d) {
                     let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
                     const config = state.markerLabels[d.tipo] || {};
-                    
-                    d3.select(this).attr("stroke-width", 3 / k); 
+
+                    d3.select(this).attr("stroke-width", 3 / k);
                     if (config.tipo !== 'espectro') { d3.select(this).raise(); }
-                    
-                    const mapDiv = document.querySelector('.siarhe-map-container');
-                    if(app.tooltips) app.tooltips.showMarkerTooltip(e, d, state, mapDiv);
+
+                    const mapDiv = this.closest('.siarhe-map-container');
+                    if(app.tooltips && mapDiv) app.tooltips.showMarkerTooltip(e, d, state, mapDiv);
                 })
                 .on("mouseout", function(e, d) {
                     let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
-                    d3.select(this).attr("stroke-width", 1.5 / k); 
+                    d3.select(this).attr("stroke-width", 1.5 / k);
                     if(state.tooltip) state.tooltip.style("display", "none");
                 });
 
+            // El orden en el DOM define el apilado: solo hace falta reordenar si hay burbujas de espectro
+            if (hasEspectro) entered.merge(markers).order();
+
             app.map.renderMarkerLegend(state);
 
-            // 🚀 RENDERIZADO POR LOTES:
-            // Antes, el cálculo de forma/tamaño/posición/color de CADA marcador
-            // (d3.symbol(), proyección, colores) se hacía de golpe para TODOS los
-            // puntos en una sola pasada síncrona. Con pocos puntos (un estado) no
-            // se nota, pero con miles (ej. hospitales a nivel nacional) esto congela
-            // el hilo principal y los marcadores "aparecen todos de golpe" al final.
-            // Ahora lo hacemos en lotes con requestAnimationFrame: el navegador
-            // puede pintar entre lotes y los marcadores se ven aparecer progresivamente.
-            state._markersRenderGen = (state._markersRenderGen || 0) + 1;
-            const renderGen = state._markersRenderGen;
-            const nodes = merged.nodes();
-            const CHUNK_SIZE = 400;
-            let idx = 0;
+            return app.map._enqueueMarkers(state, entered.nodes());
+        },
 
-            function paintChunk() {
-                // Si mientras tanto se activó/desactivó otro marcador, esta pasada quedó obsoleta
-                if (state._markersRenderGen !== renderGen) return;
+        /**
+         * Encola los marcadores nuevos agrupados por unidad geografica (entidad en el mapa nacional,
+         * municipio en el estatal) para que aparezcan como una oleada region por region.
+         * Devuelve una Promise que se resuelve cuando la cola queda vacia.
+         */
+        _enqueueMarkers: function(state, nodes) {
+            state._markerQueue = state._markerQueue || [];
+            state._markerWaiters = state._markerWaiters || [];
 
-                const end = Math.min(idx + CHUNK_SIZE, nodes.length);
-                for (let i = idx; i < end; i++) {
-                    const node = nodes[i];
-                    const d = node.__data__;
-                    const config = state.markerLabels[d.tipo] || {};
-                    let finalSize = symbolSize;
-
-                    if (config.tipo === 'espectro') {
-                        let val = d._agrupados_total || 1;
-                        if (config.espectro_col && config.espectro_col.trim() !== '') {
-                            const realCol = state._espectroColKeyCache[d.tipo];
-                            val = realCol ? (parseFloat(d._raw[realCol]) || 0) : 0;
-                        }
-                        const max = state.espectroMaxVals[d.tipo] || 1;
-
-                        if (val <= 0) {
-                            finalSize = 0;
-                        } else {
-                            const scaleArea = d3.scaleLinear().domain([1, max]).range([symbolSize * 2.5, symbolSize * 25]).clamp(true);
-                            finalSize = scaleArea(val);
-                        }
-                    }
-
-                    const styleCfg = app.utils.getMarkerStyle(d.tipo, state);
-                    const coords = state.projection([d.lon, d.lat]);
-                    let fillColor = styleCfg.fill;
-                    if (config.tipo === 'espectro') {
-                        fillColor = styleCfg.fill.startsWith('rgba') ? styleCfg.fill : app.map.hexToRgba(styleCfg.fill, 0.75);
-                    }
-
-                    node.setAttribute("d", d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)).size(finalSize)());
-                    node.setAttribute("transform", coords ? `translate(${coords[0]}, ${coords[1]})` : "translate(0,0)");
-                    node.setAttribute("fill", fillColor);
-                    node.setAttribute("stroke", styleCfg.stroke);
-                    node.setAttribute("stroke-width", 1.5 / currentK);
-                }
-
-                idx = end;
-                if (idx < nodes.length) {
-                    requestAnimationFrame(paintChunk);
-                }
+            if (nodes.length > 0) {
+                const groups = new Map();
+                nodes.forEach(n => {
+                    const d = n.__data__ || {};
+                    const key = state.isNacional ? (d.cve_ent || '') : (d.municipio || '');
+                    if (!groups.has(key)) groups.set(key, []);
+                    groups.get(key).push(n);
+                });
+                Array.from(groups.keys()).sort().forEach(key => {
+                    state._markerQueue.push({ nodes: groups.get(key), i: 0 });
+                });
             }
 
-            if (nodes.length > 0) requestAnimationFrame(paintChunk);
+            if (!state._markerPainting && state._markerQueue.length === 0) return Promise.resolve();
+
+            // Ritmo constante: la cola completa se reparte en ~70 cuadros (~1.2 s), sin importar cuantos
+            // marcadores tenga cada region. Asi el flujo es parejo y no en rafagas por entidad/municipio.
+            let pending = 0;
+            state._markerQueue.forEach(g => { pending += g.nodes.length - g.i; });
+            state._markerRate = Math.max(20, Math.ceil(pending / 70));
+
+            return new Promise(resolve => {
+                state._markerWaiters.push(resolve);
+                if (!state._markerPainting) {
+                    state._markerPainting = true;
+                    // Doble rAF: garantiza que los nodos nuevos (opacity 0) ya se estilizaron y el fundido se anime
+                    requestAnimationFrame(() => requestAnimationFrame(() => app.map._paintMarkerFrame(state)));
+                }
+            });
+        },
+
+        // Cada cuadro pinta ~_markerRate marcadores (siguiendo el orden por region) con tope de ~12 ms
+        _paintMarkerFrame: function(state) {
+            const queue = state._markerQueue;
+            const metrics = app.map._markerMetrics(state);
+            const cache = {};
+            const t0 = performance.now();
+            const rate = state._markerRate || 50;
+            let painted = 0;
+
+            while (queue.length > 0 && painted < rate) {
+                const g = queue[0];
+                while (g.i < g.nodes.length && painted < rate) {
+                    app.map._paintMarkerNode(g.nodes[g.i++], state, metrics, cache);
+                    painted++;
+                    if ((painted & 31) === 0 && performance.now() - t0 > 12) { painted = rate; break; }
+                }
+                if (g.i >= g.nodes.length) queue.shift();
+            }
+
+            if (queue.length > 0) {
+                requestAnimationFrame(() => app.map._paintMarkerFrame(state));
+            } else {
+                state._markerPainting = false;
+                const waiters = state._markerWaiters || [];
+                state._markerWaiters = [];
+                waiters.forEach(resolve => resolve());
+            }
+        },
+
+        _paintMarkerNode: function(node, state, metrics, cache) {
+            if (!node.isConnected) return; // se desactivo el tipo mientras esperaba en la cola
+            const d = node.__data__;
+            if (!d) return;
+
+            const coords = state.projection([d.lon, d.lat]);
+            if (!coords || isNaN(coords[0]) || isNaN(coords[1])) {
+                node.style.display = 'none'; // coordenada fuera de proyeccion: no se dibuja en (0,0)
+                return;
+            }
+
+            const type = d.tipo;
+            const config = state.markerLabels[type] || {};
+            const styleCfg = cache['style:' + type] || (cache['style:' + type] = app.utils.getMarkerStyle(type, state));
+            const symbol = cache['sym:' + type] || (cache['sym:' + type] = d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)));
+
+            let finalSize = metrics.symbolSize;
+            let fillColor = styleCfg.fill;
+
+            if (config.tipo === 'espectro') {
+                let val = d._agrupados_total || 1;
+                if (config.espectro_col && config.espectro_col.trim() !== '') {
+                    const realCol = state._espectroColKeyCache ? state._espectroColKeyCache[type] : null;
+                    val = (realCol && d._raw) ? (parseFloat(d._raw[realCol]) || 0) : 0;
+                }
+                if (val <= 0) {
+                    finalSize = 0;
+                } else {
+                    const scale = cache['scale:' + type] || (cache['scale:' + type] = d3.scaleLinear()
+                        .domain([1, (state.espectroMaxVals && state.espectroMaxVals[type]) || 1])
+                        .range([metrics.symbolSize * 2.5, metrics.symbolSize * 25]).clamp(true));
+                    finalSize = scale(val);
+                }
+                fillColor = styleCfg.fill.startsWith('rgba') ? styleCfg.fill : app.map.hexToRgba(styleCfg.fill, 0.75);
+            }
+
+            node.setAttribute("d", symbol.size(finalSize)());
+            node.setAttribute("transform", `translate(${coords[0]}, ${coords[1]})`);
+            node.setAttribute("fill", fillColor);
+            node.setAttribute("stroke", styleCfg.stroke);
+            node.setAttribute("stroke-width", 1.5 / metrics.k);
+            node.style.opacity = 1; // dispara el fundido de entrada
         },
 
         renderMarkerLegend: function(state) {

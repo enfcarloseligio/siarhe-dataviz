@@ -320,38 +320,45 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 cVista.querySelector('select').addEventListener('change', (e) => {
                     const val = e.target.value;
                     const loading = container.querySelector('.siarhe-loading-overlay');
-                    
-                    if (!state.baseGeoData) state.baseGeoData = state.geoData; 
-                    
+                    const setLoading = (text) => {
+                        if (!loading) return;
+                        loading.style.display = 'flex';
+                        const p = loading.querySelector('p');
+                        if (p) p.textContent = text;
+                    };
+                    const hideLoading = () => { if (loading) loading.style.display = 'none'; };
+
+                    if (!state.baseGeoData) state.baseGeoData = state.geoData;
+
                     if (val === 'base') {
                         state.isGeoLocMode = false;
                         if (app.map) app.map.updateGeography(container, state);
                         onUpdate();
-                    } 
+                    }
                     else if (val === 'detalle' && geoLocUrl) {
-                        if (loading) { 
-                            loading.style.display = 'flex'; 
-                            loading.querySelector('p').textContent = 'Cargando ' + labelNivel2 + '...'; 
-                        }
-                        
-                        if (!state.locGeoData) {
-                            d3.json(geoLocUrl).then(data => {
-                                state.locGeoData = data;
-                                state.isGeoLocMode = true;
-                                if (app.map) app.map.updateGeography(container, state);
-                                if (loading) loading.style.display = 'none';
-                                onUpdate(); 
-                            }).catch(err => {
-                                console.error("[SIARHE] Error al cargar GeoJSON detallado", err);
-                                if (loading) loading.style.display = 'none';
-                                e.target.value = 'base';
-                            });
-                        } else {
+                        setLoading('Cargando ' + labelNivel2 + '...');
+
+                        const dataPromise = state.locGeoData ? Promise.resolve(state.locGeoData) : d3.json(geoLocUrl);
+                        dataPromise.then(data => {
+                            if (!data || !Array.isArray(data.features) || data.features.length === 0) {
+                                throw new Error('El GeoJSON detallado esta vacio o no es valido');
+                            }
+                            state.locGeoData = data;
                             state.isGeoLocMode = true;
-                            if (app.map) app.map.updateGeography(container, state);
-                            if (loading) loading.style.display = 'none';
+                            if (!app.map) return null;
+                            // Los poligonos se dibujan por lotes; el overlay muestra el avance
+                            return app.map.updateGeography(container, state, (pct) => {
+                                if (pct < 100) setLoading('Dibujando ' + labelNivel2 + '... ' + pct + '%');
+                            });
+                        }).then(() => {
+                            hideLoading();
                             onUpdate();
-                        }
+                        }).catch(err => {
+                            console.error("[SIARHE] Error al cargar GeoJSON detallado", err);
+                            hideLoading();
+                            state.isGeoLocMode = false;
+                            e.target.value = 'base';
+                        });
                     }
                 });
             }
@@ -362,194 +369,209 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
         toggleMarker: async function(type, state, container) {
             const loading = container.querySelector('.siarhe-loading-overlay');
-            if (loading) {
-                const mkData = state.markerLabels[type] || {};
-                const label = mkData.label || type;
-                loading.querySelector('p').textContent = `Procesando ${label}...`;
+            const msg = loading ? loading.querySelector('p') : null;
+            const mkLabel = (state.markerLabels[type] || {}).label || type;
+
+            const showLoading = (text) => {
+                if (!loading) return;
+                if (msg) msg.textContent = text;
                 loading.style.position = 'absolute'; loading.style.top = '0'; loading.style.left = '0';
                 loading.style.width = '100%'; loading.style.height = '100%';
                 loading.style.background = 'rgba(248, 250, 252, 0.9)';
                 loading.style.display = 'flex'; loading.style.flexDirection = 'column';
                 loading.style.justifyContent = 'center'; loading.style.alignItems = 'center';
                 loading.style.zIndex = '100';
-            }
+            };
 
-            await new Promise(r => setTimeout(r, 80)); 
-
-            if (state.activeMarkers.has(type)) { 
-                state.activeMarkers.delete(type); 
-            } else {
-                state.activeMarkers.add(type);
-                if (!state.markersData[type]) {
-                    const url = state.markerUrls[type];
-                    if (url) {
-                        try {
-                            let rawData;
-                            if (state.rawCSVDataCache && state.rawCSVDataCache[url]) {
-                                rawData = state.rawCSVDataCache[url];
-                            } else {
-                                rawData = await d3.csv(url);
-                                if (!state.rawCSVDataCache) state.rawCSVDataCache = {};
-                                state.rawCSVDataCache[url] = rawData;
-                            }
-
-                            const config = state.markerLabels[type] || {};
-                            const filtroCol = config.filtro_col ? config.filtro_col.toLowerCase().trim() : null;
-                            const filtroVal = config.filtro_val ? config.filtro_val.toString().toLowerCase().trim() : null;
-                            const agruparCol = config.agrupar_col ? config.agrupar_col.toLowerCase().trim() : null;
-                            const reglas = config.reglas_tooltip || [];
-                            let processedData = [];
-
-                            // 🚀 OPTIMIZACIÓN: resolvemos los nombres REALES de columna una sola
-                            // vez por CSV (no por fila). Antes, cada fila pagaba varios
-                            // Object.keys().find() (uno por cada campo, ~12 por fila), lo cual
-                            // es muy costoso en datasets nacionales grandes.
-                            const colMap = {};
-                            if (rawData.length > 0) {
-                                Object.keys(rawData[0]).forEach(k => { colMap[k.trim().toLowerCase()] = k; });
-                            }
-                            const resolveKey = (names) => {
-                                for (let n of names) {
-                                    const real = colMap[n.toLowerCase().trim()];
-                                    if (real) return real;
-                                }
-                                return null;
-                            };
-                            const fastVal = (d, key) => (key && d[key] !== undefined && d[key] !== null) ? d[key].toString().trim() : '';
-
-                            const latKey = resolveKey(['latitud', 'lat']);
-                            const lonKey = resolveKey(['longitud', 'lon']);
-                            const cveEntKey = resolveKey(['cve_ent', 'cve ent', 'entidad', 'clave_entidad']);
-                            const cluesKey = resolveKey(['clues']);
-                            const institucionKey = resolveKey(['institución', 'institucion', 'clave_institucion']);
-                            const nombreKey = resolveKey(['nombre_unidad', 'nombre de la unidad', 'unidad']);
-                            const municipioKey = resolveKey(['municipio']);
-                            const tipoEstabKey = resolveKey(['tipo_establecimiento', 'tipo establecimiento']);
-                            const tipologiaKey = resolveKey(['nombre_tipologia', 'nombre tipologia']);
-                            const nivelAtencionKey = resolveKey(['nivel_atencion', 'nivel atencion']);
-                            const cveNivelKey = resolveKey(['cve_n_atencion', 'cve_ n_atencion', 'cve n atencion']);
-                            const jurisdiccionKey = resolveKey(['jurisdiccion', 'jurisdicción']);
-                            const estratoKey = resolveKey(['estrato_unidad', 'estrato unidad']);
-
-                            const filtroColKey = filtroCol ? resolveKey([filtroCol]) : null;
-                            const agruparColKey = agruparCol ? resolveKey([agruparCol]) : null;
-                            const reglasResolved = reglas.map(r => ({ ...r, _colKey: resolveKey([r.col]) }));
-
-                            const filteredData = rawData.filter(d => {
-                                const lat = parseFloat(fastVal(d, latKey));
-                                const lon = parseFloat(fastVal(d, lonKey));
-
-                                const isValidCoord = !isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0;
-                                if (!isValidCoord) return false;
-                                
-                                if (!state.isNacional && cveEntKey) {
-                                    const cveEntMarker = fastVal(d, cveEntKey);
-                                    if (cveEntMarker) {
-                                        let markerEnt = cveEntMarker.toString().padStart(2, '0');
-                                        let currentEnt = container.dataset.cveEnt.toString().padStart(2, '0');
-                                        if (markerEnt !== currentEnt) return false; 
-                                    }
-                                }
-                                
-                                if (filtroCol && filtroVal) {
-                                    if (!filtroColKey) return false;
-                                    const rowVal = fastVal(d, filtroColKey).toLowerCase();
-                                    if (rowVal !== filtroVal) return false; 
-                                }
-                                return true; 
-                            });
-
-                            if (agruparCol) {
-                                const mapGroup = new Map();
-                                filteredData.forEach(d => {
-                                    if (!agruparColKey) return; 
-
-                                    const groupKey = fastVal(d, agruparColKey);
-                                    if (!groupKey) return;
-
-                                    if (!mapGroup.has(groupKey)) {
-                                        const lat = parseFloat(fastVal(d, latKey));
-                                        const lon = parseFloat(fastVal(d, lonKey));
-                                        const cveNivel = fastVal(d, cveNivelKey);
-                                        const cveEntMarker = fastVal(d, cveEntKey);
-
-                                        let baseObj = {
-                                            clues: fastVal(d, cluesKey),
-                                            institucion: fastVal(d, institucionKey),
-                                            nombre: fastVal(d, nombreKey),
-                                            municipio: fastVal(d, municipioKey),
-                                            lat: lat, lon: lon,
-                                            cve_ent: cveEntMarker, 
-                                            tipo_estab: fastVal(d, tipoEstabKey),
-                                            tipologia: fastVal(d, tipologiaKey),
-                                            nivel_atencion: fastVal(d, nivelAtencionKey),
-                                            cve_nivel: cveNivel,
-                                            jurisdiccion: fastVal(d, jurisdiccionKey),
-                                            estrato: fastVal(d, estratoKey),
-                                            tipo: type,
-                                            _raw: d,
-                                            _agrupados_total: 0,
-                                            _conteo_reglas: {}
-                                        };
-
-                                        reglasResolved.forEach(r => { baseObj._conteo_reglas[r.label] = 0; });
-                                        mapGroup.set(groupKey, baseObj);
-                                    }
-
-                                    const targetObj = mapGroup.get(groupKey);
-                                    targetObj._agrupados_total += 1;
-
-                                    reglasResolved.forEach(r => {
-                                        if (r._colKey) {
-                                            const rowVal = fastVal(d, r._colKey).toLowerCase();
-                                            const targetVal = r.val.toString().toLowerCase().trim();
-                                            if (rowVal === targetVal) {
-                                                targetObj._conteo_reglas[r.label] += 1;
-                                            }
-                                        }
-                                    });
-                                });
-
-                                processedData = Array.from(mapGroup.values());
-
-                            } else {
-                                processedData = filteredData.map(d => {
-                                    const lat = parseFloat(fastVal(d, latKey));
-                                    const lon = parseFloat(fastVal(d, lonKey));
-                                    const cveNivel = fastVal(d, cveNivelKey);
-                                    const cveEntMarker = fastVal(d, cveEntKey);
-                                    
-                                    return {
-                                        clues: fastVal(d, cluesKey),
-                                        institucion: fastVal(d, institucionKey),
-                                        nombre: fastVal(d, nombreKey),
-                                        municipio: fastVal(d, municipioKey),
-                                        lat: lat, lon: lon,
-                                        cve_ent: cveEntMarker, 
-                                        tipo_estab: fastVal(d, tipoEstabKey),
-                                        tipologia: fastVal(d, tipologiaKey),
-                                        nivel_atencion: fastVal(d, nivelAtencionKey),
-                                        cve_nivel: cveNivel,
-                                        jurisdiccion: fastVal(d, jurisdiccionKey),
-                                        estrato: fastVal(d, estratoKey),
-                                        tipo: type,
-                                        _raw: d
-                                    };
-                                });
-                            }
-
-                            state.markersData[type] = processedData;
-                            
-                        } catch(e) { console.error(`[SIARHE] Error cargando marcadores ${type}:`, e); }
+            try {
+                if (state.activeMarkers.has(type)) {
+                    state.activeMarkers.delete(type);
+                } else {
+                    state.activeMarkers.add(type);
+                    if (!state.markersData[type]) {
+                        showLoading(`Procesando ${mkLabel}...`);
+                        await app.utils.nextFrame(); // deja pintar el overlay antes del trabajo pesado
+                        await app.controls.loadMarkerData(type, state, container);
                     }
                 }
+                // Sin await a proposito: la aparicion progresiva de los marcadores ya es el indicador de avance
+                if (app.map) app.map.updateMarkers(state);
+            } catch (e) {
+                console.error(`[SIARHE] Error cargando marcadores ${type}:`, e);
+                state.activeMarkers.delete(type); // no dejamos el tipo "activo" sin datos
+                if (msg) {
+                    msg.textContent = `No se pudo cargar ${mkLabel}`;
+                    await new Promise(r => setTimeout(r, 1800));
+                }
+                if (app.map) app.map.updateMarkers(state);
+            } finally {
+                if (loading) loading.style.display = 'none'; // siempre, incluso si algo fallo
+                app.controls.updateMarkerDropdownText(state);
             }
-            
-            if (app.map) app.map.updateMarkers(state);
-            app.controls.updateMarkerDropdownText(state);
+        },
 
-            await new Promise(r => setTimeout(r, 100)); 
-            if (loading) loading.style.display = 'none';
+        /**
+         * Descarga, filtra y agrupa el CSV de un tipo de marcador. El trabajo se trocea por tiempo
+         * (cede el hilo cada ~12 ms) para no disparar el aviso "la pagina esta tardando".
+         * Las cargas simultaneas del mismo tipo comparten una sola Promise.
+         */
+        loadMarkerData: function(type, state, container) {
+            state._markerLoads = state._markerLoads || {};
+            if (state._markerLoads[type]) return state._markerLoads[type];
+
+            const task = (async () => {
+                const url = state.markerUrls ? state.markerUrls[type] : null;
+                if (!url) throw new Error(`No hay URL configurada para el marcador ${type}`);
+
+                let rawData;
+                if (state.rawCSVDataCache && state.rawCSVDataCache[url]) {
+                    rawData = state.rawCSVDataCache[url];
+                } else {
+                    rawData = await d3.csv(url);
+                    if (!state.rawCSVDataCache) state.rawCSVDataCache = {};
+                    state.rawCSVDataCache[url] = rawData;
+                }
+                if (!Array.isArray(rawData)) rawData = [];
+
+                const config = state.markerLabels[type] || {};
+                const filtroCol = config.filtro_col ? config.filtro_col.toLowerCase().trim() : null;
+                const filtroVal = config.filtro_val ? config.filtro_val.toString().toLowerCase().trim() : null;
+                const agruparCol = config.agrupar_col ? config.agrupar_col.toLowerCase().trim() : null;
+                const reglas = config.reglas_tooltip || [];
+
+                // 🚀 OPTIMIZACIÓN: resolvemos los nombres REALES de columna una sola
+                // vez por CSV (no por fila). Antes, cada fila pagaba varios
+                // Object.keys().find() (uno por cada campo, ~12 por fila), lo cual
+                // es muy costoso en datasets nacionales grandes.
+                const colMap = {};
+                if (rawData.length > 0) {
+                    Object.keys(rawData[0]).forEach(k => { colMap[k.trim().toLowerCase()] = k; });
+                }
+                const resolveKey = (names) => {
+                    for (let n of names) {
+                        const real = colMap[n.toLowerCase().trim()];
+                        if (real) return real;
+                    }
+                    return null;
+                };
+                const fastVal = (d, key) => (key && d[key] !== undefined && d[key] !== null) ? d[key].toString().trim() : '';
+
+                const latKey = resolveKey(['latitud', 'lat']);
+                const lonKey = resolveKey(['longitud', 'lon']);
+                const cveEntKey = resolveKey(['cve_ent', 'cve ent', 'entidad', 'clave_entidad']);
+                const cluesKey = resolveKey(['clues']);
+                const institucionKey = resolveKey(['institución', 'institucion', 'clave_institucion']);
+                const nombreKey = resolveKey(['nombre_unidad', 'nombre de la unidad', 'unidad']);
+                const municipioKey = resolveKey(['municipio']);
+                const tipoEstabKey = resolveKey(['tipo_establecimiento', 'tipo establecimiento']);
+                const tipologiaKey = resolveKey(['nombre_tipologia', 'nombre tipologia']);
+                const nivelAtencionKey = resolveKey(['nivel_atencion', 'nivel atencion']);
+                const cveNivelKey = resolveKey(['cve_n_atencion', 'cve_ n_atencion', 'cve n atencion']);
+                const jurisdiccionKey = resolveKey(['jurisdiccion', 'jurisdicción']);
+                const estratoKey = resolveKey(['estrato_unidad', 'estrato unidad']);
+
+                const filtroColKey = filtroCol ? resolveKey([filtroCol]) : null;
+                const agruparColKey = agruparCol ? resolveKey([agruparCol]) : null;
+                const reglasResolved = reglas.map(r => ({ ...r, _colKey: resolveKey([r.col]) }));
+
+
+                const currentEnt = (container.dataset.cveEnt || '').toString().padStart(2, '0');
+
+                // Cede el hilo cuando el trozo actual supera ~12 ms
+                let sliceStart = performance.now();
+                const tick = async () => {
+                    if (performance.now() - sliceStart > 12) {
+                        await app.utils.nextFrame();
+                        sliceStart = performance.now();
+                    }
+                };
+
+                // 1) Filtrado
+                const filteredData = [];
+                for (let i = 0; i < rawData.length; i++) {
+                    const d = rawData[i];
+                    const lat = parseFloat(fastVal(d, latKey));
+                    const lon = parseFloat(fastVal(d, lonKey));
+
+                    let keep = !isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0;
+
+                    if (keep && !state.isNacional && cveEntKey) {
+                        const cveEntMarker = fastVal(d, cveEntKey);
+                        if (cveEntMarker && cveEntMarker.padStart(2, '0') !== currentEnt) keep = false;
+                    }
+
+                    if (keep && filtroCol && filtroVal) {
+                        keep = !!filtroColKey && fastVal(d, filtroColKey).toLowerCase() === filtroVal;
+                    }
+
+                    if (keep) filteredData.push(d);
+                    if ((i & 127) === 0) await tick();
+                }
+
+                const buildPoint = (d) => ({
+                    clues: fastVal(d, cluesKey),
+                    institucion: fastVal(d, institucionKey),
+                    nombre: fastVal(d, nombreKey),
+                    municipio: fastVal(d, municipioKey),
+                    lat: parseFloat(fastVal(d, latKey)),
+                    lon: parseFloat(fastVal(d, lonKey)),
+                    cve_ent: fastVal(d, cveEntKey),
+                    tipo_estab: fastVal(d, tipoEstabKey),
+                    tipologia: fastVal(d, tipologiaKey),
+                    nivel_atencion: fastVal(d, nivelAtencionKey),
+                    cve_nivel: fastVal(d, cveNivelKey),
+                    jurisdiccion: fastVal(d, jurisdiccionKey),
+                    estrato: fastVal(d, estratoKey),
+                    tipo: type,
+                    _raw: d
+                });
+
+                // 2) Agrupado (o mapeo directo)
+                let processedData = [];
+                if (agruparCol) {
+                    const mapGroup = new Map();
+                    if (agruparColKey) {
+                        for (let i = 0; i < filteredData.length; i++) {
+                            const d = filteredData[i];
+                            const groupKey = fastVal(d, agruparColKey);
+
+                            if (groupKey) {
+                                let targetObj = mapGroup.get(groupKey);
+                                if (!targetObj) {
+                                    targetObj = buildPoint(d);
+                                    targetObj._agrupados_total = 0;
+                                    targetObj._conteo_reglas = {};
+                                    reglasResolved.forEach(r => { targetObj._conteo_reglas[r.label] = 0; });
+                                    mapGroup.set(groupKey, targetObj);
+                                }
+                                targetObj._agrupados_total += 1;
+
+                                reglasResolved.forEach(r => {
+                                    if (r._colKey) {
+                                        const rowVal = fastVal(d, r._colKey).toLowerCase();
+                                        const targetVal = (r.val === undefined || r.val === null ? '' : r.val).toString().toLowerCase().trim();
+                                        if (rowVal === targetVal) targetObj._conteo_reglas[r.label] += 1;
+                                    }
+                                });
+                            }
+                            if ((i & 127) === 0) await tick();
+                        }
+                    }
+                    processedData = Array.from(mapGroup.values());
+                } else {
+                    for (let i = 0; i < filteredData.length; i++) {
+                        processedData.push(buildPoint(filteredData[i]));
+                        if ((i & 127) === 0) await tick();
+                    }
+                }
+
+                state.markersData[type] = processedData;
+            })();
+
+            state._markerLoads[type] = task;
+            const cleanup = () => { delete state._markerLoads[type]; };
+            task.then(cleanup, cleanup);
+            return task;
         },
 
         updateMarkerDropdownText: function(state) {
@@ -566,7 +588,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     trigger.innerHTML = `<span>Seleccionar...</span>`; 
                     trigger.classList.add('is-placeholder'); 
                 } else {
-                    const labels = sel.map(k => state.markerLabels[k].label || k);
+                    const labels = sel.map(k => (state.markerLabels[k] || {}).label || k);
                     trigger.innerHTML = `<span>${app.utils.esc(labels.join(', '))}</span>`; 
                     trigger.classList.remove('is-placeholder');
                 }
