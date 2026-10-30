@@ -227,6 +227,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     state.gMarkers.selectAll("path.siarhe-marker")
                         .attr("d", d => app.map._markerShape(d, state, metrics, shapeCache).path)
                         .attr("stroke-width", 1.5 / k);
+
+                    if (state.measure && state.measure.points.length > 0) app.map.renderMeasure(state, k);
                 });
             
             svg.call(zoom).on("dblclick.zoom", null); 
@@ -930,6 +932,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
                     d3.select(this).attr("stroke-width", 1.5 / k);
                     if(state.tooltip) state.tooltip.style("display", "none");
+                })
+                .on("click", function(e, d) {
+                    // Con el modo medicion activo, el clic selecciona el marcador como punto de la ruta
+                    if (state.measure && state.measure.active) {
+                        e.stopPropagation();
+                        app.map.measureAddPoint(state, d);
+                    }
                 });
 
             // El orden en el DOM define el apilado: solo hace falta reordenar si hay burbujas de espectro
@@ -1112,6 +1121,395 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (state.containerEl) app.map.layoutLegends(state.containerEl, state);
         },
 
+        // =====================================================================
+        // MEDICION DE DISTANCIAS entre marcadores de posicion (linea recta, circulo maximo)
+        //  - Ruta encadenada ('chain'): A->B->C con distancia por tramo y total (planificar rutas aproximadas)
+        //  - Desde un centro ('radial'): el primer marcador es el centro y cada uno de los demas
+        //    se mide por separado contra el (ej. una escuela y las unidades de salud cercanas)
+        // =====================================================================
+
+        _distanceKm: function(a, b) {
+            return d3.geoDistance([a.lon, a.lat], [b.lon, b.lat]) * 6371.0088; // radio medio terrestre
+        },
+
+        _formatDistance: function(km) {
+            if (km < 1) return Math.round(km * 1000).toLocaleString('es-MX') + ' m';
+            const decimals = km < 100 ? 1 : 0;
+            return km.toLocaleString('es-MX', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + ' km';
+        },
+
+        /** Ruta encadenada: distancia de cada tramo y total. */
+        _measureSummary: function(points) {
+            const segments = [];
+            let total = 0;
+            for (let i = 1; i < points.length; i++) {
+                const km = app.map._distanceKm(points[i - 1], points[i]);
+                segments.push(km);
+                total += km;
+            }
+            return { segments: segments, total: total };
+        },
+
+        /** Desde un centro: distancia independiente del primer punto a cada uno de los demas. */
+        _radialSummary: function(points) {
+            if (points.length < 2) return { spokes: [], sorted: [], nearest: null, farthest: null };
+            const center = points[0];
+            const spokes = points.slice(1).map((p, i) => ({ index: i + 1, p: p, km: app.map._distanceKm(center, p) }));
+            const sorted = spokes.slice().sort((a, b) => a.km - b.km);
+            return { spokes: spokes, sorted: sorted, nearest: sorted[0], farthest: sorted[sorted.length - 1] };
+        },
+
+        _measureMax: function(ms) {
+            return ms.mode === 'radial' ? 20 : 10;
+        },
+
+        _pointLabel: function(p) {
+            return p.name + (p.clues ? ' (' + p.clues + ')' : '');
+        },
+
+        /**
+         * Crea la capa SVG, el panel de resultados y el estado de la herramienta.
+         * Solo se activa si el mapa tiene marcadores de posicion configurados.
+         */
+        initMeasure: function(container, state, mapDiv, toggleBtn) {
+            const ms = state.measure = { active: false, mode: 'chain', points: [], btn: toggleBtn, mapDiv: mapDiv, note: '' };
+
+            state.gMeasure = state.gMain.append('g').attr('class', 'measure-layer').style('pointer-events', 'none');
+
+            const panel = document.createElement('div');
+            panel.className = 'siarhe-measure-panel';
+            panel.setAttribute('role', 'region');
+            panel.setAttribute('aria-label', 'Medición de distancias');
+            panel.hidden = true;
+            panel.innerHTML =
+                '<div class="siarhe-measure-head">' +
+                    '<strong class="siarhe-measure-title">Medir distancia</strong>' +
+                    '<span class="siarhe-measure-total"></span>' +
+                    '<span class="siarhe-measure-actions">' +
+                        '<button type="button" data-act="undo" title="Quitar el último punto">Deshacer</button>' +
+                        '<button type="button" data-act="clear" title="Quitar todos los puntos">Limpiar</button>' +
+                        '<button type="button" data-act="copy" title="Copiar el resultado">Copiar</button>' +
+                        '<button type="button" data-act="download" title="Descargar el detalle en CSV (se abre en Excel)">Descargar</button>' +
+                        '<button type="button" data-act="close" title="Salir de la medición (Esc)">Salir</button>' +
+                    '</span>' +
+                '</div>' +
+                '<div class="siarhe-measure-modes" role="group" aria-label="Tipo de medición">' +
+                    '<button type="button" data-mode="chain" aria-pressed="true" title="Suma los tramos entre puntos consecutivos">Ruta encadenada</button>' +
+                    '<button type="button" data-mode="radial" aria-pressed="false" title="Mide cada marcador contra el primero (el centro)">Desde un centro</button>' +
+                '</div>' +
+                '<p class="siarhe-measure-hint"></p>' +
+                '<details class="siarhe-measure-details"><summary>Detalle</summary><ul class="siarhe-measure-list"></ul></details>' +
+                '<span class="siarhe-sr-only" aria-live="polite"></span>';
+            mapDiv.appendChild(panel);
+            ms.panel = panel;
+
+            panel.addEventListener('click', (e) => {
+                const modeBtn = e.target.closest('button[data-mode]');
+                if (modeBtn) {
+                    ms.mode = modeBtn.getAttribute('data-mode');
+                    ms.note = '';
+                    ms.panel.querySelector('.siarhe-sr-only').textContent = '';
+                    // Los puntos se conservan: el primero pasa a ser el centro (o vuelve a ser inicio de ruta)
+                    ms.points = ms.points.slice(0, app.map._measureMax(ms));
+                    app.map.renderMeasure(state);
+                    return;
+                }
+                const btn = e.target.closest('button[data-act]');
+                if (!btn) return;
+                const act = btn.getAttribute('data-act');
+                if (act === 'undo') { ms.points.pop(); ms.note = ''; app.map.renderMeasure(state); }
+                else if (act === 'clear') { ms.points = []; ms.note = ''; app.map.renderMeasure(state); }
+                else if (act === 'close') { app.map.setMeasureMode(state, false); if (ms.btn) ms.btn.focus(); }
+                else if (act === 'copy') { app.map.copyMeasure(state, btn); }
+                else if (act === 'download') { app.map.downloadMeasure(state, container); }
+            });
+
+            // Escape sale del modo de medicion
+            container.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && ms.active) {
+                    e.preventDefault();
+                    app.map.setMeasureMode(state, false);
+                    if (ms.btn) ms.btn.focus();
+                }
+            });
+        },
+
+        setMeasureMode: function(state, on) {
+            const ms = state.measure;
+            if (!ms) return;
+            ms.active = !!on;
+            ms.note = '';
+            if (!on) ms.points = []; // al salir se limpia la medicion (el tipo elegido se conserva)
+            if (ms.btn) {
+                ms.btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+                ms.btn.classList.toggle('is-active', !!on);
+            }
+            ms.panel.hidden = !on;
+            ms.mapDiv.classList.toggle('is-measuring', !!on);
+            app.map.renderMeasure(state);
+        },
+
+        /**
+         * Se llama al tocar un marcador con el modo medicion activo.
+         * Tocar un marcador que ya esta en la medicion lo quita: en ruta, A-B-C pasa a A-C;
+         * en "desde un centro", deja de medirse ese destino (si era el centro, simplemente se deselecciona).
+         */
+        measureAddPoint: function(state, d) {
+            const ms = state.measure;
+            if (!ms || !ms.active) return;
+
+            const cfg = state.markerLabels[d.tipo] || {};
+            const max = app.map._measureMax(ms);
+            const idx = ms.points.findIndex(p => p.uid === d._uid);
+            let announce = '';
+
+            if (cfg.tipo !== 'posicion') {
+                ms.note = 'Solo se pueden medir marcadores de posición.';
+            } else if (idx !== -1) {
+                const removed = ms.points.splice(idx, 1)[0];
+                ms.note = 'Se quitó: ' + removed.name + '.';
+                announce = 'Se quitó ' + removed.name + '. ';
+            } else if (ms.points.length >= max) {
+                ms.note = 'Máximo ' + max + ' puntos. Toca uno ya elegido para quitarlo, o usa Deshacer o Limpiar.';
+            } else {
+                ms.note = '';
+                ms.points.push({
+                    uid: d._uid, lon: d.lon, lat: d.lat,
+                    name: d.nombre || d.clues || cfg.label || 'Punto',
+                    clues: d.clues || ''
+                });
+                announce = 'Se añadió ' + ms.points[ms.points.length - 1].name + '. ';
+            }
+            app.map.renderMeasure(state);
+
+            // Anuncio para lector de pantalla: lo ocurrido y el resultado vigente
+            const live = ms.panel.querySelector('.siarhe-sr-only');
+            if (live && announce) {
+                let result = '';
+                if (ms.points.length > 1) {
+                    if (ms.mode === 'radial') {
+                        const rs = app.map._radialSummary(ms.points);
+                        result = 'Más cercano: ' + app.map._formatDistance(rs.nearest.km) + '.';
+                    } else {
+                        result = 'Total: ' + app.map._formatDistance(app.map._measureSummary(ms.points).total) + '.';
+                    }
+                }
+                live.textContent = announce + result;
+            }
+        },
+
+        /** Dibuja la medicion sobre el mapa (etiquetas de tamano constante al hacer zoom) y actualiza el panel. */
+        renderMeasure: function(state, kOverride) {
+            const ms = state.measure;
+            if (!ms || !state.gMeasure) return;
+
+            const g = state.gMeasure;
+            g.selectAll('*').remove();
+
+            const pts = ms.points;
+            const radial = ms.mode === 'radial';
+            const metrics = app.map._markerMetrics(state, kOverride);
+            const k = metrics.k;
+            const f = metrics.isTouch ? 1.4 : 1;
+            const xy = pts.map(p => state.projection([p.lon, p.lat]));
+            const fmt = app.map._formatDistance;
+
+            // Linea con contorno blanco + trazo punteado y su distancia en el punto medio
+            const drawLeg = (a, b, km) => {
+                if (!a || !b) return;
+                const dPath = 'M' + a[0] + ',' + a[1] + 'L' + b[0] + ',' + b[1];
+                g.append('path').attr('d', dPath).attr('fill', 'none')
+                    .attr('stroke', '#ffffff').attr('stroke-width', 6 * f / k).attr('stroke-linecap', 'round');
+                g.append('path').attr('d', dPath).attr('fill', 'none')
+                    .attr('stroke', '#0F172A').attr('stroke-width', 2.5 * f / k)
+                    .attr('stroke-dasharray', (9 * f / k) + ',' + (6 * f / k)).attr('stroke-linecap', 'round');
+                g.append('text')
+                    .attr('x', (a[0] + b[0]) / 2).attr('y', (a[1] + b[1]) / 2 - 8 * f / k)
+                    .attr('text-anchor', 'middle')
+                    .attr('paint-order', 'stroke').attr('stroke', '#ffffff').attr('stroke-width', 4 * f / k).attr('stroke-linejoin', 'round')
+                    .style('font-size', (15 * f / k) + 'px').style('font-weight', 'bold').style('fill', '#0F172A')
+                    .style('font-family', 'Roboto, Arial, sans-serif')
+                    .text(fmt(km));
+            };
+
+            const chainSum = radial ? null : app.map._measureSummary(pts);
+            const radialSum = radial ? app.map._radialSummary(pts) : null;
+
+            if (radial) {
+                radialSum.spokes.forEach(s => drawLeg(xy[0], xy[s.index], s.km));
+            } else {
+                for (let i = 1; i < pts.length; i++) drawLeg(xy[i - 1], xy[i], chainSum.segments[i - 1]);
+            }
+
+            // Puntos: en "desde un centro" el primero es el centro (relleno azul, "C"); los demas llevan su numero
+            xy.forEach((c, i) => {
+                if (!c) return;
+                const isCenter = radial && i === 0;
+                g.append('circle').attr('cx', c[0]).attr('cy', c[1]).attr('r', (isCenter ? 11 : 9) * f / k)
+                    .attr('fill', isCenter ? '#0A66C2' : '#ffffff').attr('stroke', isCenter ? '#ffffff' : '#0A66C2')
+                    .attr('stroke-width', 2.5 * f / k);
+                g.append('text').attr('x', c[0]).attr('y', c[1]).attr('dy', '0.35em').attr('text-anchor', 'middle')
+                    .style('font-size', (11 * f / k) + 'px').style('font-weight', 'bold').style('fill', isCenter ? '#ffffff' : '#0A66C2')
+                    .style('font-family', 'Roboto, Arial, sans-serif').text(isCenter ? 'C' : (radial ? i : i + 1));
+            });
+
+            // ----- Panel -----
+            const panel = ms.panel;
+            const totalEl = panel.querySelector('.siarhe-measure-total');
+            const hintEl = panel.querySelector('.siarhe-measure-hint');
+            const listEl = panel.querySelector('.siarhe-measure-list');
+            const detailsEl = panel.querySelector('.siarhe-measure-details');
+
+            panel.querySelectorAll('button[data-mode]').forEach(b => {
+                b.setAttribute('aria-pressed', b.getAttribute('data-mode') === ms.mode ? 'true' : 'false');
+            });
+
+            if (radial) {
+                totalEl.textContent = radialSum.nearest
+                    ? 'Más cercano: ' + fmt(radialSum.nearest.km) + (radialSum.spokes.length > 1 ? ' · Más lejano: ' + fmt(radialSum.farthest.km) : '')
+                    : '';
+            } else {
+                totalEl.textContent = pts.length > 1 ? 'Total: ' + fmt(chainSum.total) : '';
+            }
+
+            let hasPosition = false;
+            state.activeMarkers.forEach(type => { if ((state.markerLabels[type] || {}).tipo === 'posicion') hasPosition = true; });
+            const max = app.map._measureMax(ms);
+            let hint;
+            if (ms.note) hint = ms.note;
+            else if (!hasPosition) hint = 'Activa un marcador en "Marcadores (Posición)" para poder medir.';
+            else if (radial) {
+                if (pts.length === 0) hint = 'Toca el marcador que será el centro (por ejemplo, una escuela).';
+                else if (pts.length === 1) hint = 'Ahora toca los marcadores a medir: cada uno se une al centro con su propia distancia.';
+                else hint = 'Distancias independientes desde el centro. Toca más marcadores o toca uno ya elegido para quitarlo (máx. ' + max + ').';
+            } else {
+                if (pts.length === 0) hint = 'Toca un marcador de posición para iniciar la ruta.';
+                else if (pts.length === 1) hint = 'Toca otro marcador para medir la distancia en línea recta.';
+                else hint = 'Línea recta entre marcadores. Toca más para añadir tramos o toca uno ya elegido para quitarlo (máx. ' + max + ').';
+            }
+            hintEl.textContent = hint;
+
+            listEl.innerHTML = '';
+            const addLi = (text, cls) => {
+                const li = document.createElement('li');
+                if (cls) li.className = cls;
+                li.textContent = text;
+                listEl.appendChild(li);
+            };
+            if (radial) {
+                if (pts.length > 0) addLi('Centro: ' + app.map._pointLabel(pts[0]), 'siarhe-measure-center');
+                radialSum.sorted.forEach(s => addLi(s.index + '. ' + app.map._pointLabel(s.p) + ' → ' + fmt(s.km)));
+            } else {
+                pts.forEach((p, i) => {
+                    if (i > 0) addLi('↓ ' + fmt(chainSum.segments[i - 1]), 'siarhe-measure-seg');
+                    addLi((i + 1) + '. ' + app.map._pointLabel(p));
+                });
+            }
+            detailsEl.style.display = pts.length > 1 ? '' : 'none';
+
+            panel.querySelector('[data-act="undo"]').disabled = pts.length === 0;
+            panel.querySelector('[data-act="clear"]').disabled = pts.length === 0;
+            panel.querySelector('[data-act="copy"]').disabled = pts.length < 2;
+            panel.querySelector('[data-act="download"]').disabled = pts.length < 2;
+        },
+
+        // Celda CSV: comillas si hace falta y, en texto libre, apostrofo si empieza como formula de Excel (= + - @)
+        _csvCell: function(value, isText) {
+            let t = (value === undefined || value === null) ? '' : String(value);
+            if (isText && /^[=+\-@\t\r]/.test(t)) t = "'" + t;
+            return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+        },
+
+        /** Detalle de la medicion actual en CSV (una fila por punto), segun el tipo de medicion. */
+        _measureCsv: function(state) {
+            const ms = state.measure;
+            const pts = ms.points;
+            const cell = app.map._csvCell;
+            const num = (v, d) => (typeof v === 'number' && isFinite(v)) ? v.toFixed(d) : '';
+            const rows = [];
+
+            if (ms.mode === 'radial') {
+                const rs = app.map._radialSummary(pts);
+                const rank = new Map(rs.sorted.map((s, i) => [s.index, i + 1]));
+                rows.push(['tipo_medicion', 'rol', 'numero', 'nombre', 'clues', 'latitud', 'longitud', 'distancia_al_centro_km', 'ranking_cercania']);
+                pts.forEach((p, i) => {
+                    const spoke = i > 0 ? rs.spokes[i - 1] : null;
+                    rows.push([
+                        cell('desde_centro'), cell(i === 0 ? 'centro' : 'destino'), cell(i === 0 ? 'C' : i),
+                        cell(p.name, true), cell(p.clues, true), num(p.lat, 6), num(p.lon, 6),
+                        spoke ? num(spoke.km, 3) : '', spoke ? rank.get(spoke.index) : ''
+                    ]);
+                });
+            } else {
+                const sum = app.map._measureSummary(pts);
+                rows.push(['tipo_medicion', 'orden', 'nombre', 'clues', 'latitud', 'longitud', 'tramo_km', 'acumulado_km']);
+                let acc = 0;
+                pts.forEach((p, i) => {
+                    if (i > 0) acc += sum.segments[i - 1];
+                    rows.push([
+                        cell('ruta_encadenada'), i + 1, cell(p.name, true), cell(p.clues, true),
+                        num(p.lat, 6), num(p.lon, 6), i > 0 ? num(sum.segments[i - 1], 3) : '', num(acc, 3)
+                    ]);
+                });
+            }
+            // BOM UTF-8 para que Excel respete acentos
+            return '\ufeff' + rows.map(r => r.join(',')).join('\r\n') + '\r\n';
+        },
+
+        downloadMeasure: function(state, container) {
+            const ms = state.measure;
+            if (!ms || ms.points.length < 2) return;
+
+            const pad = (n) => String(n).padStart(2, '0');
+            const now = new Date();
+            const stamp = now.getFullYear() + pad(now.getMonth() + 1) + pad(now.getDate()) + '-' + pad(now.getHours()) + pad(now.getMinutes());
+            const slug = (container && container.dataset && container.dataset.slug) ? container.dataset.slug : 'mapa';
+            const kind = ms.mode === 'radial' ? 'desde_centro' : 'ruta';
+
+            const blob = new Blob([app.map._measureCsv(state)], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'siarhe_medicion_' + kind + '_' + slug + '_' + stamp + '.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        },
+
+        copyMeasure: async function(state, btn) {
+            const ms = state.measure;
+            const fmt = app.map._formatDistance;
+            const label = app.map._pointLabel;
+            const lines = [];
+
+            if (ms.mode === 'radial') {
+                const rs = app.map._radialSummary(ms.points);
+                lines.push('Medición desde un centro (línea recta)');
+                lines.push('Centro: ' + label(ms.points[0]));
+                rs.sorted.forEach(s => lines.push('   ' + s.index + '. ' + label(s.p) + ' → ' + fmt(s.km)));
+                if (rs.nearest) lines.push('Más cercano: ' + label(rs.nearest.p) + ' (' + fmt(rs.nearest.km) + ')');
+            } else {
+                const sum = app.map._measureSummary(ms.points);
+                lines.push('Medición de ruta (línea recta)');
+                ms.points.forEach((p, i) => {
+                    if (i > 0) lines.push('   → ' + fmt(sum.segments[i - 1]));
+                    lines.push((i + 1) + '. ' + label(p));
+                });
+                lines.push('Total: ' + fmt(sum.total));
+            }
+            const text = lines.join('\n');
+
+            const original = btn.textContent;
+            try {
+                await navigator.clipboard.writeText(text);
+                btn.textContent = '¡Copiado!';
+                setTimeout(() => { btn.textContent = original; }, 1800);
+            } catch (err) {
+                window.prompt('Copia el resultado:', text);
+            }
+        },
+
         renderZoomButtons: function(container, mapDiv, svg, zoom, state) {
             const ctrlDiv = document.createElement('div'); 
             ctrlDiv.className = 'zoom-controles'; 
@@ -1127,6 +1525,18 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             createBtn('+', 'Acercar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 1.5); });
             createBtn('–', 'Alejar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 0.6); });
             createBtn('⟳', 'Reset', (e) => { e.preventDefault(); svg.transition().duration(750).call(zoom.transform, state.initialTransform); });
+
+            // Medir distancias: solo tiene sentido si existen marcadores de posicion configurados
+            const hasPositionMarkers = Object.keys(state.markerLabels || {}).some(k => (state.markerLabels[k] || {}).tipo === 'posicion' && state.markerUrls && state.markerUrls[k]);
+            if (hasPositionMarkers) {
+                const rulerIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 17 17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/></svg>';
+                const btnMeasure = createBtn(rulerIcon, 'Medir distancia entre marcadores de posición', (e) => {
+                    e.preventDefault();
+                    app.map.setMeasureMode(state, !state.measure.active);
+                });
+                btnMeasure.setAttribute('aria-pressed', 'false');
+                app.map.initMeasure(container, state, mapDiv, btnMeasure);
+            }
             
             const btnFullscreen = document.createElement('button');
             btnFullscreen.className = 'boton'; 

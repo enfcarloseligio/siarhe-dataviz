@@ -625,7 +625,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (selVista) selVista.value = 'base';
             if (app.map) app.map.updateGeography(container, state);
 
-            // 5) Zoom y desplazamiento iniciales
+            // 5) Medicion de distancias fuera y limpia
+            if (app.map && app.map.setMeasureMode) app.map.setMeasureMode(state, false);
+
+            // 5b) Zoom y desplazamiento iniciales
             if (state.svg && state.zoom && state.initialTransform) {
                 state.svg.transition().duration(app.utils.motionMs(600)).call(state.zoom.transform, state.initialTransform);
             }
