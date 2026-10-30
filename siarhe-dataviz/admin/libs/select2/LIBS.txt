@@ -1,0 +1,4 @@
+Copia local de respaldo de Select2 (el admin usa primero el CDN).
+Version: 4.1.0-rc.0 (MIT, ver LICENSE-select2.txt)
+Origen:  https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/
+Se carga solo si el CDN falla o no trae Select2.

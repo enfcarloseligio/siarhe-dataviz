@@ -191,6 +191,38 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     };
 
 
+    /**
+     * Garantiza que D3 este disponible. Se usa primero el del CDN (ya cargado como dependencia);
+     * si fallo, no cargo o trae una version sin las funciones que usa el plugin, se carga la copia local.
+     * callback() cuando D3 sirve; onFail() si tampoco funciona el respaldo.
+     */
+    app.ensureD3 = function(callback, onFail) {
+        const REQUIRED = ['select', 'geoMercator', 'geoPath', 'geoArea', 'geoCentroid', 'zoom', 'zoomIdentity',
+                          'scaleLinear', 'symbol', 'csv', 'json', 'pointer', 'quantile', 'interpolate'];
+        const usable = function() {
+            return typeof window.d3 !== 'undefined' && REQUIRED.every(function(k) { return window.d3[k] !== undefined; });
+        };
+
+        if (usable()) { callback(); return; }
+
+        const url = (window.SiarheDataVizConfig || {}).d3Fallback;
+        if (!url) { if (onFail) onFail(); return; }
+
+        if (!app._d3Fallback) {
+            app._d3Fallback = new Promise(function(resolve, reject) {
+                const s = document.createElement('script');
+                s.src = url;
+                s.onload = resolve;
+                s.onerror = reject;
+                document.head.appendChild(s);
+            });
+        }
+        console.warn('[SIARHE] D3 del CDN no disponible o incompleto; usando la copia local.');
+        app._d3Fallback.then(function() {
+            if (usable()) callback(); else if (onFail) onFail();
+        }).catch(function() { if (onFail) onFail(); });
+    };
+
     // ==========================================
     // 3b. ESTADO COMPARTIBLE POR URL (hash)
     // ==========================================
@@ -511,8 +543,15 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 document.addEventListener('DOMContentLoaded', function() {
     console.log("%c 🚀 SIARHE Core V50: Multi-Pass Logic <= ", "background: #1e40af; color: #ffffff; padding: 2px 6px; border-radius: 4px;");
     
+    const app = window.SiarheDataViz;
     const wrappers = document.querySelectorAll('.siarhe-viz-wrapper');
-    wrappers.forEach(container => {
-        window.SiarheDataViz.initVisualization(container);
-    });
+    app.ensureD3(
+        function() { wrappers.forEach(container => { app.initVisualization(container); }); },
+        function() {
+            wrappers.forEach(container => {
+                const loading = container.querySelector('.siarhe-loading-overlay');
+                if (loading) loading.innerHTML = '❌ Error: no se pudo cargar la librería de gráficos (D3.js).';
+            });
+        }
+    );
 });

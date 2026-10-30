@@ -183,6 +183,33 @@ class Siarhe_Admin {
         return null;
     }
 
+    /**
+     * Hoja de estilos de Select2: CDN primero; si no carga, el atributo onerror pasa a la copia local.
+     */
+    public static function render_select2_css() {
+        $cdn   = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css';
+        $local = SIARHE_URL . 'admin/libs/select2/select2.min.css?ver=4.1.0-rc.0';
+        printf(
+            '<link href="%1$s" rel="stylesheet" onerror="this.onerror=null;this.href=\'%2$s\';" />' . "\n",
+            esc_url( $cdn ),
+            esc_url( $local )
+        );
+    }
+
+    /**
+     * Script de Select2: CDN primero; si no esta disponible (o no definio $.fn.select2),
+     * se escribe de forma sincrona la copia local antes de que corra el codigo que lo usa.
+     */
+    public static function render_select2_js() {
+        $cdn   = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js';
+        $local = SIARHE_URL . 'admin/libs/select2/select2.min.js?ver=4.1.0-rc.0';
+        printf( '<script src="%s"></script>' . "\n", esc_url( $cdn ) );
+        printf(
+            '<script>window.jQuery && jQuery.fn.select2 || document.write(\'<script src="%s"><\/script>\');</script>' . "\n",
+            esc_url( $local )
+        );
+    }
+
     // -------------------------------------------------------------------------
     // VALIDACION DE CONTENIDO + VERSIONES ANTERIORES
     // -------------------------------------------------------------------------

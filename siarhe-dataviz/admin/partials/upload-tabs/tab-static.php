@@ -29,7 +29,7 @@ if ( isset($_GET['status']) ) {
 }
 ?>
 
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<?php Siarhe_Admin::render_select2_css(); ?>
 
 <div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
     <h2>📤 Cargar Base Estática Minificada</h2>
@@ -322,7 +322,7 @@ if ( isset($_GET['status']) ) {
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<?php Siarhe_Admin::render_select2_js(); ?>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     

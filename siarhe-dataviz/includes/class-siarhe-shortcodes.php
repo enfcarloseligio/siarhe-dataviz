@@ -124,6 +124,13 @@ class Siarhe_Shortcodes {
         // 3. Registrar D3.js (se encola como dependencia de siarhe-core-js solo cuando hay un shortcode)
         wp_register_script( 'd3-js', 'https://d3js.org/d3.v7.min.js', array(), '7.0.0', true );
 
+        // Respaldo local: siarhe-core.js lo carga solo si el CDN falla o no trae las funciones de D3 que se usan
+        wp_add_inline_script(
+            'd3-js',
+            'window.SiarheDataVizConfig = ' . wp_json_encode( array( 'd3Fallback' => SIARHE_URL . 'public/js/libs/d3.v7.min.js?ver=7.9.0' ) ) . ';',
+            'before'
+        );
+
         // 4. Si el contenido actual ya usa un shortcode del plugin, el CSS se encola en <head>
         if ( is_singular() && preg_match( '/\[siarhe_mapa_(?:M|T|MT)_CVE_ENT_/', (string) get_post_field( 'post_content', get_queried_object_id() ) ) ) {
             wp_enqueue_style( 'siarhe-frontend-css' );

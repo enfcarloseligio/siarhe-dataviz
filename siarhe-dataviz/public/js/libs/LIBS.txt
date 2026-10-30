@@ -1,0 +1,5 @@
+Copia local de respaldo de D3.js (el plugin usa primero el CDN).
+Version: 7.9.0 (ISC, ver LICENSE-d3.txt)
+Origen:  https://d3js.org/d3.v7.min.js
+Se carga solo si el CDN falla o no trae las funciones que usa el plugin.
+Para actualizarla, reemplaza d3.v7.min.js y ajusta la version en class-siarhe-shortcodes.php.

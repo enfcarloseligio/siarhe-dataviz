@@ -29,7 +29,7 @@ if ( isset($_GET['status']) ) {
 }
 ?>
 
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<?php Siarhe_Admin::render_select2_css(); ?>
 
 <button type="button" class="button button-primary siarhe-floating-save" id="btn-floating-save">
     Guardar
@@ -328,7 +328,7 @@ if ( isset($_GET['status']) ) {
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<?php Siarhe_Admin::render_select2_js(); ?>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     

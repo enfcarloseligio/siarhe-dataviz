@@ -68,7 +68,7 @@ $entidades = [
 ];
 ?>
 
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<?php Siarhe_Admin::render_select2_css(); ?>
 
 <button type="button" class="button button-primary siarhe-floating-save" id="btn-floating-save">
     Guardar
@@ -179,7 +179,7 @@ $entidades = [
     <p style="margin: 0;"><strong>Nota:</strong> Debe hacer clic en <strong>"Guardar Configuración"</strong> al final de la página para persistir los cambios en la base de datos.</p>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<?php Siarhe_Admin::render_select2_js(); ?>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     
