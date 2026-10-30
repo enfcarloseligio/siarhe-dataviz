@@ -11,6 +11,7 @@ class Siarhe_Admin {
         add_action( 'admin_menu', array( $this, 'add_plugin_menu' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_styles' ) );
         add_action( 'admin_init', array( $this, 'register_plugin_settings' ) );
+        add_action( 'admin_init', array( $this, 'redirect_legacy_tabs' ) );
         add_action( 'admin_head', array( $this, 'inject_dynamic_css' ) );
 
         // Auto-Actualizador SQL BLINDADO
@@ -68,13 +69,14 @@ class Siarhe_Admin {
         add_submenu_page( 'siarhe-dataviz', 'Dashboard', 'Dashboard', 'manage_options', 'siarhe-dataviz', array( $this, 'display_dashboard' ) );
         add_submenu_page( 'siarhe-dataviz', 'Carga de Datos', 'Carga de Datos', 'manage_options', 'siarhe-uploader', array( $this, 'display_uploader' ) );
         add_submenu_page( 'siarhe-dataviz', 'Gestor de Bases', 'Gestor de Bases', 'manage_options', 'siarhe-manager', array( $this, 'display_manager' ) );
+        add_submenu_page( 'siarhe-dataviz', 'Personalizar', 'Personalizar', 'manage_options', 'siarhe-customize', array( $this, 'display_customize' ) );
         add_submenu_page( 'siarhe-dataviz', 'Configuración', 'Configuración', 'manage_options', 'siarhe-settings', array( $this, 'display_settings' ) );
     }
 
     public function enqueue_styles( $hook ) {
         if ( strpos( $hook, 'siarhe' ) === false ) return; // Solo en las pantallas del plugin
         wp_enqueue_style( 'siarhe-admin-css', SIARHE_URL . 'admin/css/siarhe-admin.css', array(), SIARHE_VERSION, 'all' );
-        if ( strpos( $hook, 'siarhe-settings' ) !== false ) {
+        if ( strpos( $hook, 'siarhe-settings' ) !== false || strpos( $hook, 'siarhe-customize' ) !== false ) {
             wp_enqueue_style( 'wp-color-picker' );
             wp_enqueue_script( 'siarhe-admin-js', SIARHE_URL . 'admin/js/siarhe-admin.js', array( 'wp-color-picker' ), SIARHE_VERSION, true );
         }
@@ -110,7 +112,22 @@ class Siarhe_Admin {
     public function display_dashboard() { include_once SIARHE_PATH . 'admin/partials/dashboard-home.php'; }
     public function display_uploader() { include_once SIARHE_PATH . 'admin/partials/data-uploader.php'; } 
     public function display_manager() { include_once SIARHE_PATH . 'admin/partials/data-manager.php'; }
-    public function display_settings() { include_once SIARHE_PATH . 'admin/partials/siarhe-settings.php'; }
+    // Una misma plantilla atiende las dos pantallas; $siarhe_screen_page indica cual
+    public function display_customize() { $siarhe_screen_page = 'siarhe-customize'; include SIARHE_PATH . 'admin/partials/siarhe-settings.php'; }
+    public function display_settings()  { $siarhe_screen_page = 'siarhe-settings';  include SIARHE_PATH . 'admin/partials/siarhe-settings.php'; }
+
+    /**
+     * Tema Admin y Mapa & Colores ahora viven en Personalizar: los enlaces guardados a
+     * ?page=siarhe-settings&tab=tema|mapa se redirigen a la pantalla nueva.
+     */
+    public function redirect_legacy_tabs() {
+        if ( ! isset( $_GET['page'], $_GET['tab'] ) || $_GET['page'] !== 'siarhe-settings' ) return;
+        $tab = sanitize_key( $_GET['tab'] );
+        if ( in_array( $tab, array( 'tema', 'mapa' ), true ) ) {
+            wp_safe_redirect( admin_url( 'admin.php?page=siarhe-customize&tab=' . $tab ) );
+            exit;
+        }
+    }
 
     public function register_plugin_settings() {
         $arr  = array( 'sanitize_callback' => array( $this, 'sanitize_array_option' ) );

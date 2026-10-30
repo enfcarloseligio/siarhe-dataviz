@@ -221,47 +221,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     state.gPaths.selectAll("path.siarhe-feature").attr("stroke-width", 0.5 / k);
                     state.gLocPaths.selectAll("path.siarhe-loc-feature").attr("stroke-width", 0.5 / k);
 
-                    let shrinkFactor = 1;
-                    if (k > 8) shrinkFactor = 1 + ((k - 8) * 0.15); 
-                    
-                    // 🌟 MEJORA UX: Áreas táctiles más grandes para móvil/tablet
-                    const isTouch = window.innerWidth < 1024;
-                    let baseSize = isTouch ? 500 : 250; // Área base mayor en touch
-
-                    let symbolSize = (baseSize / shrinkFactor) / (k * k);
-                    
-                    // Límite mínimo mucho más permisivo para no perder el área de TAP
-                    let minSymbolSize = isTouch ? 0.25 : 0.05; 
-                    if (symbolSize < minSymbolSize) symbolSize = minSymbolSize;
-
-                    const symbolCache = {};
-                    state.activeMarkers.forEach(type => {
-                        const styleCfg = app.utils.getMarkerStyle(type, state);
-                        symbolCache[type] = d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)).size(symbolSize)();
-                    });
-
+                    // Geometria de marcadores (posicion, espectro y spike) con la misma funcion que el pintado inicial
+                    const metrics = app.map._markerMetrics(state, k);
+                    const shapeCache = {};
                     state.gMarkers.selectAll("path.siarhe-marker")
-                        .attr("d", d => {
-                            const config = state.markerLabels[d.tipo] || {};
-                            if (config.tipo === 'espectro') {
-                                let val = d._agrupados_total || 1;
-                                if (config.espectro_col && config.espectro_col.trim() !== '') {
-                                    // 🚀 Reutilizamos la columna ya resuelta en updateMarkers en vez de
-                                    // recalcularla con Object.keys().find() por marcador en cada tick de zoom.
-                                    const realCol = (state._espectroColKeyCache && state._espectroColKeyCache[d.tipo] !== undefined)
-                                        ? state._espectroColKeyCache[d.tipo]
-                                        : Object.keys(d._raw).find(k => k.toLowerCase().trim() === config.espectro_col.toLowerCase().trim());
-                                    val = realCol ? parseFloat(d._raw[realCol]) || 0 : 0;
-                                }
-                                const max = (state.espectroMaxVals && state.espectroMaxVals[d.tipo]) ? state.espectroMaxVals[d.tipo] : 1;
-                                
-                                if (val <= 0) return d3.symbol().type(app.utils.getD3Shape(app.utils.getMarkerStyle(d.tipo, state).shape)).size(0)();
-                                const scaleArea = d3.scaleLinear().domain([1, max]).range([symbolSize * 2.5, symbolSize * 25]).clamp(true);
-                                const styleCfg = app.utils.getMarkerStyle(d.tipo, state);
-                                return d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)).size(scaleArea(val))();
-                            }
-                            return symbolCache[d.tipo];
-                        })
+                        .attr("d", d => app.map._markerShape(d, state, metrics, shapeCache).path)
                         .attr("stroke-width", 1.5 / k);
                 });
             
@@ -796,10 +760,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
         },
 
-        // Tamano de simbolo segun el zoom actual (compartido por updateMarkers y el pintado por cuadros)
-        _markerMetrics: function(state) {
-            let k = 1;
-            if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(e) {} }
+        // Tamano de simbolo segun el zoom actual (compartido por updateMarkers, el zoom y el pintado por cuadros)
+        _markerMetrics: function(state, kOverride) {
+            let k = kOverride;
+            if (!k) {
+                k = 1;
+                if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(e) {} }
+            }
 
             let shrinkFactor = 1;
             if (k > 8) shrinkFactor = 1 + ((k - 8) * 0.15);
@@ -809,7 +776,81 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const baseSize = isTouch ? 500 : 250;
             const minSymbolSize = isTouch ? 0.25 : 0.05;
 
-            return { k: k, symbolSize: Math.max((baseSize / shrinkFactor) / (k * k), minSymbolSize) };
+            return { k: k, isTouch: isTouch, symbolSize: Math.max((baseSize / shrinkFactor) / (k * k), minSymbolSize) };
+        },
+
+        // Valor numerico de un punto de densidad: columna configurada o numero de registros agrupados
+        _markerValue: function(d, config, state, type) {
+            if (config.espectro_col && config.espectro_col.trim() !== '') {
+                const realCol = state._espectroColKeyCache ? state._espectroColKeyCache[type] : null;
+                return (realCol && d._raw) ? (parseFloat(d._raw[realCol]) || 0) : 0;
+            }
+            return d._agrupados_total || 1;
+        },
+
+        // Degradado de un spike: el color elegido es el pico mas alto; hacia abajo se aclara
+        // (o llega al color bajo si la persona definio uno). Devuelve t (0..1) -> color.
+        _spikeRamp: function(styleCfg) {
+            const hi = styleCfg.fill || '#d63638';
+            let ramp;
+            try {
+                const lo = styleCfg.fill2 || d3.interpolateLab(hi, '#ffffff')(0.78);
+                const interp = d3.interpolateLab(lo, hi);
+                ramp = function(t) { return interp(Math.max(0, Math.min(1, t))); };
+            } catch (e) {
+                ramp = function() { return hi; };
+            }
+            return ramp;
+        },
+
+        /**
+         * Forma de un marcador segun su tipo. Devuelve { path, fill, stroke, strokeW }.
+         * - posicion: simbolo fijo
+         * - espectro: burbuja con area proporcional al valor
+         * - spike: triangulo delgado cuya altura y color dependen del valor (altura constante en pantalla)
+         */
+        _markerShape: function(d, state, metrics, cache) {
+            const type = d.tipo;
+            const config = state.markerLabels[type] || {};
+            const styleCfg = cache['style:' + type] || (cache['style:' + type] = app.utils.getMarkerStyle(type, state));
+            const max = (state.espectroMaxVals && state.espectroMaxVals[type]) || 1;
+
+            if (config.tipo === 'spike') {
+                const val = app.map._markerValue(d, config, state, type);
+                if (!(val > 0)) return { path: '', fill: styleCfg.fill, stroke: 'none', strokeW: 0 };
+
+                // Escala lineal entre el menor y el mayor valor del marcador:
+                // el menor mide SPIKE_MIN_H unidades y el mayor SPIKE_MAX_H (unidades del viewBox)
+                const min = (state.espectroMinVals && state.espectroMinVals[type]) || max;
+                const t = max > min ? Math.max(0, Math.min(1, (val - min) / (max - min))) : 1;
+                const f = metrics.isTouch ? 1.5 : 1;                     // mas grande en movil/tablet
+                const hMin = 25 * f, hMax = 100 * f;
+                const h = (hMin + (hMax - hMin) * t) / metrics.k;        // altura constante en pantalla al hacer zoom
+                const w = (metrics.isTouch ? 7 : 5) / metrics.k;         // semi-base constante
+                const ramp = cache['ramp:' + type] || (cache['ramp:' + type] = app.map._spikeRamp(styleCfg));
+                const edge = cache['edge:' + type] || (cache['edge:' + type] = (function() {
+                    const c = d3.color(styleCfg.fill);
+                    return c ? c.darker(0.7).formatRgb() : '#7f1d1d';
+                })());
+                return { path: 'M' + (-w) + ',0L0,' + (-h) + 'L' + w + ',0Z', fill: ramp(t), stroke: edge, strokeW: 1 };
+            }
+
+            const symbol = cache['sym:' + type] || (cache['sym:' + type] = d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)));
+
+            if (config.tipo === 'espectro') {
+                const val = app.map._markerValue(d, config, state, type);
+                let size = 0;
+                if (val > 0) {
+                    const scale = cache['scale:' + type] || (cache['scale:' + type] = d3.scaleLinear()
+                        .domain([1, max])
+                        .range([metrics.symbolSize * 2.5, metrics.symbolSize * 25]).clamp(true));
+                    size = scale(val);
+                }
+                const fill = styleCfg.fill.startsWith('rgba') ? styleCfg.fill : app.map.hexToRgba(styleCfg.fill, 0.75);
+                return { path: symbol.size(size)(), fill: fill, stroke: styleCfg.stroke, strokeW: 1.5 };
+            }
+
+            return { path: symbol.size(metrics.symbolSize)(), fill: styleCfg.fill, stroke: styleCfg.stroke, strokeW: 1.5 };
         },
 
         updateMarkers: function(state) {
@@ -827,30 +868,42 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             });
 
             let hasEspectro = false;
-            state.activeMarkers.forEach(type => { if ((state.markerLabels[type] || {}).tipo === 'espectro') hasEspectro = true; });
+            state.activeMarkers.forEach(type => { if (app.utils.isDensity((state.markerLabels[type] || {}).tipo)) hasEspectro = true; });
 
-            // Los de espectro (burbujas) van debajo, los grandes antes que los chicos
+            // Orden de apilado: burbujas (grandes antes que chicas) < picos (norte atras, sur al frente) < posicion
+            const rank = (p) => {
+                const t = (state.markerLabels[p.tipo] || {}).tipo;
+                return t === 'espectro' ? 0 : (t === 'spike' ? 1 : 2);
+            };
             allPoints.sort((a, b) => {
-                const iA = (state.markerLabels[a.tipo] || {}).tipo === 'espectro', iB = (state.markerLabels[b.tipo] || {}).tipo === 'espectro'; return iA && !iB ? -1 : (!iA && iB ? 1 : (iA ? (b._agrupados_total || 1) - (a._agrupados_total || 1) : 0));
+                const ra = rank(a), rb = rank(b);
+                if (ra !== rb) return ra - rb;
+                if (ra === 0) return (b._agrupados_total || 1) - (a._agrupados_total || 1);
+                if (ra === 1) return (b.lat || 0) - (a.lat || 0);
+                return 0;
             });
 
             // Resolvemos la columna real y el maximo de "espectro" UNA vez por tipo (no por punto)
             state.espectroMaxVals = {};
+            state.espectroMinVals = {};
             state._espectroColKeyCache = {};
             state.activeMarkers.forEach(type => {
                 const config = state.markerLabels[type] || {};
-                if (config.tipo === 'espectro') {
+                if (app.utils.isDensity(config.tipo)) {
                     const data = state.markersData[type] || [];
-                    let max = 0;
+                    let max = 0, min = 0;
                     if (config.espectro_col && config.espectro_col.trim() !== '') {
                         const sample = data.find(d => d._raw);
                         const realCol = sample ? Object.keys(sample._raw).find(k => k.toLowerCase().trim() === config.espectro_col.toLowerCase().trim()) : null;
                         state._espectroColKeyCache[type] = realCol || null;
                         max = d3.max(data, d => realCol ? (parseFloat(d._raw[realCol]) || 0) : 0);
+                        min = d3.min(data, d => { const v = realCol ? (parseFloat(d._raw[realCol]) || 0) : 0; return v > 0 ? v : undefined; });
                     } else {
                         max = d3.max(data, d => d._agrupados_total || 1);
+                        min = d3.min(data, d => d._agrupados_total || 1);
                     }
                     state.espectroMaxVals[type] = max || 1;
+                    state.espectroMinVals[type] = min || max || 1; // menor valor > 0: ancla el pico mas bajo
                 }
             });
 
@@ -868,7 +921,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const config = state.markerLabels[d.tipo] || {};
 
                     d3.select(this).attr("stroke-width", 3 / k);
-                    if (config.tipo !== 'espectro') { d3.select(this).raise(); }
+                    if (!app.utils.isDensity(config.tipo)) { d3.select(this).raise(); }
 
                     const mapDiv = this.closest('.siarhe-map-container');
                     if(app.tooltips && mapDiv) app.tooltips.showMarkerTooltip(e, d, state, mapDiv);
@@ -967,36 +1020,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 return;
             }
 
-            const type = d.tipo;
-            const config = state.markerLabels[type] || {};
-            const styleCfg = cache['style:' + type] || (cache['style:' + type] = app.utils.getMarkerStyle(type, state));
-            const symbol = cache['sym:' + type] || (cache['sym:' + type] = d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)));
+            const shape = app.map._markerShape(d, state, metrics, cache);
 
-            let finalSize = metrics.symbolSize;
-            let fillColor = styleCfg.fill;
-
-            if (config.tipo === 'espectro') {
-                let val = d._agrupados_total || 1;
-                if (config.espectro_col && config.espectro_col.trim() !== '') {
-                    const realCol = state._espectroColKeyCache ? state._espectroColKeyCache[type] : null;
-                    val = (realCol && d._raw) ? (parseFloat(d._raw[realCol]) || 0) : 0;
-                }
-                if (val <= 0) {
-                    finalSize = 0;
-                } else {
-                    const scale = cache['scale:' + type] || (cache['scale:' + type] = d3.scaleLinear()
-                        .domain([1, (state.espectroMaxVals && state.espectroMaxVals[type]) || 1])
-                        .range([metrics.symbolSize * 2.5, metrics.symbolSize * 25]).clamp(true));
-                    finalSize = scale(val);
-                }
-                fillColor = styleCfg.fill.startsWith('rgba') ? styleCfg.fill : app.map.hexToRgba(styleCfg.fill, 0.75);
-            }
-
-            node.setAttribute("d", symbol.size(finalSize)());
+            node.setAttribute("d", shape.path);
             node.setAttribute("transform", `translate(${coords[0]}, ${coords[1]})`);
-            node.setAttribute("fill", fillColor);
-            node.setAttribute("stroke", styleCfg.stroke);
-            node.setAttribute("stroke-width", 1.5 / metrics.k);
+            node.setAttribute("fill", shape.fill);
+            node.setAttribute("stroke", shape.stroke);
+            node.setAttribute("stroke-width", shape.strokeW / metrics.k);
             node.style.opacity = 1; // dispara el fundido de entrada
         },
 
@@ -1014,7 +1044,18 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             // Tamanos en unidades del viewBox (layoutLegends los escala); la caja crece hacia arriba desde abajo
             const FT = 17, FL = 15, ROW = 26;
-            const labels = actives.map(tipo => (state.markerLabels[tipo] ? state.markerLabels[tipo].label : tipo) || tipo);
+            const labels = actives.map(tipo => {
+                const cfg = state.markerLabels[tipo] || {};
+                let text = cfg.label || tipo;
+                // Los picos indican su valor maximo: es la referencia de escala de la altura
+                if (cfg.tipo === 'spike' && state.espectroMaxVals && state.espectroMaxVals[tipo] > 0) {
+                    const fmt = (v) => Number(v).toLocaleString('es-MX');
+                    const vMax = state.espectroMaxVals[tipo];
+                    const vMin = state.espectroMinVals ? state.espectroMinVals[tipo] : vMax;
+                    text += vMin < vMax ? ` (${fmt(vMin)} a ${fmt(vMax)})` : ` (${fmt(vMax)})`;
+                }
+                return text;
+            });
             const maxLen = Math.max.apply(null, labels.map(t => String(t).length));
             const boxWidth = Math.max(230, Math.min(460, 40 + maxLen * 8.6 + 28), 18 * 10.2 + 28);
             const boxHeight = (actives.length * ROW) + 38;
@@ -1031,16 +1072,37 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             g.append("text").attr("x", 0).attr("y", startY + 24).text("Marcadores Activos")
                 .style("font-size", FT + "px").style("font-weight", "bold").style("fill", "#0F172A");
 
+            const defs = state.svg ? state.svg.select('defs') : null;
+
             actives.forEach((tipo, i) => {
                 const yPos = startY + 24 + ((i + 1) * ROW);
                 const styleCfg = app.utils.getMarkerStyle(tipo, state);
+                const cfg = state.markerLabels[tipo] || {};
 
-                g.append("path")
-                    .attr("d", d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)).size(90)())
-                    .attr("transform", `translate(8, ${yPos - 5})`)
-                    .attr("fill", styleCfg.fill)
-                    .attr("stroke", styleCfg.stroke)
-                    .attr("stroke-width", 1);
+                if (cfg.tipo === 'spike' && defs && !defs.empty()) {
+                    // Pico con el degradado real: oscuro arriba (valor alto), claro abajo (valor bajo)
+                    const gid = `${state.gradientId}-spike-${i}`;
+                    defs.select('#' + gid).remove();
+                    const ramp = app.map._spikeRamp(styleCfg);
+                    const grad = defs.append('linearGradient').attr('id', gid)
+                        .attr('x1', '0%').attr('y1', '100%').attr('x2', '0%').attr('y2', '0%');
+                    grad.append('stop').attr('offset', '0%').attr('stop-color', ramp(0));
+                    grad.append('stop').attr('offset', '100%').attr('stop-color', ramp(1));
+
+                    g.append("path")
+                        .attr("d", "M0,0L5,-18L10,0Z")
+                        .attr("transform", `translate(3, ${yPos - 1})`)
+                        .attr("fill", `url(#${gid})`)
+                        .attr("stroke", ramp(1))
+                        .attr("stroke-width", 0.8);
+                } else {
+                    g.append("path")
+                        .attr("d", d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)).size(90)())
+                        .attr("transform", `translate(8, ${yPos - 5})`)
+                        .attr("fill", styleCfg.fill)
+                        .attr("stroke", styleCfg.stroke)
+                        .attr("stroke-width", 1);
+                }
 
                 g.append("text").attr("x", 26).attr("y", yPos).text(labels[i])
                     .style("font-size", FL + "px").style("fill", "#475569");

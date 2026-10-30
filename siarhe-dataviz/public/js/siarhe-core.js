@@ -97,9 +97,19 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         
         getMarkerStyle: function(type, state) {
             if (state.markerStyles[type]) return state.markerStyles[type];
-            return { shape: 'circle', fill: '#000000', stroke: '#ffffff' }; 
+            return { shape: 'circle', fill: '#000000', fill2: '', stroke: '#ffffff' }; 
         },
         
+        // Tipos de marcador que codifican un valor numerico (burbuja o pico)
+        isDensity: function(tipo) {
+            return tipo === 'espectro' || tipo === 'spike';
+        },
+
+        // Grupo del selector de controles: los picos comparten el selector "Densidad" con los espectros
+        markerGroup: function(tipo) {
+            return tipo === 'spike' ? 'espectro' : tipo;
+        },
+
         getColValue: function(row, possibleNames) {
             const keys = Object.keys(row);
             for (let name of possibleNames) {

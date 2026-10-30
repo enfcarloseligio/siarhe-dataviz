@@ -46,6 +46,25 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
     .siarhe-badge { padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; display: inline-block; border: 1px solid transparent; }
     .siarhe-badge.neutral { background: #f0f0f1; color: #3c434a; border-color: #c3c4c7; }
     .siarhe-badge.espectro { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+    .siarhe-badge.spike { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+
+    /* Icono de ayuda "?" con tooltip (hover o foco de teclado) */
+    .siarhe-help {
+        position: relative; display: inline-flex; align-items: center; justify-content: center;
+        width: 16px; height: 16px; margin-left: 4px; border-radius: 50%;
+        background: #dcdcde; color: #3c434a; font-size: 11px; font-weight: 700; line-height: 1;
+        cursor: help; vertical-align: middle;
+    }
+    .siarhe-help:hover, .siarhe-help:focus { background: #2271b1; color: #fff; outline: none; }
+    .siarhe-help::after {
+        content: attr(data-tip);
+        position: absolute; left: 50%; top: calc(100% + 8px); transform: translateX(-50%);
+        width: 240px; padding: 8px 10px; border-radius: 4px;
+        background: #1d2327; color: #fff; font-size: 12px; font-weight: 400; line-height: 1.4; text-align: left;
+        box-shadow: 0 2px 8px rgba(0,0,0,.25); white-space: normal;
+        opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .15s; z-index: 100;
+    }
+    .siarhe-help:hover::after, .siarhe-help:focus::after { opacity: 1; visibility: visible; }
     
     @media (max-width: 782px) {
         .siarhe-admin-card .form-table th { display: block; width: 100%; padding-bottom: 5px; }
@@ -174,15 +193,17 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
             $s_key = strtolower($key);
             $tipo = isset($mk['tipo']) ? $mk['tipo'] : 'posicion';
             $is_espectro = ($tipo === 'espectro');
+            $is_spike    = ($tipo === 'spike');
 
             // Lógica para asignar forma por defecto (El espectro SIEMPRE es círculo)
             $shape_val = isset($opts["m_{$s_key}_shape"]) ? $opts["m_{$s_key}_shape"] : (isset($legacy_shapes[$s_key]) ? $legacy_shapes[$s_key] : 'circle');
-            if ($is_espectro) $shape_val = 'circle'; 
+            if ($is_espectro || $is_spike) $shape_val = 'circle'; 
 
             // Si es un Espectro nuevo, le damos un color rojo semi-transparente (rgba) por defecto
-            $default_fill = $is_espectro ? 'rgba(214, 54, 56, 0.6)' : '#0A66C2';
+            $default_fill = $is_espectro ? 'rgba(214, 54, 56, 0.6)' : ($is_spike ? '#D63638' : '#0A66C2');
             $fill_val   = isset($opts["m_{$s_key}_fill"])   ? $opts["m_{$s_key}_fill"]   : (isset($legacy_colors[$s_key]) ? $legacy_colors[$s_key] : $default_fill);
             $stroke_val = isset($opts["m_{$s_key}_stroke"]) ? $opts["m_{$s_key}_stroke"] : '#ffffff';
+            $fill2_val  = isset($opts["m_{$s_key}_fill2"])  ? $opts["m_{$s_key}_fill2"]  : ''; // Spike: color del pico mas bajo (vacio = version clara del color alto)
         ?>
         <tr>
             <th scope="row">
@@ -192,6 +213,8 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
                 <div style="margin-top: 6px;">
                     <?php if ($is_espectro): ?>
                         <span class="siarhe-badge espectro">🔴 Espectro (Burbuja)</span>
+                    <?php elseif ($is_spike): ?>
+                        <span class="siarhe-badge spike">📈 Spike (Pico)</span>
                     <?php else: ?>
                         <span class="siarhe-badge neutral">📍 Posición Fija</span>
                     <?php endif; ?>
@@ -201,15 +224,15 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
                 <div class="siarhe-marker-row" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
                     <div class="siarhe-preview-box">
                         <label>Vista Previa</label>
-                        <svg id="preview-<?php echo esc_attr($s_key); ?>" width="<?php echo $is_espectro ? '36' : '30'; ?>" height="<?php echo $is_espectro ? '36' : '30'; ?>" viewBox="0 0 30 30"></svg>
+                        <svg id="preview-<?php echo esc_attr($s_key); ?>" width="<?php echo ($is_espectro || $is_spike) ? '36' : '30'; ?>" height="<?php echo ($is_espectro || $is_spike) ? '36' : '30'; ?>" viewBox="0 0 30 30"></svg>
                     </div>
                     
                     <div>
                         <label>Forma:</label><br>
-                        <?php if ($is_espectro): ?>
+                        <?php if ($is_espectro || $is_spike): ?>
                             <input type="hidden" name="siarhe_map_options[m_<?php echo esc_attr($s_key); ?>_shape]" id="m_<?php echo esc_attr($s_key); ?>_shape" value="circle">
                             <select disabled style="background:#f0f0f1; color:#666; cursor:not-allowed;">
-                                <option>Círculo (Burbuja)</option>
+                                <option><?php echo $is_spike ? 'Pico (triángulo)' : 'Círculo (Burbuja)'; ?></option>
                             </select>
                         <?php else: ?>
                             <select name="siarhe_map_options[m_<?php echo esc_attr($s_key); ?>_shape]" id="m_<?php echo esc_attr($s_key); ?>_shape">
@@ -224,14 +247,21 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
                     </div>
                     
                     <div>
-                        <label>Relleno:</label><br>
-                        <input type="text" name="siarhe_map_options[m_<?php echo esc_attr($s_key); ?>_fill]" id="m_<?php echo esc_attr($s_key); ?>_fill" value="<?php echo esc_attr($fill_val); ?>" class="siarhe-color-field" <?php if($is_espectro) echo 'data-alpha="true"'; ?>>
+                        <label><?php echo $is_spike ? 'Color del pico más alto:' : 'Relleno:'; ?><?php if ($is_spike): ?> <span class="siarhe-help" tabindex="0" role="note" data-tip="Es el color del pico con el valor más alto del marcador. Los valores menores se degradan hacia el color más bajo." aria-label="Ayuda: color del pico más alto">?</span><?php endif; ?></label><br>
+                        <input type="text" name="siarhe_map_options[m_<?php echo esc_attr($s_key); ?>_fill]" id="m_<?php echo esc_attr($s_key); ?>_fill" value="<?php echo esc_attr($fill_val); ?>" class="siarhe-color-field" <?php if($is_espectro || $is_spike) echo 'data-alpha="true"'; ?>>
                     </div>
-                    
+
+                    <?php if ($is_spike): ?>
+                    <div>
+                        <label>Color del pico más bajo <small>(opcional)</small>: <span class="siarhe-help" tabindex="0" role="note" data-tip="Los valores bajos se degradan hacia este color. Si lo dejas vacío se usa una versión clara del color del pico más alto." aria-label="Ayuda: color del pico más bajo">?</span></label><br>
+                        <input type="text" name="siarhe_map_options[m_<?php echo esc_attr($s_key); ?>_fill2]" id="m_<?php echo esc_attr($s_key); ?>_fill2" value="<?php echo esc_attr($fill2_val); ?>" class="siarhe-color-field" data-alpha="true">
+                    </div>
+                    <?php else: ?>
                     <div>
                         <label>Borde:</label><br>
                         <input type="text" name="siarhe_map_options[m_<?php echo esc_attr($s_key); ?>_stroke]" id="m_<?php echo esc_attr($s_key); ?>_stroke" value="<?php echo esc_attr($stroke_val); ?>" class="siarhe-color-field">
                     </div>
+                    <?php endif; ?>
                 </div>
             </td>
         </tr>
@@ -252,11 +282,40 @@ document.addEventListener('DOMContentLoaded', function() {
         cross: '<path d="M11,5 H19 V11 H25 V19 H19 V25 H11 V19 H5 V11 H11 Z" />'
     };
 
+    // Convierte cualquier color CSS (hex, rgb, rgba) a [r, g, b, a] usando el propio navegador
+    const colorCtx = document.createElement('canvas').getContext('2d');
+    function parseColor(value) {
+        colorCtx.fillStyle = '#000000';
+        colorCtx.fillStyle = value || '#000000';
+        const v = colorCtx.fillStyle;
+        if (v.charAt(0) === '#') {
+            return [parseInt(v.substr(1, 2), 16), parseInt(v.substr(3, 2), 16), parseInt(v.substr(5, 2), 16), 1];
+        }
+        const m = v.match(/[\d.]+/g) || [0, 0, 0, 1];
+        return [+m[0], +m[1], +m[2], m[3] === undefined ? 1 : +m[3]];
+    }
+    function mixWithWhite(value, amount) {
+        const c = parseColor(value);
+        const mix = (x) => Math.round(x + (255 - x) * amount);
+        return `rgba(${mix(c[0])}, ${mix(c[1])}, ${mix(c[2])}, ${c[3]})`;
+    }
+
     function updatePreview(type) {
         const shapeSelect = document.getElementById(`m_${type}_shape`);
         const fillInput = document.getElementById(`m_${type}_fill`);
         const strokeInput = document.getElementById(`m_${type}_stroke`);
+        const fill2Input = document.getElementById(`m_${type}_fill2`);
         const svgBox = document.getElementById(`preview-${type}`);
+
+        // Spike: dos picos de ejemplo (alto y bajo) con el degradado que se verá en el mapa
+        if (fill2Input && fillInput && svgBox) {
+            const high = fillInput.value || '#D63638';
+            const low = fill2Input.value || mixWithWhite(high, 0.78);
+            svgBox.innerHTML =
+                `<polygon points="4,28 9,3 14,28" fill="${high}" stroke="${high}" stroke-width="1" stroke-linejoin="round" />` +
+                `<polygon points="17,28 21,15 25,28" fill="${low}" stroke="${high}" stroke-width="1" stroke-linejoin="round" />`;
+            return;
+        }
 
         if (shapeSelect && fillInput && strokeInput && svgBox) {
             const shape = shapeSelect.value;

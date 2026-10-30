@@ -321,6 +321,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             let html = `<div style="font-family:'Roboto', sans-serif; color:${txtColor};">`;
             html += `<div style="color: #06B6D4; font-weight:bold; font-size:12px; margin-bottom:4px; padding-bottom:4px;">${app.utils.esc(titleLabel)}</div>`;
             html += `<div style="font-weight:bold; font-size:13px; font-family:'IBM Plex Sans', sans-serif; text-transform: uppercase; margin-bottom: 8px;">${app.utils.esc(d.nombre || 'Desconocido')}</div>`;
+            // Spike: el valor que define la altura y el color del pico
+            const mkCfg = state.markerLabels[d.tipo] || {};
+            if (mkCfg.tipo === 'spike' && app.map && app.map._markerValue) {
+                const spikeVal = app.map._markerValue(d, mkCfg, state, d.tipo);
+                const colName = (mkCfg.espectro_col && mkCfg.espectro_col.trim()) ? mkCfg.espectro_col.trim() : 'Registros';
+                html += `<div style='font-size:11px; margin-bottom:6px;'><span style='color:#06B6D4;'>${app.utils.esc(colName)}:</span> <strong>${Number(spikeVal).toLocaleString('es-MX')}</strong></div>`;
+            }
             html += htmlStandard;
             html += htmlHighlight;
             html += htmlReglas; 

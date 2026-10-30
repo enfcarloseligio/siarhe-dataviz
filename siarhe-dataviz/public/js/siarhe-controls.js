@@ -114,7 +114,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (!opts.showMarkers || isTableOnly || !toastBox) return; 
                 const linkedMarkerKey = Object.keys(state.markerLabels).find(k => {
                     const mk = state.markerLabels[k];
-                    return mk.tipo === 'espectro' && mk.espectro_pair === metricKey;
+                    return app.utils.isDensity(mk.tipo) && mk.espectro_pair === metricKey;
                 });
 
                 if (linkedMarkerKey && !state.activeMarkers.has(linkedMarkerKey)) {
@@ -215,7 +215,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (!isTableOnly) {
                 const buildMarkerDropdown = (targetId, typeFilter, placeholderTitle) => {
                     const containerDiv = wrapper.querySelector('#' + targetId);
-                    const validMarkers = Object.keys(state.markerUrls).filter(k => state.markerUrls[k] && (state.markerLabels[k] || {}).tipo === typeFilter);
+                    const validMarkers = Object.keys(state.markerUrls).filter(k => state.markerUrls[k] && app.utils.markerGroup((state.markerLabels[k] || {}).tipo) === typeFilter);
                     
                     if (validMarkers.length === 0) {
                         containerDiv.innerHTML += `<div class="mc-trigger is-placeholder" style="cursor:not-allowed; background:#f1f5f9;"><span>No disponibles</span></div>`;
@@ -238,7 +238,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     btnClearMc.addEventListener('click', (e) => {
                         e.stopPropagation();
                         Array.from(state.activeMarkers).forEach(k => { 
-                            if((state.markerLabels[k] || {}).tipo === typeFilter) state.activeMarkers.delete(k); 
+                            if(app.utils.markerGroup((state.markerLabels[k] || {}).tipo) === typeFilter) state.activeMarkers.delete(k); 
                         });
                         optionsContainerMc.querySelectorAll('.mc-check').forEach(chk => chk.checked = false);
                         if (app.map) { app.map.updateMarkers(state); app.map.renderMarkerLegend(state); }
@@ -292,7 +292,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
                 if (opts.showMarkers) {
                     buildMarkerDropdown('c-posicion', 'posicion', 'Seleccionar Clínicas...');
-                    buildMarkerDropdown('c-espectro', 'espectro', 'Seleccionar Espectros...');
+                    buildMarkerDropdown('c-espectro', 'espectro', 'Seleccionar Densidad...');
                 }
 
                 // ☀️ RENDERIZAR OPCIONES DE ESCALA CONECTADAS AL ESTADO
@@ -721,7 +721,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         updateMarkerDropdownText: function(state) {
             const upd = (trigger, typeFilter) => {
                 if (!trigger) return;
-                const sel = Array.from(state.activeMarkers).filter(k => (state.markerLabels[k] || {}).tipo === typeFilter);
+                const sel = Array.from(state.activeMarkers).filter(k => app.utils.markerGroup((state.markerLabels[k] || {}).tipo) === typeFilter);
                 
                 const clearBtn = trigger.parentElement.querySelector('.siarhe-cs-search button');
                 if (clearBtn) {

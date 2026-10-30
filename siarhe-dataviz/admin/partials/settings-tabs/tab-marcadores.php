@@ -177,6 +177,7 @@ if ( empty($marcadores_json) ) {
                     <select id="modal-mk-tipo">
                         <option value="posicion">📍 Posición (Ícono fijo por establecimiento)</option>
                         <option value="espectro">🔴 Espectro (Burbuja por Densidad/Epidemiología)</option>
+                        <option value="spike">📈 Spike (Pico por valor, con degradado de color)</option>
                     </select>
                 </td>
             </tr>
@@ -192,7 +193,7 @@ if ( empty($marcadores_json) ) {
             </tr>
 
             <tr id="mk-espectro-row" style="display:none; background: #f0f9ff;">
-                <th><label>Configuración de Espectro</label></th>
+                <th><label>Configuración de Densidad<br><small style="font-weight:normal;">(Espectro y Spike)</small></label></th>
                 <td>
                     <label><strong>Clave Relacionada (Par)</strong></label><br>
                     <input type="text" id="modal-mk-espectro-pair" class="regular-text" placeholder="Ej. tasa_total" style="margin-bottom:10px; width: 100%;">
@@ -206,7 +207,7 @@ if ( empty($marcadores_json) ) {
 
                     <label><strong>Columna Numérica</strong></label><br>
                     <input type="text" id="modal-mk-espectro-col" class="regular-text" placeholder="Columna a evaluar (ej. total_casos)" style="width: 100%;">
-                    <p class="description">El tamaño de la burbuja se calculará en base a los números de esta columna.</p>
+                    <p class="description">En <strong>Espectro</strong> el tamaño de la burbuja, y en <strong>Spike</strong> la altura y el color del pico, se calculan con los números de esta columna. Los colores se eligen en <em>Personalizar &gt; Mapa &amp; Colores</em>.</p>
                 </td>
             </tr>
 
@@ -306,7 +307,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     tipoSelect.addEventListener('change', (e) => {
-        espectroRow.style.display = e.target.value === 'espectro' ? 'table-row' : 'none';
+        espectroRow.style.display = (e.target.value === 'espectro' || e.target.value === 'spike') ? 'table-row' : 'none';
     });
 
     let marcadoresObj = {};
@@ -404,8 +405,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const item = marcadoresObj[key];
                 const isCore = item.is_core === true;
                 const vis = item.visibilidad || 'publico'; 
-                const badgeType = item.tipo === 'posicion' ? 'neutral' : 'warning';
-                const badgeLabel = item.tipo === 'posicion' ? '📍 Posición' : '🔴 Espectro';
+                const tipoMeta = { posicion: ['neutral', '📍 Posición'], espectro: ['warning', '🔴 Espectro'], spike: ['warning', '📈 Spike'] };
+                const [badgeType, badgeLabel] = tipoMeta[item.tipo] || tipoMeta.posicion;
                 const coreBadge = isCore ? '<span class="siarhe-badge brand" style="margin-left:5px;"><span class="dashicons dashicons-lock" style="font-size:12px;width:12px;height:12px;margin-top:2px;"></span> Nativo</span>' : '';
                 const autorOriginal = isCore ? 'Sistema' : (item.created_by || item.last_edited_by || 'Desconocido');
                 const fechaOriginal = isCore ? 'Integrado en el código' : (item.created_at || item.last_edited_at || '');

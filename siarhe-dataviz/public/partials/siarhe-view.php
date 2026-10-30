@@ -95,6 +95,7 @@ foreach ($marcadores_array as $key => $mk) {
     $marker_config[$key] = [
         'shape' => isset($opts["m_{$s_key}_shape"]) ? $opts["m_{$s_key}_shape"] : 'circle',
         'fill'  => isset($opts["m_{$s_key}_fill"]) ? $opts["m_{$s_key}_fill"] : '#0A66C2',
+        'fill2' => isset($opts["m_{$s_key}_fill2"]) ? $opts["m_{$s_key}_fill2"] : '', // Spike: color del pico mas bajo
         'stroke'=> isset($opts["m_{$s_key}_stroke"]) ? $opts["m_{$s_key}_stroke"] : '#ffffff',
     ];
 }
