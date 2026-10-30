@@ -363,10 +363,13 @@ if (!empty($geojson_url) && strpos($geojson_url, '?v=') === false) {
 
             <div class="siarhe-map-actions">
                 <button class="button button-secondary btn-siarhe btn-download-map siarhe-btn-download-png">
-                    <span class="dashicons dashicons-camera" style="margin-top: 3px;"></span> 🗺️ Mapa PNG
+                    <span class="dashicons dashicons-camera" style="margin-top: 3px;"></span> Mapa PNG
                 </button>
                 <button class="button button-secondary btn-siarhe btn-download-map siarhe-btn-toggle-labels">
-                    <span class="dashicons dashicons-tag" style="margin-top: 3px;"></span> 📝 Mapa con Etiquetas
+                    <span class="dashicons dashicons-tag" style="margin-top: 3px;"></span> Mapa con Etiquetas
+                </button>
+                <button type="button" class="button button-secondary btn-siarhe btn-download-map siarhe-btn-share">
+                    <span class="dashicons dashicons-admin-links" style="margin-top: 3px;"></span> Copiar enlace de esta vista
                 </button>
             </div>
 
@@ -396,7 +399,7 @@ if (!empty($geojson_url) && strpos($geojson_url, '?v=') === false) {
 
             <div style="text-align: center; margin-top: 15px;">
                 <button class="button button-primary btn-siarhe btn-primary siarhe-btn-download-excel">
-                    <span class="dashicons dashicons-media-spreadsheet" style="margin-top: 3px;"></span> 📥 Descargar Excel <?php echo $es_nacional ? 'Nacional' : 'Estatal'; ?>
+                    <span class="dashicons dashicons-media-spreadsheet" style="margin-top: 3px;"></span> Descargar Excel <?php echo $es_nacional ? 'Nacional' : 'Estatal'; ?>
                 </button>
             </div>
         </section>

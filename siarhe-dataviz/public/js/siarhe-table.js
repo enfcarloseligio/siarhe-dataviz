@@ -87,8 +87,18 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 
                 th.innerHTML = `${app.utils.esc(c.label)} <small>${arrow}</small>`;
                 
+                // Accesibilidad: encabezado ordenable con teclado y estado de orden anunciado
+                th.dataset.col = c.id;
+                th.setAttribute('tabindex', '0');
+                th.setAttribute('aria-sort', app.sortConfig.key === c.id
+                    ? (app.sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none');
+                th.onkeydown = (ev) => {
+                    if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); th.onclick(); }
+                };
+
                 // Evento de ordenamiento
                 th.onclick = () => {
+                    app._tableFocusCol = c.id;
                     if (app.sortConfig.key === c.id) {
                         app.sortConfig.direction = app.sortConfig.direction === 'asc' ? 'desc' : 'asc';
                     } else { 
@@ -100,6 +110,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 tr.appendChild(th);
             });
             thead.appendChild(tr);
+
+            // El encabezado se reconstruye al ordenar: devolvemos el foco a la columna usada
+            if (app._tableFocusCol) {
+                const focusTh = thead.querySelector('[data-col="' + app._tableFocusCol + '"]');
+                app._tableFocusCol = null;
+                if (focusTh) focusTh.focus();
+            }
 
             // Helper para obtener el valor correcto según la columna elegida para ordenar
             const getVal = (r, colId) => {

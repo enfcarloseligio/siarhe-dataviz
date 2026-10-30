@@ -178,7 +178,251 @@ class Siarhe_Admin {
             if ( ! is_array( $data ) || empty( $data['type'] ) ) {
                 wp_die( 'El archivo no es un GeoJSON válido.' );
             }
+            return $data; // ya decodificado: evita leer y parsear el archivo dos veces
         }
+        return null;
+    }
+
+    // -------------------------------------------------------------------------
+    // VALIDACION DE CONTENIDO + VERSIONES ANTERIORES
+    // -------------------------------------------------------------------------
+
+    /** Guarda avisos no bloqueantes para mostrarlos en la pestana tras el redirect. */
+    private function flash_notice( $messages ) {
+        if ( empty( $messages ) || ! is_array( $messages ) ) return;
+        set_transient( 'siarhe_notice_' . get_current_user_id(), array_values( $messages ), 2 * MINUTE_IN_SECONDS );
+    }
+
+    /** Imprime (y consume) los avisos pendientes del usuario actual. */
+    public static function render_flash_notice() {
+        $key      = 'siarhe_notice_' . get_current_user_id();
+        $messages = get_transient( $key );
+        if ( empty( $messages ) || ! is_array( $messages ) ) return;
+        delete_transient( $key );
+
+        echo '<div class="notice notice-warning is-dismissible"><p><strong>El archivo se cargó, pero revisa lo siguiente:</strong></p><ul style="list-style:disc; margin-left:20px;">';
+        foreach ( $messages as $message ) {
+            echo '<li>' . esc_html( $message ) . '</li>';
+        }
+        echo '</ul></div>';
+    }
+
+    /**
+     * Copia la version vigente a _versions/ antes de sobrescribirla y conserva las 3 mas recientes.
+     * Permite recuperar el archivo anterior si la nueva carga resulta equivocada.
+     */
+    private function archive_previous_version( $file_path ) {
+        if ( ! is_file( $file_path ) ) return;
+
+        $dir  = dirname( $file_path );
+        $name = pathinfo( $file_path, PATHINFO_FILENAME );
+        $ext  = pathinfo( $file_path, PATHINFO_EXTENSION );
+        $vdir = $dir . '/_versions';
+        if ( ! wp_mkdir_p( $vdir ) ) return;
+
+        copy( $file_path, $vdir . '/' . $name . '-' . gmdate( 'Ymd-His' ) . '.' . $ext );
+
+        $pattern  = '/^' . preg_quote( $name, '/' ) . '-\d{8}-\d{6}\.' . preg_quote( $ext, '/' ) . '$/';
+        $versions = array();
+        foreach ( (array) scandir( $vdir ) as $entry ) {
+            if ( preg_match( $pattern, $entry ) ) $versions[] = $entry;
+        }
+        rsort( $versions );
+        foreach ( array_slice( $versions, 3 ) as $old ) {
+            @unlink( $vdir . '/' . $old );
+        }
+    }
+
+    /** Primer par [lon, lat] dentro de un arreglo de coordenadas GeoJSON de cualquier profundidad. */
+    private function first_coordinate( $coords ) {
+        while ( is_array( $coords ) && isset( $coords[0] ) && is_array( $coords[0] ) ) {
+            $coords = $coords[0];
+        }
+        if ( is_array( $coords ) && isset( $coords[0], $coords[1] ) && is_numeric( $coords[0] ) && is_numeric( $coords[1] ) ) {
+            return array( (float) $coords[0], (float) $coords[1] );
+        }
+        return null;
+    }
+
+    /**
+     * Valida la estructura de un GeoJSON. Los problemas graves detienen la carga (wp_die);
+     * los demas se devuelven como avisos.
+     * $is_base: true para el mapa base (necesita la clave de union con el CSV), false para localidades.
+     */
+    private function validate_geojson_data( $data, $slug, $is_base ) {
+        $warnings = array();
+
+        if ( ! is_array( $data ) || ! isset( $data['type'] ) || $data['type'] !== 'FeatureCollection'
+            || empty( $data['features'] ) || ! is_array( $data['features'] ) ) {
+            wp_die( 'El GeoJSON debe ser un FeatureCollection con al menos un elemento en "features".' );
+        }
+
+        $national  = ( $slug === 'republica-mexicana' );
+        $key_names = $national ? array( 'CVE_ENT', 'cve_ent', 'ID', 'id' ) : array( 'CVE_MUN', 'cve_mun', 'ID', 'id' );
+        $total     = count( $data['features'] );
+        $no_geom   = 0;
+        $no_key    = 0;
+        $checked   = false;
+
+        foreach ( $data['features'] as $feature ) {
+            $geom = ( is_array( $feature ) && isset( $feature['geometry'] ) ) ? $feature['geometry'] : null;
+            if ( ! is_array( $geom ) || empty( $geom['coordinates'] ) ) {
+                $no_geom++;
+                continue;
+            }
+
+            if ( ! $checked ) {
+                $checked = true;
+                $pt = $this->first_coordinate( $geom['coordinates'] );
+                if ( $pt ) {
+                    if ( abs( $pt[0] ) > 180 || abs( $pt[1] ) > 90 ) {
+                        wp_die( 'Las coordenadas del GeoJSON no están en longitud/latitud (WGS84). Reproyéctalo a EPSG:4326 antes de subirlo.' );
+                    }
+                    if ( $slug !== 'extranjero' && ( $pt[0] < -120 || $pt[0] > -84 || $pt[1] < 14 || $pt[1] > 34 ) ) {
+                        $warnings[] = 'La primera geometría queda fuera del territorio mexicano (lon ' . round( $pt[0], 2 ) . ', lat ' . round( $pt[1], 2 ) . '). Verifica que sea el archivo correcto.';
+                    }
+                }
+            }
+
+            if ( $is_base ) {
+                $props = ( isset( $feature['properties'] ) && is_array( $feature['properties'] ) ) ? $feature['properties'] : array();
+                $found = false;
+                foreach ( $key_names as $k ) {
+                    if ( isset( $props[ $k ] ) && $props[ $k ] !== '' ) { $found = true; break; }
+                }
+                if ( ! $found ) $no_key++;
+            }
+        }
+
+        if ( $no_geom === $total ) {
+            wp_die( 'Ningún elemento del GeoJSON tiene geometría.' );
+        }
+        if ( $no_geom > 0 ) {
+            $warnings[] = $no_geom . ' elemento(s) del GeoJSON no tienen geometría y no se dibujarán.';
+        }
+        if ( $no_key > 0 ) {
+            $warnings[] = $no_key . ' elemento(s) no tienen la propiedad ' . $key_names[0] . ' (o ID); sin ella no se pueden colorear con el CSV.';
+        }
+
+        return $warnings;
+    }
+
+    /**
+     * Valida un CSV leyendo solo lo necesario (encabezado + filas en streaming).
+     * $kind: 'static' (base estatica) o 'marker' (marcadores con coordenadas).
+     * Los problemas graves detienen la carga; los demas se devuelven como avisos.
+     */
+    private function validate_csv_file( $tmp_path, $kind, $slug = '' ) {
+        $warnings = array();
+
+        $fh = ( ! empty( $tmp_path ) && is_readable( $tmp_path ) ) ? fopen( $tmp_path, 'r' ) : false;
+        if ( ! $fh ) wp_die( 'No se pudo leer el CSV para validarlo.' );
+
+        $first = fgets( $fh );
+        if ( $first === false || trim( $first ) === '' ) {
+            fclose( $fh );
+            wp_die( 'El CSV está vacío.' );
+        }
+        $first = preg_replace( '/^\xEF\xBB\xBF/', '', $first ); // BOM
+
+        if ( substr_count( $first, ',' ) === 0 && ( substr_count( $first, ';' ) > 0 || substr_count( $first, "\t" ) > 0 ) ) {
+            fclose( $fh );
+            wp_die( 'El CSV parece usar punto y coma o tabulador como separador. Guárdalo con comas (CSV UTF-8) antes de subirlo.' );
+        }
+
+        $raw_header = array_map( 'trim', str_getcsv( $first ) );
+        $header     = array_map( 'strtolower', $raw_header );
+        $ncols      = count( $raw_header );
+        $rows       = 0;
+
+        if ( $kind === 'static' ) {
+            // Nombres exactos que lee siarhe-core.js (processCSV)
+            $national  = ( $slug === 'republica-mexicana' );
+            $id_names  = $national ? array( 'CVE_ENT', 'cve_ent', 'mapa', 'id' ) : array( 'CVE_MUN', 'cve_mun', 'CVE_ENT', 'cve_ent', 'id' );
+            $nom_names = array( 'estado', 'Entidad', 'municipio' );
+
+            $id_idx = false;
+            foreach ( $id_names as $n ) {
+                $i = array_search( $n, $raw_header, true );
+                if ( $i !== false ) { $id_idx = $i; break; }
+            }
+
+            $missing = array();
+            if ( $id_idx === false )                         $missing[] = 'identificador (' . implode( ', ', $id_names ) . ')';
+            if ( ! array_intersect( $nom_names, $raw_header ) ) $missing[] = 'nombre (' . implode( ', ', $nom_names ) . ')';
+            $has_pob = false;
+            foreach ( $header as $h ) {
+                if ( strpos( $h, 'pob' ) === 0 ) { $has_pob = true; break; }
+            }
+            if ( ! $has_pob ) $missing[] = 'población (una columna que empiece con "pob")';
+
+            if ( $missing ) {
+                fclose( $fh );
+                wp_die( 'El CSV no tiene las columnas requeridas: ' . esc_html( implode( '; ', $missing ) ) . '.' );
+            }
+
+            // Metricas configuradas en el admin: cada clave es el nombre de una columna del CSV
+            $metric_idx = array();
+            $missing_m  = array();
+            $cfg = json_decode( wp_unslash( (string) get_option( 'siarhe_metricas_config', '' ) ), true );
+            if ( is_array( $cfg ) ) {
+                foreach ( array_keys( $cfg ) as $k ) {
+                    if ( $k === 'poblacion' ) continue;
+                    $i = array_search( $k, $raw_header, true );
+                    if ( $i === false ) $missing_m[] = $k; else $metric_idx[] = $i;
+                }
+            }
+            if ( $missing_m ) {
+                $warnings[] = 'Métricas configuradas sin columna en el CSV (se mostrarán sin datos): ' . implode( ', ', array_slice( $missing_m, 0, 8 ) ) . ( count( $missing_m ) > 8 ? '…' : '' ) . '.';
+            }
+
+            $bad_cols = 0; $non_num = 0; $dups = 0; $ids = array();
+            while ( ( $row = fgetcsv( $fh ) ) !== false ) {
+                if ( $row === array( null ) ) continue; // linea vacia
+                $rows++;
+                if ( count( $row ) !== $ncols ) $bad_cols++;
+
+                if ( isset( $row[ $id_idx ] ) && $row[ $id_idx ] !== '' ) {
+                    if ( isset( $ids[ $row[ $id_idx ] ] ) ) $dups++; else $ids[ $row[ $id_idx ] ] = true;
+                }
+                foreach ( $metric_idx as $mi ) {
+                    if ( ! isset( $row[ $mi ] ) ) continue;
+                    $v = trim( $row[ $mi ] );
+                    if ( $v !== '' && strtoupper( $v ) !== 'S/D' && ! is_numeric( str_replace( array( ',', ' ' ), '', $v ) ) ) $non_num++;
+                }
+            }
+
+            if ( $bad_cols > 0 ) $warnings[] = $bad_cols . ' fila(s) tienen distinta cantidad de columnas que el encabezado.';
+            if ( $dups > 0 )     $warnings[] = $dups . ' fila(s) repiten el identificador (' . $raw_header[ $id_idx ] . '); solo se usará la última.';
+            if ( $non_num > 0 )  $warnings[] = $non_num . ' valor(es) de métricas no son numéricos (ni vacíos ni S/D) y se tratarán como sin dato.';
+        } else {
+            $lat_i = false; $lon_i = false;
+            foreach ( $header as $i => $h ) {
+                if ( $lat_i === false && in_array( $h, array( 'latitud', 'lat' ), true ) ) $lat_i = $i;
+                if ( $lon_i === false && in_array( $h, array( 'longitud', 'lon' ), true ) ) $lon_i = $i;
+            }
+            if ( $lat_i === false || $lon_i === false ) {
+                fclose( $fh );
+                wp_die( 'El CSV de marcadores necesita las columnas de coordenadas: Latitud/Longitud (o lat/lon).' );
+            }
+
+            $invalid = 0;
+            while ( ( $row = fgetcsv( $fh ) ) !== false && $rows < 300000 ) {
+                if ( $row === array( null ) ) continue;
+                $rows++;
+                $lat = isset( $row[ $lat_i ] ) ? (float) $row[ $lat_i ] : 0;
+                $lon = isset( $row[ $lon_i ] ) ? (float) $row[ $lon_i ] : 0;
+                if ( $lat < 14 || $lat > 33 || $lon < -119 || $lon > -86 ) $invalid++;
+            }
+            if ( $rows > 0 && ( $invalid / $rows ) > 0.2 ) {
+                $warnings[] = round( ( $invalid / $rows ) * 100 ) . '% de las filas tienen coordenadas vacías o fuera de México y no se dibujarán.';
+            }
+        }
+
+        fclose( $fh );
+        if ( $rows === 0 ) wp_die( 'El CSV solo tiene encabezado: no hay filas de datos.' );
+
+        return $warnings;
     }
 
     private function ensure_utf8_csv( $filepath ) {
@@ -210,7 +454,8 @@ class Siarhe_Admin {
 
         if ( isset( $_FILES['siarhe_file'] ) && $_FILES['siarhe_file']['error'] == 0 ) {
             $entidad_slug = $this->sanitize_slug( isset( $_POST['entidad_slug'] ) ? $_POST['entidad_slug'] : '' );
-            $this->validate_upload( $_FILES['siarhe_file'], array( 'geojson', 'json' ), true );
+            $geo_data = $this->validate_upload( $_FILES['siarhe_file'], array( 'geojson', 'json' ), true );
+            $this->flash_notice( $this->validate_geojson_data( $geo_data, $entidad_slug, true ) );
             $anio = intval( $_POST['anio_reporte'] );
             $fecha_corte = sanitize_text_field( $_POST['fecha_corte'] ); 
             $referencia = wp_kses_post( $_POST['referencia'] ); 
@@ -226,9 +471,7 @@ class Siarhe_Admin {
             $new_filename = $entidad_slug . '.geojson'; 
             $target_file = $target_dir . $new_filename;
 
-            if ( file_exists( $target_file ) ) {
-                unlink( $target_file );
-            }
+            $this->archive_previous_version( $target_file );
 
             if ( move_uploaded_file( $_FILES['siarhe_file']['tmp_name'], $target_file ) ) {
                 global $wpdb;
@@ -314,7 +557,8 @@ class Siarhe_Admin {
 
         if ( isset( $_FILES['siarhe_file'] ) && $_FILES['siarhe_file']['error'] == 0 ) {
             $entidad_slug = $this->sanitize_slug( isset( $_POST['entidad_slug'] ) ? $_POST['entidad_slug'] : '' );
-            $this->validate_upload( $_FILES['siarhe_file'], array( 'geojson', 'json' ), true );
+            $geo_data = $this->validate_upload( $_FILES['siarhe_file'], array( 'geojson', 'json' ), true );
+            $this->flash_notice( $this->validate_geojson_data( $geo_data, $entidad_slug, false ) );
             $anio = intval( $_POST['anio_reporte'] );
             $fecha_corte = sanitize_text_field( $_POST['fecha_corte'] ); 
             $referencia = wp_kses_post( $_POST['referencia'] ); 
@@ -330,7 +574,7 @@ class Siarhe_Admin {
             $new_filename = $entidad_slug . '.geojson'; 
             $target_file = $target_dir . $new_filename;
 
-            if ( file_exists( $target_file ) ) { unlink( $target_file ); }
+            $this->archive_previous_version( $target_file );
 
             if ( move_uploaded_file( $_FILES['siarhe_file']['tmp_name'], $target_file ) ) {
                 global $wpdb;
@@ -411,6 +655,7 @@ class Siarhe_Admin {
         if ( isset( $_FILES['siarhe_file'] ) && $_FILES['siarhe_file']['error'] == 0 ) {
             $entidad_slug = $this->sanitize_slug( isset( $_POST['entidad_slug'] ) ? $_POST['entidad_slug'] : '' );
             $this->validate_upload( $_FILES['siarhe_file'], array( 'csv' ) );
+            $this->flash_notice( $this->validate_csv_file( $_FILES['siarhe_file']['tmp_name'], 'static', $entidad_slug ) );
             $anio = intval( $_POST['anio_reporte'] );
             $fecha_corte = sanitize_text_field( $_POST['fecha_corte'] ); 
             $referencia = wp_kses_post( $_POST['referencia'] ); 
@@ -426,7 +671,7 @@ class Siarhe_Admin {
             $new_filename = $entidad_slug . '.csv'; 
             $target_file = $target_dir . $new_filename;
 
-            if ( file_exists( $target_file ) ) { unlink( $target_file ); }
+            $this->archive_previous_version( $target_file );
 
             if ( move_uploaded_file( $_FILES['siarhe_file']['tmp_name'], $target_file ) ) {
                 $this->ensure_utf8_csv( $target_file );
@@ -536,6 +781,7 @@ class Siarhe_Admin {
 
             $ext_marker = strtolower( pathinfo( sanitize_file_name( $_FILES['marker_file']['name'] ), PATHINFO_EXTENSION ) );
             if ( $ext_marker !== 'csv' ) wp_die( 'Solo se permiten archivos CSV.' );
+            $this->flash_notice( $this->validate_csv_file( $_FILES['marker_file']['tmp_name'], 'marker', $tipo ) );
 
             if ( ! function_exists( 'wp_handle_upload' ) ) require_once( ABSPATH . 'wp-admin/includes/file.php' );
 
@@ -552,7 +798,7 @@ class Siarhe_Admin {
 
                 $dest_path = $dest_dir . $nombre_final;
 
-                if ( file_exists( $dest_path ) ) { unlink( $dest_path ); }
+                $this->archive_previous_version( $dest_path );
 
                 if ( copy($source, $dest_path) ) {
                     $this->ensure_utf8_csv( $dest_path );

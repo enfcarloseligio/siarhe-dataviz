@@ -28,57 +28,66 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             return `rgba(15, 23, 42, ${alpha})`; 
         },
 
-        // 🌟 MEJORA UX: Calcula los márgenes negros del SVG y ancla las leyendas a las esquinas físicas
+        /**
+         * Coloca y escala las dos leyendas (colores arriba-izquierda, marcadores abajo-izquierda).
+         * El texto se mantiene legible en pantalla (>= ~11 px reales) sin que las cajas tapen el mapa:
+         * la escala se limita por ancho y por alto del contenedor.
+         */
+        layoutLegends: function(container, state) {
+            const mapDiv = container.querySelector('.siarhe-map-container');
+            if (!mapDiv || !state.gLegend || !state.gMarkerLegend) return;
+
+            const rect = mapDiv.getBoundingClientRect();
+            // Proteccion contra division por cero si el mapa esta oculto (otra pestana)
+            if (rect.width <= 0 || rect.height <= 0) return;
+
+            const svgW = 1600;
+            const svgH = 900;
+
+            const s = Math.min(rect.width / svgW, rect.height / svgH);
+            if (s <= 0) return;
+
+            // Margenes vacios del SVG (letterbox) en unidades del viewBox: las leyendas se anclan a las esquinas fisicas
+            const emptyX = (rect.width - svgW * s) / 2;
+            const emptyY = (rect.height - svgH * s) / 2;
+            const left = -(emptyX / s);
+            const top = -(emptyY / s);
+            const bottom = svgH + (emptyY / s);
+
+            const isFullscreen = mapDiv.classList.contains('is-fullscreen');
+            const isMobile = window.innerWidth <= 767;
+            const padPx = isFullscreen ? 40 : (isMobile ? 8 : 16);
+            const padX = padPx / s;
+            const padY = padPx / s;
+
+            const lb = state._legendBox || { w: 175, h: 284, ox: 12, oy: 32 };
+            const hasMarkers = !!(state._markerBox && state.activeMarkers && state.activeMarkers.size > 0);
+            const mb = hasMarkers ? state._markerBox : { w: 0, h: 0, ox: 12 };
+
+            // Tamano de texto objetivo en pantalla (px reales); el texto base de las leyendas es de 15 unidades
+            const targetPx = isMobile ? 10 : 11.5;
+            let L = Math.max(1, targetPx / (15 * s));
+
+            // Limites fisicos: alto combinado <= 80 % y ancho <= 46 % (60 % en pantalla completa) del contenedor
+            const capH = (0.8 * rect.height) / ((lb.h + mb.h) * s);
+            const capW = ((isFullscreen ? 0.6 : 0.46) * rect.width) / (Math.max(lb.w, mb.w) * s);
+            L = Math.max(0.5, Math.min(L, capH, capW));
+
+            state.gLegend.attr("transform", `translate(${left + padX + lb.ox * L}, ${top + padY + lb.oy * L}) scale(${L})`);
+            state.gMarkerLegend.attr("transform", `translate(${left + padX + mb.ox * L}, ${bottom - padY}) scale(${L})`);
+        },
+
         initResponsiveLegends: function(container, state) {
             const mapDiv = container.querySelector('.siarhe-map-container');
             if (!mapDiv) return;
 
-            const observer = new ResizeObserver(() => {
-                if (!state.gLegend || !state.gMarkerLegend) return;
-                
-                const rect = mapDiv.getBoundingClientRect();
-                // Protección críctica contra "División por Cero" si el mapa está oculto en otra pestaña
-                if (rect.width <= 0 || rect.height <= 0) return; 
-                
-                const svgW = 1600;
-                const svgH = 900;
-                
-                let scale = Math.min(rect.width / svgW, rect.height / svgH);
-                if (scale <= 0) return;
-
-                let actualW = svgW * scale;
-                let actualH = svgH * scale;
-
-                let emptyX = (rect.width - actualW) / 2;
-                let emptyY = (rect.height - actualH) / 2;
-
-                let svgOffsetX = -(emptyX / scale);
-                let svgOffsetY = -(emptyY / scale);
-
-                // 🌟 CORRECCIÓN 1: Margen de seguridad dinámico para evitar cortes en Fullscreen
-                const isFullscreen = mapDiv.classList.contains('is-fullscreen');
-                const padValue = isFullscreen ? 40 : 20;
-
-                let padX = padValue / scale; 
-                let padY = padValue / scale;
-
-                // Lógica de magnificación para Fullscreen en Móvil
-                let isMobile = window.innerWidth <= 767;
-                let legendScale = (isMobile && isFullscreen) ? 1.4 : 1; 
-
-                // Leyenda de Colores (Arriba Izquierda)
-                state.gLegend.attr("transform", `translate(${svgOffsetX + padX}, ${svgOffsetY + padY}) scale(${legendScale})`);
-                
-                // Leyenda de Marcadores (Abajo Izquierda)
-                let bottomY = svgH + (emptyY / scale) - padY;
-                state.gMarkerLegend.attr("transform", `translate(${svgOffsetX + padX}, ${bottomY}) scale(${legendScale})`);
-            });
-            
+            const observer = new ResizeObserver(() => app.map.layoutLegends(container, state));
             observer.observe(mapDiv);
             state.legendObserver = observer;
         },
 
         render: function(container, state, cveEnt) {
+            state.containerEl = container; // lo usan las leyendas para reacomodarse al cambiar su contenido
             // Sin geometrias no hay nada que dibujar: avisamos en vez de romper el render
             if (!state.geoData || !Array.isArray(state.geoData.features) || state.geoData.features.length === 0) {
                 const emptyDiv = container.querySelector('.siarhe-map-container');
@@ -193,6 +202,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     }
                     state.lastClickTime = ahora;
                 });
+
+            app.map.enableKeyboard(container, state, mapDiv);
 
             let maxZoom = state.initialTransform.k * 25; 
             if (maxZoom < 50) maxZoom = 50; 
@@ -345,7 +356,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             const reveal = () => {
                 layer.style("display", "block").style("opacity", 0)
-                    .transition().duration(400).style("opacity", 1);
+                    .transition().duration(app.utils.motionMs(400)).style("opacity", 1);
                 layer.selectAll("path.siarhe-loc-feature").attr("stroke-width", 0.5 / zoomK());
             };
 
@@ -414,7 +425,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .sort(d3.ascending);
             
             if (values.length === 0) {
-                state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
+                state.gPaths.selectAll("path.siarhe-feature").transition().duration(app.utils.motionMs(500))
                     .style("fill", d => {
                         let cve = app.utils.getGeoKey(d.properties, state.isNacional);
                         const row = state.dataMap.get(cve);
@@ -448,7 +459,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (mode === 'rangos') {
                     const colorEvaluator = app.math.createRangeEvaluator(metricConfig, stats);
                     
-                    state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
+                    state.gPaths.selectAll("path.siarhe-feature").transition().duration(app.utils.motionMs(500))
                         .style("fill", d => {
                             let cve = app.utils.getGeoKey(d.properties, state.isNacional);
                             const row = state.dataMap.get(cve);
@@ -467,7 +478,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         colorScale = d3.scaleLinear().domain(domain).range(monoRange).clamp(true);
                     }
 
-                    state.gPaths.selectAll("path.siarhe-feature").transition().duration(500)
+                    state.gPaths.selectAll("path.siarhe-feature").transition().duration(app.utils.motionMs(500))
                         .style("fill", d => {
                             let cve = app.utils.getGeoKey(d.properties, state.isNacional);
                             const row = state.dataMap.get(cve);
@@ -482,6 +493,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 app.map.renderLegend(state, stats, mode);
             }
             app.map.renderLabels(state);
+            app.map.updateAria(state);
+            if (app.urlState) app.urlState.write(container, state);
         },
 
         renderLabels: function(state) {
@@ -532,21 +545,25 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         },
 
         renderLegend: function(state, stats, mode) {
-            const g = state.gLegend; 
+            const g = state.gLegend;
             g.html("");
-            
+            g.style("font-family", "Roboto, Arial, sans-serif");
+
             const metricInfo = state.metricas[state.currentMetric] || {};
             const label = metricInfo.abrev || metricInfo.label || 'Indicador';
             const currentMode = mode || state.colorMode || 'cuartiles';
             const isRangos = (currentMode === 'rangos');
 
-            const boxWidth = isRangos ? 195 : 140;
+            // Tamanos en unidades del viewBox: layoutLegends() los escala segun pantalla o PNG
+            const FT = 17;   // titulo
+            const FL = 15;   // etiquetas
+            const CH = 8.4;  // ancho aproximado por caracter (para dimensionar la caja)
+            const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+            const addLabel = (parent, x, y, txt) => parent.append("text").attr("x", x).attr("y", y).text(txt)
+                .style("font-size", FL + "px").style("fill", "#475569");
+            const titleW = label.length * 10.2 + 28;
 
-            g.append("rect").attr("x", -10).attr("y", -25).attr("width", boxWidth).attr("height", isRangos ? 220 : 270)
-             .attr("fill", "rgba(255,255,255,0.9)").attr("rx", 5).style("filter", "drop-shadow(2px 2px 2px rgba(0,0,0,0.1))");
-            
-            g.append("text").attr("x", 0).attr("y", -10).text(label)
-             .style("font-size", "12px").style("font-weight", "bold").style("fill", "#0F172A");
+            let boxW, boxH;
 
             if (isRangos) {
                 const useColors = metricInfo.custom_colors === true;
@@ -559,9 +576,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     if (raw === undefined || raw === null || raw === '') return '';
                     let v = raw.toString().trim();
                     const key = Object.keys(stats).find(k => k.toLowerCase() === v.toLowerCase());
-                    
+
                     let numToFormat = key ? stats[key] : parseFloat(v);
-                    
+
                     if (!isNaN(numToFormat)) {
                         if (metricInfo.tipo === 'tasa') {
                             return numToFormat.toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -575,20 +592,20 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const formatOp = (op) => op === '<=' ? '≤' : op;
                 const useRanges = metricInfo.custom_ranges === true;
 
-                const r4min = (useRanges && metricInfo.r4_min) ? metricInfo.r4_min : 'Q3'; 
-                const r4max = (useRanges && metricInfo.r4_max) ? metricInfo.r4_max : 'Vmax'; 
+                const r4min = (useRanges && metricInfo.r4_min) ? metricInfo.r4_min : 'Q3';
+                const r4max = (useRanges && metricInfo.r4_max) ? metricInfo.r4_max : 'Vmax';
                 const r4op  = formatOp((useRanges && metricInfo.r4_op) ? metricInfo.r4_op : '<=');
-                
-                const r3min = (useRanges && metricInfo.r3_min) ? metricInfo.r3_min : 'Q2'; 
-                const r3max = (useRanges && metricInfo.r3_max) ? metricInfo.r3_max : 'Q3';   
+
+                const r3min = (useRanges && metricInfo.r3_min) ? metricInfo.r3_min : 'Q2';
+                const r3max = (useRanges && metricInfo.r3_max) ? metricInfo.r3_max : 'Q3';
                 const r3op  = formatOp((useRanges && metricInfo.r3_op) ? metricInfo.r3_op : '<');
-                
-                const r2min = (useRanges && metricInfo.r2_min) ? metricInfo.r2_min : 'Q1'; 
-                const r2max = (useRanges && metricInfo.r2_max) ? metricInfo.r2_max : 'Q2';   
+
+                const r2min = (useRanges && metricInfo.r2_min) ? metricInfo.r2_min : 'Q1';
+                const r2max = (useRanges && metricInfo.r2_max) ? metricInfo.r2_max : 'Q2';
                 const r2op  = formatOp((useRanges && metricInfo.r2_op) ? metricInfo.r2_op : '<');
-                
-                const r1min = (useRanges && metricInfo.r1_min) ? metricInfo.r1_min : 'Vmin'; 
-                const r1max = (useRanges && metricInfo.r1_max) ? metricInfo.r1_max : 'Q1'; 
+
+                const r1min = (useRanges && metricInfo.r1_min) ? metricInfo.r1_min : 'Vmin';
+                const r1max = (useRanges && metricInfo.r1_max) ? metricInfo.r1_max : 'Q1';
                 const r1op  = formatOp((useRanges && metricInfo.r1_op) ? metricInfo.r1_op : '<');
 
                 const blocks = [
@@ -598,26 +615,34 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     { color: c1, text: `${parseLabel(r1min)} a ${r1op} ${parseLabel(r1max)}` }
                 ];
 
+                const maxLen = Math.max.apply(null, blocks.map(b => b.text.length));
+                boxW = clamp(Math.max(34 + maxLen * CH + 28, titleW), 190, 380);
+                boxH = 250;
+
+                g.append("rect").attr("x", -12).attr("y", -32).attr("width", boxW).attr("height", boxH)
+                 .attr("fill", "rgba(255,255,255,0.92)").attr("rx", 6).style("filter", "drop-shadow(2px 2px 2px rgba(0,0,0,0.12))");
+                g.append("text").attr("x", 0).attr("y", -8).text(label)
+                 .style("font-size", FT + "px").style("font-weight", "bold").style("fill", "#0F172A");
+
                 blocks.forEach((b, i) => {
-                    const y = 15 + (i * 30);
-                    g.append("rect").attr("x", 0).attr("y", y).attr("width", 20).attr("height", 20)
+                    const y = 12 + (i * 36);
+                    g.append("rect").attr("x", 0).attr("y", y).attr("width", 24).attr("height", 24)
                      .style("fill", b.color).style("stroke", "#cbd5e1");
-                    g.append("text").attr("x", 28).attr("y", y + 14)
-                     .text(b.text).style("font-size", "11px").style("fill", "#475569");
+                    addLabel(g, 34, y + 18, b.text);
                 });
 
-                const g0 = g.append("g").attr("transform", `translate(0, ${15 + (4*30) + 15})`);
-                g0.append("rect").attr("width", 12).attr("height", 12).style("fill", app.colors.ZERO);
-                g0.append("text").attr("x", 18).attr("y", 10).text("0.00").style("font-size", "11px").style("fill", "#475569");
+                const g0 = g.append("g").attr("transform", `translate(0, ${12 + (4 * 36) + 8})`);
+                g0.append("rect").attr("width", 16).attr("height", 16).style("fill", app.colors.ZERO);
+                addLabel(g0, 26, 13, "0.00");
 
-                const gN = g.append("g").attr("transform", `translate(0, ${15 + (4*30) + 35})`);
-                gN.append("rect").attr("width", 12).attr("height", 12).style("fill", app.colors.NULL);
-                gN.append("text").attr("x", 18).attr("y", 10).text("S/D").style("font-size", "11px").style("fill", "#475569");
+                const gN = g.append("g").attr("transform", `translate(0, ${12 + (4 * 36) + 36})`);
+                gN.append("rect").attr("width", 16).attr("height", 16).style("fill", app.colors.NULL);
+                addLabel(gN, 26, 13, "S/D");
 
             } else {
                 const gradient = state.svg.select(`#${state.gradientId}`);
                 gradient.selectAll("stop").remove();
-                
+
                 let colorArr = [];
                 let domainVals = [stats.min, stats.q1, stats.q2, stats.q3, stats.max];
 
@@ -636,26 +661,132 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     .enter().append("stop")
                     .attr("offset", (d, i) => `${(i / (colorArr.length - 1)) * 100}%`)
                     .attr("stop-color", d => d);
-                
-                const h = 150, w = 15, step = h/4;
-                g.append("rect").attr("x", 0).attr("y", 10).attr("width", w).attr("height", h)
+
+                const valStrs = domainVals.map(v => (v !== undefined && v !== null)
+                    ? v.toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2}) : "0.00");
+                const maxLen = Math.max.apply(null, valStrs.map(t => t.length));
+
+                const h = 160, w = 20, step = h / 4;
+                boxW = clamp(Math.max(w + 12 + maxLen * CH + 28, titleW), 160, 340);
+                boxH = 284;
+
+                g.append("rect").attr("x", -12).attr("y", -32).attr("width", boxW).attr("height", boxH)
+                 .attr("fill", "rgba(255,255,255,0.92)").attr("rx", 6).style("filter", "drop-shadow(2px 2px 2px rgba(0,0,0,0.12))");
+                g.append("text").attr("x", 0).attr("y", -8).text(label)
+                 .style("font-size", FT + "px").style("font-weight", "bold").style("fill", "#0F172A");
+
+                g.append("rect").attr("x", 0).attr("y", 12).attr("width", w).attr("height", h)
                  .style("fill", `url(#${state.gradientId})`).style("stroke", "#ccc");
 
                 domainVals.forEach((v, i) => {
-                    const y = 10 + h - (i * step);
-                    g.append("line").attr("x1", w).attr("x2", w+5).attr("y1", y).attr("y2", y).style("stroke", "#666");
-                    let valStr = (v !== undefined && v !== null) ? v.toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2}) : "0.00";
-                    g.append("text").attr("x", w+8).attr("y", y+4).text(valStr).style("font-size", "11px").style("fill", "#475569");
+                    const y = 12 + h - (i * step);
+                    g.append("line").attr("x1", w).attr("x2", w + 6).attr("y1", y).attr("y2", y).style("stroke", "#666");
+                    addLabel(g, w + 10, y + 5, valStrs[i]);
                 });
 
-                const g0 = g.append("g").attr("transform", `translate(0, ${h+40})`);
-                g0.append("rect").attr("width", 12).attr("height", 12).style("fill", app.colors.ZERO);
-                g0.append("text").attr("x", 18).attr("y", 10).text("0.00").style("font-size", "11px").style("fill", "#475569");
+                const g0 = g.append("g").attr("transform", `translate(0, ${h + 34})`);
+                g0.append("rect").attr("width", 16).attr("height", 16).style("fill", app.colors.ZERO);
+                addLabel(g0, 26, 13, "0.00");
 
-                const gN = g.append("g").attr("transform", `translate(0, ${h+65})`);
-                gN.append("rect").attr("width", 12).attr("height", 12).style("fill", app.colors.NULL);
-                gN.append("text").attr("x", 18).attr("y", 10).text("S/D").style("font-size", "11px").style("fill", "#475569");
+                const gN = g.append("g").attr("transform", `translate(0, ${h + 62})`);
+                gN.append("rect").attr("width", 16).attr("height", 16).style("fill", app.colors.NULL);
+                addLabel(gN, 26, 13, "S/D");
             }
+
+            state._legendBox = { w: boxW, h: boxH, ox: 12, oy: 32 };
+            if (state.containerEl) app.map.layoutLegends(state.containerEl, state);
+        },
+
+        /**
+         * Navegacion por teclado del mapa (un solo tab stop con "roving tabindex"):
+         * flechas recorren las geometrias, Enter abre el detalle, Escape cierra la informacion.
+         */
+        enableKeyboard: function(container, state, mapDiv) {
+            const svg = state.svg;
+            if (!svg || !state.gPaths) return;
+
+            const hintId = 'siarhe-kbd-' + Math.random().toString(36).slice(2, 8);
+            const unidad = state.isNacional ? 'las entidades federativas' : 'los municipios';
+            const hint = document.createElement('p');
+            hint.className = 'siarhe-sr-only';
+            hint.id = hintId;
+            hint.textContent = 'Mapa interactivo. Con el foco en el mapa use las flechas para recorrer ' + unidad +
+                ', Enter para abrir el detalle y Escape para cerrar la información.';
+            mapDiv.appendChild(hint);
+
+            svg.attr('role', 'group')
+               .attr('aria-label', 'Mapa de ' + (state.isNacional ? 'entidades federativas' : 'municipios'))
+               .attr('aria-describedby', hintId);
+
+            const nodes = state.gPaths.selectAll('path.siarhe-feature').nodes();
+            if (nodes.length === 0) return;
+            nodes.forEach((n, i) => n.setAttribute('tabindex', i === 0 ? '0' : '-1'));
+            let current = nodes[0];
+
+            const focusNode = (n) => {
+                current.setAttribute('tabindex', '-1');
+                n.setAttribute('tabindex', '0');
+                current = n;
+                n.focus();
+            };
+            const hideTip = () => { if (state.tooltip) state.tooltip.style('opacity', 0).style('display', 'none'); };
+
+            const gNode = state.gPaths.node();
+
+            gNode.addEventListener('keydown', (e) => {
+                const idx = nodes.indexOf(e.target);
+                if (idx < 0) return;
+
+                let next = null;
+                switch (e.key) {
+                    case 'ArrowRight': case 'ArrowDown': next = nodes[Math.min(idx + 1, nodes.length - 1)]; break;
+                    case 'ArrowLeft': case 'ArrowUp': next = nodes[Math.max(idx - 1, 0)]; break;
+                    case 'Home': next = nodes[0]; break;
+                    case 'End': next = nodes[nodes.length - 1]; break;
+                    case 'Enter': case ' ':
+                        e.preventDefault();
+                        app.map.handleMapClick(e.target.__data__, state);
+                        return;
+                    case 'Escape':
+                        hideTip();
+                        e.target.blur();
+                        return;
+                    default: return;
+                }
+                e.preventDefault();
+                if (next) focusNode(next);
+            });
+
+            // La informacion (tooltip) aparece al enfocar con teclado, igual que con el hover del mouse
+            gNode.addEventListener('focusin', (e) => {
+                const t = e.target;
+                if (nodes.indexOf(t) < 0 || !app.tooltips) return;
+                let byKeyboard = true;
+                try { byKeyboard = t.matches(':focus-visible'); } catch (err) {}
+                if (!byKeyboard) return; // con clic de mouse ya lo muestra el hover
+                const r = t.getBoundingClientRect();
+                app.tooltips.showGeoTooltip({ clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }, t.__data__, state, mapDiv);
+            });
+            gNode.addEventListener('focusout', hideTip);
+        },
+
+        /** Etiqueta accesible por geometria ("Oaxaca: Tasa de enfermeras 2.31"); se refresca con la metrica. */
+        updateAria: function(state) {
+            if (!state.gPaths) return;
+            const metric = state.currentMetric;
+            const info = state.metricas[metric] || {};
+            const metricLabel = info.fullLabel || info.label || '';
+
+            state.gPaths.selectAll('path.siarhe-feature')
+                .attr('role', state.isNacional ? 'button' : 'img')
+                .attr('aria-label', d => {
+                    const props = d.properties || {};
+                    const row = state.dataMap.get(app.utils.getGeoKey(props, state.isNacional));
+                    const name = row ? row.estado : (props.NOMGEO || props.NOM_ENT || props.NOM_MUN || 'Sin nombre');
+                    const v = row ? row[metric] : null;
+                    if (v === null || v === undefined || isNaN(v)) return name + ': sin datos';
+                    return name + ': ' + metricLabel + ' ' + Number(v).toLocaleString('es-MX', { maximumFractionDigits: 2 });
+                });
         },
 
         handleMapClick: function(d, state) {
@@ -731,7 +862,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .attr("class", "siarhe-marker")
                 .style("cursor", "pointer")
                 .style("opacity", 0)
-                .style("transition", "opacity 0.5s ease-out")
+                .style("transition", app.utils.motionMs(1) === 0 ? "none" : "opacity 0.5s ease-out")
                 .on("mouseover", function(e, d) {
                     let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
                     const config = state.markerLabels[d.tipo] || {};
@@ -871,38 +1002,52 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
         renderMarkerLegend: function(state) {
             const g = state.gMarkerLegend;
-            g.html(""); 
+            g.html("");
+            g.style("font-family", "Roboto, Arial, sans-serif");
 
             const actives = Array.from(state.activeMarkers);
-            if (actives.length === 0) return; 
+            if (actives.length === 0) {
+                state._markerBox = null;
+                if (state.containerEl) app.map.layoutLegends(state.containerEl, state);
+                return;
+            }
 
-            const boxHeight = (actives.length * 20) + 30;
-            const startY = -boxHeight; 
+            // Tamanos en unidades del viewBox (layoutLegends los escala); la caja crece hacia arriba desde abajo
+            const FT = 17, FL = 15, ROW = 26;
+            const labels = actives.map(tipo => (state.markerLabels[tipo] ? state.markerLabels[tipo].label : tipo) || tipo);
+            const maxLen = Math.max.apply(null, labels.map(t => String(t).length));
+            const boxWidth = Math.max(230, Math.min(460, 40 + maxLen * 8.6 + 28), 18 * 10.2 + 28);
+            const boxHeight = (actives.length * ROW) + 38;
+            const startY = -boxHeight;
 
             g.append("rect")
-                .attr("x", -10).attr("y", startY)
-                .attr("width", 230) 
+                .attr("x", -12).attr("y", startY)
+                .attr("width", boxWidth)
                 .attr("height", boxHeight)
-                .attr("fill", "rgba(255,255,255,0.9)")
-                .attr("rx", 5)
-                .style("filter", "drop-shadow(2px 2px 2px rgba(0,0,0,0.1))");
-            
-            g.append("text").attr("x", 0).attr("y", startY + 15).text("Marcadores Activos").style("font-size", "12px").style("font-weight", "bold").style("fill", "#0F172A");
+                .attr("fill", "rgba(255,255,255,0.92)")
+                .attr("rx", 6)
+                .style("filter", "drop-shadow(2px 2px 2px rgba(0,0,0,0.12))");
+
+            g.append("text").attr("x", 0).attr("y", startY + 24).text("Marcadores Activos")
+                .style("font-size", FT + "px").style("font-weight", "bold").style("fill", "#0F172A");
 
             actives.forEach((tipo, i) => {
-                const yPos = startY + 32 + (i * 20); 
+                const yPos = startY + 24 + ((i + 1) * ROW);
                 const styleCfg = app.utils.getMarkerStyle(tipo, state);
-                const markerLabel = state.markerLabels[tipo] ? state.markerLabels[tipo].label : tipo;
 
                 g.append("path")
-                    .attr("d", d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)).size(50)())
-                    .attr("transform", `translate(5, ${yPos - 4})`)
+                    .attr("d", d3.symbol().type(app.utils.getD3Shape(styleCfg.shape)).size(90)())
+                    .attr("transform", `translate(8, ${yPos - 5})`)
                     .attr("fill", styleCfg.fill)
                     .attr("stroke", styleCfg.stroke)
                     .attr("stroke-width", 1);
-                
-                g.append("text").attr("x", 15).attr("y", yPos).text(markerLabel).style("font-size", "11px").style("fill", "#475569");
+
+                g.append("text").attr("x", 26).attr("y", yPos).text(labels[i])
+                    .style("font-size", FL + "px").style("fill", "#475569");
             });
+
+            state._markerBox = { w: boxWidth, h: boxHeight, ox: 12 };
+            if (state.containerEl) app.map.layoutLegends(state.containerEl, state);
         },
 
         renderZoomButtons: function(container, mapDiv, svg, zoom, state) {
@@ -912,7 +1057,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             
             const createBtn = (l, t, cb) => { 
                 const b = document.createElement('button'); 
-                b.className = 'boton'; b.innerHTML = l; b.title = t; b.onclick = cb; 
+                b.className = 'boton'; b.innerHTML = l; b.title = t; b.setAttribute('aria-label', t); b.onclick = cb; 
                 ctrlDiv.appendChild(b); 
                 return b;
             };
@@ -1010,8 +1155,27 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             setTimeout(() => {
                 const clone = svgNode.cloneNode(true);
-                clone.setAttribute('width', 1600); 
-                clone.setAttribute('height', 900);
+
+                // Lienzo ampliado: el mapa conserva su proporcion (antes se estiraba 1600x900 -> 1600x820)
+                // y las leyendas se anclan a las esquinas del PNG con un tamano pensado para presentaciones.
+                const areaW = 1920, areaH = 820;
+                const vbW = areaW / (areaH / 900);
+                const vbX = -(vbW - 1600) / 2;
+                clone.setAttribute('viewBox', `${vbX} 0 ${vbW} 900`);
+                clone.setAttribute('width', areaW);
+                clone.setAttribute('height', areaH);
+
+                const lb = state._legendBox || null;
+                const mb = (state.activeMarkers && state.activeMarkers.size > 0) ? state._markerBox : null;
+                const padU = 28;
+                const totalH = (lb ? lb.h : 0) + (mb ? mb.h : 0);
+                let L = 1.5; // ~22 px de texto en el PNG final
+                if (totalH > 0) L = Math.min(L, ((900 - 2 * padU) * 0.92) / totalH);
+
+                const legendEl = clone.querySelector('.siarhe-legend-group');
+                const markerLegendEl = clone.querySelector('.siarhe-marker-legend-group');
+                if (legendEl && lb) legendEl.setAttribute('transform', `translate(${vbX + padU + lb.ox * L}, ${padU + lb.oy * L}) scale(${L})`);
+                if (markerLegendEl && mb) markerLegendEl.setAttribute('transform', `translate(${vbX + padU + mb.ox * L}, ${900 - padU}) scale(${L})`);
 
                 const svgData = new XMLSerializer().serializeToString(clone);
                 const canvas = document.createElement("canvas");
@@ -1025,7 +1189,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, 1920, 120); 
                     ctx.fillRect(0, 940, 1920, 140); 
                     
-                    ctx.drawImage(img, 160, 120, 1600, 820); 
+                    ctx.drawImage(img, 0, 120, 1920, 820); 
                     
                     const metricInfo = state.metricas[state.currentMetric];
                     const anioNode = document.querySelector('.siarhe-dynamic-year'); 

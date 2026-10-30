@@ -36,6 +36,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     <div class="siarhe-controls-row">
                         <div class="siarhe-control-group" id="c-escala"><label>Estilo de Mapa</label></div>
                         <div class="siarhe-control-group" id="c-vista"><label>Vista Geográfica</label></div>
+                        <div class="siarhe-control-group siarhe-control-group--action" id="c-reset">
+                            <button type="button" class="button button-secondary btn-siarhe btn-download-map siarhe-reset-btn" title="Volver a la configuración inicial">
+                                <svg class="siarhe-reset-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 3 3 9 9 9"/></svg>
+                                <span>Restablecer</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="siarhe-controls-row">
                         <div class="siarhe-control-group" id="c-indicador"><label>Indicador Principal</label></div>
@@ -150,6 +156,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             Object.entries(state.metricas).forEach(([key, info]) => {
                 const opt = document.createElement('div');
                 opt.className = 'siarhe-cs-option';
+                opt.dataset.key = key;
                 
                 if (key === state.currentMetric) {
                     opt.classList.add('selected');
@@ -363,7 +370,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 });
             }
 
+            const resetBtn = wrapper.querySelector('.siarhe-reset-btn');
+            if (resetBtn) resetBtn.addEventListener('click', () => app.controls.resetAll(container, state, onUpdate));
+
             ph.appendChild(wrapper);
+            app.controls.enhanceDropdowns(container, wrapper);
             app.controls.updateMarkerDropdownText(state);
         },
 
@@ -407,6 +418,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             } finally {
                 if (loading) loading.style.display = 'none'; // siempre, incluso si algo fallo
                 app.controls.updateMarkerDropdownText(state);
+                if (app.urlState) app.urlState.write(container, state);
             }
         },
 
@@ -574,6 +586,138 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             return task;
         },
 
+        /**
+         * Devuelve TODO a la configuracion inicial, como al recargar la pagina:
+         * indicador, estilo de mapa, vista base, marcadores apagados, zoom, avisos y URL.
+         */
+        resetAll: function(container, state, onUpdate) {
+            // 1) Menus y avisos abiertos
+            container.querySelectorAll('.siarhe-cs-menu, .mc-menu').forEach(m => m.classList.remove('open'));
+            const toast = container.querySelector('.siarhe-smart-toast');
+            if (toast) toast.classList.remove('show');
+            if (state.tooltip) state.tooltip.style('opacity', 0).style('display', 'none');
+
+            // 2) Indicador y estilo de mapa iniciales
+            const defaults = state._urlDefaults || {};
+            if (defaults.metric && state.metricas[defaults.metric]) state.currentMetric = defaults.metric;
+            const info = state.metricas[state.currentMetric] || {};
+            state.colorMode = info.scale_type || 'cuartiles';
+            state.realStyleMode = state.colorMode;
+            app.sortConfig = { key: 'tasa', direction: 'desc' };
+
+            const trigger = container.querySelector('#c-indicador .siarhe-cs-trigger');
+            if (trigger) trigger.innerHTML = `<span>${app.utils.esc(info.label || info.fullLabel)}</span>`;
+            container.querySelectorAll('#c-indicador .siarhe-cs-option').forEach(o => {
+                o.classList.toggle('selected', o.dataset.key === state.currentMetric);
+            });
+            const selEscala = container.querySelector('#siarhe-escala-select');
+            if (selEscala) selEscala.value = (state.colorMode === 'degradado' || state.colorMode === 'quartiles') ? 'cuartiles' : (state.colorMode === 'mono' ? 'monocromatico' : state.colorMode);
+
+            // 3) Marcadores apagados
+            state.activeMarkers.clear();
+            container.querySelectorAll('.mc-check').forEach(chk => { chk.checked = false; });
+            if (app.map) app.map.updateMarkers(state);
+            app.controls.updateMarkerDropdownText(state);
+
+            // 4) Vista geografica base
+            state.isGeoLocMode = false;
+            const selVista = container.querySelector('#siarhe-vista-select');
+            if (selVista) selVista.value = 'base';
+            if (app.map) app.map.updateGeography(container, state);
+
+            // 5) Zoom y desplazamiento iniciales
+            if (state.svg && state.zoom && state.initialTransform) {
+                state.svg.transition().duration(app.utils.motionMs(600)).call(state.zoom.transform, state.initialTransform);
+            }
+
+            // 6) Recolorear mapa, tabla y totales; la URL vuelve a quedar limpia
+            if (typeof onUpdate === 'function') onUpdate();
+            if (app.urlState) app.urlState.flush(container, state);
+        },
+
+        /**
+         * Accesibilidad de los selectores personalizados: tab stop, roles ARIA, flechas/Enter/Espacio/Escape
+         * y etiquetas para los <select> nativos.
+         */
+        enhanceDropdowns: function(container, root) {
+            let uid = 0;
+            const sync = () => root.querySelectorAll('[aria-haspopup="listbox"]').forEach(t => {
+                const m = t.nextElementSibling;
+                t.setAttribute('aria-expanded', m && m.classList.contains('open') ? 'true' : 'false');
+            });
+
+            root.querySelectorAll('.siarhe-cs-trigger, .mc-trigger').forEach(trigger => {
+                if (trigger.style.cursor === 'not-allowed') { trigger.setAttribute('aria-disabled', 'true'); return; }
+                const menu = trigger.nextElementSibling;
+                if (!menu || !/(siarhe-cs-menu|mc-menu)/.test(menu.className)) return;
+
+                uid++;
+                trigger.id = trigger.id || ('siarhe-dd-' + uid + '-' + Math.random().toString(36).slice(2, 6));
+                trigger.setAttribute('tabindex', '0');
+                trigger.setAttribute('role', 'button');
+                trigger.setAttribute('aria-haspopup', 'listbox');
+                trigger.setAttribute('aria-expanded', 'false');
+
+                const group = trigger.closest('.siarhe-control-group');
+                const label = group ? group.querySelector('label') : null;
+                if (label) {
+                    label.id = label.id || (trigger.id + '-lbl');
+                    trigger.setAttribute('aria-labelledby', label.id + ' ' + trigger.id);
+                }
+
+                const list = menu.querySelector('.siarhe-cs-options');
+                if (list) list.setAttribute('role', 'listbox');
+                menu.querySelectorAll('.siarhe-cs-option, .mc-option').forEach(o => {
+                    o.setAttribute('role', 'option');
+                    o.setAttribute('tabindex', '-1');
+                });
+
+                trigger.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        if (!menu.classList.contains('open')) trigger.click();
+                        const first = menu.querySelector('[role="option"]');
+                        if (e.key === 'ArrowDown' && first) setTimeout(() => first.focus(), 60);
+                    }
+                });
+
+                menu.addEventListener('keydown', (e) => {
+                    const opts = Array.from(menu.querySelectorAll('[role="option"]')).filter(o => o.style.display !== 'none');
+                    const i = opts.indexOf(document.activeElement);
+
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        const n = opts[i + 1] || opts[0];
+                        if (n) n.focus();
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        if (i > 0) opts[i - 1].focus();
+                        else { const inp = menu.querySelector('input[type="text"]'); if (inp) inp.focus(); }
+                    } else if ((e.key === 'Enter' || e.key === ' ') && i >= 0) {
+                        e.preventDefault();
+                        opts[i].click();
+                        if (!menu.classList.contains('open')) trigger.focus();
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        menu.classList.remove('open');
+                        sync();
+                        trigger.focus();
+                    }
+                    setTimeout(sync, 0);
+                });
+            });
+
+            // <select> nativos: su <label> visible no esta enlazado, se lo damos como nombre accesible
+            root.querySelectorAll('select.siarhe-metric-select').forEach(sel => {
+                const group = sel.closest('.siarhe-control-group');
+                const label = group ? group.querySelector('label') : null;
+                if (label) sel.setAttribute('aria-label', label.textContent.trim());
+            });
+
+            // aria-expanded sigue a las aperturas/cierres hechos por clic
+            container.addEventListener('click', () => setTimeout(sync, 0), true);
+        },
+
         updateMarkerDropdownText: function(state) {
             const upd = (trigger, typeFilter) => {
                 if (!trigger) return;
@@ -602,6 +746,23 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const btnLabels = container.querySelector('.siarhe-btn-toggle-labels');
             const btnPng = container.querySelector('.siarhe-btn-download-png');
             
+            const btnShare = container.querySelector('.siarhe-btn-share');
+            if (btnShare) {
+                btnShare.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    if (app.urlState) app.urlState.flush(container, state); // la URL debe reflejar el estado actual
+                    const url = window.location.href;
+                    const original = btnShare.innerHTML;
+                    try {
+                        await navigator.clipboard.writeText(url);
+                        btnShare.textContent = '✅ Enlace copiado';
+                        setTimeout(() => { btnShare.innerHTML = original; }, 2000);
+                    } catch (err) {
+                        window.prompt('Copia este enlace:', url);
+                    }
+                });
+            }
+
             if (btnPng) {
                 btnPng.addEventListener('click', (e) => { 
                     e.preventDefault(); 

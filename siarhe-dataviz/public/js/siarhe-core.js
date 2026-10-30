@@ -39,6 +39,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     // 2. UTILIDADES DE PROCESAMIENTO (Parsers)
     // ==========================================
     app.utils = {
+        /** Duracion de animacion respetando 'prefers-reduced-motion' (0 si el usuario lo pide). */
+        motionMs: function(ms) {
+            try {
+                return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : ms;
+            } catch (e) { return ms; }
+        },
+
         /**
          * Cede el hilo principal hasta el siguiente cuadro (con respaldo por timer si la pestana
          * esta en segundo plano). Permite trocear trabajos largos sin congelar la pagina.
@@ -183,6 +190,112 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         }
     };
 
+
+    // ==========================================
+    // 3b. ESTADO COMPARTIBLE POR URL (hash)
+    // ==========================================
+    // Formato: #siarhe-<CVE_ENT>=<querystring codificada>  (varias instancias se separan con ';')
+    //   m = metrica, e = escala de color, v = vista (detalle), k = marcadores activos (separados por coma)
+    // Solo se escribe lo que difiere del estado inicial, asi la URL limpia sigue limpia.
+    app.urlState = {
+        _timer: null,
+
+        _key: function(container) { return 'siarhe-' + (container.dataset.cveEnt || ''); },
+
+        _norm: function(mode) {
+            if (mode === 'degradado' || mode === 'quartiles') return 'cuartiles';
+            if (mode === 'mono') return 'monocromatico';
+            return mode || 'cuartiles';
+        },
+
+        _parse: function(container) {
+            const raw = (window.location.hash || '').replace(/^#/, '');
+            if (!raw) return null;
+            const key = app.urlState._key(container) + '=';
+            const part = raw.split(';').find(function(p) { return p.indexOf(key) === 0; });
+            if (!part) return null;
+            try { return new URLSearchParams(decodeURIComponent(part.slice(key.length))); } catch (e) { return null; }
+        },
+
+        /** Se llama ANTES de renderizar: fija metrica y escala, y deja pendiente vista y marcadores. */
+        apply: function(container, state) {
+            state._urlDefaults = { metric: state.currentMetric };
+            state._urlPending = null;
+
+            const qs = app.urlState._parse(container);
+            if (!qs) return;
+
+            const m = qs.get('m');
+            if (m && state.metricas && state.metricas[m]) state.currentMetric = m;
+
+            const e = qs.get('e');
+            if (e && ['cuartiles', 'monocromatico', 'rangos'].indexOf(e) !== -1) state.colorMode = e;
+
+            state._urlPending = {
+                view: qs.get('v') === 'detalle' ? 'detalle' : 'base',
+                markers: (qs.get('k') || '').split(',').filter(Boolean)
+            };
+        },
+
+        /** Se llama DESPUES de renderizar los controles: activa la vista detalle y los marcadores. */
+        applyDeferred: function(container, state) {
+            const p = state._urlPending;
+            if (!p) return;
+            state._urlPending = null;
+
+            if (p.view === 'detalle') {
+                const sel = container.querySelector('#siarhe-vista-select');
+                if (sel && sel.querySelector('option[value="detalle"]')) {
+                    sel.value = 'detalle';
+                    sel.dispatchEvent(new Event('change'));
+                }
+            }
+
+            if (p.markers.length > 0 && app.controls) {
+                (async function() {
+                    for (const type of p.markers) {
+                        if (state.markerUrls && state.markerUrls[type] && !state.activeMarkers.has(type)) {
+                            await app.controls.toggleMarker(type, state, container);
+                            const chk = container.querySelector('.mc-check[value="' + CSS.escape(type) + '"]');
+                            if (chk) chk.checked = true;
+                        }
+                    }
+                })();
+            }
+        },
+
+        write: function(container, state) {
+            clearTimeout(app.urlState._timer);
+            app.urlState._timer = setTimeout(function() { app.urlState.flush(container, state); }, 200);
+        },
+
+        flush: function(container, state) {
+            if (!state.metricas) return;
+            const d = state._urlDefaults || {};
+            const qs = new URLSearchParams();
+
+            if (state.currentMetric && state.currentMetric !== d.metric) qs.set('m', state.currentMetric);
+
+            const defMode = app.urlState._norm((state.metricas[state.currentMetric] || {}).scale_type);
+            if (state.colorMode && app.urlState._norm(state.colorMode) !== defMode) qs.set('e', app.urlState._norm(state.colorMode));
+
+            if (state.isGeoLocMode) qs.set('v', 'detalle');
+            if (state.activeMarkers && state.activeMarkers.size > 0) qs.set('k', Array.from(state.activeMarkers).join(','));
+
+            const raw = (window.location.hash || '').replace(/^#/, '');
+            // Si la pagina usa el hash para otra cosa (ancla propia), no lo tocamos
+            if (raw && !raw.split(';').every(function(p) { return p.indexOf('siarhe-') === 0; })) return;
+
+            const key = app.urlState._key(container);
+            const parts = raw ? raw.split(';').filter(function(p) { return p && p.indexOf(key + '=') !== 0; }) : [];
+            const str = qs.toString();
+            if (str) parts.push(key + '=' + encodeURIComponent(str));
+
+            const newHash = parts.length ? '#' + parts.join(';') : '';
+            if (newHash === window.location.hash || (!newHash && !window.location.hash)) return;
+            history.replaceState(null, '', window.location.pathname + window.location.search + newHash);
+        }
+    };
 
     // ==========================================
     // 4. CAPA DE DATOS (Data Layer)
@@ -337,6 +450,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         ])
         .then(([geo, csv]) => {
             state.geoData = geo;
+
+            // Metrica, escala, vista y marcadores iniciales pueden venir en el hash de la URL
+            if (app.urlState) app.urlState.apply(container, state);
             
             if (csv) {
                 state.csvData = app.data.processCSV(csv, state.metricas);
@@ -354,6 +470,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (app.map && mode.includes('M')) app.map.updateVisuals(container, state);
                 app.data.calcularTotalHeader(container, state);
                 if (app.table && mode.includes('T')) app.table.update(container, state);
+                if (app.urlState) app.urlState.write(container, state);
             };
 
             // Delegación de renderizado a Módulos (si existen)
@@ -376,6 +493,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             // El overlay se oculta hasta que todo se haya construido (antes se ocultaba antes de renderizar)
             if (loading) loading.style.display = 'none';
+
+            // Vista detalle y marcadores guardados en la URL (necesitan los controles ya renderizados)
+            if (app.urlState) app.urlState.applyDeferred(container, state);
         })
         .catch(err => { 
             console.error("[SIARHE Core] Falla en la red o parseo:", err); 

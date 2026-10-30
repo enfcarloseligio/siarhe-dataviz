@@ -627,3 +627,70 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
         z-index: 1000; width: 90%; max-width: 1000px;
     }
 }
+
+
+/* =========================================
+   12. ACCESIBILIDAD: foco visible, texto solo para lector de pantalla y movimiento reducido
+   ========================================= */
+.siarhe-viz-wrapper .siarhe-sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    margin: -1px; padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.siarhe-viz-wrapper path.siarhe-feature:focus {
+    outline: none;
+}
+.siarhe-viz-wrapper path.siarhe-feature:focus-visible {
+    stroke: #0A66C2;
+    stroke-width: 3px;
+}
+
+.siarhe-viz-wrapper .siarhe-cs-trigger:focus-visible,
+.siarhe-viz-wrapper .mc-trigger:focus-visible,
+.siarhe-viz-wrapper table.siarhe-data-table th:focus-visible,
+.siarhe-viz-wrapper .btn-siarhe:focus-visible {
+    outline: 2px solid #0A66C2;
+    outline-offset: 2px;
+}
+
+.siarhe-viz-wrapper .siarhe-cs-option:focus-visible,
+.siarhe-viz-wrapper .mc-option:focus-visible {
+    outline: none;
+    background: #e0f2fe;
+    color: #0f172a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .siarhe-viz-wrapper path.siarhe-feature,
+    .siarhe-viz-wrapper .siarhe-smart-toast,
+    .siarhe-viz-wrapper .zoom-controles button {
+        transition: none;
+    }
+}
+
+
+/* =========================================
+   13. BOTON "RESTABLECER" (junto al Estilo de Mapa)
+   Hereda colores y estados (hover/foco) de .btn-siarhe / .btn-download-map, igual que los
+   botones de Mapa PNG, Etiquetas y Copiar enlace; aqui solo se ajusta la altura al selector.
+   ========================================= */
+.siarhe-viz-wrapper .siarhe-control-group.siarhe-control-group--action {
+    flex: 0 0 auto;
+}
+
+.siarhe-viz-wrapper .siarhe-reset-btn {
+    height: 38px;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+    .siarhe-viz-wrapper .siarhe-reset-btn {
+        width: 100%;
+    }
+}

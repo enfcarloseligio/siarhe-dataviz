@@ -21,6 +21,7 @@ foreach ($existing_files as $file) {
 $upload_base_dir = defined('SIARHE_UPLOAD_DIR') ? SIARHE_UPLOAD_DIR : wp_upload_dir()['basedir'] . '/siarhe-data/';
 
 // 5. Gestión de Notificaciones (Feedback Transaccional)
+Siarhe_Admin::render_flash_notice();
 if ( isset($_GET['status']) ) {
     if ( $_GET['status'] == 'success' ) echo '<div class="notice notice-success is-dismissible"><p>Base estática cargada y procesada correctamente.</p></div>';
     if ( $_GET['status'] == 'updated' ) echo '<div class="notice notice-success is-dismissible"><p>Metadatos de la base estática actualizados en el sistema.</p></div>';
