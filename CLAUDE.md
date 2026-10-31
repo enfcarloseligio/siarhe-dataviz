@@ -4,9 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-WordPress plugin (`siarhe-dataviz/`, the plugin root is the nested folder) that renders choropleth maps (D3.js v7) and tables of Mexican nursing human-resources data (SIARHE). UI text, comments and identifiers are in Spanish; match that. Requires WP 5.8+, PHP 7.4+.
+WordPress plugin (`siarhe-dataviz/`, the plugin root is the nested folder) that renders choropleth maps (D3.js v7) and tables of Mexican nursing human-resources data (SIARHE). UI text, comments and identifiers are in Spanish; match that. Requires WP 6.0+, PHP 7.4+ (declared in the plugin header and checked at load time; see `docs/requisitos.md`).
 
 There is **no build step, package manager, linter or test suite**. Development = edit PHP/JS/CSS and reload in a WordPress install that has the plugin folder in `wp-content/plugins/`. Version is declared twice in `siarhe-dataviz/siarhe-dataviz.php` (plugin header and `SIARHE_VERSION`); bump both together (commit messages follow the version, e.g. `0.0.5.42`).
+
+## Documentation
+
+Project documentation lives in `docs/` (repo root, not shipped in the plugin zip): requirements, architecture, admin screens, data formats, map performance, design decisions, release procedure and tests. `CHANGELOG.md` has the version history. Keep them updated when behavior or formats change.
 
 ## Architecture
 

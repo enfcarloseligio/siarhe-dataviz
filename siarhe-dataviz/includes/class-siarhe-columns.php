@@ -56,7 +56,7 @@ class Siarhe_Columns {
     /** Columnas de un CSV de marcadores: solo lo que necesita el mapa. */
     public static function marker_columns() {
         return array(
-            self::col( 'LATITUD', self::OBLIGATORIA, 'Fija', 'Decimal', 'Latitud en grados decimales (WGS84). Las filas sin coordenadas, con 0 o fuera de México no se dibujan. También se acepta "lat".', '21.85606' ),
+            self::col( 'LATITUD', self::OBLIGATORIA, 'Fija', 'Decimal', 'Latitud en grados decimales (WGS84). Las filas sin coordenadas o con 0 no se dibujan; si muchas caen fuera de México se avisa al subir el archivo. También se acepta "lat".', '21.85606' ),
             self::col( 'LONGITUD', self::OBLIGATORIA, 'Fija', 'Decimal', 'Longitud en grados decimales (WGS84), negativa para México. También se acepta "lon".', '-102.25563' ),
             self::col( 'CVE_ENT', self::OBLIGATORIA, 'Fija', 'Texto', 'Clave de la entidad con 2 dígitos. En el mapa de una entidad solo se dibujan los puntos de esa entidad.', '01' ),
             self::col( 'ENTIDAD', self::OBLIGATORIA, 'Fija', 'Texto', 'Nombre de la entidad federativa.', 'Aguascalientes' ),

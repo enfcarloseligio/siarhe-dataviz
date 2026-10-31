@@ -1,16 +1,58 @@
 <?php // siarhe-dataviz.php
 /**
- * Plugin Name: SIARHE Data Visualization Engine
- * Description: Sistema modular de visualización de datos de enfermería con soporte SQL y GeoJSON.
- * Version: 0.1.0.0
- * Author: Juan Carlos de la Cruz Eligio | @enfcarloseligio
- * Text Domain: siarhe-dataviz
+ * SIARHE Data Visualization Engine - Archivo principal del plugin.
+ *
+ * Es el punto de entrada: verifica los requisitos minimos, define las constantes
+ * globales y carga los modulos (administracion, shortcodes y frontend).
+ *
+ * @package    SIARHE_DataViz
+ * @author     Juan Carlos De La Cruz Eligio | @enfcarloseligio
+ * @copyright  Juan Carlos De La Cruz Eligio | @enfcarloseligio
+ * @license    GPL-2.0-or-later
+ * @link       https://github.com/enfcarloseligio/siarhe-dataviz
+ *
+ * @wordpress-plugin
+ * Plugin Name:       SIARHE Data Visualization Engine
+ * Plugin URI:        https://github.com/enfcarloseligio/siarhe-dataviz
+ * Description:       Mapas coropléticos (D3.js) y tablas interactivas de recursos humanos de enfermería de México (SIARHE), con carga y validación de GeoJSON y CSV, copias de seguridad y panel de administración.
+ * Version:           0.1.0.1
+ * Requires at least: 6.0
+ * Requires PHP:      7.4
+ * Author:            Juan Carlos De La Cruz Eligio | @enfcarloseligio
+ * Author URI:        https://enfcarloseligio.com/
+ * License:           GPL-2.0-or-later
+ * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+ * Text Domain:       siarhe-dataviz
+ * Domain Path:       /languages
+ * Network:           false
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+// 0. Requisitos minimos (PHP y WordPress). WordPress ya impide ACTIVAR el plugin si no se cumplen las
+// cabeceras de arriba; esta comprobacion cubre el caso de que el sitio se degrade despues de activarlo.
+define( 'SIARHE_MIN_PHP', '7.4' );
+define( 'SIARHE_MIN_WP', '6.0' );
+
+function siarhe_requisitos_cumplidos() {
+    global $wp_version;
+    return version_compare( PHP_VERSION, SIARHE_MIN_PHP, '>=' ) && version_compare( $wp_version, SIARHE_MIN_WP, '>=' );
+}
+
+function siarhe_aviso_requisitos() {
+    global $wp_version;
+    echo '<div class="notice notice-error"><p><strong>SIARHE Data Visualization Engine</strong> necesita PHP '
+        . esc_html( SIARHE_MIN_PHP ) . ' o superior y WordPress ' . esc_html( SIARHE_MIN_WP ) . ' o superior. '
+        . 'Este sitio usa PHP ' . esc_html( PHP_VERSION ) . ' y WordPress ' . esc_html( $wp_version ) . ', por lo que el plugin no se cargó.</p></div>';
+}
+
+if ( ! siarhe_requisitos_cumplidos() ) {
+    add_action( 'admin_notices', 'siarhe_aviso_requisitos' );
+    return;
+}
+
 // 1. Definición de Constantes Básicas
-define( 'SIARHE_VERSION', '0.1.0.0' );
+define( 'SIARHE_VERSION', '0.1.0.1' );
 define( 'SIARHE_PATH', plugin_dir_path( __FILE__ ) );
 define( 'SIARHE_URL', plugin_dir_url( __FILE__ ) );
 
@@ -43,6 +85,12 @@ function siarhe_init_plugin() {
     $plugin_shortcodes->init();
 }
 add_action( 'plugins_loaded', 'siarhe_init_plugin' );
+
+// Traducciones: la interfaz esta en espanol; el dominio queda listo para futuras traducciones (carpeta /languages)
+function siarhe_cargar_textdomain() {
+    load_plugin_textdomain( 'siarhe-dataviz', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+}
+add_action( 'init', 'siarhe_cargar_textdomain' );
 add_action( 'admin_init', 'siarhe_ensure_data_htaccess' ); // tipos MIME de los datos (activa la compresion)
 
 // 5. Activación (Creación de tablas y carpetas)
