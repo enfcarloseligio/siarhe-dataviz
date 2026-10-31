@@ -74,7 +74,7 @@ $geojson_loc_url = '';
 if ($geo_loc_meta && !empty($geo_loc_meta->ruta_archivo)) {
     $ruta_fisica_loc = $upload_base_dir_front . ltrim($geo_loc_meta->ruta_archivo, '/');
     $v_loc = file_exists($ruta_fisica_loc) ? filemtime($ruta_fisica_loc) : time();
-    $geojson_loc_url = $upload_base_url_front . ltrim($geo_loc_meta->ruta_archivo, '/') . '?v=' . $v_loc;
+    $geojson_loc_url = siarhe_data_read_url( $upload_base_url_front . ltrim($geo_loc_meta->ruta_archivo, '/') . '?v=' . $v_loc );
 }
 
 foreach ($marcadores_array as $key => $mk) {
@@ -89,7 +89,7 @@ foreach ($marcadores_array as $key => $mk) {
     $ruta_mk = $upload_base_dir_front . 'markers/' . $mk['archivo'];
     $v_mk = file_exists($ruta_mk) ? filemtime($ruta_mk) : time();
     
-    $marker_urls[$key] = $upload_base_url_front . 'markers/' . $mk['archivo'] . '?v=' . $v_mk;
+    $marker_urls[$key] = siarhe_data_read_url( $upload_base_url_front . 'markers/' . $mk['archivo'] . '?v=' . $v_mk );
     $marker_labels[$key] = $mk; 
     
     $marker_config[$key] = [
@@ -200,12 +200,14 @@ if (!empty($csv_url) && strpos($csv_url, '?v=') === false) {
     $phys_path = $upload_base_dir_front . ltrim($rel_path, '/');
     $csv_url .= '?v=' . (file_exists($phys_path) ? filemtime($phys_path) : time());
 }
+$csv_url = siarhe_data_read_url( $csv_url );
 
 if (!empty($geojson_url) && strpos($geojson_url, '?v=') === false) {
     $rel_path = str_replace($upload_base_url_front, '', $geojson_url);
     $phys_path = $upload_base_dir_front . ltrim($rel_path, '/');
     $geojson_url .= '?v=' . (file_exists($phys_path) ? filemtime($phys_path) : time());
 }
+$geojson_url = siarhe_data_read_url( $geojson_url );
 ?>
 
 <div id="content" tabindex="-1" style="outline: none;"></div>

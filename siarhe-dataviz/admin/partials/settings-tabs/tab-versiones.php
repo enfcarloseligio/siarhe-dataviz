@@ -63,6 +63,32 @@ if ( $status === 'vdeleted' ) echo '<div class="notice notice-warning is-dismiss
     </table>
 </div>
 
+<div class="siarhe-card">
+    <h2 class="siarhe-card__title">Copias de lectura de los datos<?php Siarhe_Admin::help( 'Los archivos de 100 KB o mas (GeoJSON y CSV grandes) se leen desde una copia con extension .json o .txt que el servidor comprime; asi el mapa descarga 5 a 10 veces menos. El archivo original no cambia. Si tu servidor no comprime estos archivos, la copia no aporta velocidad y solo ocupa espacio: puedes desactivarla.' ); ?></h2>
+
+    <table class="form-table" role="presentation">
+        <tr>
+            <th scope="row"><label for="siarhe_read_copies">Crear copias de lectura</label></th>
+            <td>
+                <input type="hidden" name="siarhe_read_copies" value="0">
+                <label>
+                    <input type="checkbox" name="siarhe_read_copies" id="siarhe_read_copies" value="1" <?php checked( siarhe_read_copies_enabled() ); ?>>
+                    El mapa lee los archivos grandes desde una copia que el servidor comprime
+                </label>
+                <p class="description">Recomendado. Al desactivarla, el mapa lee los archivos originales y se eliminan las copias de lectura existentes (los originales no se tocan).</p>
+            </td>
+        </tr>
+        <tr>
+            <th scope="row">Espacio usado</th>
+            <td>
+                <?php $rc = siarhe_read_copies_summary(); ?>
+                <strong><?php echo esc_html( size_format( $rc['bytes'] ) ?: '0 B' ); ?></strong> en <?php echo (int) $rc['count']; ?> copia(s) de lectura.
+                El estado de la compresión de tu servidor se ve en el Dashboard, en «Salud del sistema».
+            </td>
+        </tr>
+    </table>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var form = document.querySelector('form[action="options.php"]');

@@ -316,3 +316,9 @@ button#btn-floating-save.siarhe-scroll-top:active .dashicons { color: #fff; }
 .siarhe-downloads__label { font-weight: 600; display: inline-flex; align-items: center; margin-right: var(--s-sp-2); }
 .siarhe-downloads .button { display: inline-flex; align-items: center; gap: var(--s-sp-1); }
 .siarhe-downloads .button .dashicons { width: 18px; height: 18px; font-size: 18px; }
+
+/* Pie de la tarjeta de salud: accion para generar las copias de lectura */
+.siarhe-health__footer { display: flex; align-items: center; justify-content: space-between; gap: var(--s-sp-4); flex-wrap: wrap; padding: var(--s-sp-4) var(--s-sp-5); border-top: 1px solid var(--s-border); background: var(--s-surface-alt); }
+.siarhe-health__footer .description { margin: 0; flex: 1 1 320px; max-width: 70ch; }
+.siarhe-health__footer .button { display: inline-flex; align-items: center; gap: var(--s-sp-1); }
+.siarhe-health__footer .button .dashicons { width: 18px; height: 18px; font-size: 18px; }

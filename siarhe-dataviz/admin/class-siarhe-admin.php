@@ -47,8 +47,11 @@ class Siarhe_Admin {
 
         // --- PLANTILLAS Y DICCIONARIO DE VARIABLES (descargas) ---
         add_action( 'admin_post_siarhe_download_columns', array( $this, 'handle_download_columns' ) );
+        add_action( 'admin_post_siarhe_generate_copies', array( $this, 'handle_generate_copies' ) );
         add_action( 'add_option_' . Siarhe_Versions::OPT_KEEP, array( 'Siarhe_Versions', 'on_keep_changed' ) );
         add_action( 'update_option_' . Siarhe_Versions::OPT_KEEP, array( 'Siarhe_Versions', 'on_keep_changed' ) );
+        add_action( 'add_option_siarhe_read_copies', 'siarhe_on_read_copies_changed', 10, 2 );
+        add_action( 'update_option_siarhe_read_copies', 'siarhe_on_read_copies_changed', 10, 2 );
     }
 
     public function handle_version_restore() {
@@ -79,6 +82,18 @@ class Siarhe_Admin {
             echo '<a class="button" href="' . esc_url( self::columns_url( 'marker', 'diccionario' ) ) . '"><span class="dashicons dashicons-media-spreadsheet"></span> Diccionario de variables (' . esc_html( $dict_ext ) . ')</a>';
         }
         echo '</div>';
+    }
+
+    /** Crea las copias de lectura (.json/.txt) de todos los archivos grandes que ya estan cargados. */
+    public function handle_generate_copies() {
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'No tienes permisos.' );
+        check_admin_referer( 'siarhe_generate_copies' );
+        if ( ! siarhe_read_copies_enabled() ) { wp_safe_redirect( admin_url( 'admin.php?page=siarhe-dataviz' ) ); exit; }
+        set_time_limit( 0 );
+        wp_raise_memory_limit( 'admin' );
+        set_transient( 'siarhe_copies_result_' . get_current_user_id(), siarhe_generate_all_read_copies(), 5 * MINUTE_IN_SECONDS );
+        wp_safe_redirect( admin_url( 'admin.php?page=siarhe-dataviz&copies=1' ) );
+        exit;
     }
 
     public function handle_download_columns() {
@@ -262,6 +277,10 @@ class Siarhe_Admin {
         register_setting( 'siarhe_versions_group', Siarhe_Versions::OPT_KEEP, array(
             'sanitize_callback' => array( 'Siarhe_Versions', 'sanitize_keep' ),
             'default'           => Siarhe_Versions::DEFAULT_KEEP,
+        ) );
+        register_setting( 'siarhe_versions_group', 'siarhe_read_copies', array(
+            'sanitize_callback' => array( 'Siarhe_Versions', 'sanitize_bool' ),
+            'default'           => '1',
         ) );
         register_setting( 'siarhe_versions_group', Siarhe_Versions::OPT_GZ, array(
             'sanitize_callback' => array( 'Siarhe_Versions', 'sanitize_bool' ),
@@ -682,6 +701,7 @@ class Siarhe_Admin {
             $this->archive_previous_version( $target_file );
 
             if ( move_uploaded_file( $_FILES['siarhe_file']['tmp_name'], $target_file ) ) {
+                siarhe_build_read_copy( $target_file );
                 global $wpdb;
                 $table_name = $wpdb->prefix . 'siarhe_static_assets';
                 
@@ -743,10 +763,10 @@ class Siarhe_Admin {
         $table_name = $wpdb->prefix . 'siarhe_static_assets';
         $file = $wpdb->get_row( $wpdb->prepare( "SELECT ruta_archivo FROM $table_name WHERE id = %d", $file_id ) );
         if ( $file ) {
-            if ( defined('SIARHE_UPLOAD_DIR') ) { $filepath = SIARHE_UPLOAD_DIR . $file->ruta_archivo; if ( file_exists( $filepath ) ) unlink( $filepath ); }
+            if ( defined('SIARHE_UPLOAD_DIR') ) { $filepath = SIARHE_UPLOAD_DIR . $file->ruta_archivo; if ( file_exists( $filepath ) ) { unlink( $filepath ); siarhe_delete_data_read_copies( $filepath ); } }
             else { 
                 $ud = wp_upload_dir(); $filepath = $ud['basedir'] . '/siarhe-data/' . $file->ruta_archivo;
-                if ( file_exists( $filepath ) ) unlink( $filepath );
+                if ( file_exists( $filepath ) ) { unlink( $filepath ); siarhe_delete_data_read_copies( $filepath ); }
             }
             $wpdb->delete( $table_name, array( 'id' => $file_id ) );
         }
@@ -785,6 +805,7 @@ class Siarhe_Admin {
             $this->archive_previous_version( $target_file );
 
             if ( move_uploaded_file( $_FILES['siarhe_file']['tmp_name'], $target_file ) ) {
+                siarhe_build_read_copy( $target_file );
                 global $wpdb;
                 $table_name = $wpdb->prefix . 'siarhe_static_assets';
                 
@@ -840,10 +861,10 @@ class Siarhe_Admin {
         $table_name = $wpdb->prefix . 'siarhe_static_assets';
         $file = $wpdb->get_row( $wpdb->prepare( "SELECT ruta_archivo FROM $table_name WHERE id = %d", $file_id ) );
         if ( $file ) {
-            if ( defined('SIARHE_UPLOAD_DIR') ) { $filepath = SIARHE_UPLOAD_DIR . $file->ruta_archivo; if ( file_exists( $filepath ) ) unlink( $filepath ); }
+            if ( defined('SIARHE_UPLOAD_DIR') ) { $filepath = SIARHE_UPLOAD_DIR . $file->ruta_archivo; if ( file_exists( $filepath ) ) { unlink( $filepath ); siarhe_delete_data_read_copies( $filepath ); } }
             else { 
                 $ud = wp_upload_dir(); $filepath = $ud['basedir'] . '/siarhe-data/' . $file->ruta_archivo;
-                if ( file_exists( $filepath ) ) unlink( $filepath );
+                if ( file_exists( $filepath ) ) { unlink( $filepath ); siarhe_delete_data_read_copies( $filepath ); }
             }
             $wpdb->delete( $table_name, array( 'id' => $file_id ) );
         }
@@ -883,6 +904,7 @@ class Siarhe_Admin {
 
             if ( move_uploaded_file( $_FILES['siarhe_file']['tmp_name'], $target_file ) ) {
                 $this->ensure_utf8_csv( $target_file );
+                siarhe_build_read_copy( $target_file );
                 global $wpdb;
                 $table_name = $wpdb->prefix . 'siarhe_static_assets';
                 
@@ -950,7 +972,7 @@ class Siarhe_Admin {
             if ( $file->tipo_archivo === 'marcador' ) $tab_destino = 'marcadores';
             $upload_dir = wp_upload_dir();
             $filepath = $upload_dir['basedir'] . '/siarhe-data/' . $file->ruta_archivo;
-            if ( file_exists( $filepath ) ) unlink( $filepath );
+            if ( file_exists( $filepath ) ) { unlink( $filepath ); siarhe_delete_data_read_copies( $filepath ); }
             $wpdb->delete( $table_name, array( 'id' => $file_id ) );
         }
         wp_redirect( admin_url( 'admin.php?page=siarhe-uploader&tab=' . $tab_destino . '&status=deleted' ) ); exit;
@@ -990,11 +1012,11 @@ class Siarhe_Admin {
         $asset = $wpdb->get_row( $wpdb->prepare( "SELECT id, ruta_archivo FROM $table WHERE tipo_archivo = %s AND entidad_slug = %s", 'marcador', $key ) );
         if ( $asset ) {
             $path = $dir . basename( $asset->ruta_archivo );
-            if ( file_exists( $path ) ) @unlink( $path );
+            if ( file_exists( $path ) ) { @unlink( $path ); siarhe_delete_data_read_copies( $path ); }
             $wpdb->delete( $table, array( 'id' => $asset->id ) );
         } else {
             $path = $dir . basename( $filename );
-            if ( file_exists( $path ) ) @unlink( $path );
+            if ( file_exists( $path ) ) { @unlink( $path ); siarhe_delete_data_read_copies( $path ); }
         }
     }
 
@@ -1097,6 +1119,7 @@ class Siarhe_Admin {
 
                 if ( copy($source, $dest_path) ) {
                     $this->ensure_utf8_csv( $dest_path );
+                    siarhe_build_read_copy( $dest_path );
                     unlink($source);
                     
                     global $wpdb;

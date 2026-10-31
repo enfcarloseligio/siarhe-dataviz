@@ -262,6 +262,7 @@ class Siarhe_Versions {
         @unlink( $tmp );
         if ( ! $ok ) return 'No se pudo escribir el archivo restaurado. Revisa los permisos de la carpeta de datos.';
 
+        siarhe_build_read_copy( $target ); // la copia de lectura del mapa se actualiza con la version restaurada
         self::log_event( 'restauró', $info['dir'] . '/' . $info['name'] );
         return true;
     }

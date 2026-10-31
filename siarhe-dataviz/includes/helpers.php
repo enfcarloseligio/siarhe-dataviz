@@ -224,3 +224,110 @@ function siarhe_ensure_data_htaccess() {
     }
     @file_put_contents( $file, $content );
 }
+
+/**
+ * URL de LECTURA de un archivo de datos grande (la que usa el mapa).
+ * Muchos servidores no conocen las extensiones .csv y .geojson: los entregan como application/octet-stream
+ * y no los comprimen (un GeoJSON nacional viaja completo, ~7 MB). Con .json o .txt si se comprimen (5 a 10 veces menos).
+ * Por eso, para archivos de 100 KB o mas se mantiene una copia identica junto al original (.geojson.json / .csv.txt)
+ * y el mapa lee esa. El original no cambia y sigue siendo el que se descarga y se respalda.
+ * $url: URL del original dentro de siarhe-data, con o sin ?v=. Si no se puede crear la copia, devuelve $url.
+ */
+function siarhe_data_read_url( $url ) {
+    if ( ! $url || ! defined( 'SIARHE_UPLOAD_DIR' ) || ! defined( 'SIARHE_UPLOAD_URL' ) ) return $url;
+    $clean = strtok( $url, '?' );
+    if ( strpos( $clean, SIARHE_UPLOAD_URL ) !== 0 ) return $url;
+
+    $rel = ltrim( substr( $clean, strlen( SIARHE_UPLOAD_URL ) ), '/' );
+    $res = siarhe_build_read_copy( SIARHE_UPLOAD_DIR . $rel );
+    if ( $res['dst'] === '' ) return $url;
+    return SIARHE_UPLOAD_URL . $rel . $res['suffix'] . '?v=' . filemtime( $res['dst'] );
+}
+
+/**
+ * Crea (o actualiza) la copia de lectura de un archivo de datos.
+ * Devuelve array( 'status' => creada|vigente|pequena|omitida|fallo, 'dst' => ruta de la copia o '', 'suffix' => '.json'|'.txt' ).
+ */
+function siarhe_build_read_copy( $src ) {
+    $none = array( 'status' => 'omitida', 'dst' => '', 'suffix' => '' );
+    if ( ! siarhe_read_copies_enabled() ) { $none['status'] = 'desactivada'; return $none; }
+    $ext  = strtolower( pathinfo( $src, PATHINFO_EXTENSION ) );
+    $map  = array( 'geojson' => '.json', 'csv' => '.txt' );
+    if ( ! isset( $map[ $ext ] ) || ! is_file( $src ) ) return $none;
+    $none['suffix'] = $map[ $ext ];
+    if ( filesize( $src ) < 100 * 1024 ) { $none['status'] = 'pequena'; return $none; }
+
+    $dst = $src . $map[ $ext ];
+    // Se regenera si no existe o si el original es mas nuevo (se reemplazo o se restauro una version)
+    if ( is_file( $dst ) && filemtime( $dst ) >= filemtime( $src ) && filesize( $dst ) === filesize( $src ) ) {
+        return array( 'status' => 'vigente', 'dst' => $dst, 'suffix' => $map[ $ext ] );
+    }
+    $tmp = $dst . '.tmp' . getmypid();
+    if ( ! @copy( $src, $tmp ) ) { @unlink( $tmp ); $none['status'] = 'fallo'; return $none; }
+    if ( ! @rename( $tmp, $dst ) ) {
+        @unlink( $dst );
+        if ( ! @rename( $tmp, $dst ) ) { @unlink( $tmp ); $none['status'] = 'fallo'; return $none; }
+    }
+    return array( 'status' => 'creada', 'dst' => $dst, 'suffix' => $map[ $ext ] );
+}
+
+/** Recorre las carpetas de datos y crea las copias de lectura que falten. Devuelve los conteos. */
+function siarhe_generate_all_read_copies() {
+    $out = array( 'creada' => 0, 'vigente' => 0, 'pequena' => 0, 'fallo' => 0, 'bytes' => 0 );
+    if ( ! defined( 'SIARHE_UPLOAD_DIR' ) ) return $out;
+    foreach ( Siarhe_Versions::dirs() as $dir ) {
+        $folder = SIARHE_UPLOAD_DIR . $dir . '/';
+        if ( ! is_dir( $folder ) ) continue;
+        foreach ( (array) glob( $folder . '*.{csv,geojson}', GLOB_BRACE ) as $file ) {
+            $res = siarhe_build_read_copy( $file );
+            if ( isset( $out[ $res['status'] ] ) ) $out[ $res['status'] ]++;
+            if ( $res['status'] === 'creada' ) $out['bytes'] += filesize( $res['dst'] );
+        }
+    }
+    return $out;
+}
+
+/** Borra las copias de lectura de un archivo de datos (al eliminar el original). */
+function siarhe_delete_data_read_copies( $filepath ) {
+    foreach ( array( '.json', '.txt' ) as $suffix ) {
+        if ( is_file( $filepath . $suffix ) ) @unlink( $filepath . $suffix );
+    }
+}
+
+/** Opcion "Crear copias de lectura de los datos" (Configuracion > Versiones y Copias). Activa por defecto. */
+function siarhe_read_copies_enabled() {
+    return get_option( 'siarhe_read_copies', '1' ) !== '0';
+}
+
+/** Archivos de copia de lectura existentes (.geojson.json y .csv.txt) en las carpetas de datos. */
+function siarhe_list_read_copies() {
+    $files = array();
+    if ( ! defined( 'SIARHE_UPLOAD_DIR' ) ) return $files;
+    foreach ( Siarhe_Versions::dirs() as $dir ) {
+        $folder = SIARHE_UPLOAD_DIR . $dir . '/';
+        if ( ! is_dir( $folder ) ) continue;
+        foreach ( (array) glob( $folder . '*.{geojson.json,csv.txt}', GLOB_BRACE ) as $f ) $files[] = $f;
+    }
+    return $files;
+}
+
+/** Cantidad y peso de las copias de lectura existentes. */
+function siarhe_read_copies_summary() {
+    $out = array( 'count' => 0, 'bytes' => 0 );
+    foreach ( siarhe_list_read_copies() as $f ) { $out['count']++; $out['bytes'] += (int) filesize( $f ); }
+    return $out;
+}
+
+/** Borra todas las copias de lectura (los originales no se tocan). Devuelve cuantas elimino. */
+function siarhe_delete_all_read_copies() {
+    $n = 0;
+    foreach ( siarhe_list_read_copies() as $f ) { if ( @unlink( $f ) ) $n++; }
+    return $n;
+}
+
+/** Al desactivar la opcion se eliminan las copias existentes. */
+function siarhe_on_read_copies_changed( $old, $new = null ) {
+    // add_option_{opcion} pasa (opcion, valor); update_option_{opcion} pasa (viejo, nuevo)
+    $value = ( $new === null ) ? $old : $new;
+    if ( (string) $value === '0' ) siarhe_delete_all_read_copies();
+}

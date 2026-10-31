@@ -76,6 +76,22 @@ $ver_summary = Siarhe_Versions::summary();
 $ver_keep    = Siarhe_Versions::keep();
 $zlib_ok     = Siarhe_Versions::zlib_available();
 
+// Compresion de los datos: archivo a consultar y estado del .htaccess de la carpeta de datos
+$probe_url = ''; $probe_small = false; $copies_on = siarhe_read_copies_enabled();
+foreach ( array( 'geojson', 'static_min' ) as $probe_tipo ) {
+    foreach ( $rows as $r ) {
+        if ( $r->tipo_archivo !== $probe_tipo || empty( $r->ruta_archivo ) ) continue;
+        if ( ! file_exists( $upload_base . ltrim( $r->ruta_archivo, '/' ) ) ) continue;
+        $base_url  = defined( 'SIARHE_UPLOAD_URL' ) ? SIARHE_UPLOAD_URL : trailingslashit( wp_upload_dir()['baseurl'] ) . 'siarhe-data/';
+        $probe_orig = $base_url . ltrim( $r->ruta_archivo, '/' );
+        $probe_url  = siarhe_data_read_url( $probe_orig );
+        $probe_small = ( $probe_url === $probe_orig ); // menor a 100 KB: no se crea copia de lectura
+        break 2;
+    }
+}
+$ht_file = $upload_base . '.htaccess';
+$ht_made = file_exists( $ht_file ) && strpos( (string) file_get_contents( $ht_file ), '# SIARHE-DATA' ) !== false;
+
 $health = array(
     array(
         'state'  => $dir_ok ? 'ok' : 'fail',
@@ -116,6 +132,12 @@ $health = array(
     ),
     array(
         'state'  => 'pending',
+        'label'  => 'Compresión de los datos del mapa',
+        'detail' => $probe_url ? 'Comprobando…' : 'Aún no hay archivos cargados para comprobar.',
+        'id'     => 'siarhe-health-compress',
+    ),
+    array(
+        'state'  => 'pending',
         'label'  => 'CDN de D3.js',
         'detail' => 'Comprobando…',
         'id'     => 'siarhe-health-cdn',
@@ -125,6 +147,18 @@ $icons = array( 'ok' => 'yes-alt', 'warn' => 'warning', 'fail' => 'dismiss', 'pe
 ?>
 
 <div class="wrap" data-siarhe-scrolltop>
+    <?php
+    if ( isset( $_GET['copies'] ) ) {
+        $copies = get_transient( 'siarhe_copies_result_' . get_current_user_id() );
+        if ( is_array( $copies ) ) {
+            delete_transient( 'siarhe_copies_result_' . get_current_user_id() );
+            $msg = sprintf( 'Copias de lectura: %d creada(s) (%s), %d ya estaban al día, %d archivo(s) pequeños sin copia.',
+                (int) $copies['creada'], size_format( (int) $copies['bytes'] ) ?: '0 B', (int) $copies['vigente'], (int) $copies['pequena'] );
+            if ( ! empty( $copies['fallo'] ) ) $msg .= ' No se pudieron crear ' . (int) $copies['fallo'] . ' (revisa los permisos de la carpeta de datos).';
+            echo '<div class="notice ' . ( empty( $copies['fallo'] ) ? 'notice-success' : 'notice-warning' ) . ' is-dismissible"><p>' . esc_html( $msg ) . '</p></div>';
+        }
+    }
+    ?>
     <div class="siarhe-page-header">
         <div>
             <h1>Dashboard SIARHE</h1>
@@ -170,6 +204,18 @@ $icons = array( 'ok' => 'yes-alt', 'warn' => 'warning', 'fail' => 'dismiss', 'pe
                 </li>
             <?php endforeach; ?>
         </ul>
+        <div class="siarhe-health__footer">
+            <?php if ( $copies_on ) : ?>
+            <p class="description">Los archivos de datos de 100 KB o más se leen desde una copia (<code>.json</code> o <code>.txt</code>) que el servidor sí comprime. Se crean solas al subir un archivo y al abrir su mapa; este botón las crea de una vez para todo lo que ya está cargado.</p>
+            <?php else : ?>
+            <p class="description">Las copias de lectura están <strong>desactivadas</strong>: los mapas leen los archivos originales. Puedes activarlas en <a href="<?php echo esc_url( admin_url( 'admin.php?page=siarhe-settings&tab=versiones' ) ); ?>">Configuración › Versiones y Copias</a>.</p>
+            <?php endif; ?>
+            <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+                <input type="hidden" name="action" value="siarhe_generate_copies">
+                <?php wp_nonce_field( 'siarhe_generate_copies' ); ?>
+                <button type="submit" class="button" <?php disabled( ! $copies_on ); ?>><span class="dashicons dashicons-update"></span> Generar copias de lectura ahora</button>
+            </form>
+        </div>
     </div>
 
     <div class="siarhe-card siarhe-card--flush">
@@ -276,6 +322,37 @@ document.addEventListener('DOMContentLoaded', function() {
             if (raw) el.textContent = window.SiarheAdmin.formatDate(raw);
         });
     }
+
+    // Compresion de los datos: lee los encabezados reales que entrega el servidor
+    (function() {
+        var item = document.getElementById('siarhe-health-compress');
+        var url = <?php echo wp_json_encode( $probe_url ); ?>;
+        var small = <?php echo $probe_small ? 'true' : 'false'; ?>;
+        var copiesOn = <?php echo $copies_on ? 'true' : 'false'; ?>;
+        var htMade = <?php echo $ht_made ? 'true' : 'false'; ?>;
+        if (!item || !url) return;
+        var show = function(state, icon, text) {
+            item.className = 'is-' + state;
+            item.querySelector('.dashicons').className = 'dashicons dashicons-' + icon;
+            item.querySelector('.siarhe-health__detail').textContent = text;
+        };
+        fetch(url, { method: 'HEAD', cache: 'no-store' }).then(function(r) {
+            var enc = (r.headers.get('content-encoding') || '').toLowerCase();
+            var type = (r.headers.get('content-type') || '').toLowerCase().split(';')[0].trim();
+            var compressible = /^text\//.test(type) || /json|xml/.test(type);
+            if (enc) {
+                show('ok', 'yes-alt', copiesOn ? 'Los mapas leen los datos comprimidos (' + enc + '): el plugin sirve los archivos grandes con una copia .json/.txt que el servidor sí comprime.' : 'Los archivos de datos se entregan comprimidos (' + enc + ').');
+            } else if (!copiesOn) {
+                show('ok', 'yes-alt', 'Las copias de lectura están desactivadas: los mapas leen los archivos originales' + (compressible ? '.' : ' (este servidor no los comprime; si el mapa carga lento, activa las copias en Configuración › Versiones y Copias).'));
+            } else if (small) {
+                show('ok', 'yes-alt', 'Los archivos cargados pesan menos de 100 KB; no necesitan compresión.');
+            } else if (compressible) {
+                show('warn', 'warning', 'Los datos se entregan con el tipo correcto (' + type + ') pero sin comprimir. Revisa que el servidor o Cloudflare tengan la compresión activada para ese tipo.');
+            } else {
+                show('warn', 'warning', 'El servidor entrega los datos como «' + (type || 'tipo desconocido') + '» y no los comprime, incluso con la copia de lectura del plugin. Revisa la compresión del servidor y de Cloudflare.');
+            }
+        }).catch(function() { show('warn', 'warning', 'No se pudo comprobar la compresión desde este navegador.'); });
+    })();
 
     // Comprobación del CDN de D3 (desde el navegador del administrador)
     var li = document.getElementById('siarhe-health-cdn');
