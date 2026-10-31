@@ -87,9 +87,9 @@ $entidades = [
     
     <div class="siarhe-toolbar">
         <div class="siarhe-table-controls">
-            <label style="font-size: 13px; color: #3c434a;">
+            <label>
                 Mostrar 
-                <select id="siarhe-items-per-page" style="margin: 0 5px; padding: 2px 24px 2px 8px; font-size: 13px; min-height: 28px;">
+                <select id="siarhe-items-per-page" class="siarhe-select-sm">
                     <option value="25">25</option>
                     <option value="50">50</option>
                     <option value="100">100</option>
@@ -99,7 +99,7 @@ $entidades = [
             </label>
         </div>
 
-        <div class="siarhe-pagination" style="border-top: none; padding: 0; background: transparent;">
+        <div class="siarhe-pagination--bare siarhe-pagination">
             <div class="siarhe-page-numbers" id="siarhe-pagination-controls-top"></div>
         </div>
 
@@ -144,7 +144,7 @@ $entidades = [
                     <div style="display: flex; gap: 10px; align-items: center; width: 100%;">
                         
                         <div style="flex-grow: 1; min-width: 0;"> 
-                            <select name="siarhe_links_map[<?php echo esc_attr($slug); ?>]" class="siarhe-searchable-select" style="width: 100%;">
+                            <select name="siarhe_links_map[<?php echo esc_attr($slug); ?>]" class="siarhe-w-full siarhe-searchable-select">
                                 <option value="">-- Sin enlace (No clicable) --</option>
                                 <?php foreach ($options_links as $val => $title) : ?>
                                     <option value="<?php echo esc_attr($val); ?>" <?php selected( $selected_val, (string)$val ); ?>>
@@ -165,19 +165,19 @@ $entidades = [
             </tr>
             <?php endforeach; ?>
             <tr id="siarhe-enlaces-empty" style="display: none;">
-                <td colspan="2" style="text-align:center; padding: 20px; color:#8c8f94;">No se encontraron resultados para su búsqueda.</td>
+                <td colspan="2" class="siarhe-empty-cell">No se encontraron resultados para su búsqueda.</td>
             </tr>
         </tbody>
     </table>
 
     <div class="siarhe-pagination">
-        <div id="siarhe-enlaces-count" style="font-size: 13px; color: #64748b;"></div>
+        <div id="siarhe-enlaces-count" class="siarhe-count"></div>
         <div class="siarhe-page-numbers" id="siarhe-pagination-controls-bottom"></div>
     </div>
 </div>
 
 <div style="margin-top: 20px; padding: 10px; background: #f0f0f1; border-left: 4px solid #72aee6;">
-    <p style="margin: 0;"><strong>Nota:</strong> Debe hacer clic en <strong>"Guardar Configuración"</strong> al final de la página para persistir los cambios en la base de datos.</p>
+    <p class="siarhe-m-0"><strong>Nota:</strong> Debe hacer clic en <strong>"Guardar Configuración"</strong> al final de la página para persistir los cambios en la base de datos.</p>
 </div>
 
 <?php Siarhe_Admin::render_select2_js(); ?>
@@ -313,7 +313,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (startPage > 1) {
             html += `<a href="#" class="siarhe-page-btn" data-page="1">1</a>`;
-            if (startPage > 2) html += `<span style="color:#8c8f94;">...</span>`;
+            if (startPage > 2) html += `<span class="siarhe-text-faint">...</span>`;
         }
 
         for (let i = startPage; i <= endPage; i++) {
@@ -321,7 +321,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (endPage < totalPages) {
-            if (endPage < totalPages - 1) html += `<span style="color:#8c8f94;">...</span>`;
+            if (endPage < totalPages - 1) html += `<span class="siarhe-text-faint">...</span>`;
             html += `<a href="#" class="siarhe-page-btn" data-page="${totalPages}">${totalPages}</a>`;
         }
 

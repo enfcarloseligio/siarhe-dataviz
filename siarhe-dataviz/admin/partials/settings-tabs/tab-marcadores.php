@@ -59,14 +59,14 @@ if ( empty($marcadores_json) ) {
 <div class="siarhe-card siarhe-upload-card">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <div>
-            <h2 style="margin-top: 0;">📍 Gestor de Marcadores Espaciales (CSV)<?php Siarhe_Admin::help('Define como se ven y comportan los marcadores del mapa. Los cambios se guardan al instante.'); ?></h2>
-            <p style="margin-bottom: 0;">Administra las capas de puntos sobre el mapa. Puedes configurar marcadores de <strong>Posición</strong> o de <strong>Espectro</strong>, agrupar datos nominales y activar resúmenes geográficos.</p>
+            <h2 class="siarhe-mt-0">📍 Gestor de Marcadores Espaciales (CSV)<?php Siarhe_Admin::help('Define como se ven y comportan los marcadores del mapa. Los cambios se guardan al instante.'); ?></h2>
+            <p class="siarhe-mb-0">Administra las capas de puntos sobre el mapa. Puedes configurar marcadores de <strong>Posición</strong> o de <strong>Espectro</strong>, agrupar datos nominales y activar resúmenes geográficos.</p>
         </div>
-        <div style="display: flex; gap: 10px;">
+        <div class="siarhe-flex-gap">
             <button type="button" class="siarhe-btn-icon button button-secondary" id="btn-add-marcador">
                 <span class="dashicons dashicons-plus-alt2"></span> Añadir Nuevo
             </button>
-            <button type="button" class="siarhe-btn-icon button button-link-delete" id="btn-reset-marcadores" style="color: #d63638; border: 1px solid #d63638; padding: 0 10px; border-radius: 3px; background: #fff;">
+            <button type="button" class="siarhe-btn-danger-outline siarhe-btn-icon button button-link-delete" id="btn-reset-marcadores">
                 <span class="dashicons dashicons-undo"></span> Restaurar Iniciales
             </button>
         </div>
@@ -84,9 +84,9 @@ if ( empty($marcadores_json) ) {
     
     <div class="siarhe-toolbar">
         <div class="siarhe-table-controls">
-            <label style="font-size: 13px; color: #3c434a;">
+            <label>
                 Mostrar 
-                <select id="siarhe-items-per-page" style="margin: 0 5px; padding: 2px 24px 2px 8px; font-size: 13px; min-height: 28px;">
+                <select id="siarhe-items-per-page" class="siarhe-select-sm">
                     <option value="25">25</option>
                     <option value="50">50</option>
                     <option value="100">100</option>
@@ -96,7 +96,7 @@ if ( empty($marcadores_json) ) {
             </label>
         </div>
 
-        <div class="siarhe-pagination" style="border-top: none; padding: 0; background: transparent;">
+        <div class="siarhe-pagination--bare siarhe-pagination">
             <div class="siarhe-page-numbers" id="siarhe-pagination-controls-top"></div>
         </div>
 
@@ -122,14 +122,14 @@ if ( empty($marcadores_json) ) {
     </table>
 
     <div class="siarhe-pagination">
-        <div id="siarhe-marcadores-count" style="font-size: 13px; color: #64748b;"></div>
+        <div id="siarhe-marcadores-count" class="siarhe-count"></div>
         <div class="siarhe-page-numbers" id="siarhe-pagination-controls-bottom"></div>
     </div>
 </div>
 
 <div id="siarhe-edit-marcador-modal" class="siarhe-modal-overlay">
     <div class="siarhe-modal-content" style="max-width: 650px;">
-        <h2 style="margin-top:0; border-bottom: 1px solid #eee; padding-bottom: 15px;">
+        <h2 class="siarhe-modal-title">
             <span class="dashicons dashicons-location"></span> <span id="modal-mk-title">Editar Marcador</span>
         </h2>
         
@@ -153,21 +153,21 @@ if ( empty($marcadores_json) ) {
             <tr>
                 <th><label>Etiqueta Pública</label><?php Siarhe_Admin::help('Nombre que veran los visitantes en selectores y leyendas.'); ?></th>
                 <td>
-                    <input type="text" id="modal-mk-label" class="regular-text" style="width:100%;" required placeholder="ej. Unidades Móviles">
+                    <input type="text" id="modal-mk-label" class="siarhe-w-full regular-text" required placeholder="ej. Unidades Móviles">
                     <p class="description">El nombre que verán los usuarios en el selector y la leyenda.</p>
                 </td>
             </tr>
             <tr>
                 <th><label>Archivo Fuente (CSV)</label><?php Siarhe_Admin::help('CSV ya cargado en Carga de Datos > Marcadores que alimenta este marcador.'); ?></th>
                 <td>
-                    <select id="modal-mk-archivo" style="width:100%;">
+                    <select id="modal-mk-archivo" class="siarhe-w-full">
                         <option value="">-- Seleccionar archivo --</option>
                         <?php foreach($available_csvs as $csv): ?>
                             <option value="<?php echo esc_attr($csv); ?>"><?php echo esc_html($csv); ?></option>
                         <?php endforeach; ?>
                     </select>
                     <?php if(empty($available_csvs)): ?>
-                        <p class="description" style="color:#d63638;">No hay archivos CSV en la carpeta <code>/siarhe-data/markers/</code>.</p>
+                        <p class="siarhe-text-danger description">No hay archivos CSV en la carpeta <code>/siarhe-data/markers/</code>.</p>
                     <?php endif; ?>
                 </td>
             </tr>
@@ -183,8 +183,8 @@ if ( empty($marcadores_json) ) {
                 </td>
             </tr>
 
-            <tr id="mk-filtro-row" style="background: #f8fafc;">
-                <th><label>Lógica de Filtrado<br><small style="font-weight:normal;">(Opcional)</small></label><?php Siarhe_Admin::help('Si un solo CSV mezcla categorias, indica la columna y el valor que debe tener cada fila para ser parte de este marcador.'); ?></th>
+            <tr id="mk-filtro-row" class="siarhe-row-tint">
+                <th><label>Lógica de Filtrado<br><small class="siarhe-fw-normal">(Opcional)</small></label><?php Siarhe_Admin::help('Si un solo CSV mezcla categorias, indica la columna y el valor que debe tener cada fila para ser parte de este marcador.'); ?></th>
                 <td>
                     <p class="description" style="margin-top:0; margin-bottom:5px;">Útil si un solo CSV contiene múltiples categorías (Ej. Nivel de Atención).</p>
                     <input type="text" id="modal-mk-filtro-col" class="small-text" style="width:45%;" placeholder="Columna (ej. cve_n_atencion)">
@@ -194,7 +194,7 @@ if ( empty($marcadores_json) ) {
             </tr>
 
             <tr id="mk-espectro-row" style="display:none; background: #f0f9ff;">
-                <th><label>Configuración de Densidad<br><small style="font-weight:normal;">(Espectro y Spike)</small></label><?php Siarhe_Admin::help('Para Espectro y Spike: define de donde sale el valor numerico que determina el tamano (burbuja) o la altura y color (pico).'); ?></th>
+                <th><label>Configuración de Densidad<br><small class="siarhe-fw-normal">(Espectro y Spike)</small></label><?php Siarhe_Admin::help('Para Espectro y Spike: define de donde sale el valor numerico que determina el tamano (burbuja) o la altura y color (pico).'); ?></th>
                 <td>
                     <label><strong>Clave Relacionada (Par)</strong></label><br>
                     <input type="text" id="modal-mk-espectro-pair" class="regular-text" placeholder="Ej. tasa_total" style="margin-bottom:10px; width: 100%;">
@@ -207,29 +207,29 @@ if ( empty($marcadores_json) ) {
                     </select><br>
 
                     <label><strong>Columna Numérica</strong></label><br>
-                    <input type="text" id="modal-mk-espectro-col" class="regular-text" placeholder="Columna a evaluar (ej. total_casos)" style="width: 100%;">
+                    <input type="text" id="modal-mk-espectro-col" class="siarhe-w-full regular-text" placeholder="Columna a evaluar (ej. total_casos)">
                     <p class="description">En <strong>Espectro</strong> el tamaño de la burbuja, y en <strong>Spike</strong> la altura y el color del pico, se calculan con los números de esta columna. Los colores se eligen en <em>Personalizar &gt; Mapa &amp; Colores</em>.</p>
                 </td>
             </tr>
 
-            <tr style="background: #faf5ff;">
-                <th><label>Agrupación y Tooltip<br><small style="font-weight:normal;">(Para bases nominales)</small></label><?php Siarhe_Admin::help('Para bases con varios casos por punto: agrupa las filas por una columna (por ejemplo CLUES) y crea reglas de conteo que se muestran en el tooltip.'); ?></th>
+            <tr class="siarhe-row-tint siarhe-row-tint--purple">
+                <th><label>Agrupación y Tooltip<br><small class="siarhe-fw-normal">(Para bases nominales)</small></label><?php Siarhe_Admin::help('Para bases con varios casos por punto: agrupa las filas por una columna (por ejemplo CLUES) y crea reglas de conteo que se muestran en el tooltip.'); ?></th>
                 <td>
-                    <p class="description" style="margin-top:0; margin-bottom:10px;">Si tu base tiene múltiples casos para un mismo punto, agrúpalos aquí para sumar y crear reglas en el tooltip.</p>
+                    <p class="siarhe-mt-0 siarhe-mb-2 description">Si tu base tiene múltiples casos para un mismo punto, agrúpalos aquí para sumar y crear reglas en el tooltip.</p>
                     
                     <label><strong>1. Agrupar puntos por columna:</strong></label><br>
                     <input type="text" id="modal-mk-agrupar-col" class="regular-text" placeholder="Ej. CLUES (Dejar vacío si no aplica)" style="margin-bottom:15px; width: 100%;">
 
                     <label><strong>2. Reglas de Conteo en Tooltip (Máx 5):</strong></label>
-                    <div id="rules-container" style="margin-top:5px;"></div>
+                    <div id="rules-container" class="siarhe-mt-1"></div>
                     
-                    <button type="button" class="siarhe-btn-icon button button-small" id="btn-add-rule" style="margin-top:5px;">
+                    <button type="button" class="siarhe-mt-1 siarhe-btn-icon button button-small" id="btn-add-rule">
                         <span class="dashicons dashicons-plus-alt2"></span> Añadir Regla
                     </button>
                 </td>
             </tr>
 
-            <tr style="background: #f0fdf4; border-top: 1px dashed #ccc;">
+            <tr class="siarhe-row-tint siarhe-row-tint--green">
                 <th><label>Resumen Geográfico</label><?php Siarhe_Admin::help('Al activarlo, el tooltip del municipio o estado suma los valores de este marcador dentro de su territorio.'); ?></th>
                 <td>
                     <label class="siarhe-switch">
@@ -252,7 +252,7 @@ if ( empty($marcadores_json) ) {
                 </td>
             </tr>
         </table>
-        <div style="text-align:right; margin-top:20px; border-top: 1px solid #eee; padding-top: 15px;">
+        <div class="siarhe-modal-footer">
             <button type="button" class="button button-secondary" id="close-mk-modal">Cancelar</button>
             <button type="button" class="button button-primary" id="save-mk-btn">Guardar Cambios</button>
         </div>
@@ -380,7 +380,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (keysToRender.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 20px; color:#8c8f94;">No se encontraron marcadores con los criterios de búsqueda especificados.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="siarhe-empty-cell">No se encontraron marcadores con los criterios de búsqueda especificados.</td></tr>`;
         } else {
             keysToRender.forEach(key => {
                 const item = marcadoresObj[key];
@@ -388,24 +388,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 const vis = item.visibilidad || 'publico'; 
                 const tipoMeta = { posicion: ['neutral', '📍 Posición'], espectro: ['warning', '🔴 Espectro'], spike: ['warning', '📈 Spike'] };
                 const [badgeType, badgeLabel] = tipoMeta[item.tipo] || tipoMeta.posicion;
-                const coreBadge = isCore ? '<span class="siarhe-badge brand" style="margin-left:5px;"><span class="dashicons dashicons-lock" style="font-size:12px;width:12px;height:12px;margin-top:2px;"></span> Nativo</span>' : '';
+                const coreBadge = isCore ? '<span class="siarhe-ml-1 siarhe-badge brand"><span class="dashicons dashicons-lock" style="font-size:12px;width:12px;height:12px;margin-top:2px;"></span> Nativo</span>' : '';
                 const autorOriginal = isCore ? 'Sistema' : (item.created_by || item.last_edited_by || 'Desconocido');
                 const fechaOriginal = isCore ? 'Integrado en el código' : (item.created_at || item.last_edited_at || '');
                 
                 let auditHtml = `
-                    <div style="margin-bottom: 8px; line-height: 1.3;">
-                        <span style="font-size:10px; font-weight:bold; color:#94a3b8; text-transform:uppercase;">Creado por:</span><br>
-                        <span style="font-size:12px; color:#0f172a; font-weight:500;">${autorOriginal}</span><br>
-                        <span style="color:#64748b; font-size:11px;">${window.SiarheAdmin.formatDate(fechaOriginal)}</span>
+                    <div class="siarhe-audit">
+                        <span class="siarhe-audit__label">Creado por:</span><br>
+                        <span class="siarhe-audit__who">${autorOriginal}</span><br>
+                        <span class="siarhe-audit__date">${window.SiarheAdmin.formatDate(fechaOriginal)}</span>
                     </div>
                 `;
 
                 if (!isCore && item.last_edited_by && item.last_edited_at !== item.created_at) {
                     auditHtml += `
-                        <div style="line-height: 1.3; border-top: 1px dashed #e2e8f0; padding-top: 6px;">
-                            <span style="font-size:10px; font-weight:bold; color:#0ea5e9; text-transform:uppercase;">Última edición:</span><br>
-                            <span style="font-size:12px; color:#0f172a; font-weight:500;">${item.last_edited_by}</span><br>
-                            <span style="color:#64748b; font-size:11px;">${window.SiarheAdmin.formatDate(item.last_edited_at)}</span>
+                        <div class="siarhe-audit">
+                            <span class="siarhe-audit__label siarhe-audit__label--edit">Última edición:</span><br>
+                            <span class="siarhe-audit__who">${item.last_edited_by}</span><br>
+                            <span class="siarhe-audit__date">${window.SiarheAdmin.formatDate(item.last_edited_at)}</span>
                         </div>
                     `;
                 }
@@ -476,7 +476,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (startPage > 1) {
             html += `<a href="#" class="siarhe-page-btn" data-page="1">1</a>`;
-            if (startPage > 2) html += `<span style="color:#8c8f94;">...</span>`;
+            if (startPage > 2) html += `<span class="siarhe-text-faint">...</span>`;
         }
 
         for (let i = startPage; i <= endPage; i++) {
@@ -484,7 +484,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (endPage < totalPages) {
-            if (endPage < totalPages - 1) html += `<span style="color:#8c8f94;">...</span>`;
+            if (endPage < totalPages - 1) html += `<span class="siarhe-text-faint">...</span>`;
             html += `<a href="#" class="siarhe-page-btn" data-page="${totalPages}">${totalPages}</a>`;
         }
 

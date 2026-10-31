@@ -54,14 +54,14 @@ if ( empty($metricas_json) ) {
 <div class="siarhe-card siarhe-upload-card">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <div>
-            <h2 style="margin-top: 0;">📊 Gestor de Métricas e Indicadores (CSV)<?php Siarhe_Admin::help('Define que columnas del CSV son indicadores, como se llaman y como se colorean en el mapa. No modifica los archivos CSV.'); ?></h2>
-            <p style="margin-bottom: 0;">Configura los indicadores que se mostrarán en el mapa y la tabla. Las variables <strong>nativas</strong> están protegidas, pero puedes editar sus descripciones o añadir nuevas variables siempre y cuando existan en tu archivo CSV.</p>
+            <h2 class="siarhe-mt-0">📊 Gestor de Métricas e Indicadores (CSV)<?php Siarhe_Admin::help('Define que columnas del CSV son indicadores, como se llaman y como se colorean en el mapa. No modifica los archivos CSV.'); ?></h2>
+            <p class="siarhe-mb-0">Configura los indicadores que se mostrarán en el mapa y la tabla. Las variables <strong>nativas</strong> están protegidas, pero puedes editar sus descripciones o añadir nuevas variables siempre y cuando existan en tu archivo CSV.</p>
         </div>
-        <div style="display: flex; gap: 10px;">
+        <div class="siarhe-flex-gap">
             <button type="button" class="siarhe-btn-icon button button-secondary" id="btn-add-metrica">
                 <span class="dashicons dashicons-plus-alt2"></span> Añadir Nueva
             </button>
-            <button type="button" class="siarhe-btn-icon button button-link-delete" id="btn-reset-metricas" style="color: #d63638; border: 1px solid #d63638; padding: 0 10px; border-radius: 3px; background: #fff;">
+            <button type="button" class="siarhe-btn-danger-outline siarhe-btn-icon button button-link-delete" id="btn-reset-metricas">
                 <span class="dashicons dashicons-undo"></span> Restaurar Iniciales
             </button>
         </div>
@@ -77,9 +77,9 @@ if ( empty($metricas_json) ) {
     <h2 class="siarhe-card__title">Métricas registradas<?php Siarhe_Admin::help( 'Columnas del CSV que el mapa y la tabla pueden mostrar como indicador. Las nativas (con candado) no se pueden eliminar. Puedes buscar, ordenar y editar cada métrica con el botón de acciones.' ); ?></h2>
     <div class="siarhe-toolbar">
         <div class="siarhe-table-controls">
-            <label style="font-size: 13px; color: #3c434a;">
+            <label>
                 Mostrar 
-                <select id="siarhe-items-per-page" style="margin: 0 5px; padding: 2px 24px 2px 8px; font-size: 13px; min-height: 28px;">
+                <select id="siarhe-items-per-page" class="siarhe-select-sm">
                     <option value="25">25</option>
                     <option value="50">50</option>
                     <option value="100">100</option>
@@ -89,7 +89,7 @@ if ( empty($metricas_json) ) {
             </label>
         </div>
 
-        <div class="siarhe-pagination" style="border-top: none; padding: 0; background: transparent;">
+        <div class="siarhe-pagination--bare siarhe-pagination">
             <div class="siarhe-page-numbers" id="siarhe-pagination-controls-top"></div>
         </div>
 
@@ -116,14 +116,14 @@ if ( empty($metricas_json) ) {
     </table>
 
     <div class="siarhe-pagination">
-        <div id="siarhe-metricas-count" style="font-size: 13px; color: #64748b;"></div>
+        <div id="siarhe-metricas-count" class="siarhe-count"></div>
         <div class="siarhe-page-numbers" id="siarhe-pagination-controls-bottom"></div>
     </div>
 </div>
 
 <div id="siarhe-edit-metric-modal" class="siarhe-modal-overlay">
     <div class="siarhe-modal-content" style="max-width: 750px;">
-        <h2 style="margin-top:0; border-bottom: 1px solid #eee; padding-bottom: 15px;">
+        <h2 class="siarhe-modal-title">
             <span class="dashicons dashicons-edit"></span> <span id="modal-metric-title">Editar Métrica</span>
         </h2>
         
@@ -147,7 +147,7 @@ if ( empty($metricas_json) ) {
             <tr>
                 <th><label>Etiqueta Larga</label><?php Siarhe_Admin::help('Nombre completo de la metrica, usado en tooltips y descripciones.'); ?></th>
                 <td>
-                    <input type="text" id="modal-metric-full" class="regular-text" style="width:100%;" required placeholder="ej. Tasa de enfermeras quirúrgicas por mil hab.">
+                    <input type="text" id="modal-metric-full" class="siarhe-w-full regular-text" required placeholder="ej. Tasa de enfermeras quirúrgicas por mil hab.">
                 </td>
             </tr>
             
@@ -182,7 +182,7 @@ if ( empty($metricas_json) ) {
                         <option value="registrados">Privado</option>
                         <option value="oculto">Oculto</option>
                     </select>
-                    <p class="description" id="desc-visibilidad" style="margin-top: 5px;">Controla quién puede ver y seleccionar esta métrica.</p>
+                    <p class="siarhe-mt-1 description" id="desc-visibilidad">Controla quién puede ver y seleccionar esta métrica.</p>
                 </td>
             </tr>
             <tr>
@@ -192,10 +192,10 @@ if ( empty($metricas_json) ) {
                 </td>
             </tr>
             
-            <tr style="border-top: 1px dashed #ccc;">
+            <tr class="siarhe-row-divider">
                 <th><label>Escala de Mapa por Defecto</label><?php Siarhe_Admin::help('Forma de colorear el mapa al cargar esta metrica: cuartiles automaticos, rangos propios o un solo color en degradado.'); ?></th>
                 <td>
-                    <select id="modal-metric-scale-type" style="width: 100%;">
+                    <select id="modal-metric-scale-type" class="siarhe-w-full">
                         <option value="cuartiles">Degradado por Colores (Cuartiles autocalculados)</option>
                         <option value="rangos">Rangos (Personalizados)</option>
                         <option value="monocromatico">Escala Monocromática</option>
@@ -221,42 +221,42 @@ if ( empty($metricas_json) ) {
             <tr id="modal-metric-ranges-row" style="display: none;">
                 <th><label>Valores de Corte</label><?php Siarhe_Admin::help('Limites de cada rango. Usa comodines (Vmin, Q1, Q2, Q3, Vmax) que se calculan con los datos, o numeros fijos.'); ?></th>
                 <td>
-                    <p class="description" style="margin-top:0; margin-bottom:10px;">
+                    <p class="siarhe-mt-0 siarhe-mb-2 description">
                         Comodines autocalculables: <code>Vmin</code>, <code>Q1</code>, <code>Q2</code>, <code>Q3</code>, <code>Vmax</code> o ingresa valores numéricos fijos.
                     </p>
                     
                     <div style="display:flex; flex-direction:column; gap:8px;">
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <span style="width:60px; font-weight:bold; font-size:11px; color:#2271b1;">Rango 1:</span>
-                            <span style="font-size:12px; color:#646970;">De</span>
-                            <input type="text" id="modal-r1-min" class="small-text" placeholder="Vmin" style="width:70px; text-align:center;">
-                            <span style="font-size:12px; color:#646970;">a</span>
+                        <div class="siarhe-inline-row">
+                            <span class="siarhe-range-label">Rango 1:</span>
+                            <span class="siarhe-text-sm siarhe-text-muted">De</span>
+                            <input type="text" id="modal-r1-min" class="siarhe-input-xs small-text" placeholder="Vmin">
+                            <span class="siarhe-text-sm siarhe-text-muted">a</span>
                             <select id="modal-r1-op"><option value="<">&lt;</option><option value="<=">&lt;=</option><option value="=">=</option></select>
-                            <input type="text" id="modal-r1-max" class="small-text" placeholder="Q1" style="width:70px; text-align:center;">
+                            <input type="text" id="modal-r1-max" class="siarhe-input-xs small-text" placeholder="Q1">
                         </div>
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <span style="width:60px; font-weight:bold; font-size:11px; color:#2271b1;">Rango 2:</span>
-                            <span style="font-size:12px; color:#646970;">De</span>
-                            <input type="text" id="modal-r2-min" class="small-text" placeholder="Q1" style="width:70px; text-align:center;">
-                            <span style="font-size:12px; color:#646970;">a</span>
+                        <div class="siarhe-inline-row">
+                            <span class="siarhe-range-label">Rango 2:</span>
+                            <span class="siarhe-text-sm siarhe-text-muted">De</span>
+                            <input type="text" id="modal-r2-min" class="siarhe-input-xs small-text" placeholder="Q1">
+                            <span class="siarhe-text-sm siarhe-text-muted">a</span>
                             <select id="modal-r2-op"><option value="<">&lt;</option><option value="<=">&lt;=</option><option value="=">=</option></select>
-                            <input type="text" id="modal-r2-max" class="small-text" placeholder="Q2" style="width:70px; text-align:center;">
+                            <input type="text" id="modal-r2-max" class="siarhe-input-xs small-text" placeholder="Q2">
                         </div>
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <span style="width:60px; font-weight:bold; font-size:11px; color:#2271b1;">Rango 3:</span>
-                            <span style="font-size:12px; color:#646970;">De</span>
-                            <input type="text" id="modal-r3-min" class="small-text" placeholder="Q2" style="width:70px; text-align:center;">
-                            <span style="font-size:12px; color:#646970;">a</span>
+                        <div class="siarhe-inline-row">
+                            <span class="siarhe-range-label">Rango 3:</span>
+                            <span class="siarhe-text-sm siarhe-text-muted">De</span>
+                            <input type="text" id="modal-r3-min" class="siarhe-input-xs small-text" placeholder="Q2">
+                            <span class="siarhe-text-sm siarhe-text-muted">a</span>
                             <select id="modal-r3-op"><option value="<">&lt;</option><option value="<=">&lt;=</option><option value="=">=</option></select>
-                            <input type="text" id="modal-r3-max" class="small-text" placeholder="Q3" style="width:70px; text-align:center;">
+                            <input type="text" id="modal-r3-max" class="siarhe-input-xs small-text" placeholder="Q3">
                         </div>
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <span style="width:60px; font-weight:bold; font-size:11px; color:#2271b1;">Rango 4:</span>
-                            <span style="font-size:12px; color:#646970;">De</span>
-                            <input type="text" id="modal-r4-min" class="small-text" placeholder="Q3" style="width:70px; text-align:center;">
-                            <span style="font-size:12px; color:#646970;">a</span>
+                        <div class="siarhe-inline-row">
+                            <span class="siarhe-range-label">Rango 4:</span>
+                            <span class="siarhe-text-sm siarhe-text-muted">De</span>
+                            <input type="text" id="modal-r4-min" class="siarhe-input-xs small-text" placeholder="Q3">
+                            <span class="siarhe-text-sm siarhe-text-muted">a</span>
                             <select id="modal-r4-op"><option value="<">&lt;</option><option value="<=">&lt;=</option><option value="=">=</option></select>
-                            <input type="text" id="modal-r4-max" class="small-text" placeholder="Vmax" style="width:70px; text-align:center;">
+                            <input type="text" id="modal-r4-max" class="siarhe-input-xs small-text" placeholder="Vmax">
                         </div>
                     </div>
                 </td>
@@ -266,20 +266,20 @@ if ( empty($metricas_json) ) {
                 <th><label>Colores de Nivel</label><?php Siarhe_Admin::help('Color de cada uno de los 4 rangos, solo para esta metrica.'); ?></th>
                 <td>
                     <div style="display:flex; flex-direction:column; gap:12px;">
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <span style="width:60px; font-weight:bold; font-size:11px; color:#2271b1;">Rango 1:</span>
+                        <div class="siarhe-inline-row siarhe-inline-row--lg">
+                            <span class="siarhe-range-label">Rango 1:</span>
                             <input type="text" id="modal-r1-color" class="siarhe-color-field-modal" value="">
                         </div>
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <span style="width:60px; font-weight:bold; font-size:11px; color:#2271b1;">Rango 2:</span>
+                        <div class="siarhe-inline-row siarhe-inline-row--lg">
+                            <span class="siarhe-range-label">Rango 2:</span>
                             <input type="text" id="modal-r2-color" class="siarhe-color-field-modal" value="">
                         </div>
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <span style="width:60px; font-weight:bold; font-size:11px; color:#2271b1;">Rango 3:</span>
+                        <div class="siarhe-inline-row siarhe-inline-row--lg">
+                            <span class="siarhe-range-label">Rango 3:</span>
                             <input type="text" id="modal-r3-color" class="siarhe-color-field-modal" value="">
                         </div>
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <span style="width:60px; font-weight:bold; font-size:11px; color:#2271b1;">Rango 4:</span>
+                        <div class="siarhe-inline-row siarhe-inline-row--lg">
+                            <span class="siarhe-range-label">Rango 4:</span>
                             <input type="text" id="modal-r4-color" class="siarhe-color-field-modal" value="">
                         </div>
                     </div>
@@ -287,7 +287,7 @@ if ( empty($metricas_json) ) {
             </tr>
 
         </table>
-        <div style="text-align:right; margin-top:20px; border-top: 1px solid #eee; padding-top: 15px;">
+        <div class="siarhe-modal-footer">
             <button type="button" class="button button-secondary" id="close-metric-modal">Cancelar</button>
             <button type="button" class="button button-primary" id="save-metric-btn">Guardar Cambios</button>
         </div>
@@ -388,7 +388,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (keysToRender.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 20px; color:#8c8f94;">No se encontraron métricas con los criterios de búsqueda especificados.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="siarhe-empty-cell">No se encontraron métricas con los criterios de búsqueda especificados.</td></tr>`;
         } else {
             keysToRender.forEach(key => {
                 const item = metricasObj[key];
@@ -399,7 +399,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 const badgeType = item.tipo === 'tasa' ? 'success' : 'neutral';
                 const badgeLabel = item.tipo === 'tasa' ? 'Tasa' : 'Absoluto';
-                const coreBadge = isCore ? '<span class="siarhe-badge brand" style="margin-left:5px;"><span class="dashicons dashicons-lock" style="font-size:12px;width:12px;height:12px;margin-top:2px;"></span> Nativa</span>' : '';
+                const coreBadge = isCore ? '<span class="siarhe-ml-1 siarhe-badge brand"><span class="dashicons dashicons-lock" style="font-size:12px;width:12px;height:12px;margin-top:2px;"></span> Nativa</span>' : '';
                 
                 let scaleBadge = '';
                 if (item.scale_type === 'rangos') scaleBadge = '<br><span style="font-size:10px; color:#b45309;">(Rangos)</span>';
@@ -410,19 +410,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 const fechaOriginal = isCore ? 'Integrado en el código' : (item.created_at || item.last_edited_at || '');
                 
                 let auditHtml = `
-                    <div style="margin-bottom: 8px; line-height: 1.3;">
-                        <span style="font-size:10px; font-weight:bold; color:#94a3b8; text-transform:uppercase;">Creado por:</span><br>
-                        <span style="font-size:12px; color:#0f172a; font-weight:500;">${autorOriginal}</span><br>
-                        <span style="color:#64748b; font-size:11px;">${window.SiarheAdmin.formatDate(fechaOriginal)}</span>
+                    <div class="siarhe-audit">
+                        <span class="siarhe-audit__label">Creado por:</span><br>
+                        <span class="siarhe-audit__who">${autorOriginal}</span><br>
+                        <span class="siarhe-audit__date">${window.SiarheAdmin.formatDate(fechaOriginal)}</span>
                     </div>
                 `;
 
                 if (!isCore && item.last_edited_by && item.last_edited_at !== item.created_at) {
                     auditHtml += `
-                        <div style="line-height: 1.3; border-top: 1px dashed #e2e8f0; padding-top: 6px;">
-                            <span style="font-size:10px; font-weight:bold; color:#0ea5e9; text-transform:uppercase;">Última edición:</span><br>
-                            <span style="font-size:12px; color:#0f172a; font-weight:500;">${item.last_edited_by}</span><br>
-                            <span style="color:#64748b; font-size:11px;">${window.SiarheAdmin.formatDate(item.last_edited_at)}</span>
+                        <div class="siarhe-audit">
+                            <span class="siarhe-audit__label siarhe-audit__label--edit">Última edición:</span><br>
+                            <span class="siarhe-audit__who">${item.last_edited_by}</span><br>
+                            <span class="siarhe-audit__date">${window.SiarheAdmin.formatDate(item.last_edited_at)}</span>
                         </div>
                     `;
                 }
@@ -492,7 +492,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (startPage > 1) {
             html += `<a href="#" class="siarhe-page-btn" data-page="1">1</a>`;
-            if (startPage > 2) html += `<span style="color:#8c8f94;">...</span>`;
+            if (startPage > 2) html += `<span class="siarhe-text-faint">...</span>`;
         }
 
         for (let i = startPage; i <= endPage; i++) {
@@ -500,7 +500,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (endPage < totalPages) {
-            if (endPage < totalPages - 1) html += `<span style="color:#8c8f94;">...</span>`;
+            if (endPage < totalPages - 1) html += `<span class="siarhe-text-faint">...</span>`;
             html += `<a href="#" class="siarhe-page-btn" data-page="${totalPages}">${totalPages}</a>`;
         }
 
@@ -654,7 +654,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!isNew && lockedVisibilityKeys.includes(key)) {
             visInput.value = 'publico'; visInput.disabled = true; visInput.style.background = '#f0f0f1';
-            descVis.innerHTML = '<span style="color:#d63638;">🔒 La visibilidad de esta métrica crítica no puede ser alterada.</span>';
+            descVis.innerHTML = '<span class="siarhe-text-danger">🔒 La visibilidad de esta métrica crítica no puede ser alterada.</span>';
         } else {
             visInput.disabled = false; visInput.style.background = '#fff';
             descVis.innerHTML = 'Controla quién puede ver y seleccionar esta métrica.';

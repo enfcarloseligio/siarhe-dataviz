@@ -82,22 +82,22 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
     <h2>🎨 Personalización Visual (Frontend)</h2>
     <p>Define los colores que verán los usuarios en los mapas y tablas del sitio web.</p>
 
-    <h3 class="siarhe-section-title" style="margin-top: 30px; border-bottom: 1px solid #eee; padding-bottom: 10px;">Mapa de Calor (Escala de Colores)<?php Siarhe_Admin::help('Colores generales del mapa. Cada metrica puede usar estos o los suyos propios.'); ?></h3>
+    <h3 class="siarhe-section-spaced siarhe-section-spaced--first siarhe-section-title">Mapa de Calor (Escala de Colores)<?php Siarhe_Admin::help('Colores generales del mapa. Cada metrica puede usar estos o los suyos propios.'); ?></h3>
     
     <table class="form-table" role="presentation">
         <tr>
             <th scope="row">Gradiente Cuartiles (Distribución Matemática)<?php Siarhe_Admin::help('Colorea las regiones segun el cuartil en que cae su valor: minimo, Q1, mediana, Q3 y maximo.'); ?></th>
             <td>
-                <p class="description" style="margin-top:0; margin-bottom:10px;">Se aplica cuando el indicador requiere división en cuartiles porcentuales estadísticos estandarizados.</p>
+                <p class="siarhe-mt-0 siarhe-mb-2 description">Se aplica cuando el indicador requiere división en cuartiles porcentuales estadísticos estandarizados.</p>
                 <div class="siarhe-grad-row">
                     <div class="siarhe-color-box"><input type="text" name="siarhe_map_options[map_c1]" value="<?php echo esc_attr($opts['map_c1']); ?>" class="siarhe-color-field" data-alpha="true"><p class="description"><small>Mínimo</small></p></div>
-                    <span class="dashicons dashicons-arrow-right-alt" style="color:#aaa;"></span>
+                    <span class="siarhe-text-faint dashicons dashicons-arrow-right-alt"></span>
                     <div class="siarhe-color-box"><input type="text" name="siarhe_map_options[map_c2]" value="<?php echo esc_attr($opts['map_c2']); ?>" class="siarhe-color-field"><p class="description"><small>Q1</small></p></div>
-                    <span class="dashicons dashicons-arrow-right-alt" style="color:#aaa;"></span>
+                    <span class="siarhe-text-faint dashicons dashicons-arrow-right-alt"></span>
                     <div class="siarhe-color-box"><input type="text" name="siarhe_map_options[map_c3]" value="<?php echo esc_attr($opts['map_c3']); ?>" class="siarhe-color-field"><p class="description"><small>Mediana</small></p></div>
-                    <span class="dashicons dashicons-arrow-right-alt" style="color:#aaa;"></span>
+                    <span class="siarhe-text-faint dashicons dashicons-arrow-right-alt"></span>
                     <div class="siarhe-color-box"><input type="text" name="siarhe_map_options[map_c4]" value="<?php echo esc_attr($opts['map_c4']); ?>" class="siarhe-color-field"><p class="description"><small>Q3</small></p></div>
-                    <span class="dashicons dashicons-arrow-right-alt" style="color:#aaa;"></span>
+                    <span class="siarhe-text-faint dashicons dashicons-arrow-right-alt"></span>
                     <div class="siarhe-color-box"><input type="text" name="siarhe_map_options[map_c5]" value="<?php echo esc_attr($opts['map_c5']); ?>" class="siarhe-color-field"><p class="description"><small>Máximo</small></p></div>
                 </div>
             </td>
@@ -106,23 +106,23 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
         <tr>
             <th scope="row">Gradiente por Rangos (4 Niveles Personalizados)<?php Siarhe_Admin::help('Colores para la escala por rangos, de 4 niveles con cortes definidos en cada metrica.'); ?></th>
             <td>
-                <p class="description" style="margin-top:0; margin-bottom:10px;">Se aplica en indicadores donde el usuario ha definido manualmente 4 rangos de valores absolutos o tasas (Ej: Rango 1, Rango 2, etc.).</p>
+                <p class="siarhe-mt-0 siarhe-mb-2 description">Se aplica en indicadores donde el usuario ha definido manualmente 4 rangos de valores absolutos o tasas (Ej: Rango 1, Rango 2, etc.).</p>
                 <div class="siarhe-grad-row">
                     <div class="siarhe-color-box">
                         <input type="text" name="siarhe_map_options[range_c1]" value="<?php echo esc_attr($opts['range_c1']); ?>" class="siarhe-color-field" data-alpha="true">
                         <p class="description"><small>Rango 1<br>(Ej. Vmin < Q1)</small></p>
                     </div>
-                    <span class="dashicons dashicons-arrow-right-alt" style="color:#aaa;"></span>
+                    <span class="siarhe-text-faint dashicons dashicons-arrow-right-alt"></span>
                     <div class="siarhe-color-box">
                         <input type="text" name="siarhe_map_options[range_c2]" value="<?php echo esc_attr($opts['range_c2']); ?>" class="siarhe-color-field">
                         <p class="description"><small>Rango 2<br>(Ej. Q1 < Q2)</small></p>
                     </div>
-                    <span class="dashicons dashicons-arrow-right-alt" style="color:#aaa;"></span>
+                    <span class="siarhe-text-faint dashicons dashicons-arrow-right-alt"></span>
                     <div class="siarhe-color-box">
                         <input type="text" name="siarhe_map_options[range_c3]" value="<?php echo esc_attr($opts['range_c3']); ?>" class="siarhe-color-field">
                         <p class="description"><small>Rango 3<br>(Ej. Q2 < Q3)</small></p>
                     </div>
-                    <span class="dashicons dashicons-arrow-right-alt" style="color:#aaa;"></span>
+                    <span class="siarhe-text-faint dashicons dashicons-arrow-right-alt"></span>
                     <div class="siarhe-color-box">
                         <input type="text" name="siarhe_map_options[range_c4]" value="<?php echo esc_attr($opts['range_c4']); ?>" class="siarhe-color-field">
                         <p class="description"><small>Rango 4<br>(Ej. Q3 ≤ Vmax)</small></p>
@@ -133,13 +133,13 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
         <tr>
             <th scope="row">Gradiente Monocromático<?php Siarhe_Admin::help('Degradado entre dos colores (minimo y maximo) para la escala monocromatica.'); ?></th>
             <td>
-                <p class="description" style="margin-top:0; margin-bottom:10px;">Esta escala se usa cuando el usuario activa la opción de ver el mapa sin cortes de cuartiles (escala lineal suave).</p>
+                <p class="siarhe-mt-0 siarhe-mb-2 description">Esta escala se usa cuando el usuario activa la opción de ver el mapa sin cortes de cuartiles (escala lineal suave).</p>
                 <div class="siarhe-grad-row">
                     <div class="siarhe-color-box">
                         <input type="text" name="siarhe_map_options[mono_min]" value="<?php echo esc_attr($opts['mono_min']); ?>" class="siarhe-color-field">
                         <p class="description"><small>Color Claro (Mínimo)</small></p>
                     </div>
-                    <span class="dashicons dashicons-arrow-right-alt" style="color:#aaa;"></span>
+                    <span class="siarhe-text-faint dashicons dashicons-arrow-right-alt"></span>
                     <div class="siarhe-color-box">
                         <input type="text" name="siarhe_map_options[mono_max]" value="<?php echo esc_attr($opts['mono_max']); ?>" class="siarhe-color-field">
                         <p class="description"><small>Color Oscuro (Máximo)</small></p>
@@ -159,7 +159,7 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
         </tr>
     </table>
 
-    <h3 class="siarhe-section-title" style="margin-top: 40px; border-bottom: 1px solid #eee; padding-bottom: 10px;">Estilos de Tabla de Datos<?php Siarhe_Admin::help('Apariencia de la tabla de datos que se muestra en el sitio publico.'); ?></h3>
+    <h3 class="siarhe-section-spaced siarhe-section-title">Estilos de Tabla de Datos<?php Siarhe_Admin::help('Apariencia de la tabla de datos que se muestra en el sitio publico.'); ?></h3>
     
     <table class="form-table">
         <tr>
@@ -184,7 +184,7 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
         </tr>
     </table>
 
-    <h3 class="siarhe-section-title" style="margin-top: 40px; border-bottom: 1px solid #eee; padding-bottom: 10px;">📍 Estilos Dinámicos de Marcadores<?php Siarhe_Admin::help('Forma, relleno y borde de cada marcador. Se generan a partir de los marcadores definidos en Configuracion > Marcadores.'); ?></h3>
+    <h3 class="siarhe-section-spaced siarhe-section-title">📍 Estilos Dinámicos de Marcadores<?php Siarhe_Admin::help('Forma, relleno y borde de cada marcador. Se generan a partir de los marcadores definidos en Configuracion > Marcadores.'); ?></h3>
     <p class="description">Aquí aparecerán automáticamente todos los marcadores que registres en la pestaña "Marcadores (CSV)".</p>
     
     <table class="form-table">

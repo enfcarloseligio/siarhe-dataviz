@@ -115,12 +115,12 @@ if ( isset($_GET['status']) ) {
 
 <div class="siarhe-card siarhe-upload-card">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
-        <h3 style="margin: 0;">➕ Incorporar Nueva Variable (CSV)<?php Siarhe_Admin::help('Registra una nueva variable de marcador antes de subir su CSV.'); ?></h3>
+        <h3 class="siarhe-m-0">➕ Incorporar Nueva Variable (CSV)<?php Siarhe_Admin::help('Registra una nueva variable de marcador antes de subir su CSV.'); ?></h3>
         
         <form id="form-reset-variables" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-confirm="PRECAUCIÓN: se borrarán permanentemente TODAS las variables personalizadas y sus archivos CSV del servidor. ¿Deseas continuar?" data-confirm-ok="Restaurar">
             <input type="hidden" name="action" value="siarhe_marker_var_reset">
             <?php wp_nonce_field('reset_variables_nonce', 'reset_nonce'); ?>
-            <button type="submit" class="siarhe-btn-icon button button-link-delete" style="color: #d63638; border: 1px solid #d63638; padding: 0 10px; border-radius: 3px; background: #fff;">
+            <button type="submit" class="siarhe-btn-danger-outline siarhe-btn-icon button button-link-delete">
                 <span class="dashicons dashicons-undo"></span> Restaurar Iniciales
             </button>
         </form>
@@ -158,7 +158,7 @@ if ( isset($_GET['status']) ) {
         <div class="siarhe-table-controls">
             <label>
                 Mostrar 
-                <select id="siarhe-items-per-page" style="margin: 0 5px; padding: 2px 24px 2px 8px; font-size: 13px; min-height: 28px;">
+                <select id="siarhe-items-per-page" class="siarhe-select-sm">
                     <option value="25">25</option>
                     <option value="50">50</option>
                     <option value="100">100</option>
@@ -203,7 +203,7 @@ if ( isset($_GET['status']) ) {
             <tr class="siarhe-data-row">
                 <td data-label="Marcador" data-mobile-role="primary">
                     <strong><?php echo esc_html($info['label']); ?></strong>
-                    <?php if(!empty($info['is_core'])) echo '<br><small style="color:#aaa;">(Nativo)</small>'; ?>
+                    <?php if(!empty($info['is_core'])) echo '<br><small class="siarhe-text-faint">(Nativo)</small>'; ?>
                 </td>
                 
                 <td data-label="Estado" data-mobile-role="secondary">
@@ -262,7 +262,7 @@ if ( isset($_GET['status']) ) {
                             </span>
                         </div>
                     <?php else : ?>
-                        <span style="color:#cbd5e1;">—</span>
+                        <span class="siarhe-text-faint">—</span>
                     <?php endif; ?>
                 </td>
                 

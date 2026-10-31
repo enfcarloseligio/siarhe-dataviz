@@ -79,8 +79,8 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
 </style>
 
 <div class="siarhe-card">
-    <h2 style="margin-top: 0;">ℹ️ Gestor de Contenido y Diseño en Tooltips</h2>
-    <p style="margin-bottom: 0;">Personaliza la información, el orden y los colores de las tarjetas flotantes del mapa y de los marcadores. Arrastra desde el ícono <span class="dashicons dashicons-menu" style="font-size:16px; width:16px; height:16px;"></span> para ordenar.</p>
+    <h2 class="siarhe-mt-0">ℹ️ Gestor de Contenido y Diseño en Tooltips</h2>
+    <p class="siarhe-mb-0">Personaliza la información, el orden y los colores de las tarjetas flotantes del mapa y de los marcadores. Arrastra desde el ícono <span class="dashicons dashicons-menu" style="font-size:16px; width:16px; height:16px;"></span> para ordenar.</p>
 </div>
 
 <input type="hidden" name="siarhe_tooltip_config" id="siarhe_tooltip_config" value="<?php echo esc_attr($tooltip_json); ?>">
@@ -89,7 +89,7 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
     <h3 style="margin-top: 0; border-bottom: 2px solid #0A66C2; padding-bottom: 10px; display: inline-block;">
         🗺️ Tooltip del Mapa (Regiones)<?php Siarhe_Admin::help('Tarjeta que aparece al pasar el cursor sobre un estado o municipio. Activa los datos con el interruptor y ordenalos arrastrando.'); ?></h3>
 
-    <div class="siarhe-draggable-list" id="geo-sortable-list" style="margin-bottom: 25px;">
+    <div class="siarhe-mb-5 siarhe-draggable-list" id="geo-sortable-list">
         <?php
         // Función auxiliar para imprimir las filas en el orden guardado
         $filas_html = [
@@ -99,7 +99,7 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
                     <label class="siarhe-toggle"><input type="checkbox" id="tt_geo_pob"><span class="siarhe-slider"></span></label>
                     <div>
                         <strong>Población Total</strong><br>
-                        <small style="color: #64748b;">Muestra la población del estado o municipio.</small>
+                        <small class="siarhe-text-muted">Muestra la población del estado o municipio.</small>
                     </div>
                 </div>',
             'abs' => '
@@ -108,7 +108,7 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
                     <label class="siarhe-toggle"><input type="checkbox" id="tt_geo_abs"><span class="siarhe-slider"></span></label>
                     <div>
                         <strong>Valor Absoluto (Total de Elementos)</strong><br>
-                        <small style="color: #64748b;">Ej: "Enfermeras: 1,450".</small>
+                        <small class="siarhe-text-muted">Ej: "Enfermeras: 1,450".</small>
                     </div>
                 </div>',
             'rate' => '
@@ -117,7 +117,7 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
                     <label class="siarhe-toggle"><input type="checkbox" id="tt_geo_rate"><span class="siarhe-slider"></span></label>
                     <div>
                         <strong>Valor Relativo (Tasa)</strong><br>
-                        <small style="color: #64748b;">Ej: "Tasa: 2.45".</small>
+                        <small class="siarhe-text-muted">Ej: "Tasa: 2.45".</small>
                     </div>
                 </div>'
         ];
@@ -131,11 +131,11 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
         ?>
     </div>
 
-    <h4 style="margin-top: 0; margin-bottom: 10px;">🎨 Diseño y Colores<?php Siarhe_Admin::help('Colores y transparencia de la tarjeta flotante del mapa.'); ?></h4>
+    <h4 class="siarhe-mt-0 siarhe-mb-2">🎨 Diseño y Colores<?php Siarhe_Admin::help('Colores y transparencia de la tarjeta flotante del mapa.'); ?></h4>
     <div class="siarhe-design-grid">
         <div class="siarhe-design-box">
             <label><strong>Color de Fondo</strong></label><?php Siarhe_Admin::help('Color base de la tarjeta flotante.'); ?><br>
-            <input type="text" id="tt_bg_color" value="<?php echo esc_attr($bgColor); ?>" class="siarhe-color-field" style="margin-top:5px;">
+            <input type="text" id="tt_bg_color" value="<?php echo esc_attr($bgColor); ?>" class="siarhe-mt-1 siarhe-color-field">
         </div>
 
         <div class="siarhe-design-box">
@@ -145,24 +145,24 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
 
         <div class="siarhe-design-box">
             <label><strong>Color del Texto Base</strong></label><?php Siarhe_Admin::help('Color del texto general de la tarjeta.'); ?><br>
-            <input type="text" id="tt_text_color" value="<?php echo esc_attr($textColor); ?>" class="siarhe-color-field" style="margin-top:5px;">
+            <input type="text" id="tt_text_color" value="<?php echo esc_attr($textColor); ?>" class="siarhe-mt-1 siarhe-color-field">
         </div>
     </div>
 
     <h4 style="margin-top: 25px; margin-bottom: 10px;">Destacar una Variable<?php Siarhe_Admin::help('Resalta un dato al final del tooltip con un color propio.'); ?></h4>
     <p style="color: #64748b; margin-top:0;">La variable destacada se colocará al final del tooltip, separada por una línea sutil, utilizando el color elegido.</p>
     
-    <div style="display:flex; gap:20px; flex-wrap:wrap; background:#f0f9ff; padding:15px; border:1px dashed #bae6fd; border-radius:6px;">
-        <div style="flex: 1 1 200px;"> <label><strong>¿Qué dato destacar?</strong></label><?php Siarhe_Admin::help('Dato que se muestra al final del tooltip con color distinto: poblacion, valor absoluto o la tasa principal.'); ?><br>
-            <select id="tt_highlight_var" style="margin-top:5px; width:100%;">
+    <div class="siarhe-panel siarhe-panel--blue">
+        <div class="siarhe-flex-field"> <label><strong>¿Qué dato destacar?</strong></label><?php Siarhe_Admin::help('Dato que se muestra al final del tooltip con color distinto: poblacion, valor absoluto o la tasa principal.'); ?><br>
+            <select id="tt_highlight_var" class="siarhe-mt-1 siarhe-w-full">
                 <option value="none" <?php selected($hlVar, 'none'); ?>>Ninguno (Todo estándar)</option>
                 <option value="pob" <?php selected($hlVar, 'pob'); ?>>Población Total</option>
                 <option value="abs" <?php selected($hlVar, 'abs'); ?>>Valor Absoluto (Ej. Total de Enfermeras)</option>
                 <option value="rate" <?php selected($hlVar, 'rate'); ?>>Valor Relativo (La Tasa / Indicador Principal)</option>
             </select>
         </div>
-        <div style="flex: 1 1 200px;"> <label><strong>Color del Texto Destacado</strong></label><?php Siarhe_Admin::help('Color con el que se pinta el dato destacado.'); ?><br>
-            <input type="text" id="tt_highlight_color" value="<?php echo esc_attr($hlColor); ?>" class="siarhe-color-field" style="margin-top:5px; width:100%;">
+        <div class="siarhe-flex-field"> <label><strong>Color del Texto Destacado</strong></label><?php Siarhe_Admin::help('Color con el que se pinta el dato destacado.'); ?><br>
+            <input type="text" id="tt_highlight_color" value="<?php echo esc_attr($hlColor); ?>" class="siarhe-mt-1 siarhe-w-full siarhe-color-field">
         </div>
     </div>
 </div>
@@ -170,17 +170,17 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
 <div class="siarhe-card siarhe-upload-card">
     <h3 style="margin-top: 0; border-bottom: 2px solid #06B6D4; padding-bottom: 10px; display: inline-block;">
         📍 Tooltip de Marcadores (Instituciones)<?php Siarhe_Admin::help('Tarjeta que aparece sobre un marcador de posicion. Arrastra la linea separadora para dividir la informacion.'); ?></h3>
-    <p style="color: #64748b;">El título de la tarjeta será automático (Ej. "Establecimiento en Zona Urbana" + Nombre de la Unidad). Organiza aquí el resto de la información y arrastra la línea separadora a donde la necesites.</p>
+    <p class="siarhe-text-muted">El título de la tarjeta será automático (Ej. "Establecimiento en Zona Urbana" + Nombre de la Unidad). Organiza aquí el resto de la información y arrastra la línea separadora a donde la necesites.</p>
 
-    <div class="siarhe-draggable-list" id="mk-sortable-list" style="margin-bottom: 25px;">
+    <div class="siarhe-mb-5 siarhe-draggable-list" id="mk-sortable-list">
         <?php
         $mk_html = [
-            'mk_inst' => '<div class="siarhe-draggable-item" data-id="mk_inst" draggable="true"><span class="dashicons dashicons-menu siarhe-drag-handle"></span><label class="siarhe-toggle"><input type="checkbox" id="tt_mk_inst"><span class="siarhe-slider"></span></label><div><strong>Institución a la que pertenece</strong><br><small style="color: #64748b;">Ej: "IMSS", "ISSSTE", "SSA".</small></div></div>',
-            'mk_clues' => '<div class="siarhe-draggable-item" data-id="mk_clues" draggable="true"><span class="dashicons dashicons-menu siarhe-drag-handle"></span><label class="siarhe-toggle"><input type="checkbox" id="tt_mk_clues"><span class="siarhe-slider"></span></label><div><strong>Clave CLUES</strong><br><small style="color: #64748b;">Identificador único oficial del establecimiento.</small></div></div>',
-            'mk_tipo' => '<div class="siarhe-draggable-item" data-id="mk_tipo" draggable="true"><span class="dashicons dashicons-menu siarhe-drag-handle"></span><label class="siarhe-toggle"><input type="checkbox" id="tt_mk_tipo"><span class="siarhe-slider"></span></label><div><strong>Tipo y Tipología del Establecimiento</strong><br><small style="color: #64748b;">Ej: "Hospital General", "Centro de Salud".</small></div></div>',
-            'mk_nivel' => '<div class="siarhe-draggable-item" data-id="mk_nivel" draggable="true"><span class="dashicons dashicons-menu siarhe-drag-handle"></span><label class="siarhe-toggle"><input type="checkbox" id="tt_mk_nivel"><span class="siarhe-slider"></span></label><div><strong>Nivel de Atención</strong><br><small style="color: #64748b;">Primer, Segundo o Tercer nivel.</small></div></div>',
-            'mk_juris' => '<div class="siarhe-draggable-item" data-id="mk_juris" draggable="true"><span class="dashicons dashicons-menu siarhe-drag-handle"></span><label class="siarhe-toggle"><input type="checkbox" id="tt_mk_juris"><span class="siarhe-slider"></span></label><div><strong>Jurisdicción Sanitaria</strong><br><small style="color: #64748b;">Muestra la jurisdicción que la regula.</small></div></div>',
-            'mk_mun' => '<div class="siarhe-draggable-item" data-id="mk_mun" draggable="true"><span class="dashicons dashicons-menu siarhe-drag-handle"></span><label class="siarhe-toggle"><input type="checkbox" id="tt_mk_mun"><span class="siarhe-slider"></span></label><div><strong>Ubicación Geográfica</strong><br><small style="color: #64748b;">Entidad, Municipio y Localidad.</small></div></div>',
+            'mk_inst' => '<div class="siarhe-draggable-item" data-id="mk_inst" draggable="true"><span class="dashicons dashicons-menu siarhe-drag-handle"></span><label class="siarhe-toggle"><input type="checkbox" id="tt_mk_inst"><span class="siarhe-slider"></span></label><div><strong>Institución a la que pertenece</strong><br><small class="siarhe-text-muted">Ej: "IMSS", "ISSSTE", "SSA".</small></div></div>',
+            'mk_clues' => '<div class="siarhe-draggable-item" data-id="mk_clues" draggable="true"><span class="dashicons dashicons-menu siarhe-drag-handle"></span><label class="siarhe-toggle"><input type="checkbox" id="tt_mk_clues"><span class="siarhe-slider"></span></label><div><strong>Clave CLUES</strong><br><small class="siarhe-text-muted">Identificador único oficial del establecimiento.</small></div></div>',
+            'mk_tipo' => '<div class="siarhe-draggable-item" data-id="mk_tipo" draggable="true"><span class="dashicons dashicons-menu siarhe-drag-handle"></span><label class="siarhe-toggle"><input type="checkbox" id="tt_mk_tipo"><span class="siarhe-slider"></span></label><div><strong>Tipo y Tipología del Establecimiento</strong><br><small class="siarhe-text-muted">Ej: "Hospital General", "Centro de Salud".</small></div></div>',
+            'mk_nivel' => '<div class="siarhe-draggable-item" data-id="mk_nivel" draggable="true"><span class="dashicons dashicons-menu siarhe-drag-handle"></span><label class="siarhe-toggle"><input type="checkbox" id="tt_mk_nivel"><span class="siarhe-slider"></span></label><div><strong>Nivel de Atención</strong><br><small class="siarhe-text-muted">Primer, Segundo o Tercer nivel.</small></div></div>',
+            'mk_juris' => '<div class="siarhe-draggable-item" data-id="mk_juris" draggable="true"><span class="dashicons dashicons-menu siarhe-drag-handle"></span><label class="siarhe-toggle"><input type="checkbox" id="tt_mk_juris"><span class="siarhe-slider"></span></label><div><strong>Jurisdicción Sanitaria</strong><br><small class="siarhe-text-muted">Muestra la jurisdicción que la regula.</small></div></div>',
+            'mk_mun' => '<div class="siarhe-draggable-item" data-id="mk_mun" draggable="true"><span class="dashicons dashicons-menu siarhe-drag-handle"></span><label class="siarhe-toggle"><input type="checkbox" id="tt_mk_mun"><span class="siarhe-slider"></span></label><div><strong>Ubicación Geográfica</strong><br><small class="siarhe-text-muted">Entidad, Municipio y Localidad.</small></div></div>',
             
             // ELEMENTO ESPECIAL: LÍNEA SEPARADORA
             'mk_separator' => '<div class="siarhe-draggable-item" data-id="mk_separator" draggable="true" style="background: #f1f5f9; border: 1px dashed #cbd5e1; justify-content: center; color: #64748b; font-weight: bold; padding: 6px 15px;"><span class="dashicons dashicons-menu siarhe-drag-handle" style="position: absolute; left: 15px;"></span><span style="letter-spacing: 2px;">--- LÍNEA SEPARADORA ---</span></div>'
@@ -189,24 +189,24 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
         ?>
     </div>
 
-    <h4 style="margin-top: 0; margin-bottom: 10px;">🎨 Diseño y Colores (Marcadores)<?php Siarhe_Admin::help('Colores y transparencia de la tarjeta flotante de los marcadores.'); ?></h4>
+    <h4 class="siarhe-mt-0 siarhe-mb-2">🎨 Diseño y Colores (Marcadores)<?php Siarhe_Admin::help('Colores y transparencia de la tarjeta flotante de los marcadores.'); ?></h4>
     <div class="siarhe-design-grid">
-        <div class="siarhe-design-box"><label><strong>Color de Fondo</strong></label><?php Siarhe_Admin::help('Color base de la tarjeta flotante.'); ?><br><input type="text" id="tt_mk_bg_color" value="<?php echo esc_attr($mkBgColor); ?>" class="siarhe-color-field" style="margin-top:5px;"></div>
+        <div class="siarhe-design-box"><label><strong>Color de Fondo</strong></label><?php Siarhe_Admin::help('Color base de la tarjeta flotante.'); ?><br><input type="text" id="tt_mk_bg_color" value="<?php echo esc_attr($mkBgColor); ?>" class="siarhe-mt-1 siarhe-color-field"></div>
         <div class="siarhe-design-box"><label><strong>Opacidad (Transparencia)</strong></label><?php Siarhe_Admin::help('De 10 a 100 por ciento. Valores bajos dejan ver el mapa a traves de la tarjeta.'); ?><br><input type="number" id="tt_mk_bg_opacity" value="<?php echo esc_attr($mkBgOpacity); ?>" min="10" max="100" style="width: 70px; margin-top:5px;"> %</div>
-        <div class="siarhe-design-box"><label><strong>Color del Texto Base</strong></label><?php Siarhe_Admin::help('Color del texto general de la tarjeta.'); ?><br><input type="text" id="tt_mk_text_color" value="<?php echo esc_attr($mkTextColor); ?>" class="siarhe-color-field" style="margin-top:5px;"></div>
+        <div class="siarhe-design-box"><label><strong>Color del Texto Base</strong></label><?php Siarhe_Admin::help('Color del texto general de la tarjeta.'); ?><br><input type="text" id="tt_mk_text_color" value="<?php echo esc_attr($mkTextColor); ?>" class="siarhe-mt-1 siarhe-color-field"></div>
     </div>
 
-    <div style="display:flex; gap:20px; flex-wrap:wrap; background:#faf5ff; padding:15px; border:1px dashed #d8b4fe; border-radius:6px; margin-top: 15px;">
-        <div style="flex: 1 1 200px;"> <label><strong>¿Qué dato destacar?</strong></label><?php Siarhe_Admin::help('Dato que se muestra al final del tooltip con color distinto: poblacion, valor absoluto o la tasa principal.'); ?><br>
-            <select id="tt_mk_highlight_var" style="margin-top:5px; width:100%;">
+    <div class="siarhe-panel siarhe-panel--purple">
+        <div class="siarhe-flex-field"> <label><strong>¿Qué dato destacar?</strong></label><?php Siarhe_Admin::help('Dato que se muestra al final del tooltip con color distinto: poblacion, valor absoluto o la tasa principal.'); ?><br>
+            <select id="tt_mk_highlight_var" class="siarhe-mt-1 siarhe-w-full">
                 <option value="none" <?php selected($mkHlVar, 'none'); ?>>Ninguno (Todo estándar)</option>
                 <option value="mk_clues" <?php selected($mkHlVar, 'mk_clues'); ?>>Clave CLUES</option>
                 <option value="mk_inst" <?php selected($mkHlVar, 'mk_inst'); ?>>Institución</option>
                 <option value="mk_tipo" <?php selected($mkHlVar, 'mk_tipo'); ?>>Tipo y Tipología</option>
             </select>
         </div>
-        <div style="flex: 1 1 200px;"> <label><strong>Color del Texto Destacado</strong></label><?php Siarhe_Admin::help('Color con el que se pinta el dato destacado.'); ?><br>
-            <input type="text" id="tt_mk_highlight_color" value="<?php echo esc_attr($mkHlColor); ?>" class="siarhe-color-field" style="margin-top:5px; width:100%;">
+        <div class="siarhe-flex-field"> <label><strong>Color del Texto Destacado</strong></label><?php Siarhe_Admin::help('Color con el que se pinta el dato destacado.'); ?><br>
+            <input type="text" id="tt_mk_highlight_color" value="<?php echo esc_attr($mkHlColor); ?>" class="siarhe-mt-1 siarhe-w-full siarhe-color-field">
         </div>
     </div>
 </div>

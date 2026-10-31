@@ -113,7 +113,7 @@ if ( isset($_GET['status']) ) {
         <div class="siarhe-table-controls">
             <label>
                 Mostrar 
-                <select id="siarhe-items-per-page" style="margin: 0 5px; padding: 2px 24px 2px 8px; font-size: 13px; min-height: 28px;">
+                <select id="siarhe-items-per-page" class="siarhe-select-sm">
                     <option value="25">25</option>
                     <option value="50">50</option>
                     <option value="100">100</option>
@@ -246,7 +246,7 @@ if ( isset($_GET['status']) ) {
                             </span>
                         </div>
                     <?php else : ?>
-                        <span style="color:#cbd5e1;">—</span>
+                        <span class="siarhe-text-faint">—</span>
                     <?php endif; ?>
                 </td>
 
