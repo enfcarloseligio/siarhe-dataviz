@@ -181,12 +181,12 @@ if ( isset($_GET['status']) ) {
     <table id="siarhe-marcadores-table" class="siarhe-table">
         <thead>
             <tr>
-                <th style="width: 20%">Marcador</th>
-                <th style="width: 15%">Estado</th>
-                <th style="width: 20%">Archivo Sistema</th>
-                <th style="width: 10%">Fecha de Corte</th>
-                <th style="width: 15%">Auditoría</th>
-                <th style="width: 5%">Tamaño</th>
+                <th style="width: 20%" data-sort="text">Marcador</th>
+                <th style="width: 15%" data-sort="text">Estado</th>
+                <th style="width: 20%" data-sort="text">Archivo Sistema</th>
+                <th style="width: 10%" data-sort="num">Fecha de Corte</th>
+                <th style="width: 15%" data-sort="num">Auditoría</th>
+                <th style="width: 5%" data-sort="num">Tamaño</th>
                 <th style="width: 15%">Acciones</th>
             </tr>
         </thead>
@@ -220,13 +220,13 @@ if ( isset($_GET['status']) ) {
                     <?php else : ?>—<?php endif; ?>
                 </td>
                 
-                <td data-label="Fecha de Corte">
+                <td data-label="Fecha de Corte" data-sort-value="<?php echo ( $db_file && $db_file->fecha_corte ) ? (int) strtotime( $db_file->fecha_corte ) : 0; ?>">
                     <?php if ($db_file && $db_file->fecha_corte) : ?>
                         <?php echo date_i18n('d/M/Y', strtotime($db_file->fecha_corte)); ?>
                     <?php else : ?>—<?php endif; ?>
                 </td>
                 
-                <td data-label="Auditoría">
+                <td data-label="Auditoría" data-sort-value="<?php $ts_aud = 0; if ( $db_file ) { $f_aud = ! empty( $db_file->fecha_modificacion ) ? $db_file->fecha_modificacion : ( $db_file->fecha_subida ?? ( $db_file->fecha_creacion ?? ( $db_file->fecha_registro ?? '' ) ) ); $ts_aud = (int) strtotime( $f_aud ); } elseif ( $existe_fisico ) { $ts_aud = (int) filemtime( $ruta_fisica ); } echo $ts_aud; ?>">
                     <?php if ($db_file) : 
                         $autor_original = $db_file->subido_por ?? ($db_file->creado_por ?? ($db_file->registrado_por ?? 'Sistema'));
                         $fecha_original = $db_file->fecha_subida ?? ($db_file->fecha_creacion ?? ($db_file->fecha_registro ?? $db_file->fecha_modificacion));
@@ -266,7 +266,7 @@ if ( isset($_GET['status']) ) {
                     <?php endif; ?>
                 </td>
                 
-                <td data-label="Tamaño">
+                <td data-label="Tamaño" data-sort-value="<?php echo $existe_fisico ? (int) filesize( $ruta_fisica ) : 0; ?>">
                     <?php if ($existe_fisico) : ?>
                         <?php echo size_format(filesize($ruta_fisica)); ?>
                     <?php else : ?>—<?php endif; ?>
@@ -420,6 +420,7 @@ document.addEventListener('DOMContentLoaded', function() {
             search:  document.getElementById('siarhe-search-marcadores-file'),
             perPage: document.getElementById('siarhe-items-per-page'),
             pagers:  [document.getElementById('siarhe-pagination-controls-top'), document.getElementById('siarhe-pagination-controls-bottom')],
+            table:   document.getElementById('siarhe-marcadores-table'),
             count:   document.getElementById('siarhe-marcadores-count'),
             empty:   document.getElementById('siarhe-marcadores-empty')
         });

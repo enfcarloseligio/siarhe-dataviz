@@ -56,7 +56,7 @@ if ( empty($marcadores_json) ) {
 </style>
 
 
-<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
+<div class="siarhe-card siarhe-upload-card">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <div>
             <h2 style="margin-top: 0;">📍 Gestor de Marcadores Espaciales (CSV)<?php Siarhe_Admin::help('Define como se ven y comportan los marcadores del mapa. Los cambios se guardan al instante.'); ?></h2>
@@ -79,7 +79,7 @@ if ( empty($marcadores_json) ) {
     <input type="hidden" id="siarhe_current_time_mk" value="<?php echo esc_attr($current_time); ?>">
 </div>
 
-<div class="card" style="max-width: 100%; padding: 0; overflow: hidden;">
+<div class="siarhe-card siarhe-card--flush">
     
     <div class="siarhe-toolbar">
         <div class="siarhe-table-controls">
@@ -108,11 +108,11 @@ if ( empty($marcadores_json) ) {
     <table id="siarhe-marcadores-table" class="siarhe-table">
         <thead>
             <tr>
-                <th style="width: 15%;">Clave (Interna)</th>
-                <th style="width: 20%;">Etiqueta (Menú)</th>
-                <th style="width: 10%;">Tipo</th>
-                <th style="width: 20%;">Fuente CSV & Filtro</th>
-                <th style="width: 20%;">Auditoría</th>
+                <th style="width: 15%;" data-sort-key="key" data-sort="text">Clave (Interna)</th>
+                <th style="width: 20%;" data-sort-key="label" data-sort="text">Etiqueta (Menú)</th>
+                <th style="width: 10%;" data-sort-key="tipo" data-sort="text">Tipo</th>
+                <th style="width: 20%;" data-sort-key="archivo" data-sort="text">Fuente CSV & Filtro</th>
+                <th style="width: 20%;" data-sort-key="audit" data-sort="num">Auditoría</th>
                 <th style="width: 15%;">Acciones</th>
             </tr>
         </thead>
@@ -331,6 +331,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     btnAddRule.addEventListener('click', () => addRuleRow());
 
+    const sorter = window.SiarheAdmin.initSortHeaders(document.getElementById('siarhe-marcadores-table'), () => applySearchFilter());
+
     function applySearchFilter() {
         const term = searchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         const allKeys = Object.keys(marcadoresObj);
@@ -340,6 +342,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const searchableText = `${key} ${item.label} ${item.tipo} ${item.archivo} ${item.filtro_col || ''} ${item.filtro_val || ''}`
                 .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             return searchableText.includes(term);
+        });
+        filteredKeys = sorter.apply(filteredKeys, (k, col) => {
+            if (col === 'key') return k;
+            const it = marcadoresObj[k];
+            if (col === 'audit') { if (it.is_core) return 0; const t = Date.parse(String(it.last_edited_at || it.created_at || '').replace(' ', 'T')); return isNaN(t) ? 0 : t; }
+            return it[col] || '';
         });
 
         currentPage = 1;

@@ -51,7 +51,7 @@ if ( empty($metricas_json) ) {
 ?>
 
 
-<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
+<div class="siarhe-card siarhe-upload-card">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <div>
             <h2 style="margin-top: 0;">📊 Gestor de Métricas e Indicadores (CSV)<?php Siarhe_Admin::help('Define que columnas del CSV son indicadores, como se llaman y como se colorean en el mapa. No modifica los archivos CSV.'); ?></h2>
@@ -73,7 +73,7 @@ if ( empty($metricas_json) ) {
     <input type="hidden" id="siarhe_current_time" value="<?php echo esc_attr($current_time); ?>">
 </div>
 
-<div class="card" style="max-width: 100%; padding: 0; overflow: hidden;">
+<div class="siarhe-card siarhe-card--flush">
     <div class="siarhe-toolbar">
         <div class="siarhe-table-controls">
             <label style="font-size: 13px; color: #3c434a;">
@@ -101,12 +101,12 @@ if ( empty($metricas_json) ) {
     <table id="siarhe-metricas-table" class="siarhe-table">
         <thead>
             <tr>
-                <th style="width: 15%;">Clave (CSV)</th>
-                <th style="width: 25%;">Etiqueta Larga</th>
-                <th style="width: 15%;">Etiqueta Corta</th>
-                <th style="width: 10%;">Abrev.</th>
-                <th style="width: 10%;">Tipo / Escala</th>
-                <th style="width: 15%;">Auditoría</th>
+                <th style="width: 15%;" data-sort-key="key" data-sort="text">Clave (CSV)</th>
+                <th style="width: 25%;" data-sort-key="fullLabel" data-sort="text">Etiqueta Larga</th>
+                <th style="width: 15%;" data-sort-key="label" data-sort="text">Etiqueta Corta</th>
+                <th style="width: 10%;" data-sort-key="abrev" data-sort="text">Abrev.</th>
+                <th style="width: 10%;" data-sort-key="tipo" data-sort="text">Tipo / Escala</th>
+                <th style="width: 15%;" data-sort-key="audit" data-sort="num">Auditoría</th>
                 <th style="width: 10%;">Acciones</th>
             </tr>
         </thead>
@@ -339,6 +339,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let itemsPerPage = 25;
     let filteredKeys = [];
 
+    const sorter = window.SiarheAdmin.initSortHeaders(document.getElementById('siarhe-metricas-table'), () => applySearchFilter());
+
     function applySearchFilter() {
         const term = searchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         const allKeys = Object.keys(metricasObj);
@@ -348,6 +350,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const searchableText = `${key} ${item.label} ${item.fullLabel} ${item.abrev} ${item.tipo} ${item.pair || ''}`
                 .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             return searchableText.includes(term);
+        });
+        filteredKeys = sorter.apply(filteredKeys, (k, col) => {
+            if (col === 'key') return k;
+            const it = metricasObj[k];
+            if (col === 'audit') { if (it.is_core) return 0; const t = Date.parse(String(it.last_edited_at || it.created_at || '').replace(' ', 'T')); return isNaN(t) ? 0 : t; }
+            return it[col] || '';
         });
 
         currentPage = 1;

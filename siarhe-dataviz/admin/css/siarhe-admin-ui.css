@@ -38,7 +38,22 @@
     border-radius: var(--s-radius); box-shadow: var(--s-shadow);
     padding: var(--s-sp-5); margin-bottom: var(--s-sp-5); max-width: 100%;
 }
+/* Borde superior de acento en todas las tarjetas */
+.siarhe-card { border-top: 4px solid var(--s-primary); }
 .siarhe-card--flush { padding: 0; overflow: hidden; }
+
+/* Titulos de tarjeta escritos como <h2>/<h3> directos */
+.siarhe-card > h2:first-child:not(.siarhe-card__title) { margin: 0 0 var(--s-sp-3); padding: 0; font-size: 16px; font-weight: 600; }
+.siarhe-card > h2:first-child:not(.siarhe-card__title) + p { margin-top: 0; }
+
+/* Columnas ordenables */
+.siarhe-table th.siarhe-sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+.siarhe-table th.siarhe-sortable::after { content: "\2195"; margin-left: 6px; font-size: 12px; color: inherit; opacity: .7; }
+.siarhe-table th.siarhe-sortable[aria-sort="ascending"]::after { content: "\2191"; opacity: 1; }
+.siarhe-table th.siarhe-sortable[aria-sort="descending"]::after { content: "\2193"; opacity: 1; }
+.siarhe-table th.siarhe-sortable:hover::after,
+.siarhe-table th.siarhe-sortable:focus-visible::after { opacity: 1; }
+.siarhe-table th.siarhe-sortable:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
 .siarhe-card__title {
     margin: 0 0 var(--s-sp-3); padding: 0; font-size: 16px; font-weight: 600;
     display: flex; align-items: center; gap: var(--s-sp-2);

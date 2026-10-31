@@ -315,6 +315,7 @@ window.SiarheAdmin = {
      *   pagers:  [elementos donde dibujar los numeros de pagina] (opcional),
      *   count:   elemento para "Mostrando del X al Y de Z" (opcional),
      *   empty:   fila "sin resultados" (opcional),
+     *   table:   <table> cuyos <th data-sort="text|num"> permiten ordenar (opcional),
      *   defaultPerPage: 25 | 'all'
      * }
      */
@@ -392,12 +393,86 @@ window.SiarheAdmin = {
             render();
         }));
 
+        // Ordenamiento: los <th data-sort="text|num"> de cfg.table se vuelven botones.
+        // El valor de cada celda es su data-sort-value o, si no existe, su texto.
+        if (cfg.table) {
+            const ths = Array.from(cfg.table.querySelectorAll('thead th'));
+            const cellVal = (row, i, type) => {
+                const td = row.children[i];
+                if (!td) return type === 'num' ? -Infinity : '';
+                const raw = td.hasAttribute('data-sort-value') ? td.getAttribute('data-sort-value') : td.textContent.trim();
+                if (type === 'num') { const n = parseFloat(String(raw).replace(/[^0-9.\-]/g, '')); return isNaN(n) ? -Infinity : n; }
+                return norm(raw);
+            };
+            ths.forEach((th, i) => {
+                const type = th.getAttribute('data-sort');
+                if (!type) return;
+                th.classList.add('siarhe-sortable');
+                th.setAttribute('tabindex', '0');
+                th.setAttribute('role', 'columnheader');
+                th.setAttribute('aria-sort', 'none');
+                const sortBy = () => {
+                    const dir = th.getAttribute('aria-sort') === 'ascending' ? 'descending' : 'ascending';
+                    ths.forEach(o => { if (o.hasAttribute('data-sort')) o.setAttribute('aria-sort', 'none'); });
+                    th.setAttribute('aria-sort', dir);
+                    const k = dir === 'ascending' ? 1 : -1;
+                    rows.sort((a, b) => {
+                        const x = cellVal(a, i, type), y = cellVal(b, i, type);
+                        return (type === 'num' ? x - y : x.localeCompare(y, 'es')) * k;
+                    });
+                    // Reordenar en el DOM, dejando la fila "sin resultados" al final
+                    const parent = rows[0] && rows[0].parentNode;
+                    if (parent) rows.forEach(r => parent.insertBefore(r, cfg.empty && cfg.empty.parentNode === parent ? cfg.empty : null));
+                    apply();
+                };
+                th.addEventListener('click', sortBy);
+                th.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sortBy(); } });
+            });
+        }
+
         if (cfg.search) cfg.search.addEventListener('input', apply);
         (cfg.filters || []).forEach(f => f.el.addEventListener('change', apply));
         if (cfg.perPage) cfg.perPage.addEventListener('change', () => { per = parsePer(cfg.perPage.value); page = 1; render(); });
 
         apply();
         return { refresh: apply };
+    },
+
+    /**
+     * Cabeceras ordenables para tablas que gestionan su propio filtrado (Configuracion).
+     * Los <th data-sort-key="x" data-sort="text|num"> se vuelven botones; al cambiar el orden
+     * se llama a onChange. sorter.apply(lista, (item, clave) => valor) devuelve la lista ordenada.
+     */
+    initSortHeaders: function(table, onChange) {
+        const state = { key: null, dir: 1, type: 'text' };
+        const ths = table ? Array.from(table.querySelectorAll('thead th[data-sort-key]')) : [];
+        const norm = (t) => String(t == null ? '' : t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+        ths.forEach(th => {
+            th.classList.add('siarhe-sortable');
+            th.setAttribute('tabindex', '0');
+            th.setAttribute('aria-sort', 'none');
+            const go = () => {
+                state.dir = (state.key === th.getAttribute('data-sort-key') && state.dir === 1) ? -1 : 1;
+                state.key = th.getAttribute('data-sort-key');
+                state.type = th.getAttribute('data-sort') || 'text';
+                ths.forEach(o => o.setAttribute('aria-sort', 'none'));
+                th.setAttribute('aria-sort', state.dir === 1 ? 'ascending' : 'descending');
+                onChange();
+            };
+            th.addEventListener('click', go);
+            th.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+        });
+        return {
+            apply: (list, valueOf) => {
+                if (state.key === null) return list;
+                const k = state.dir;
+                const num = state.type === 'num';
+                return list.slice().sort((a, b) => {
+                    const x = valueOf(a, state.key), y = valueOf(b, state.key);
+                    return num ? ((parseFloat(x) || 0) - (parseFloat(y) || 0)) * k : norm(x).localeCompare(norm(y), 'es') * k;
+                });
+            }
+        };
     },
 
     /**

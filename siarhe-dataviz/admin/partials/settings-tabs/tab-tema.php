@@ -29,7 +29,7 @@ $colors = wp_parse_args( $theme_options, $defaults );
     }
 </style>
 
-<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px;">
+<div class="siarhe-card siarhe-upload-card">
     <h2>🎨 Personalización del Tema Admin<?php Siarhe_Admin::help('Colores de las tablas dentro de este panel de administracion. No afecta al sitio publico.'); ?></h2>
     <p>Personaliza los colores de las tablas dentro del panel de administración del plugin.</p>
 

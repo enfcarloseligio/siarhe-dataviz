@@ -74,7 +74,7 @@ $entidades = [
     Guardar
 </button>
 
-<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
+<div class="siarhe-card siarhe-upload-card">
     <h2>🔗 Mapa de Navegación del Sitio</h2>
     <p class="description">
         Configura aquí hacia dónde debe redirigir cada mapa. <br>
@@ -82,7 +82,7 @@ $entidades = [
     </p>
 </div>
 
-<div class="card" style="max-width: 100%; padding: 0; overflow: hidden;">
+<div class="siarhe-card siarhe-card--flush">
     
     <div class="siarhe-toolbar">
         <div class="siarhe-table-controls">
@@ -111,8 +111,8 @@ $entidades = [
     <table id="siarhe-enlaces-table" class="siarhe-table" style="table-layout: fixed; width: 100%;">
         <thead>
             <tr>
-                <th style="width: 40%;">Entidad / Mapa / Documento<?php Siarhe_Admin::help('Cada fila es un mapa o documento legal del sitio que puede enlazarse.'); ?></th>
-                <th style="width: 60%;">Destino (Escribe para buscar)<?php Siarhe_Admin::help('Pagina o categoria de WordPress a la que lleva el enlace. Escribe para buscar y usa el boton de la derecha para probarlo.'); ?></th>
+                <th style="width: 40%;" data-sort-key="nombre" data-sort="text">Entidad / Mapa / Documento<?php Siarhe_Admin::help('Cada fila es un mapa o documento legal del sitio que puede enlazarse.'); ?></th>
+                <th style="width: 60%;" data-sort-key="destino" data-sort="text">Destino (Escribe para buscar)<?php Siarhe_Admin::help('Pagina o categoria de WordPress a la que lleva el enlace. Escribe para buscar y usa el boton de la derecha para probarlo.'); ?></th>
             </tr>
         </thead>
         <tbody id="siarhe-enlaces-tbody">
@@ -247,10 +247,22 @@ document.addEventListener('DOMContentLoaded', function() {
     let itemsPerPage = 25;
     let matchedRows = allRows;
 
+    const enlacesTbody = document.getElementById('siarhe-enlaces-tbody');
+    const sorter = window.SiarheAdmin.initSortHeaders(document.getElementById('siarhe-enlaces-table'), () => applySearchFilter());
+    const sortValue = (row, col) => {
+        if (col === 'nombre') return row.cells[0].textContent;
+        const inp = row.cells[1].querySelector('input[type="text"]');
+        return inp ? inp.value : row.cells[1].textContent;
+    };
+
     function applySearchFilter() {
         const term = searchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        
-        matchedRows = allRows.filter(row => {
+
+        // Reordenar las filas en el DOM segun la columna elegida (la fila "sin resultados" queda al final)
+        const ordered = sorter.apply(allRows, sortValue);
+        if (ordered !== allRows) ordered.forEach(r => enlacesTbody.insertBefore(r, emptyRow));
+
+        matchedRows = ordered.filter(row => {
             const text = row.cells[0].textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             const match = text.includes(term);
             

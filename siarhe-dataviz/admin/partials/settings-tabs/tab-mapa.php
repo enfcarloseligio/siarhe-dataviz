@@ -27,7 +27,6 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
 ?>
 
 <style>
-    .siarhe-admin-card { padding: 20px; max-width: 100%; box-sizing: border-box; background: #fff; border: 1px solid #ccd0d4; box-shadow: 0 1px 1px rgba(0,0,0,.04); }
     .siarhe-flex-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end; }
     
     .siarhe-marker-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; border-bottom: 1px dashed #eee; padding-bottom: 15px; margin-bottom: 15px; }
@@ -67,8 +66,8 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
     span.siarhe-help:hover::after, span.siarhe-help:focus::after { opacity: 1; visibility: visible; }
     
     @media (max-width: 782px) {
-        .siarhe-admin-card .form-table th { display: block; width: 100%; padding-bottom: 5px; }
-        .siarhe-admin-card .form-table td { display: block; width: 100%; padding-bottom: 20px; padding-left: 0; }
+        .siarhe-card .form-table th { display: block; width: 100%; padding-bottom: 5px; }
+        .siarhe-card .form-table td { display: block; width: 100%; padding-bottom: 20px; padding-left: 0; }
         .siarhe-flex-row, .siarhe-marker-row { flex-direction: column; align-items: flex-start; gap: 10px; width: 100%; }
         
         .siarhe-preview-box { 
@@ -79,7 +78,7 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
     }
 </style>
 
-<div class="siarhe-admin-card siarhe-upload-card">
+<div class="siarhe-card siarhe-upload-card">
     <h2>🎨 Personalización Visual (Frontend)</h2>
     <p>Define los colores que verán los usuarios en los mapas y tablas del sitio web.</p>
 

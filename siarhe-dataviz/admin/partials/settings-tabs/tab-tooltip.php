@@ -78,14 +78,14 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
     .siarhe-design-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 6px; }
 </style>
 
-<div class="card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
+<div class="siarhe-card">
     <h2 style="margin-top: 0;">ℹ️ Gestor de Contenido y Diseño en Tooltips</h2>
     <p style="margin-bottom: 0;">Personaliza la información, el orden y los colores de las tarjetas flotantes del mapa y de los marcadores. Arrastra desde el ícono <span class="dashicons dashicons-menu" style="font-size:16px; width:16px; height:16px;"></span> para ordenar.</p>
 </div>
 
 <input type="hidden" name="siarhe_tooltip_config" id="siarhe_tooltip_config" value="<?php echo esc_attr($tooltip_json); ?>">
 
-<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
+<div class="siarhe-card siarhe-upload-card">
     <h3 style="margin-top: 0; border-bottom: 2px solid #0A66C2; padding-bottom: 10px; display: inline-block;">
         🗺️ Tooltip del Mapa (Regiones)<?php Siarhe_Admin::help('Tarjeta que aparece al pasar el cursor sobre un estado o municipio. Activa los datos con el interruptor y ordenalos arrastrando.'); ?></h3>
 
@@ -167,7 +167,7 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
     </div>
 </div>
 
-<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
+<div class="siarhe-card siarhe-upload-card">
     <h3 style="margin-top: 0; border-bottom: 2px solid #06B6D4; padding-bottom: 10px; display: inline-block;">
         📍 Tooltip de Marcadores (Instituciones)<?php Siarhe_Admin::help('Tarjeta que aparece sobre un marcador de posicion. Arrastra la linea separadora para dividir la informacion.'); ?></h3>
     <p style="color: #64748b;">El título de la tarjeta será automático (Ej. "Establecimiento en Zona Urbana" + Nombre de la Unidad). Organiza aquí el resto de la información y arrastra la línea separadora a donde la necesites.</p>

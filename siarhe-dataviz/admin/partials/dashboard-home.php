@@ -194,15 +194,15 @@ $icons = array( 'ok' => 'yes-alt', 'warn' => 'warning', 'fail' => 'dismiss', 'pe
             </div>
         </div>
 
-        <table class="siarhe-table siarhe-matrix">
+        <table class="siarhe-table siarhe-matrix" id="siarhe-matrix-table">
             <thead>
                 <tr>
-                    <th>Entidad</th>
-                    <th>CVE</th>
+                    <th data-sort="text">Entidad</th>
+                    <th data-sort="num">CVE</th>
                     <th>GeoJSON</th>
                     <th>CSV</th>
                     <th>Localidades</th>
-                    <th>Última actualización</th>
+                    <th data-sort="num">Última actualización</th>
                     <th>Copiar shortcode</th>
                 </tr>
             </thead>
@@ -220,7 +220,7 @@ $icons = array( 'ok' => 'yes-alt', 'warn' => 'warning', 'fail' => 'dismiss', 'pe
                     <td data-label="GeoJSON"><?php echo $flag( $m['geo'] ); // phpcs:ignore WordPress.Security.EscapeOutput -- marcado fijo ?></td>
                     <td data-label="CSV"><?php echo $flag( $m['csv'] ); // phpcs:ignore WordPress.Security.EscapeOutput ?></td>
                     <td data-label="Localidades"><?php echo $flag( $m['loc'] ); // phpcs:ignore WordPress.Security.EscapeOutput ?></td>
-                    <td data-label="Última actualización">
+                    <td data-label="Última actualización" data-sort-value="<?php echo $m['upd'] ? (int) strtotime( $m['upd'] ) : 0; ?>">
                         <?php if ( $m['upd'] ) : ?>
                             <span class="siarhe-date-formatter" data-date="<?php echo esc_attr( $m['upd'] ); ?>"><?php echo esc_html( $m['upd'] ); ?></span>
                         <?php else : ?>—<?php endif; ?>
@@ -265,6 +265,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (val === 'noloc') return !loc;
                     return true;
                 } }],
+                table:   document.getElementById('siarhe-matrix-table'),
                 count:   document.getElementById('siarhe-matrix-count'),
                 empty:   document.getElementById('siarhe-matrix-empty'),
                 defaultPerPage: 'all'

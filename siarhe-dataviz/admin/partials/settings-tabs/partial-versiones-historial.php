@@ -56,12 +56,12 @@ foreach ( Siarhe_Versions::dirs() as $d ) {
         <table class="siarhe-table" id="siarhe-versions-table">
             <thead>
                 <tr>
-                    <th>Archivo</th>
-                    <th>Tipo</th>
-                    <th>Reemplazada el</th>
-                    <th>Reemplazada por</th>
-                    <th>Tamaño</th>
-                    <th>Formato</th>
+                    <th data-sort="text">Archivo</th>
+                    <th data-sort="text">Tipo</th>
+                    <th data-sort="num">Reemplazada el</th>
+                    <th data-sort="text">Reemplazada por</th>
+                    <th data-sort="num">Tamaño</th>
+                    <th data-sort="text">Formato</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -70,9 +70,9 @@ foreach ( Siarhe_Versions::dirs() as $d ) {
                     <tr class="siarhe-data-row" data-type="<?php echo esc_attr( $v['dir'] ); ?>">
                         <td data-label="Archivo" data-mobile-role="primary"><code class="siarhe-code-sm"><?php echo esc_html( $v['file'] ); ?></code></td>
                         <td data-label="Tipo" data-mobile-role="secondary"><?php echo esc_html( Siarhe_Versions::type_label( $v['dir'] ) ); ?></td>
-                        <td data-label="Reemplazada el"><?php echo esc_html( $fmt_ts( $v['ts'] ) ); ?></td>
+                        <td data-label="Reemplazada el" data-sort-value="<?php echo (int) $v['ts']; ?>"><?php echo esc_html( $fmt_ts( $v['ts'] ) ); ?></td>
                         <td data-label="Reemplazada por"><?php echo esc_html( $v['by'] !== '' ? $v['by'] : '—' ); ?></td>
-                        <td data-label="Tamaño"><?php echo esc_html( size_format( $v['size'] ) ?: '0 B' ); ?></td>
+                        <td data-label="Tamaño" data-sort-value="<?php echo (int) $v['size']; ?>"><?php echo esc_html( size_format( $v['size'] ) ?: '0 B' ); ?></td>
                         <td data-label="Formato"><?php echo $v['gz'] ? '<span class="siarhe-badge neutral">Comprimida</span>' : 'Original'; ?></td>
                         <td data-label="Acciones">
                             <div class="siarhe-row-actions">
@@ -136,6 +136,7 @@ document.addEventListener('DOMContentLoaded', function() {
             perPage: document.getElementById('siarhe-items-per-page'),
             filters: [{ el: typeSel, match: function(row, val) { return row.getAttribute('data-type') === val; } }],
             pagers:  [document.getElementById('siarhe-pagination-controls-top'), document.getElementById('siarhe-pagination-controls-bottom')],
+            table:   document.getElementById('siarhe-versions-table'),
             count:   document.getElementById('siarhe-versions-count'),
             empty:   document.getElementById('siarhe-versions-empty')
         });
