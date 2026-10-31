@@ -304,6 +304,171 @@ window.SiarheAdmin = {
     },
 
     /**
+     * Mejora de los formularios de carga (inputs file con data-check):
+     *  - zona para arrastrar y soltar el archivo;
+     *  - vista previa (primeras filas del CSV o resumen del GeoJSON);
+     *  - barra de progreso real de la subida (XMLHttpRequest).
+     * Sin JS el formulario sigue funcionando como un envio normal.
+     */
+    initUploadEnhance: function() {
+        const fmtSize = (n) => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+        const MAX_PREVIEW_GEOJSON = 8 * 1024 * 1024;
+
+        // Fila CSV con comillas (solo para la vista previa)
+        const csvRow = (line) => {
+            const out = []; let cur = '', q = false;
+            for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                if (q) {
+                    if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+                    else if (ch === '"') q = false;
+                    else cur += ch;
+                } else if (ch === '"') q = true;
+                else if (ch === ',') { out.push(cur.trim()); cur = ''; }
+                else cur += ch;
+            }
+            out.push(cur.trim());
+            return out;
+        };
+
+        const el = (tag, cls, text) => {
+            const n = document.createElement(tag);
+            if (cls) n.className = cls;
+            if (text !== undefined) n.textContent = text;
+            return n;
+        };
+
+        const previewCsv = (text) => {
+            const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim() !== '').slice(0, 6);
+            if (!lines.length) return null;
+            const rows = lines.map(csvRow);
+            const MAX_COLS = 8;
+            const wrap = el('div', 'siarhe-preview-scroll');
+            const table = el('table', 'siarhe-preview-table');
+            rows.forEach((r, i) => {
+                const tr = el('tr');
+                r.slice(0, MAX_COLS).forEach(c => tr.appendChild(el(i === 0 ? 'th' : 'td', '', c)));
+                if (r.length > MAX_COLS) tr.appendChild(el(i === 0 ? 'th' : 'td', '', '+' + (r.length - MAX_COLS) + ' más'));
+                (i === 0 ? table.createTHead() : table.tBodies[0] || table.createTBody()).appendChild(tr);
+            });
+            wrap.appendChild(table);
+            const frag = document.createDocumentFragment();
+            frag.appendChild(el('p', 'siarhe-preview-meta', 'Columnas: ' + rows[0].length + ' · Primeras ' + (rows.length - 1) + ' filas de datos'));
+            frag.appendChild(wrap);
+            return frag;
+        };
+
+        const previewGeo = (text) => {
+            let data;
+            try { data = JSON.parse(text); } catch (e) { return null; }
+            if (!data || !Array.isArray(data.features)) return null;
+            const types = {};
+            data.features.forEach(f => { const t = f && f.geometry && f.geometry.type; if (t) types[t] = (types[t] || 0) + 1; });
+            const props = data.features[0] && data.features[0].properties ? Object.keys(data.features[0].properties) : [];
+            const frag = document.createDocumentFragment();
+            frag.appendChild(el('p', 'siarhe-preview-meta',
+                'Elementos: ' + data.features.length.toLocaleString('es-MX') + ' · Geometrías: ' +
+                (Object.keys(types).map(t => t + ' (' + types[t] + ')').join(', ') || '—')));
+            if (props.length) frag.appendChild(el('p', 'siarhe-preview-meta', 'Campos: ' + props.slice(0, 12).join(', ') + (props.length > 12 ? ' …' : '')));
+            return frag;
+        };
+
+        document.querySelectorAll('input[type="file"][data-check]').forEach(input => {
+            const form = input.form;
+            if (!form || input.closest('.siarhe-dropzone')) return;
+            const kind = input.getAttribute('data-check');
+
+            // --- zona de arrastre ---
+            const zone = el('div', 'siarhe-dropzone');
+            input.parentNode.insertBefore(zone, input);
+            zone.appendChild(el('span', 'dashicons dashicons-upload'));
+            zone.appendChild(el('p', 'siarhe-dropzone__hint', 'Arrastra aquí el archivo o elígelo desde tu equipo'));
+            zone.appendChild(input);
+
+            const preview = el('div', 'siarhe-upload-preview');
+            preview.hidden = true;
+            zone.insertAdjacentElement('afterend', preview);
+
+            const allowed = (input.getAttribute('accept') || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+            const extOk = (name) => !allowed.length || allowed.some(ext => name.toLowerCase().endsWith(ext));
+
+            ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add('is-over'); }));
+            ['dragleave', 'dragend'].forEach(ev => zone.addEventListener(ev, () => zone.classList.remove('is-over')));
+            zone.addEventListener('drop', e => {
+                e.preventDefault(); zone.classList.remove('is-over');
+                const files = e.dataTransfer && e.dataTransfer.files;
+                if (!files || !files.length) return;
+                if (files.length > 1) { window.SiarheAdmin.alert('Arrastra un solo archivo a la vez.', 'No se puede subir este archivo'); return; }
+                if (!extOk(files[0].name)) { window.SiarheAdmin.alert('Este formulario solo acepta archivos ' + allowed.join(' o ') + '.', 'No se puede subir este archivo'); return; }
+                input.files = files;
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+
+            // --- vista previa ---
+            const renderPreview = () => {
+                preview.textContent = ''; preview.hidden = true;
+                const file = input.files && input.files[0];
+                if (!file) return;
+                preview.appendChild(el('p', 'siarhe-preview-file', file.name + ' · ' + fmtSize(file.size)));
+                preview.hidden = false;
+                const isGeo = kind === 'geojson';
+                if (isGeo && file.size > MAX_PREVIEW_GEOJSON) return;
+                file.slice(0, isGeo ? MAX_PREVIEW_GEOJSON : 64 * 1024).text().then(text => {
+                    if (input.files[0] !== file) return; // cambio de archivo mientras se leia
+                    const node = isGeo ? previewGeo(text) : previewCsv(text);
+                    if (node) preview.appendChild(node);
+                }).catch(() => {});
+            };
+            input.addEventListener('change', renderPreview);
+
+            // --- envio con progreso ---
+            if (!window.XMLHttpRequest || !window.FormData) return;
+            const bar = el('div', 'siarhe-progress');
+            bar.hidden = true;
+            const track = el('div', 'siarhe-progress__track');
+            const fill = el('div', 'siarhe-progress__fill');
+            track.appendChild(fill);
+            const label = el('span', 'siarhe-progress__label', '');
+            bar.append(track, label);
+            const submitBtn = form.querySelector('[type="submit"]');
+            (submitBtn ? submitBtn.closest('p, div') || form : form).appendChild(bar);
+
+            const fail = (msg) => {
+                bar.hidden = true; fill.style.width = '0%';
+                if (submitBtn) submitBtn.disabled = false;
+                window.SiarheAdmin.alert(msg, 'No se subió el archivo');
+            };
+
+            form.addEventListener('submit', e => {
+                if (e.defaultPrevented) return;
+                e.preventDefault();
+                const data = new FormData(form);
+                data.append('siarhe_xhr', '1');
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', form.getAttribute('action')); // form.action devolveria el input oculto name="action"
+                bar.hidden = false; fill.style.width = '0%'; label.textContent = 'Subiendo… 0 %';
+                if (submitBtn) submitBtn.disabled = true;
+
+                xhr.upload.addEventListener('progress', ev => {
+                    if (!ev.lengthComputable) return;
+                    const pct = Math.round(ev.loaded / ev.total * 100);
+                    fill.style.width = pct + '%';
+                    label.textContent = pct < 100 ? 'Subiendo… ' + pct + ' %' : 'Procesando en el servidor…';
+                });
+                xhr.addEventListener('load', () => {
+                    let res = null;
+                    try { res = JSON.parse(xhr.responseText); } catch (err) {}
+                    if (res && res.redirect) { window.location.href = res.redirect; return; }
+                    fail('El servidor no aceptó la subida. Si el archivo es muy grande, puede exceder el límite de tamaño de PHP (upload_max_filesize / post_max_size); revísalo en el Dashboard.');
+                });
+                xhr.addEventListener('error', () => fail('No se pudo completar la subida. Revisa tu conexión e inténtalo de nuevo.'));
+                xhr.addEventListener('abort', () => fail('La subida se canceló.'));
+                xhr.send(data);
+            });
+        });
+    },
+
+    /**
      * Envia el formulario de opciones de la pagina (Configuracion) para guardar
      * de inmediato lo que se acaba de editar o eliminar.
      */
@@ -395,6 +560,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.SiarheAdmin.initDelegates();
     window.SiarheAdmin.initHelp();
     window.SiarheAdmin.initUploadChecks();
+    window.SiarheAdmin.initUploadEnhance();
 });
 
 // Inicialización de componentes basados en jQuery requeridos por WordPress

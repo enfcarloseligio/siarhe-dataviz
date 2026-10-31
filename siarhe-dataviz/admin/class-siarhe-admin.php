@@ -37,6 +37,22 @@ class Siarhe_Admin {
         add_action( 'admin_post_siarhe_marker_var_add', array( $this, 'handle_marker_var_add' ) );
         add_action( 'admin_post_siarhe_marker_var_delete', array( $this, 'handle_marker_var_delete' ) );
         add_action( 'admin_post_siarhe_marker_var_reset', array( $this, 'handle_marker_var_reset' ) );
+
+        // Subidas con barra de progreso (XHR): la redireccion final se devuelve como JSON
+        add_filter( 'wp_redirect', array( $this, 'redirect_as_json_for_xhr' ), 10, 1 );
+    }
+
+    /**
+     * Los formularios de carga se envian por XHR (siarhe_xhr=1) para mostrar progreso.
+     * XHR seguiria la redireccion y consumiria los avisos de una sola vez (transients),
+     * asi que se responde con la URL destino y el navegador navega a ella.
+     */
+    public function redirect_as_json_for_xhr( $location ) {
+        $action = isset( $_POST['action'] ) ? sanitize_key( wp_unslash( $_POST['action'] ) ) : '';
+        if ( empty( $_POST['siarhe_xhr'] ) || strpos( $action, 'siarhe_' ) !== 0 ) {
+            return $location;
+        }
+        wp_send_json( array( 'redirect' => esc_url_raw( $location ) ) );
     }
 
     // 🌟 AQUÍ ESTÁ LA CORRECCIÓN: Verifica columna por columna
