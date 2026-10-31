@@ -60,12 +60,13 @@ $option_group = $screen['tabs'][ $active_tab ]['group'];
 
                 if ( file_exists( $tab_file ) ) {
                     include $tab_file;
-                    submit_button( 'Guardar Configuración' );
+                    if ( empty( $siarhe_autosave ) ) submit_button( 'Guardar Configuración' );
                 } else {
                     echo '<div class="notice notice-info inline"><p>El módulo <strong>' . esc_html( ucfirst( $active_tab ) ) . '</strong> está en construcción.</p></div>';
                 }
             ?>
         </form>
+        <?php if ( ! empty( $siarhe_autosave ) ) : ?><span data-siarhe-scrolltop hidden></span><?php endif; ?>
 
     </div>
 </div>

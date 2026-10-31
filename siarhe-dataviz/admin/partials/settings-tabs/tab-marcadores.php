@@ -1,6 +1,9 @@
 <?php // /admin/partials/settings-tabs/tab-marcadores.php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+// Esta pestana guarda al instante cada cambio: no necesita el boton Guardar inferior.
+$siarhe_autosave = true;
+
 $current_user = wp_get_current_user();
 $editor_name = $current_user->display_name ?: $current_user->user_login;
 $current_time = current_time('mysql');
@@ -52,22 +55,19 @@ if ( empty($marcadores_json) ) {
     .siarhe-switch input:checked + .siarhe-slider:before { transform: translateX(20px); }
 </style>
 
-<button type="button" class="button button-primary siarhe-floating-save" id="btn-floating-save">
-    Guardar
-</button>
 
 <div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <div>
-            <h2 style="margin-top: 0;">📍 Gestor de Marcadores Espaciales (CSV)</h2>
+            <h2 style="margin-top: 0;">📍 Gestor de Marcadores Espaciales (CSV)<?php Siarhe_Admin::help('Define como se ven y comportan los marcadores del mapa. Los cambios se guardan al instante.'); ?></h2>
             <p style="margin-bottom: 0;">Administra las capas de puntos sobre el mapa. Puedes configurar marcadores de <strong>Posición</strong> o de <strong>Espectro</strong>, agrupar datos nominales y activar resúmenes geográficos.</p>
         </div>
         <div style="display: flex; gap: 10px;">
-            <button type="button" class="button button-secondary" id="btn-add-marcador">
-                <span class="dashicons dashicons-plus-alt2" style="margin-top:3px;"></span> Añadir Nuevo
+            <button type="button" class="siarhe-btn-icon button button-secondary" id="btn-add-marcador">
+                <span class="dashicons dashicons-plus-alt2"></span> Añadir Nuevo
             </button>
-            <button type="button" class="button button-link-delete" id="btn-reset-marcadores" style="color: #d63638; border: 1px solid #d63638; padding: 0 10px; border-radius: 3px; background: #fff;">
-                <span class="dashicons dashicons-undo" style="margin-top:3px;"></span> Restaurar Iniciales
+            <button type="button" class="siarhe-btn-icon button button-link-delete" id="btn-reset-marcadores" style="color: #d63638; border: 1px solid #d63638; padding: 0 10px; border-radius: 3px; background: #fff;">
+                <span class="dashicons dashicons-undo"></span> Restaurar Iniciales
             </button>
         </div>
     </div>
@@ -143,21 +143,21 @@ if ( empty($marcadores_json) ) {
 
         <table class="form-table">
             <tr>
-                <th><label>Clave Interna</label></th>
+                <th><label>Clave Interna</label><?php Siarhe_Admin::help('Identificador unico del marcador en el sistema. Respeta mayusculas y minusculas y no puede repetirse.'); ?></th>
                 <td>
                     <input type="text" id="modal-mk-key" class="regular-text" required placeholder="ej. ESTAB_4">
                     <p class="description">Identificador único en el sistema. Respeta mayúsculas y minúsculas.</p>
                 </td>
             </tr>
             <tr>
-                <th><label>Etiqueta Pública</label></th>
+                <th><label>Etiqueta Pública</label><?php Siarhe_Admin::help('Nombre que veran los visitantes en selectores y leyendas.'); ?></th>
                 <td>
                     <input type="text" id="modal-mk-label" class="regular-text" style="width:100%;" required placeholder="ej. Unidades Móviles">
                     <p class="description">El nombre que verán los usuarios en el selector y la leyenda.</p>
                 </td>
             </tr>
             <tr>
-                <th><label>Archivo Fuente (CSV)</label></th>
+                <th><label>Archivo Fuente (CSV)</label><?php Siarhe_Admin::help('CSV ya cargado en Carga de Datos > Marcadores que alimenta este marcador.'); ?></th>
                 <td>
                     <select id="modal-mk-archivo" style="width:100%;">
                         <option value="">-- Seleccionar archivo --</option>
@@ -172,7 +172,7 @@ if ( empty($marcadores_json) ) {
             </tr>
             
             <tr>
-                <th><label>Tipo de Visualización</label></th>
+                <th><label>Tipo de Visualización</label><?php Siarhe_Admin::help('Posicion: icono fijo por establecimiento (permite medir distancias). Espectro: burbuja cuyo tamano depende de un valor. Spike: triangulo cuya altura y color dependen de un valor.'); ?></th>
                 <td>
                     <select id="modal-mk-tipo">
                         <option value="posicion">📍 Posición (Ícono fijo por establecimiento)</option>
@@ -183,7 +183,7 @@ if ( empty($marcadores_json) ) {
             </tr>
 
             <tr id="mk-filtro-row" style="background: #f8fafc;">
-                <th><label>Lógica de Filtrado<br><small style="font-weight:normal;">(Opcional)</small></label></th>
+                <th><label>Lógica de Filtrado<br><small style="font-weight:normal;">(Opcional)</small></label><?php Siarhe_Admin::help('Si un solo CSV mezcla categorias, indica la columna y el valor que debe tener cada fila para ser parte de este marcador.'); ?></th>
                 <td>
                     <p class="description" style="margin-top:0; margin-bottom:5px;">Útil si un solo CSV contiene múltiples categorías (Ej. Nivel de Atención).</p>
                     <input type="text" id="modal-mk-filtro-col" class="small-text" style="width:45%;" placeholder="Columna (ej. cve_n_atencion)">
@@ -193,7 +193,7 @@ if ( empty($marcadores_json) ) {
             </tr>
 
             <tr id="mk-espectro-row" style="display:none; background: #f0f9ff;">
-                <th><label>Configuración de Densidad<br><small style="font-weight:normal;">(Espectro y Spike)</small></label></th>
+                <th><label>Configuración de Densidad<br><small style="font-weight:normal;">(Espectro y Spike)</small></label><?php Siarhe_Admin::help('Para Espectro y Spike: define de donde sale el valor numerico que determina el tamano (burbuja) o la altura y color (pico).'); ?></th>
                 <td>
                     <label><strong>Clave Relacionada (Par)</strong></label><br>
                     <input type="text" id="modal-mk-espectro-pair" class="regular-text" placeholder="Ej. tasa_total" style="margin-bottom:10px; width: 100%;">
@@ -212,7 +212,7 @@ if ( empty($marcadores_json) ) {
             </tr>
 
             <tr style="background: #faf5ff;">
-                <th><label>Agrupación y Tooltip<br><small style="font-weight:normal;">(Para bases nominales)</small></label></th>
+                <th><label>Agrupación y Tooltip<br><small style="font-weight:normal;">(Para bases nominales)</small></label><?php Siarhe_Admin::help('Para bases con varios casos por punto: agrupa las filas por una columna (por ejemplo CLUES) y crea reglas de conteo que se muestran en el tooltip.'); ?></th>
                 <td>
                     <p class="description" style="margin-top:0; margin-bottom:10px;">Si tu base tiene múltiples casos para un mismo punto, agrúpalos aquí para sumar y crear reglas en el tooltip.</p>
                     
@@ -222,14 +222,14 @@ if ( empty($marcadores_json) ) {
                     <label><strong>2. Reglas de Conteo en Tooltip (Máx 5):</strong></label>
                     <div id="rules-container" style="margin-top:5px;"></div>
                     
-                    <button type="button" class="button button-small" id="btn-add-rule" style="margin-top:5px;">
-                        <span class="dashicons dashicons-plus-alt2" style="margin-top:2px;"></span> Añadir Regla
+                    <button type="button" class="siarhe-btn-icon button button-small" id="btn-add-rule" style="margin-top:5px;">
+                        <span class="dashicons dashicons-plus-alt2"></span> Añadir Regla
                     </button>
                 </td>
             </tr>
 
             <tr style="background: #f0fdf4; border-top: 1px dashed #ccc;">
-                <th><label>Resumen Geográfico</label></th>
+                <th><label>Resumen Geográfico</label><?php Siarhe_Admin::help('Al activarlo, el tooltip del municipio o estado suma los valores de este marcador dentro de su territorio.'); ?></th>
                 <td>
                     <label class="siarhe-switch">
                         <input type="checkbox" id="modal-mk-resumen-geo">
@@ -241,7 +241,7 @@ if ( empty($marcadores_json) ) {
             </tr>
 
             <tr>
-                <th><label>Visibilidad</label></th>
+                <th><label>Visibilidad</label><?php Siarhe_Admin::help('Publico: lo ve cualquier visitante. Privado: solo usuarios con sesion iniciada. Oculto: no aparece en el sitio.'); ?></th>
                 <td>
                     <select id="modal-mk-visibilidad">
                         <option value="publico">Público (Visible para todos)</option>
@@ -253,7 +253,7 @@ if ( empty($marcadores_json) ) {
         </table>
         <div style="text-align:right; margin-top:20px; border-top: 1px solid #eee; padding-top: 15px;">
             <button type="button" class="button button-secondary" id="close-mk-modal">Cancelar</button>
-            <button type="button" class="button button-primary" id="save-mk-btn">Aplicar Cambios</button>
+            <button type="button" class="button button-primary" id="save-mk-btn">Guardar Cambios</button>
         </div>
     </div>
 </div>
@@ -277,34 +277,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const paginationControlsBottom = document.getElementById('siarhe-pagination-controls-bottom');
     const countDisplay = document.getElementById('siarhe-marcadores-count');
 
-    // Integración de Bypass en el botón de guardado flotante para asegurar la retención de estado
-    const btnFloatingSave = document.getElementById('btn-floating-save');
-    const originalSubmitBtn = document.querySelector('input[type="submit"]#submit');
-
-    if(btnFloatingSave && originalSubmitBtn) {
-        btnFloatingSave.addEventListener('click', () => {
-            // Eliminar temporalmente directivas restrictivas del DOM
-            originalSubmitBtn.removeAttribute('disabled');
-            originalSubmitBtn.classList.remove('disabled');
-            if (typeof jQuery !== 'undefined') {
-                jQuery(originalSubmitBtn).prop('disabled', false).removeClass('disabled');
-            }
-            
-            const form = document.querySelector('form[action="options.php"]');
-            if (form) {
-                // Inyectar un nodo invisible para asegurar el despacho del submit core de WP
-                const hiddenSubmit = document.createElement('input');
-                hiddenSubmit.type = 'hidden';
-                hiddenSubmit.name = originalSubmitBtn.name || 'submit';
-                hiddenSubmit.value = originalSubmitBtn.value || 'Guardar cambios';
-                form.appendChild(hiddenSubmit);
-                
-                HTMLFormElement.prototype.submit.call(form);
-            } else {
-                originalSubmitBtn.click();
-            }
-        });
-    }
 
     tipoSelect.addEventListener('change', (e) => {
         espectroRow.style.display = (e.target.value === 'espectro' || e.target.value === 'spike') ? 'table-row' : 'none';
@@ -430,16 +402,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 const btnDelete = isCore 
-                    ? `<span class="dashicons dashicons-lock" style="color:#ccc; margin-left:10px;" title="Los marcadores nativos no se pueden eliminar"></span>` 
-                    : `<button type="button" class="button button-small button-link-delete btn-delete-mk" data-key="${key}" title="Eliminar marcador"><span class="dashicons dashicons-trash" style="color:#d63638;"></span></button>`;
+                    ? `<span class="dashicons dashicons-lock siarhe-action-icon siarhe-action-icon--lock" tabindex="0" data-help="Variable nativa del sistema: no se puede eliminar. Si puedes editar sus etiquetas y parametros."></span>` 
+                    : `<button type="button" class="button button-small button-danger btn-delete-mk" data-key="${key}" title="Eliminar marcador"><span class="dashicons dashicons-trash"></span></button>`;
                     
                 let eyeIcon = 'dashicons-visibility';
                 let eyeColor = '#007cba';
-                let eyeTitle = 'Público: Visible para todos';
-                if (vis === 'registrados') { eyeIcon = 'dashicons-admin-users'; eyeColor = '#e68a00'; eyeTitle = 'Privado: Solo usuarios registrados'; }
-                if (vis === 'oculto') { eyeIcon = 'dashicons-hidden'; eyeColor = '#8c8f94'; eyeTitle = 'Oculto: No se mostrará en frontend'; }
+                let eyeTitle = 'Publico: lo ve cualquier visitante del sitio.';
+                if (vis === 'registrados') { eyeIcon = 'dashicons-admin-users'; eyeColor = '#e68a00'; eyeTitle = 'Privado: solo lo ven los usuarios con sesion iniciada.'; }
+                if (vis === 'oculto') { eyeIcon = 'dashicons-hidden'; eyeColor = '#8c8f94'; eyeTitle = 'Oculto: no se muestra en el sitio publico.'; }
 
-                const visIndicator = `<span class="dashicons ${eyeIcon}" style="color:${eyeColor}; margin-right: 8px; cursor: help;" title="${eyeTitle}"></span>`;
+                const visIndicator = `<span class="dashicons ${eyeIcon} siarhe-action-icon" style="color:${eyeColor};" tabindex="0" data-help="${eyeTitle}"></span>`;
 
                 let fuenteHtml = `<strong>📄 ${item.archivo || '—'}</strong>`;
                 if (item.filtro_col && item.filtro_val) {
@@ -464,11 +436,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         ${auditHtml}
                     </td>
                     <td data-label="Acciones">
+                        <div class="siarhe-row-actions">
                         ${visIndicator}
                         <button type="button" class="button button-small btn-edit-mk" data-key="${key}" title="Modificar parámetros">
                             <span class="dashicons dashicons-edit"></span>
                         </button>
                         ${btnDelete}
+                        </div>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -563,22 +537,16 @@ document.addEventListener('DOMContentLoaded', function() {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 const key = this.getAttribute('data-key');
-                if (confirm(`¿Eliminar la configuración del marcador "${key}"? (El archivo CSV no se borrará)`)) {
+                window.SiarheAdmin.confirm(`¿Eliminar la configuración del marcador "${key}"? (El archivo CSV no se borrará)`, { okText: 'Eliminar' }).then(ok => {
+ if (!ok) return;
                     delete marcadoresObj[key];
                     updateHiddenInput();
                     
                     // Asegurar la remoción del registro activo en el flujo de búsqueda
                     applySearchFilter(); 
                     
-                    if (window.SiarheAdmin && window.SiarheAdmin.showFloatingSaveBtn) {
-                        window.SiarheAdmin.showFloatingSaveBtn();
-                    }
-                    
-                    if (!document.getElementById('siarhe-save-notice')) {
-                        const headerEnd = document.querySelector('.wp-header-end');
-                        if (headerEnd) headerEnd.insertAdjacentHTML('afterend', '<div id="siarhe-save-notice" class="notice notice-warning"><p>⚠️ <strong>Atención:</strong> Existen cambios pendientes en la memoria temporal. Haz clic en <strong>"Guardar Configuración"</strong>.</p></div>');
-                    }
-                }
+                    window.SiarheAdmin.submitSettingsForm();
+                });
             });
         });
 
@@ -651,22 +619,22 @@ document.addEventListener('DOMContentLoaded', function() {
         const newKey = document.getElementById('modal-mk-key').value.trim().replace(/[^a-zA-Z0-9_]/g, '_');
         const isCore = document.getElementById('modal-mk-is-core').value === '1';
 
-        if (!newKey) { alert('La clave es obligatoria.'); return; }
+        if (!newKey) { window.SiarheAdmin.toast('La clave es obligatoria.', 'error'); return; }
         
         if (!originalKey && marcadoresObj.hasOwnProperty(newKey)) {
-            alert(`⚠️ ALERTA DE SEGURIDAD: La clave "${newKey}" ya existe en el sistema.`);
+            window.SiarheAdmin.toast(`⚠️ ALERTA DE SEGURIDAD: La clave "${newKey}" ya existe en el sistema.`, 'error');
             return; 
         }
 
         if (originalKey && originalKey !== newKey && marcadoresObj.hasOwnProperty(newKey)) {
-            alert(`⚠️ ALERTA DE SEGURIDAD: No puedes renombrar la clave a "${newKey}" porque ya está en uso.`);
+            window.SiarheAdmin.toast(`⚠️ ALERTA DE SEGURIDAD: No puedes renombrar la clave a "${newKey}" porque ya está en uso.`, 'error');
             return; 
         }
         
         const archivo = document.getElementById('modal-mk-archivo');
         const archivoVal = isCore && marcadoresObj[originalKey] ? marcadoresObj[originalKey].archivo : archivo.value;
 
-        if (!archivoVal) { alert('Debe seleccionar un archivo fuente CSV.'); return; }
+        if (!archivoVal) { window.SiarheAdmin.toast('Debe seleccionar un archivo fuente CSV.', 'error'); return; }
 
         if (!isCore && originalKey && originalKey !== newKey) {
             delete marcadoresObj[originalKey];
@@ -714,20 +682,19 @@ document.addEventListener('DOMContentLoaded', function() {
         
         modal.style.display = 'none';
 
-        if (window.SiarheAdmin && window.SiarheAdmin.showFloatingSaveBtn) {
-            window.SiarheAdmin.showFloatingSaveBtn();
-        }
+        window.SiarheAdmin.submitSettingsForm();
     });
 
     document.getElementById('btn-reset-marcadores').addEventListener('click', function() {
-        if (confirm('⚠️ PRECAUCIÓN: Se restaurarán los marcadores iniciales. ¿Confirmar?')) {
+        window.SiarheAdmin.confirm('⚠️ PRECAUCIÓN: Se restaurarán los marcadores iniciales. ¿Confirmar?', { okText: 'Restaurar' }).then(ok => {
+ if (!ok) return;
             marcadoresObj = JSON.parse(defaultJson);
             updateHiddenInput();
             this.innerHTML = '<span class="spinner is-active" style="float:none; margin:0 5px 0 0;"></span> Procesando...';
             this.disabled = true;
             const form = document.querySelector('form[action="options.php"]');
             if (form) HTMLFormElement.prototype.submit.call(form);
-        }
+        });
     });
 
     function updateHiddenInput() {
@@ -737,11 +704,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (typeof jQuery !== 'undefined') {
             jQuery('#submit').prop('disabled', false).removeClass('disabled');
             jQuery('form[action="options.php"]').trigger('change'); 
-        }
-        
-        if (!document.getElementById('siarhe-save-notice')) {
-            const headerEnd = document.querySelector('.wp-header-end');
-            if (headerEnd) headerEnd.insertAdjacentHTML('afterend', '<div id="siarhe-save-notice" class="notice notice-warning"><p>⚠️ <strong>Atención:</strong> Existen cambios pendientes en la memoria temporal. Haz clic en <strong>"Guardar Configuración"</strong>.</p></div>');
         }
     }
 

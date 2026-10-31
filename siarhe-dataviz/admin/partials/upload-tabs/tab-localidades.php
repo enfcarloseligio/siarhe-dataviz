@@ -31,16 +31,13 @@ if ( isset($_GET['status']) ) {
 
 <?php Siarhe_Admin::render_select2_css(); ?>
 
-<button type="button" class="button button-primary siarhe-floating-save" id="btn-floating-save">
-    Guardar
-</button>
 
-<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
-    <h2>🏘️ Cargar Mapa GeoJSON (Localidades)</h2>
+<div class="siarhe-card siarhe-upload-card">
+    <h2>🏘️ Cargar Mapa GeoJSON (Localidades)<?php Siarhe_Admin::help('Capa opcional con las localidades de la entidad para mostrar mayor detalle.'); ?></h2>
     
-    <div class="notice notice-info inline" style="margin: 10px 0 20px 0;">
+    <div class="notice notice-info inline">
         <p><strong>Política de Archivos Únicos:</strong></p>
-        <ul style="list-style: disc; margin-left: 20px;">
+        <ul>
             <li><strong>Formatos admitidos:</strong> Archivos estructurados <code>.json</code> o <code>.geojson</code>.</li>
             <li><strong>Nomenclatura:</strong> El archivo se normalizará automáticamente con el nombre estándar <code>{entidad}.geojson</code> dentro de la carpeta de localidades.</li>
             <li><strong>Proyección:</strong> Es estrictamente obligatorio que el mapa esté exportado en formato <strong>WGS84 (EPSG:4326)</strong> para garantizar la alineación de coordenadas.</li>
@@ -53,8 +50,8 @@ if ( isset($_GET['status']) ) {
 
         <table class="form-table" role="presentation">
             <tr>
-                <th scope="row"><label for="entidad_slug">Entidad Federativa</label></th>
-                <td style="max-width: 400px;">
+                <th scope="row"><label for="entidad_slug">Entidad Federativa</label><?php Siarhe_Admin::help('Entidad a la que pertenece el archivo. Define el shortcode donde se usara, por ejemplo CVE_ENT 09 para Ciudad de Mexico. Solo hay un archivo activo por entidad: al subir otro se reemplaza.'); ?></th>
+                <td class="siarhe-field-narrow">
                     <select name="entidad_slug" id="entidad_slug" class="siarhe-searchable-select" required>
                         <option value="">-- Selecciona la entidad --</option>
                         <?php foreach ($entidades_data as $slug => $data) : ?>
@@ -66,31 +63,31 @@ if ( isset($_GET['status']) ) {
                 </td>
             </tr>
             <tr>
-                <th scope="row"><label for="siarhe_file">Archivo GeoEspacial (Localidades)</label></th>
+                <th scope="row"><label for="siarhe_file">Archivo GeoEspacial (Localidades)</label><?php Siarhe_Admin::help('GeoJSON con los puntos o poligonos de localidades de la entidad, en WGS84 (EPSG:4326). Se usa como capa de detalle en el mapa.'); ?></th>
                 <td>
-                    <input type="file" name="siarhe_file" id="siarhe_file" accept=".json,.geojson" required>
+                    <input type="file" data-check="geojson" name="siarhe_file" id="siarhe_file" accept=".json,.geojson" required>
                 </td>
             </tr>
             <tr>
-                <th scope="row"><label for="anio_reporte">Año de los Datos</label></th>
+                <th scope="row"><label for="anio_reporte">Año de los Datos</label><?php Siarhe_Admin::help('Anio al que corresponden los datos. Se muestra en las referencias del mapa.'); ?></th>
                 <td>
                     <input type="number" name="anio_reporte" placeholder="Ej: 2026" class="small-text" required min="2000" max="2100">
                 </td>
             </tr>
             <tr>
-                <th scope="row"><label for="fecha_corte">Fecha de Corte</label></th>
+                <th scope="row"><label for="fecha_corte">Fecha de Corte</label><?php Siarhe_Admin::help('Fecha hasta la cual el archivo contiene informacion. Se muestra al usuario como vigencia de los datos.'); ?></th>
                 <td>
                     <input type="date" name="fecha_corte" required>
                 </td>
             </tr>
             <tr>
-                <th scope="row"><label for="referencia">Fuente / Referencia</label></th>
+                <th scope="row"><label for="referencia">Fuente / Referencia</label><?php Siarhe_Admin::help('Origen de la informacion (institucion, documento, version). Aparece como referencia bibliografica.'); ?></th>
                 <td>
                     <textarea name="referencia" id="referencia" rows="2" class="large-text" placeholder="Ej: Marco Geoestadístico INEGI 2025."></textarea>
                 </td>
             </tr>
             <tr>
-                <th scope="row"><label for="comentarios">Comentarios Internos</label></th>
+                <th scope="row"><label for="comentarios">Comentarios Internos</label><?php Siarhe_Admin::help('Notas para el equipo administrador. No se muestran en el sitio publico.'); ?></th>
                 <td>
                     <textarea name="comentarios" id="comentarios" rows="2" class="large-text" placeholder="Notas sobre la simplificación topológica del mapa..."></textarea>
                 </td>
@@ -102,12 +99,12 @@ if ( isset($_GET['status']) ) {
     </form>
 </div>
 
-<div class="card" style="max-width: 100%; padding: 0; overflow: hidden;">
-    <h2 style="padding: 15px; margin: 0; border-bottom: 1px solid #eee;">Estado de Mapas (Localidades)</h2>
+<div class="siarhe-card siarhe-card--flush">
+    <h2 class="siarhe-card__title">Estado de Mapas (Localidades)<?php Siarhe_Admin::help('Resumen por entidad de las capas de localidades cargadas.'); ?></h2>
     
     <div class="siarhe-toolbar">
         <div class="siarhe-table-controls">
-            <label style="font-size: 13px; color: #3c434a;">
+            <label>
                 Mostrar 
                 <select id="siarhe-items-per-page" style="margin: 0 5px; padding: 2px 24px 2px 8px; font-size: 13px; min-height: 28px;">
                     <option value="25">25</option>
@@ -119,7 +116,7 @@ if ( isset($_GET['status']) ) {
             </label>
         </div>
 
-        <div class="siarhe-pagination" style="border-top: none; padding: 0; background: transparent;">
+        <div class="siarhe-pagination siarhe-pagination--bare">
             <div class="siarhe-page-numbers" id="siarhe-pagination-controls-top"></div>
         </div>
 
@@ -188,15 +185,15 @@ if ( isset($_GET['status']) ) {
                 
                 <td data-label="Estado" data-mobile-role="secondary">
                     <?php if ($exists) : ?>
-                        <span class="dashicons dashicons-location" style="color: #46b450;"></span> <strong style="color:#46b450">Mapeado</strong>
+                        <span class="siarhe-status siarhe-status--ok"><span class="dashicons dashicons-location"></span>Mapeado</span>
                     <?php else : ?>
-                        <span class="dashicons dashicons-minus" style="color: #ccc;"></span> <span style="color:#777;">Sin Mapa</span>
+                        <span class="siarhe-status siarhe-status--off"><span class="dashicons dashicons-minus"></span>Sin Mapa</span>
                     <?php endif; ?>
                 </td>
 
                 <td data-label="Archivo del Sistema">
                     <?php if ($exists) : ?>
-                        <code style="font-size:11px;"><?php echo esc_html(basename($archivo->ruta_archivo)); ?></code>
+                        <code class="siarhe-code-sm"><?php echo esc_html(basename($archivo->ruta_archivo)); ?></code>
                     <?php else : ?>—<?php endif; ?>
                 </td>
 
@@ -211,33 +208,33 @@ if ( isset($_GET['status']) ) {
                         $autor_original = $archivo->subido_por ?? ($archivo->creado_por ?? ($archivo->registrado_por ?? 'Sistema'));
                         $fecha_original = $archivo->fecha_subida ?? ($archivo->fecha_creacion ?? ($archivo->fecha_registro ?? $archivo->fecha_modificacion));
                     ?>
-                        <div style="margin-bottom: 8px; line-height: 1.3;">
-                            <span style="font-size:10px; font-weight:bold; color:#94a3b8; text-transform:uppercase;">Subido por:</span><br>
-                            <span style="font-size:12px; color:#0f172a; font-weight:500;">
+                        <div class="siarhe-audit">
+                            <span class="siarhe-audit__label">Subido por:</span><br>
+                            <span class="siarhe-audit__who">
                                 <?php echo esc_html($autor_original); ?>
                             </span><br>
-                            <span style="color:#64748b; font-size:11px;" class="siarhe-date-formatter" data-date="<?php echo esc_attr($fecha_original); ?>">
+                            <span class="siarhe-audit__date siarhe-date-formatter" data-date="<?php echo esc_attr($fecha_original); ?>">
                                 <?php echo esc_html($fecha_original); ?>
                             </span>
                         </div>
 
                         <?php if (!empty($archivo->fecha_modificacion) && $archivo->fecha_modificacion !== $fecha_original) : ?>
-                            <div style="line-height: 1.3; border-top: 1px dashed #e2e8f0; padding-top: 6px;">
-                                <span style="font-size:10px; font-weight:bold; color:#0ea5e9; text-transform:uppercase;">Última edición:</span><br>
-                                <span style="font-size:12px; color:#0f172a; font-weight:500;">
+                            <div class="siarhe-audit">
+                                <span class="siarhe-audit__label siarhe-audit__label--edit">Última edición:</span><br>
+                                <span class="siarhe-audit__who">
                                     <?php echo esc_html($archivo->modificado_por ?: 'Sistema'); ?>
                                 </span><br>
-                                <span style="color:#64748b; font-size:11px;" class="siarhe-date-formatter" data-date="<?php echo esc_attr($archivo->fecha_modificacion); ?>">
+                                <span class="siarhe-audit__date siarhe-date-formatter" data-date="<?php echo esc_attr($archivo->fecha_modificacion); ?>">
                                     <?php echo esc_html($archivo->fecha_modificacion); ?>
                                 </span>
                             </div>
                         <?php endif; ?>
 
                     <?php elseif ($exists) : ?>
-                        <div style="line-height: 1.3;">
-                            <span style="font-size:10px; font-weight:bold; color:#94a3b8; text-transform:uppercase;">Subido por:</span><br>
-                            <span style="font-size:12px; color:#0f172a; font-weight:500;">Sistema (Vía FTP/Cpanel)</span><br>
-                            <span style="color:#64748b; font-size:11px;" class="siarhe-date-formatter" data-date="<?php echo esc_attr(date("Y-m-d H:i:s", filemtime($row['ruta_fisica']))); ?>">
+                        <div class="siarhe-audit">
+                            <span class="siarhe-audit__label">Subido por:</span><br>
+                            <span class="siarhe-audit__who">Sistema (Vía FTP/Cpanel)</span><br>
+                            <span class="siarhe-audit__date siarhe-date-formatter" data-date="<?php echo esc_attr(date("Y-m-d H:i:s", filemtime($row['ruta_fisica']))); ?>">
                                 <?php echo esc_html(date("Y-m-d H:i:s", filemtime($row['ruta_fisica']))); ?>
                             </span>
                         </div>
@@ -253,13 +250,14 @@ if ( isset($_GET['status']) ) {
                 </td>
 
                 <td data-label="Acciones">
+                    <div class="siarhe-row-actions">
                     <?php if ($exists) : 
                         // 🌟 CACHE BUSTING: Añade la firma de tiempo al enlace final
                         $cache_version = filemtime($row['ruta_fisica']);
                         $url_con_version = SIARHE_UPLOAD_URL . ltrim($archivo->ruta_archivo, '/') . '?v=' . $cache_version;
                     ?>
-                        <button type="button" class="button button-small copy-url-btn" 
-                                data-url="<?php echo esc_url($url_con_version); ?>" title="Copiar Enlace al Archivo">
+                        <button type="button" class="button button-small" 
+                                data-copy="<?php echo esc_url($url_con_version); ?>" title="Copiar Enlace al Archivo">
                             <span class="dashicons dashicons-admin-links"></span>
                         </button>
 
@@ -281,33 +279,34 @@ if ( isset($_GET['status']) ) {
                         </a>
 
                         <?php if ($archivo) : ?>
-                        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display:inline;" onsubmit="return confirm('⚠️ ATENCIÓN: ¿Estás seguro de eliminar este mapa GEOJSON de localidades? Esta acción borrará el registro y el archivo físico del servidor de forma irreversible.');">
+                        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" data-confirm="⚠️ ATENCIÓN: ¿Estás seguro de eliminar este mapa GEOJSON de localidades? Esta acción borrará el registro y el archivo físico del servidor de forma irreversible.">
                             <input type="hidden" name="action" value="siarhe_delete_localidades">
                             <input type="hidden" name="file_id" value="<?php echo absint( $archivo->id ); ?>">
                             <?php wp_nonce_field( 'siarhe_delete_localidades_nonce_' . $archivo->id ); ?>
-                            <button type="submit" class="button button-small button-link-delete" title="Eliminar Mapa y Registro"><span class="dashicons dashicons-trash" style="color: #a00;"></span></button>
+                            <button type="submit" class="button button-small button-danger" title="Eliminar Mapa y Registro"><span class="dashicons dashicons-trash"></span></button>
                         </form>
                         <?php endif; ?>
                     <?php else : ?><span class="description">—</span><?php endif; ?>
+                    </div>
                 </td>
             </tr>
             <?php endforeach; ?>
             <tr id="siarhe-localidades-empty" style="display: none;">
-                <td colspan="8" style="text-align:center; padding: 20px; color:#8c8f94;">No se encontraron resultados para su búsqueda.</td>
+                <td colspan="8" class="siarhe-empty-cell">No se encontraron resultados para su búsqueda.</td>
             </tr>
         </tbody>
     </table>
 
     <div class="siarhe-pagination">
-        <div id="siarhe-localidades-count" style="font-size: 13px; color: #64748b;"></div>
+        <div id="siarhe-localidades-count" class="siarhe-count"></div>
         <div class="siarhe-page-numbers" id="siarhe-pagination-controls-bottom"></div>
     </div>
 </div>
 
 <div id="siarhe-edit-modal" class="siarhe-modal-overlay">
     <div class="siarhe-modal-content">
-        <h2 style="margin-top:0; border-bottom: 1px solid #eee; padding-bottom: 15px;">
-            Editar Metadatos GeoJSON: <span id="modal-entidad-name" style="color: #2271b1;"></span>
+        <h2 class="siarhe-modal-title">
+            Editar Metadatos GeoJSON: <span id="modal-entidad-name"></span>
         </h2>
         <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" id="form-update-meta">
             <input type="hidden" name="action" value="siarhe_update_localidades_meta">
@@ -315,12 +314,12 @@ if ( isset($_GET['status']) ) {
             <?php wp_nonce_field( 'siarhe_update_localidades_meta_nonce', 'siarhe_meta_nonce' ); ?>
 
             <table class="form-table">
-                <tr><th><label>Año de los Datos</label></th><td><input type="number" name="anio_reporte" id="modal-anio" class="regular-text" required></td></tr>
-                <tr><th><label>Fecha de Corte</label></th><td><input type="date" name="fecha_corte" id="modal-corte" class="regular-text" required></td></tr>
-                <tr><th><label>Fuente / Referencia</label></th><td><textarea name="referencia" id="modal-ref" rows="3" class="large-text"></textarea></td></tr>
-                <tr><th><label>Comentarios Internos</label></th><td><textarea name="comentarios" id="modal-notes" rows="3" class="large-text"></textarea></td></tr>
+                <tr><th><label>Año de los Datos</label><?php Siarhe_Admin::help('Anio al que corresponden los datos. Se muestra en las referencias del mapa.'); ?></th><td><input type="number" name="anio_reporte" id="modal-anio" class="regular-text" required></td></tr>
+                <tr><th><label>Fecha de Corte</label><?php Siarhe_Admin::help('Fecha hasta la cual el archivo contiene informacion. Se muestra al usuario como vigencia de los datos.'); ?></th><td><input type="date" name="fecha_corte" id="modal-corte" class="regular-text" required></td></tr>
+                <tr><th><label>Fuente / Referencia</label><?php Siarhe_Admin::help('Origen de la informacion (institucion, documento, version). Aparece como referencia bibliografica.'); ?></th><td><textarea name="referencia" id="modal-ref" rows="3" class="large-text"></textarea></td></tr>
+                <tr><th><label>Comentarios Internos</label><?php Siarhe_Admin::help('Notas para el equipo administrador. No se muestran en el sitio publico.'); ?></th><td><textarea name="comentarios" id="modal-notes" rows="3" class="large-text"></textarea></td></tr>
             </table>
-            <div style="text-align:right; margin-top:20px; border-top: 1px solid #eee; padding-top: 15px;">
+            <div class="siarhe-modal-footer">
                 <button type="button" class="button button-secondary" id="close-modal-btn">Cancelar</button>
                 <button type="submit" class="button button-primary" id="btn-modal-submit">Guardar Cambios</button>
             </div>
@@ -368,10 +367,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('modal-ref').value = this.dataset.ref;
                 document.getElementById('modal-notes').value = this.dataset.notes;
                 
-                // Mostrar el botón flotante al editar metadatos
-                if(window.SiarheAdmin && window.SiarheAdmin.showFloatingSaveBtn) {
-                    window.SiarheAdmin.showFloatingSaveBtn();
-                }
 
                 modal.style.display = 'block';
             });
@@ -380,40 +375,8 @@ document.addEventListener('DOMContentLoaded', function() {
         window.addEventListener('click', function(e) { if (e.target == modal) { modal.style.display = 'none'; } });
     }
 
-    // 🌟 Lógica de "Guardar Inteligente" para el Botón Flotante
-    const btnFloatingSave = document.getElementById('btn-floating-save');
-    if (btnFloatingSave) {
-        btnFloatingSave.addEventListener('click', () => {
-            if (modal && modal.style.display === 'block') {
-                document.getElementById('btn-modal-submit').click();
-            } else {
-                document.querySelector('input[type="submit"]#submit').click();
-            }
-        });
-    }
 
-    // Mostrar el botón flotante si se interactúa con el formulario de subida
-    const formUpload = document.getElementById('form-upload-localidades');
-    if (formUpload) {
-        formUpload.addEventListener('input', () => {
-            if(window.SiarheAdmin && window.SiarheAdmin.showFloatingSaveBtn) {
-                window.SiarheAdmin.showFloatingSaveBtn();
-            }
-        });
-    }
     
-    // Motor de copiado al portapapeles
-    document.querySelectorAll('.copy-url-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.preventDefault(); e.stopPropagation();
-            const url = this.getAttribute('data-url');
-            navigator.clipboard.writeText(url).then(() => {
-                const original = this.innerHTML;
-                this.innerHTML = '<span class="dashicons dashicons-yes" style="color:green;"></span>';
-                setTimeout(() => { this.innerHTML = original; }, 1500);
-            });
-        });
-    });
 
     // Motor de Búsqueda y Paginación (Homologado)
     const searchInput = document.getElementById('siarhe-search-localidades');

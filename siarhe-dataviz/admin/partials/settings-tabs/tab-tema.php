@@ -30,12 +30,12 @@ $colors = wp_parse_args( $theme_options, $defaults );
 </style>
 
 <div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px;">
-    <h2>🎨 Personalización del Tema Admin</h2>
+    <h2>🎨 Personalización del Tema Admin<?php Siarhe_Admin::help('Colores de las tablas dentro de este panel de administracion. No afecta al sitio publico.'); ?></h2>
     <p>Personaliza los colores de las tablas dentro del panel de administración del plugin.</p>
 
     <table class="form-table" role="presentation">
         <tr>
-            <th scope="row">Cabecera de Tabla (Header)</th>
+            <th scope="row">Cabecera de Tabla (Header)<?php Siarhe_Admin::help('Colores de la cabecera de las tablas del panel de administracion.'); ?></th>
             <td>
                 <div class="siarhe-tema-flex">
                     <div class="siarhe-tema-col">
@@ -51,7 +51,7 @@ $colors = wp_parse_args( $theme_options, $defaults );
         </tr>
 
         <tr>
-            <th scope="row">Filas Impares (1, 3, 5...)</th>
+            <th scope="row">Filas Impares (1, 3, 5...)<?php Siarhe_Admin::help('Colores de las filas impares en las tablas del panel de administracion.'); ?></th>
             <td>
                 <div class="siarhe-tema-flex">
                     <div class="siarhe-tema-col">
@@ -67,7 +67,7 @@ $colors = wp_parse_args( $theme_options, $defaults );
         </tr>
 
         <tr>
-            <th scope="row">Filas Pares (2, 4, 6...)</th>
+            <th scope="row">Filas Pares (2, 4, 6...)<?php Siarhe_Admin::help('Colores de las filas pares en las tablas del panel de administracion.'); ?></th>
             <td>
                 <div class="siarhe-tema-flex">
                     <div class="siarhe-tema-col">
@@ -85,7 +85,7 @@ $colors = wp_parse_args( $theme_options, $defaults );
 
     <hr style="margin: 30px 0;">
 
-    <h3>Vista Previa</h3>
+    <h3>Vista Previa<?php Siarhe_Admin::help('Asi se veran las tablas del panel con los colores elegidos.'); ?></h3>
     <div style="overflow-x: auto;">
         <table id="siarhe-preview-table" class="siarhe-table siarhe-table--static" style="min-width: 400px; max-width: 100%;">
             <thead>

@@ -15,78 +15,6 @@ if ( empty($tipos_marcadores) || !is_array($tipos_marcadores) || (isset($tipos_m
     update_option( 'siarhe_archivos_marcadores', wp_json_encode($tipos_marcadores, JSON_UNESCAPED_UNICODE) );
 }
 
-// 🌟 INTERCEPTOR MEJORADO: Procesa variables y limpieza profunda
-if ( isset($_POST['action']) && current_user_can( 'manage_options' ) ) {
-    
-    // Acción: Agregar nueva variable
-    if ( $_POST['action'] === 'add_archivo_marcador' && isset($_POST['new_file_key']) && isset($_POST['add_nonce']) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['add_nonce'] ) ), 'siarhe_add_variable_nonce' ) ) {
-        $new_key = sanitize_text_field(strtoupper(str_replace(' ', '_', $_POST['new_file_key'])));
-        $new_label = sanitize_text_field($_POST['new_file_label']);
-        $new_filename = sanitize_file_name(strtolower(str_replace(' ', '-', $_POST['new_file_name'])));
-        if (strpos($new_filename, '.csv') === false) $new_filename .= '.csv';
-        
-        if (!empty($new_key) && !isset($tipos_marcadores[$new_key])) {
-            $tipos_marcadores[$new_key] = [ 'label' => $new_label, 'filename' => $new_filename, 'is_core' => false ];
-            update_option( 'siarhe_archivos_marcadores', wp_json_encode($tipos_marcadores, JSON_UNESCAPED_UNICODE) );
-            echo '<div class="notice notice-success is-dismissible"><p>Ranura de variable registrada. Archivo CSV admitido para carga.</p></div>';
-        }
-    }
-    
-    // Acción: Eliminar variable individual (Limpia DB y Archivo Físico)
-    if ( $_POST['action'] === 'delete_archivo_marcador' && isset($_POST['del_file_key']) && isset($_POST['del_nonce']) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['del_nonce'] ) ), 'siarhe_delete_variable_nonce' ) ) {
-        $del_key = sanitize_text_field($_POST['del_file_key']);
-        if (isset($tipos_marcadores[$del_key]) && empty($tipos_marcadores[$del_key]['is_core'])) {
-            
-            global $wpdb;
-            $table_assets = $wpdb->prefix . 'siarhe_static_assets';
-            $upload_base_dir_del = (defined('SIARHE_UPLOAD_DIR') ? SIARHE_UPLOAD_DIR : wp_upload_dir()['basedir'] . '/siarhe-data/') . 'markers/';
-            
-            $asset = $wpdb->get_row($wpdb->prepare("SELECT id, ruta_archivo FROM $table_assets WHERE tipo_archivo = %s AND entidad_slug = %s", 'marcador', $del_key));
-            if ($asset) {
-                $file_path = $upload_base_dir_del . basename($asset->ruta_archivo);
-                if (file_exists($file_path)) @unlink($file_path);
-                $wpdb->delete($table_assets, ['id' => $asset->id]);
-            } else {
-                $file_path = $upload_base_dir_del . $tipos_marcadores[$del_key]['filename'];
-                if (file_exists($file_path)) @unlink($file_path);
-            }
-
-            unset($tipos_marcadores[$del_key]);
-            update_option( 'siarhe_archivos_marcadores', wp_json_encode($tipos_marcadores, JSON_UNESCAPED_UNICODE) );
-            echo '<div class="notice notice-success is-dismissible"><p>Ranura de variable y archivo físico asociado eliminados permanentemente.</p></div>';
-        }
-    }
-
-    // 🌟 NUEVA ACCIÓN: Restaurar Iniciales (Borra todas las personalizadas)
-    if ( $_POST['action'] === 'reset_archivos_marcadores' && isset($_POST['reset_nonce']) && wp_verify_nonce($_POST['reset_nonce'], 'reset_variables_nonce') ) {
-        global $wpdb;
-        $table_assets = $wpdb->prefix . 'siarhe_static_assets';
-        $upload_base_dir_del = (defined('SIARHE_UPLOAD_DIR') ? SIARHE_UPLOAD_DIR : wp_upload_dir()['basedir'] . '/siarhe-data/') . 'markers/';
-
-        foreach ($tipos_marcadores as $k => $inf) {
-            if (empty($inf['is_core'])) {
-                $asset = $wpdb->get_row($wpdb->prepare("SELECT id, ruta_archivo FROM $table_assets WHERE tipo_archivo = %s AND entidad_slug = %s", 'marcador', $k));
-                if ($asset) {
-                    $file_path = $upload_base_dir_del . basename($asset->ruta_archivo);
-                    if (file_exists($file_path)) @unlink($file_path);
-                    $wpdb->delete($table_assets, ['id' => $asset->id]);
-                } else {
-                    $file_path = $upload_base_dir_del . $inf['filename'];
-                    if (file_exists($file_path)) @unlink($file_path);
-                }
-            }
-        }
-
-        $tipos_marcadores = [
-            'CATETER' => [ 'label' => 'Clínicas de Catéteres', 'filename' => 'clinicas-cateteres.csv', 'is_core' => true ],
-            'HERIDAS' => [ 'label' => 'Clínicas de Heridas', 'filename' => 'clinicas-heridas.csv', 'is_core' => true ],
-            'ESTABLECIMIENTOS' => [ 'label' => 'Establecimientos de Salud (Todas)', 'filename' => 'establecimientos-salud.csv', 'is_core' => true ]
-        ];
-        update_option( 'siarhe_archivos_marcadores', wp_json_encode($tipos_marcadores, JSON_UNESCAPED_UNICODE) );
-        echo '<div class="notice notice-success is-dismissible"><p>Se han restaurado las variables iniciales. Todos los archivos personalizados fueron eliminados de la base de datos y del servidor.</p></div>';
-    }
-}
-
 // 2. Consulta de metadatos existentes en base de datos
 global $wpdb;
 $table_assets = $wpdb->prefix . 'siarhe_static_assets';
@@ -107,21 +35,24 @@ Siarhe_Admin::render_flash_notice();
 if ( isset($_GET['status']) ) {
     if ( $_GET['status'] == 'success' ) echo '<div class="notice notice-success is-dismissible"><p>Marcador procesado y actualizado correctamente.</p></div>';
     if ( $_GET['status'] == 'updated' ) echo '<div class="notice notice-success is-dismissible"><p>Metadatos sincronizados exitosamente.</p></div>';
+    if ( $_GET['status'] == 'deleted' ) echo '<div class="notice notice-warning is-dismissible"><p>Archivo CSV y registro eliminados.</p></div>';
+    if ( $_GET['status'] == 'var_added' ) echo '<div class="notice notice-success is-dismissible"><p>Variable registrada. Ya puedes cargar su archivo CSV.</p></div>';
+    if ( $_GET['status'] == 'var_deleted' ) echo '<div class="notice notice-warning is-dismissible"><p>Variable y archivo CSV asociado eliminados permanentemente.</p></div>';
+    if ( $_GET['status'] == 'var_reset' ) echo '<div class="notice notice-warning is-dismissible"><p>Se restauraron las variables iniciales; los archivos personalizados fueron eliminados.</p></div>';
+    if ( $_GET['status'] == 'var_exists' ) echo '<div class="notice notice-error is-dismissible"><p>Ya existe una variable con esa clave.</p></div>';
+    if ( $_GET['status'] == 'var_invalid' ) echo '<div class="notice notice-error is-dismissible"><p>Datos de variable no válidos.</p></div>';
 }
 ?>
 
 <?php Siarhe_Admin::render_select2_css(); ?>
 
-<button type="button" class="button button-primary siarhe-floating-save" id="btn-floating-save">
-    Guardar
-</button>
 
-<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
-    <h2>📍 Gestión de Marcadores (Clínicas y Espectros)</h2>
+<div class="siarhe-card siarhe-upload-card">
+    <h2>📍 Gestión de Marcadores (Clínicas y Espectros)<?php Siarhe_Admin::help('Carga los CSV de puntos que se dibujan sobre el mapa (posicion, espectro o spike).'); ?></h2>
     
-    <div class="notice notice-info inline" style="margin: 10px 0 20px 0;">
+    <div class="notice notice-info inline">
         <p><strong>Política de Archivos Únicos:</strong></p>
-        <ul style="list-style: disc; margin-left: 20px;">
+        <ul>
             <li><strong>Formatos admitidos:</strong> Archivos .csv.</li>
             <li><strong>Nomenclatura:</strong> El archivo se guardará automáticamente con el nombre estándar configurado.</li>
             <li><strong>Proyección:</strong> Es necesario que las bases de datos usen las variables <code>CVE_ENT</code>, <code>CVE_MUN</code>, <code>LATITUD</code>, <code>LONGITUD</code>.</li>
@@ -134,8 +65,8 @@ if ( isset($_GET['status']) ) {
 
         <table class="form-table">
             <tr>
-                <th scope="row"><label for="marker_type">Tipo de Marcador</label></th>
-                <td style="max-width: 400px;">
+                <th scope="row"><label for="marker_type">Tipo de Marcador</label><?php Siarhe_Admin::help('Variable de marcador a la que corresponde este CSV. Las variables se crean en Configuracion > Marcadores o con Incorporar Nueva Variable.'); ?></th>
+                <td class="siarhe-field-narrow">
                     <select name="marker_type" id="marker_type" class="siarhe-searchable-select" required>
                         <option value="">-- Selecciona el tipo --</option>
                         <?php foreach ($tipos_marcadores as $key => $info) : ?>
@@ -145,31 +76,31 @@ if ( isset($_GET['status']) ) {
                 </td>
             </tr>
             <tr>
-                <th scope="row"><label for="marker_file">Archivo CSV</label></th>
+                <th scope="row"><label for="marker_file">Archivo CSV</label><?php Siarhe_Admin::help('CSV con los puntos del marcador (coordenadas y, segun el tipo, la columna numerica). Se valida antes de guardarse.'); ?></th>
                 <td>
-                    <input type="file" name="marker_file" id="marker_file" accept=".csv" required>
+                    <input type="file" data-check="marker-csv" name="marker_file" id="marker_file" accept=".csv" required>
                 </td>
             </tr>
             <tr>
-                <th scope="row"><label for="anio_reporte">Año de los Datos</label></th>
+                <th scope="row"><label for="anio_reporte">Año de los Datos</label><?php Siarhe_Admin::help('Anio al que corresponden los datos. Se muestra en las referencias del mapa.'); ?></th>
                 <td>
                     <input type="number" name="anio_reporte" placeholder="Ej: 2026" class="small-text" required min="2000" max="2100">
                 </td>
             </tr>
             <tr>
-                <th scope="row"><label for="fecha_corte">Fecha de Corte</label></th>
+                <th scope="row"><label for="fecha_corte">Fecha de Corte</label><?php Siarhe_Admin::help('Fecha hasta la cual el archivo contiene informacion. Se muestra al usuario como vigencia de los datos.'); ?></th>
                 <td>
                     <input type="date" name="fecha_corte" required>
                 </td>
             </tr>
             <tr>
-                <th scope="row"><label for="referencia">Fuente / Referencia</label></th>
+                <th scope="row"><label for="referencia">Fuente / Referencia</label><?php Siarhe_Admin::help('Origen de la informacion (institucion, documento, version). Aparece como referencia bibliografica.'); ?></th>
                 <td>
                     <textarea name="referencia" id="referencia" rows="2" class="large-text" placeholder="Ej: Catálogo de Establecimientos, Secretaría de Salud."></textarea>
                 </td>
             </tr>
             <tr>
-                <th scope="row"><label for="comentarios">Comentarios Internos</label></th>
+                <th scope="row"><label for="comentarios">Comentarios Internos</label><?php Siarhe_Admin::help('Notas para el equipo administrador. No se muestran en el sitio publico.'); ?></th>
                 <td>
                     <textarea name="comentarios" id="comentarios" rows="2" class="large-text" placeholder="Notas sobre la limpieza de coordenadas..."></textarea>
                 </td>
@@ -182,35 +113,35 @@ if ( isset($_GET['status']) ) {
     </form>
 </div>
 
-<div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
+<div class="siarhe-card siarhe-upload-card">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
-        <h3 style="margin: 0;">➕ Incorporar Nueva Variable (CSV)</h3>
+        <h3 style="margin: 0;">➕ Incorporar Nueva Variable (CSV)<?php Siarhe_Admin::help('Registra una nueva variable de marcador antes de subir su CSV.'); ?></h3>
         
-        <button type="button" class="button button-link-delete" style="color: #d63638; border: 1px solid #d63638; padding: 0 10px; border-radius: 3px; background: #fff;" onclick="if(confirm('⚠️ PRECAUCIÓN EXTREMA: Esta acción borrará permanentemente TODAS las variables personalizadas y sus ARCHIVOS CSV físicos asociados del servidor. ¿Deseas continuar?')) { document.getElementById('form-reset-variables').submit(); }">
-            <span class="dashicons dashicons-undo" style="margin-top:3px;"></span> Restaurar Iniciales
-        </button>
-        <form id="form-reset-variables" method="post" action="" style="display:none;">
-            <input type="hidden" name="action" value="reset_archivos_marcadores">
+        <form id="form-reset-variables" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-confirm="PRECAUCIÓN: se borrarán permanentemente TODAS las variables personalizadas y sus archivos CSV del servidor. ¿Deseas continuar?" data-confirm-ok="Restaurar">
+            <input type="hidden" name="action" value="siarhe_marker_var_reset">
             <?php wp_nonce_field('reset_variables_nonce', 'reset_nonce'); ?>
+            <button type="submit" class="siarhe-btn-icon button button-link-delete" style="color: #d63638; border: 1px solid #d63638; padding: 0 10px; border-radius: 3px; background: #fff;">
+                <span class="dashicons dashicons-undo"></span> Restaurar Iniciales
+            </button>
         </form>
 
     </div>
     <p class="description">Agrega una nueva ranura de archivo para cargar marcadores adicionales (ej. Casos Epidemiológicos, Unidades Móviles).</p>
     
-    <form method="post" action="">
-        <input type="hidden" name="action" value="add_archivo_marcador">
+    <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+        <input type="hidden" name="action" value="siarhe_marker_var_add">
         <?php wp_nonce_field( 'siarhe_add_variable_nonce', 'add_nonce' ); ?>
         <table class="form-table" role="presentation">
             <tr>
-                <th scope="row"><label>Clave Interna (Sin espacios):</label></th>
+                <th scope="row"><label>Clave Interna (Sin espacios):</label><?php Siarhe_Admin::help('Identificador unico de la variable. Solo letras, numeros y guion bajo. No se puede cambiar despues sin recrear la variable.'); ?></th>
                 <td><input type="text" name="new_file_key" placeholder="Ej: CASOS_DENGUE" required class="regular-text"></td>
             </tr>
             <tr>
-                <th scope="row"><label>Etiqueta Pública:</label></th>
+                <th scope="row"><label>Etiqueta Pública:</label><?php Siarhe_Admin::help('Nombre que veran los visitantes en selectores y leyendas.'); ?></th>
                 <td><input type="text" name="new_file_label" placeholder="Ej: Casos de Dengue 2026" required class="regular-text"></td>
             </tr>
             <tr>
-                <th scope="row"><label>Nombre del Archivo (con .csv):</label></th>
+                <th scope="row"><label>Nombre del Archivo (con .csv):</label><?php Siarhe_Admin::help('Nombre del archivo CSV que se guardara en la carpeta de marcadores, incluyendo la extension .csv.'); ?></th>
                 <td><input type="text" name="new_file_name" placeholder="ej: casos-dengue.csv" required class="regular-text"></td>
             </tr>
         </table>
@@ -220,12 +151,12 @@ if ( isset($_GET['status']) ) {
     </form>
 </div>
 
-<div class="card" style="max-width: 100%; padding: 0; margin-bottom: 20px; overflow: hidden;">
-    <h2 style="padding: 15px; margin: 0; border-bottom: 1px solid #eee;">Archivos en el Servidor</h2>
+<div class="siarhe-card siarhe-card--flush">
+    <h2 class="siarhe-card__title">Archivos en el Servidor<?php Siarhe_Admin::help('CSV de marcadores guardados actualmente en el servidor.'); ?></h2>
     
     <div class="siarhe-toolbar">
         <div class="siarhe-table-controls">
-            <label style="font-size: 13px; color: #3c434a;">
+            <label>
                 Mostrar 
                 <select id="siarhe-items-per-page" style="margin: 0 5px; padding: 2px 24px 2px 8px; font-size: 13px; min-height: 28px;">
                     <option value="25">25</option>
@@ -237,7 +168,7 @@ if ( isset($_GET['status']) ) {
             </label>
         </div>
 
-        <div class="siarhe-pagination" style="border-top: none; padding: 0; background: transparent;">
+        <div class="siarhe-pagination siarhe-pagination--bare">
             <div class="siarhe-page-numbers" id="siarhe-pagination-controls-top"></div>
         </div>
 
@@ -285,7 +216,7 @@ if ( isset($_GET['status']) ) {
                 
                 <td data-label="Archivo Sistema">
                     <?php if ($existe_fisico) : ?>
-                        <code style="font-size:11px;"><?php echo esc_html($filename); ?></code>
+                        <code class="siarhe-code-sm"><?php echo esc_html($filename); ?></code>
                     <?php else : ?>—<?php endif; ?>
                 </td>
                 
@@ -300,33 +231,33 @@ if ( isset($_GET['status']) ) {
                         $autor_original = $db_file->subido_por ?? ($db_file->creado_por ?? ($db_file->registrado_por ?? 'Sistema'));
                         $fecha_original = $db_file->fecha_subida ?? ($db_file->fecha_creacion ?? ($db_file->fecha_registro ?? $db_file->fecha_modificacion));
                     ?>
-                        <div style="margin-bottom: 8px; line-height: 1.3;">
-                            <span style="font-size:10px; font-weight:bold; color:#94a3b8; text-transform:uppercase;">Subido por:</span><br>
-                            <span style="font-size:12px; color:#0f172a; font-weight:500;">
+                        <div class="siarhe-audit">
+                            <span class="siarhe-audit__label">Subido por:</span><br>
+                            <span class="siarhe-audit__who">
                                 <?php echo esc_html($autor_original); ?>
                             </span><br>
-                            <span style="color:#64748b; font-size:11px;" class="siarhe-date-formatter" data-date="<?php echo esc_attr($fecha_original); ?>">
+                            <span class="siarhe-audit__date siarhe-date-formatter" data-date="<?php echo esc_attr($fecha_original); ?>">
                                 <?php echo esc_html($fecha_original); ?>
                             </span>
                         </div>
 
                         <?php if (!empty($db_file->fecha_modificacion) && $db_file->fecha_modificacion !== $fecha_original) : ?>
-                            <div style="line-height: 1.3; border-top: 1px dashed #e2e8f0; padding-top: 6px;">
-                                <span style="font-size:10px; font-weight:bold; color:#0ea5e9; text-transform:uppercase;">Última edición:</span><br>
-                                <span style="font-size:12px; color:#0f172a; font-weight:500;">
+                            <div class="siarhe-audit">
+                                <span class="siarhe-audit__label siarhe-audit__label--edit">Última edición:</span><br>
+                                <span class="siarhe-audit__who">
                                     <?php echo esc_html($db_file->modificado_por ?: 'Sistema'); ?>
                                 </span><br>
-                                <span style="color:#64748b; font-size:11px;" class="siarhe-date-formatter" data-date="<?php echo esc_attr($db_file->fecha_modificacion); ?>">
+                                <span class="siarhe-audit__date siarhe-date-formatter" data-date="<?php echo esc_attr($db_file->fecha_modificacion); ?>">
                                     <?php echo esc_html($db_file->fecha_modificacion); ?>
                                 </span>
                             </div>
                         <?php endif; ?>
 
                     <?php elseif ($existe_fisico) : ?>
-                        <div style="line-height: 1.3;">
-                            <span style="font-size:10px; font-weight:bold; color:#94a3b8; text-transform:uppercase;">Subido por:</span><br>
-                            <span style="font-size:12px; color:#0f172a; font-weight:500;">Sistema (Vía FTP/Cpanel)</span><br>
-                            <span style="color:#64748b; font-size:11px;" class="siarhe-date-formatter" data-date="<?php echo esc_attr(date("Y-m-d H:i:s", filemtime($ruta_fisica))); ?>">
+                        <div class="siarhe-audit">
+                            <span class="siarhe-audit__label">Subido por:</span><br>
+                            <span class="siarhe-audit__who">Sistema (Vía FTP/Cpanel)</span><br>
+                            <span class="siarhe-audit__date siarhe-date-formatter" data-date="<?php echo esc_attr(date("Y-m-d H:i:s", filemtime($ruta_fisica))); ?>">
                                 <?php echo esc_html(date("Y-m-d H:i:s", filemtime($ruta_fisica))); ?>
                             </span>
                         </div>
@@ -342,13 +273,14 @@ if ( isset($_GET['status']) ) {
                 </td>
                 
                 <td data-label="Acciones">
+                    <div class="siarhe-row-actions">
                     <?php if ($existe_fisico) : 
                         // 🌟 CACHE BUSTING APLICADO
                         $cache_version = filemtime($ruta_fisica);
                         $url_con_version = esc_url($url_publica) . '?v=' . $cache_version;
                     ?>
-                        <button type="button" class="button button-small copy-url-btn" 
-                                data-url="<?php echo esc_url( $url_con_version ); ?>" title="Copiar Enlace">
+                        <button type="button" class="button button-small" 
+                                data-copy="<?php echo esc_url( $url_con_version ); ?>" title="Copiar Enlace">
                             <span class="dashicons dashicons-admin-links"></span>
                         </button>
 
@@ -369,35 +301,45 @@ if ( isset($_GET['status']) ) {
                             <span class="dashicons dashicons-download"></span>
                         </a>
 
+                        <?php if ( $db_file ) : ?>
+                        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-confirm="¿Eliminar solo el archivo CSV de este marcador? La variable se conserva y podrás volver a cargar un archivo.">
+                            <input type="hidden" name="action" value="siarhe_delete_static">
+                            <input type="hidden" name="file_id" value="<?php echo absint( $db_file->id ); ?>">
+                            <?php wp_nonce_field( 'siarhe_delete_static_nonce_' . $db_file->id ); ?>
+                            <button type="submit" class="button button-small button-danger" data-help="Eliminar solo el archivo CSV. La variable se conserva."><span class="dashicons dashicons-trash"></span></button>
+                        </form>
+                        <?php endif; ?>
+
                     <?php else : ?>—<?php endif; ?>
                     
                     <?php if (empty($info['is_core'])): ?>
-                        <form method="post" action="" style="display:inline;" onsubmit="return confirm('¿Eliminar esta variable de forma permanente? El archivo CSV y su registro en la base de datos también serán borrados.');">
-                            <input type="hidden" name="action" value="delete_archivo_marcador">
+                        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-confirm="¿Eliminar esta variable de forma permanente? El archivo CSV y su registro en la base de datos también serán borrados.">
+                            <input type="hidden" name="action" value="siarhe_marker_var_delete">
                             <?php wp_nonce_field( 'siarhe_delete_variable_nonce', 'del_nonce' ); ?>
                             <input type="hidden" name="del_file_key" value="<?php echo esc_attr($key); ?>">
-                            <button type="submit" class="button button-small button-link-delete" title="Borrar Variable" style="color:#d63638; border-color:#d63638; margin-left:5px;"><span class="dashicons dashicons-dismiss"></span></button>
+                            <button type="submit" class="button button-small button-danger" data-help="Eliminar la variable completa: su configuración y su archivo CSV."><span class="dashicons dashicons-dismiss"></span></button>
                         </form>
                     <?php endif; ?>
+                    </div>
                 </td>
             </tr>
             <?php endforeach; ?>
             <tr id="siarhe-marcadores-empty" style="display: none;">
-                <td colspan="7" style="text-align:center; padding: 20px; color:#8c8f94;">No se encontraron resultados para su búsqueda.</td>
+                <td colspan="7" class="siarhe-empty-cell">No se encontraron resultados para su búsqueda.</td>
             </tr>
         </tbody>
     </table>
 
     <div class="siarhe-pagination">
-        <div id="siarhe-marcadores-count" style="font-size: 13px; color: #64748b;"></div>
+        <div id="siarhe-marcadores-count" class="siarhe-count"></div>
         <div class="siarhe-page-numbers" id="siarhe-pagination-controls-bottom"></div>
     </div>
 </div>
 
 <div id="siarhe-edit-modal" class="siarhe-modal-overlay">
     <div class="siarhe-modal-content">
-        <h2 style="margin-top:0; border-bottom: 1px solid #eee; padding-bottom: 15px;">
-            Editar Metadatos: <span id="modal-entidad-name" style="color: #2271b1;"></span>
+        <h2 class="siarhe-modal-title">
+            Editar Metadatos: <span id="modal-entidad-name"></span>
         </h2>
         
         <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" id="form-update-meta">
@@ -406,12 +348,12 @@ if ( isset($_GET['status']) ) {
             <?php wp_nonce_field( 'siarhe_update_static_meta_nonce', 'siarhe_meta_nonce' ); ?>
 
             <table class="form-table">
-                <tr><th><label>Año de los Datos</label></th><td><input type="number" name="anio_reporte" id="modal-anio" class="regular-text" required></td></tr>
-                <tr><th><label>Fecha de Corte</label></th><td><input type="date" name="fecha_corte" id="modal-corte" class="regular-text" required></td></tr>
-                <tr><th><label>Fuente / Referencia</label></th><td><textarea name="referencia" id="modal-ref" rows="3" class="large-text"></textarea></td></tr>
-                <tr><th><label>Comentarios Internos</label></th><td><textarea name="comentarios" id="modal-notes" rows="3" class="large-text"></textarea></td></tr>
+                <tr><th><label>Año de los Datos</label><?php Siarhe_Admin::help('Anio al que corresponden los datos. Se muestra en las referencias del mapa.'); ?></th><td><input type="number" name="anio_reporte" id="modal-anio" class="regular-text" required></td></tr>
+                <tr><th><label>Fecha de Corte</label><?php Siarhe_Admin::help('Fecha hasta la cual el archivo contiene informacion. Se muestra al usuario como vigencia de los datos.'); ?></th><td><input type="date" name="fecha_corte" id="modal-corte" class="regular-text" required></td></tr>
+                <tr><th><label>Fuente / Referencia</label><?php Siarhe_Admin::help('Origen de la informacion (institucion, documento, version). Aparece como referencia bibliografica.'); ?></th><td><textarea name="referencia" id="modal-ref" rows="3" class="large-text"></textarea></td></tr>
+                <tr><th><label>Comentarios Internos</label><?php Siarhe_Admin::help('Notas para el equipo administrador. No se muestran en el sitio publico.'); ?></th><td><textarea name="comentarios" id="modal-notes" rows="3" class="large-text"></textarea></td></tr>
             </table>
-            <div style="text-align:right; margin-top:20px; border-top: 1px solid #eee; padding-top: 15px;">
+            <div class="siarhe-modal-footer">
                 <button type="button" class="button button-secondary" id="close-modal-btn">Cancelar</button>
                 <button type="submit" class="button button-primary" id="btn-modal-submit">Guardar Cambios</button>
             </div>
@@ -459,10 +401,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('modal-corte').value = this.dataset.corte;
                 document.getElementById('modal-ref').value = this.dataset.ref;
                 document.getElementById('modal-notes').value = this.dataset.notes;
-                
-                if(window.SiarheAdmin && window.SiarheAdmin.showFloatingSaveBtn) {
-                    window.SiarheAdmin.showFloatingSaveBtn();
-                }
 
                 modal.style.display = 'block';
             });
@@ -472,40 +410,8 @@ document.addEventListener('DOMContentLoaded', function() {
         window.addEventListener('click', function(e) { if (e.target == modal) { modal.style.display = 'none'; } });
     }
 
-    // 🌟 Lógica de "Guardar Inteligente" para el Botón Flotante
-    const btnFloatingSave = document.getElementById('btn-floating-save');
-    if (btnFloatingSave) {
-        btnFloatingSave.addEventListener('click', () => {
-            if (modal && modal.style.display === 'block') {
-                document.getElementById('btn-modal-submit').click();
-            } else {
-                document.querySelector('input[type="submit"]#submit').click();
-            }
-        });
-    }
 
-    // Mostrar botón flotante en input
-    const formUpload = document.getElementById('form-upload-marker');
-    if (formUpload) {
-        formUpload.addEventListener('input', () => {
-            if(window.SiarheAdmin && window.SiarheAdmin.showFloatingSaveBtn) {
-                window.SiarheAdmin.showFloatingSaveBtn();
-            }
-        });
-    }
 
-    // Utilidad: Copiar URL
-    document.querySelectorAll('.copy-url-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.preventDefault(); e.stopPropagation();
-            const url = this.getAttribute('data-url');
-            navigator.clipboard.writeText(url).then(() => {
-                const original = this.innerHTML;
-                this.innerHTML = '<span class="dashicons dashicons-yes" style="color:green;"></span>';
-                setTimeout(() => { this.innerHTML = original; }, 1500);
-            });
-        });
-    });
 
     // Motor de Paginación y Filtrado vía DOM Hiding
     const searchInput = document.getElementById('siarhe-search-marcadores-file');

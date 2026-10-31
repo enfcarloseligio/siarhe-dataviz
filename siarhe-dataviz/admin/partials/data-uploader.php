@@ -18,9 +18,13 @@ $tabs = [
 ];
 ?>
 
-<div class="wrap">
-    <h1 class="wp-heading-inline">Gestión de Datos SIARHE</h1>
-    <hr class="wp-header-end">
+<div class="wrap" data-siarhe-scrolltop>
+    <div class="siarhe-page-header">
+        <div>
+            <h1>Carga de Datos</h1>
+            <p>Sube y mantén los GeoJSON, localidades, bases estáticas y marcadores de cada entidad.</p>
+        </div>
+    </div>
 
     <nav class="nav-tab-wrapper">
         <?php foreach ( $tabs as $slug => $name ) : ?>
@@ -31,7 +35,7 @@ $tabs = [
         <?php endforeach; ?>
     </nav>
 
-    <div class="tab-content" style="margin-top: 20px;">
+    <div class="tab-content siarhe-tab-content">
         <?php
         $tab_file = SIARHE_PATH . 'admin/partials/upload-tabs/tab-' . $active_tab . '.php';
         if ( file_exists( $tab_file ) ) {

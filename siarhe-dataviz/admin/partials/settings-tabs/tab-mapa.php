@@ -49,14 +49,14 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
     .siarhe-badge.spike { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
 
     /* Icono de ayuda "?" con tooltip (hover o foco de teclado) */
-    .siarhe-help {
+    span.siarhe-help {
         position: relative; display: inline-flex; align-items: center; justify-content: center;
         width: 16px; height: 16px; margin-left: 4px; border-radius: 50%;
         background: #dcdcde; color: #3c434a; font-size: 11px; font-weight: 700; line-height: 1;
         cursor: help; vertical-align: middle;
     }
-    .siarhe-help:hover, .siarhe-help:focus { background: #2271b1; color: #fff; outline: none; }
-    .siarhe-help::after {
+    span.siarhe-help:hover, span.siarhe-help:focus { background: #2271b1; color: #fff; outline: none; }
+    span.siarhe-help::after {
         content: attr(data-tip);
         position: absolute; left: 50%; top: calc(100% + 8px); transform: translateX(-50%);
         width: 240px; padding: 8px 10px; border-radius: 4px;
@@ -64,7 +64,7 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
         box-shadow: 0 2px 8px rgba(0,0,0,.25); white-space: normal;
         opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .15s; z-index: 100;
     }
-    .siarhe-help:hover::after, .siarhe-help:focus::after { opacity: 1; visibility: visible; }
+    span.siarhe-help:hover::after, span.siarhe-help:focus::after { opacity: 1; visibility: visible; }
     
     @media (max-width: 782px) {
         .siarhe-admin-card .form-table th { display: block; width: 100%; padding-bottom: 5px; }
@@ -83,11 +83,11 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
     <h2>🎨 Personalización Visual (Frontend)</h2>
     <p>Define los colores que verán los usuarios en los mapas y tablas del sitio web.</p>
 
-    <h3 class="siarhe-section-title" style="margin-top: 30px; border-bottom: 1px solid #eee; padding-bottom: 10px;">Mapa de Calor (Escala de Colores)</h3>
+    <h3 class="siarhe-section-title" style="margin-top: 30px; border-bottom: 1px solid #eee; padding-bottom: 10px;">Mapa de Calor (Escala de Colores)<?php Siarhe_Admin::help('Colores generales del mapa. Cada metrica puede usar estos o los suyos propios.'); ?></h3>
     
     <table class="form-table" role="presentation">
         <tr>
-            <th scope="row">Gradiente Cuartiles (Distribución Matemática)</th>
+            <th scope="row">Gradiente Cuartiles (Distribución Matemática)<?php Siarhe_Admin::help('Colorea las regiones segun el cuartil en que cae su valor: minimo, Q1, mediana, Q3 y maximo.'); ?></th>
             <td>
                 <p class="description" style="margin-top:0; margin-bottom:10px;">Se aplica cuando el indicador requiere división en cuartiles porcentuales estadísticos estandarizados.</p>
                 <div class="siarhe-grad-row">
@@ -105,7 +105,7 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
         </tr>
 
         <tr>
-            <th scope="row">Gradiente por Rangos (4 Niveles Personalizados)</th>
+            <th scope="row">Gradiente por Rangos (4 Niveles Personalizados)<?php Siarhe_Admin::help('Colores para la escala por rangos, de 4 niveles con cortes definidos en cada metrica.'); ?></th>
             <td>
                 <p class="description" style="margin-top:0; margin-bottom:10px;">Se aplica en indicadores donde el usuario ha definido manualmente 4 rangos de valores absolutos o tasas (Ej: Rango 1, Rango 2, etc.).</p>
                 <div class="siarhe-grad-row">
@@ -132,7 +132,7 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
             </td>
         </tr>
         <tr>
-            <th scope="row">Gradiente Monocromático</th>
+            <th scope="row">Gradiente Monocromático<?php Siarhe_Admin::help('Degradado entre dos colores (minimo y maximo) para la escala monocromatica.'); ?></th>
             <td>
                 <p class="description" style="margin-top:0; margin-bottom:10px;">Esta escala se usa cuando el usuario activa la opción de ver el mapa sin cortes de cuartiles (escala lineal suave).</p>
                 <div class="siarhe-grad-row">
@@ -150,7 +150,7 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
         </tr>
 
         <tr>
-            <th scope="row">Casos Especiales</th>
+            <th scope="row">Casos Especiales<?php Siarhe_Admin::help('Color para regiones con valor 0 y para las que no tienen dato.'); ?></th>
             <td>
                 <div class="siarhe-flex-row">
                     <div><label><strong>Valor 0</strong></label><br><input type="text" name="siarhe_map_options[map_zero]" value="<?php echo esc_attr($opts['map_zero']); ?>" class="siarhe-color-field"></div>
@@ -160,32 +160,32 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
         </tr>
     </table>
 
-    <h3 class="siarhe-section-title" style="margin-top: 40px; border-bottom: 1px solid #eee; padding-bottom: 10px;">Estilos de Tabla de Datos</h3>
+    <h3 class="siarhe-section-title" style="margin-top: 40px; border-bottom: 1px solid #eee; padding-bottom: 10px;">Estilos de Tabla de Datos<?php Siarhe_Admin::help('Apariencia de la tabla de datos que se muestra en el sitio publico.'); ?></h3>
     
     <table class="form-table">
         <tr>
-            <th scope="row">Encabezados (Header)</th>
+            <th scope="row">Encabezados (Header)<?php Siarhe_Admin::help('Colores de fondo y texto de la fila de encabezados de la tabla publica.'); ?></th>
             <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[th_bg]" value="<?php echo esc_attr($opts['th_bg']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[th_text]" value="<?php echo esc_attr($opts['th_text']); ?>" class="siarhe-color-field"></div></div></td>
         </tr>
         <tr>
-            <th scope="row">Fila de Totales (ID 9999)</th>
+            <th scope="row">Fila de Totales (ID 9999)<?php Siarhe_Admin::help('Estilo de la fila de totales (registro con ID 9999) de la tabla publica.'); ?></th>
             <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[tr_total_bg]" value="<?php echo esc_attr($opts['tr_total_bg']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[tr_total_txt]" value="<?php echo esc_attr($opts['tr_total_txt']); ?>" class="siarhe-color-field"></div></div></td>
         </tr>
         <tr>
-            <th scope="row">Cuerpo Tabla (Impar)</th>
+            <th scope="row">Cuerpo Tabla (Impar)<?php Siarhe_Admin::help('Colores de las filas impares de la tabla publica.'); ?></th>
             <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[tr_odd]" value="<?php echo esc_attr($opts['tr_odd']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[tr_odd_txt]" value="<?php echo esc_attr($opts['tr_odd_txt']); ?>" class="siarhe-color-field"></div></div></td>
         </tr>
         <tr>
-            <th scope="row">Cuerpo Tabla (Par)</th>
+            <th scope="row">Cuerpo Tabla (Par)<?php Siarhe_Admin::help('Colores de las filas pares de la tabla publica.'); ?></th>
             <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[tr_even]" value="<?php echo esc_attr($opts['tr_even']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[tr_even_txt]" value="<?php echo esc_attr($opts['tr_even_txt']); ?>" class="siarhe-color-field"></div></div></td>
         </tr>
         <tr>
-            <th scope="row">Bordes</th>
+            <th scope="row">Bordes<?php Siarhe_Admin::help('Color de las lineas de la tabla publica.'); ?></th>
             <td><div class="siarhe-flex-row"><div><label>Color:</label><br><input type="text" name="siarhe_map_options[border_color]" value="<?php echo esc_attr($opts['border_color']); ?>" class="siarhe-color-field"></div><div><label>Grosor (px):</label><br><input type="number" name="siarhe_map_options[border_width]" value="<?php echo esc_attr($opts['border_width']); ?>" class="small-text" min="0" max="5"></div></div></td>
         </tr>
     </table>
 
-    <h3 class="siarhe-section-title" style="margin-top: 40px; border-bottom: 1px solid #eee; padding-bottom: 10px;">📍 Estilos Dinámicos de Marcadores</h3>
+    <h3 class="siarhe-section-title" style="margin-top: 40px; border-bottom: 1px solid #eee; padding-bottom: 10px;">📍 Estilos Dinámicos de Marcadores<?php Siarhe_Admin::help('Forma, relleno y borde de cada marcador. Se generan a partir de los marcadores definidos en Configuracion > Marcadores.'); ?></h3>
     <p class="description">Aquí aparecerán automáticamente todos los marcadores que registres en la pestaña "Marcadores (CSV)".</p>
     
     <table class="form-table">
@@ -336,13 +336,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     types.forEach(t => updatePreview(t));
 
-    types.forEach(t => {
-        const el = document.getElementById(`m_${t}_shape`);
-        if(el) el.addEventListener('change', () => updatePreview(t));
+    // Las vistas previas se actualizan por eventos (el selector de color dispara 'change')
+    const previewField = /^m_(.+)_(shape|fill|fill2|stroke)$/;
+    ['input', 'change'].forEach(evt => {
+        document.addEventListener(evt, (e) => {
+            const m = e.target && e.target.id ? previewField.exec(e.target.id) : null;
+            if (m && types.includes(m[1])) updatePreview(m[1]);
+        });
     });
-
-    setInterval(() => {
-        types.forEach(t => updatePreview(t));
-    }, 400); 
 });
 </script>

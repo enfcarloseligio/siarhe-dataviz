@@ -87,8 +87,7 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
 
 <div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
     <h3 style="margin-top: 0; border-bottom: 2px solid #0A66C2; padding-bottom: 10px; display: inline-block;">
-        🗺️ Tooltip del Mapa (Regiones)
-    </h3>
+        🗺️ Tooltip del Mapa (Regiones)<?php Siarhe_Admin::help('Tarjeta que aparece al pasar el cursor sobre un estado o municipio. Activa los datos con el interruptor y ordenalos arrastrando.'); ?></h3>
 
     <div class="siarhe-draggable-list" id="geo-sortable-list" style="margin-bottom: 25px;">
         <?php
@@ -132,29 +131,29 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
         ?>
     </div>
 
-    <h4 style="margin-top: 0; margin-bottom: 10px;">🎨 Diseño y Colores</h4>
+    <h4 style="margin-top: 0; margin-bottom: 10px;">🎨 Diseño y Colores<?php Siarhe_Admin::help('Colores y transparencia de la tarjeta flotante del mapa.'); ?></h4>
     <div class="siarhe-design-grid">
         <div class="siarhe-design-box">
-            <label><strong>Color de Fondo</strong></label><br>
+            <label><strong>Color de Fondo</strong></label><?php Siarhe_Admin::help('Color base de la tarjeta flotante.'); ?><br>
             <input type="text" id="tt_bg_color" value="<?php echo esc_attr($bgColor); ?>" class="siarhe-color-field" style="margin-top:5px;">
         </div>
 
         <div class="siarhe-design-box">
-            <label><strong>Opacidad (Transparencia)</strong></label><br>
+            <label><strong>Opacidad (Transparencia)</strong></label><?php Siarhe_Admin::help('De 10 a 100 por ciento. Valores bajos dejan ver el mapa a traves de la tarjeta.'); ?><br>
             <input type="number" id="tt_bg_opacity" value="<?php echo esc_attr($bgOpacity); ?>" min="10" max="100" style="width: 70px; margin-top:5px;"> %
         </div>
 
         <div class="siarhe-design-box">
-            <label><strong>Color del Texto Base</strong></label><br>
+            <label><strong>Color del Texto Base</strong></label><?php Siarhe_Admin::help('Color del texto general de la tarjeta.'); ?><br>
             <input type="text" id="tt_text_color" value="<?php echo esc_attr($textColor); ?>" class="siarhe-color-field" style="margin-top:5px;">
         </div>
     </div>
 
-    <h4 style="margin-top: 25px; margin-bottom: 10px;">Destacar una Variable</h4>
+    <h4 style="margin-top: 25px; margin-bottom: 10px;">Destacar una Variable<?php Siarhe_Admin::help('Resalta un dato al final del tooltip con un color propio.'); ?></h4>
     <p style="color: #64748b; margin-top:0;">La variable destacada se colocará al final del tooltip, separada por una línea sutil, utilizando el color elegido.</p>
     
     <div style="display:flex; gap:20px; flex-wrap:wrap; background:#f0f9ff; padding:15px; border:1px dashed #bae6fd; border-radius:6px;">
-        <div style="flex: 1 1 200px;"> <label><strong>¿Qué dato destacar?</strong></label><br>
+        <div style="flex: 1 1 200px;"> <label><strong>¿Qué dato destacar?</strong></label><?php Siarhe_Admin::help('Dato que se muestra al final del tooltip con color distinto: poblacion, valor absoluto o la tasa principal.'); ?><br>
             <select id="tt_highlight_var" style="margin-top:5px; width:100%;">
                 <option value="none" <?php selected($hlVar, 'none'); ?>>Ninguno (Todo estándar)</option>
                 <option value="pob" <?php selected($hlVar, 'pob'); ?>>Población Total</option>
@@ -162,7 +161,7 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
                 <option value="rate" <?php selected($hlVar, 'rate'); ?>>Valor Relativo (La Tasa / Indicador Principal)</option>
             </select>
         </div>
-        <div style="flex: 1 1 200px;"> <label><strong>Color del Texto Destacado</strong></label><br>
+        <div style="flex: 1 1 200px;"> <label><strong>Color del Texto Destacado</strong></label><?php Siarhe_Admin::help('Color con el que se pinta el dato destacado.'); ?><br>
             <input type="text" id="tt_highlight_color" value="<?php echo esc_attr($hlColor); ?>" class="siarhe-color-field" style="margin-top:5px; width:100%;">
         </div>
     </div>
@@ -170,8 +169,7 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
 
 <div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
     <h3 style="margin-top: 0; border-bottom: 2px solid #06B6D4; padding-bottom: 10px; display: inline-block;">
-        📍 Tooltip de Marcadores (Instituciones)
-    </h3>
+        📍 Tooltip de Marcadores (Instituciones)<?php Siarhe_Admin::help('Tarjeta que aparece sobre un marcador de posicion. Arrastra la linea separadora para dividir la informacion.'); ?></h3>
     <p style="color: #64748b;">El título de la tarjeta será automático (Ej. "Establecimiento en Zona Urbana" + Nombre de la Unidad). Organiza aquí el resto de la información y arrastra la línea separadora a donde la necesites.</p>
 
     <div class="siarhe-draggable-list" id="mk-sortable-list" style="margin-bottom: 25px;">
@@ -191,15 +189,15 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
         ?>
     </div>
 
-    <h4 style="margin-top: 0; margin-bottom: 10px;">🎨 Diseño y Colores (Marcadores)</h4>
+    <h4 style="margin-top: 0; margin-bottom: 10px;">🎨 Diseño y Colores (Marcadores)<?php Siarhe_Admin::help('Colores y transparencia de la tarjeta flotante de los marcadores.'); ?></h4>
     <div class="siarhe-design-grid">
-        <div class="siarhe-design-box"><label><strong>Color de Fondo</strong></label><br><input type="text" id="tt_mk_bg_color" value="<?php echo esc_attr($mkBgColor); ?>" class="siarhe-color-field" style="margin-top:5px;"></div>
-        <div class="siarhe-design-box"><label><strong>Opacidad (Transparencia)</strong></label><br><input type="number" id="tt_mk_bg_opacity" value="<?php echo esc_attr($mkBgOpacity); ?>" min="10" max="100" style="width: 70px; margin-top:5px;"> %</div>
-        <div class="siarhe-design-box"><label><strong>Color del Texto Base</strong></label><br><input type="text" id="tt_mk_text_color" value="<?php echo esc_attr($mkTextColor); ?>" class="siarhe-color-field" style="margin-top:5px;"></div>
+        <div class="siarhe-design-box"><label><strong>Color de Fondo</strong></label><?php Siarhe_Admin::help('Color base de la tarjeta flotante.'); ?><br><input type="text" id="tt_mk_bg_color" value="<?php echo esc_attr($mkBgColor); ?>" class="siarhe-color-field" style="margin-top:5px;"></div>
+        <div class="siarhe-design-box"><label><strong>Opacidad (Transparencia)</strong></label><?php Siarhe_Admin::help('De 10 a 100 por ciento. Valores bajos dejan ver el mapa a traves de la tarjeta.'); ?><br><input type="number" id="tt_mk_bg_opacity" value="<?php echo esc_attr($mkBgOpacity); ?>" min="10" max="100" style="width: 70px; margin-top:5px;"> %</div>
+        <div class="siarhe-design-box"><label><strong>Color del Texto Base</strong></label><?php Siarhe_Admin::help('Color del texto general de la tarjeta.'); ?><br><input type="text" id="tt_mk_text_color" value="<?php echo esc_attr($mkTextColor); ?>" class="siarhe-color-field" style="margin-top:5px;"></div>
     </div>
 
     <div style="display:flex; gap:20px; flex-wrap:wrap; background:#faf5ff; padding:15px; border:1px dashed #d8b4fe; border-radius:6px; margin-top: 15px;">
-        <div style="flex: 1 1 200px;"> <label><strong>¿Qué dato destacar?</strong></label><br>
+        <div style="flex: 1 1 200px;"> <label><strong>¿Qué dato destacar?</strong></label><?php Siarhe_Admin::help('Dato que se muestra al final del tooltip con color distinto: poblacion, valor absoluto o la tasa principal.'); ?><br>
             <select id="tt_mk_highlight_var" style="margin-top:5px; width:100%;">
                 <option value="none" <?php selected($mkHlVar, 'none'); ?>>Ninguno (Todo estándar)</option>
                 <option value="mk_clues" <?php selected($mkHlVar, 'mk_clues'); ?>>Clave CLUES</option>
@@ -207,7 +205,7 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
                 <option value="mk_tipo" <?php selected($mkHlVar, 'mk_tipo'); ?>>Tipo y Tipología</option>
             </select>
         </div>
-        <div style="flex: 1 1 200px;"> <label><strong>Color del Texto Destacado</strong></label><br>
+        <div style="flex: 1 1 200px;"> <label><strong>Color del Texto Destacado</strong></label><?php Siarhe_Admin::help('Color con el que se pinta el dato destacado.'); ?><br>
             <input type="text" id="tt_mk_highlight_color" value="<?php echo esc_attr($mkHlColor); ?>" class="siarhe-color-field" style="margin-top:5px; width:100%;">
         </div>
     </div>

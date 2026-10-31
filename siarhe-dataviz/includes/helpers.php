@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 function siarhe_get_entities() {
     return [
         // NIVEL NACIONAL / INTERNACIONAL
-        'republica-mexicana' => [ 'nombre' => 'México',     'CVE_ENT' => '33' ], // Clave Virtual Nacional
+        'republica-mexicana' => [ 'nombre' => 'República Mexicana', 'CVE_ENT' => '33' ], // Clave Virtual Nacional
         'extranjero'         => [ 'nombre' => 'Extranjero', 'CVE_ENT' => '34' ], // Clave Virtual Internacional
 
         // ENTIDADES FEDERATIVAS (INEGI 01-32) - Nombres Oficiales

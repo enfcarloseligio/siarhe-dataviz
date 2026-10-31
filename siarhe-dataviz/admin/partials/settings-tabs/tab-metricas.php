@@ -1,6 +1,9 @@
 <?php // /admin/partials/settings-tabs/tab-metricas.php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+// Esta pestana guarda al instante cada cambio: no necesita el boton Guardar inferior.
+$siarhe_autosave = true;
+
 $current_user = wp_get_current_user();
 $editor_name = $current_user->display_name ?: $current_user->user_login;
 $current_time = current_time('mysql');
@@ -47,22 +50,19 @@ if ( empty($metricas_json) ) {
 }
 ?>
 
-<button type="button" class="button button-primary siarhe-floating-save" id="btn-floating-save">
-    Guardar
-</button>
 
 <div class="card siarhe-upload-card" style="max-width: 100%; padding: 20px; margin-bottom: 20px;">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <div>
-            <h2 style="margin-top: 0;">📊 Gestor de Métricas e Indicadores (CSV)</h2>
+            <h2 style="margin-top: 0;">📊 Gestor de Métricas e Indicadores (CSV)<?php Siarhe_Admin::help('Define que columnas del CSV son indicadores, como se llaman y como se colorean en el mapa. No modifica los archivos CSV.'); ?></h2>
             <p style="margin-bottom: 0;">Configura los indicadores que se mostrarán en el mapa y la tabla. Las variables <strong>nativas</strong> están protegidas, pero puedes editar sus descripciones o añadir nuevas variables siempre y cuando existan en tu archivo CSV.</p>
         </div>
         <div style="display: flex; gap: 10px;">
-            <button type="button" class="button button-secondary" id="btn-add-metrica">
-                <span class="dashicons dashicons-plus-alt2" style="margin-top:3px;"></span> Añadir Nueva
+            <button type="button" class="siarhe-btn-icon button button-secondary" id="btn-add-metrica">
+                <span class="dashicons dashicons-plus-alt2"></span> Añadir Nueva
             </button>
-            <button type="button" class="button button-link-delete" id="btn-reset-metricas" style="color: #d63638; border: 1px solid #d63638; padding: 0 10px; border-radius: 3px; background: #fff;">
-                <span class="dashicons dashicons-undo" style="margin-top:3px;"></span> Restaurar Iniciales
+            <button type="button" class="siarhe-btn-icon button button-link-delete" id="btn-reset-metricas" style="color: #d63638; border: 1px solid #d63638; padding: 0 10px; border-radius: 3px; background: #fff;">
+                <span class="dashicons dashicons-undo"></span> Restaurar Iniciales
             </button>
         </div>
     </div>
@@ -137,35 +137,35 @@ if ( empty($metricas_json) ) {
 
         <table class="form-table">
             <tr>
-                <th><label>Clave (Columna CSV)</label></th>
+                <th><label>Clave (Columna CSV)</label><?php Siarhe_Admin::help('Nombre exacto de la columna del CSV que contiene esta metrica, respetando mayusculas y acentos.'); ?></th>
                 <td>
                     <input type="text" id="modal-metric-key" class="regular-text" required placeholder="ej. tasa_quirurgicas">
                     <p class="description">Debe coincidir de forma exacta con la cabecera en el archivo origen.</p>
                 </td>
             </tr>
             <tr>
-                <th><label>Etiqueta Larga</label></th>
+                <th><label>Etiqueta Larga</label><?php Siarhe_Admin::help('Nombre completo de la metrica, usado en tooltips y descripciones.'); ?></th>
                 <td>
                     <input type="text" id="modal-metric-full" class="regular-text" style="width:100%;" required placeholder="ej. Tasa de enfermeras quirúrgicas por mil hab.">
                 </td>
             </tr>
             
             <tr>
-                <th><label>Etiqueta Corta</label></th>
+                <th><label>Etiqueta Corta</label><?php Siarhe_Admin::help('Nombre breve para encabezados de tabla y leyendas del mapa.'); ?></th>
                 <td>
                     <input type="text" id="modal-metric-label" class="regular-text" required placeholder="ej. Tasa Quirúr.">
                     <p class="description">Utilizada para las columnas de la tabla y la leyenda visual.</p>
                 </td>
             </tr>
             <tr>
-                <th><label>Etiqueta Abreviada</label></th>
+                <th><label>Etiqueta Abreviada</label><?php Siarhe_Admin::help('Version minima para pantallas muy pequenas (movil).'); ?></th>
                 <td>
                     <input type="text" id="modal-metric-abrev" class="small-text" style="width:100px;" placeholder="ej. T. Qui.">
                     <p class="description">Para uso en interfaces ultra compactas (móviles).</p>
                 </td>
             </tr>
             <tr>
-                <th><label>Tipo de Valor</label></th>
+                <th><label>Tipo de Valor</label><?php Siarhe_Admin::help('Tasa: numero decimal (por ejemplo por 1,000 habitantes). Absoluto: conteo entero. Cambia el formato con que se muestra.'); ?></th>
                 <td>
                     <select id="modal-metric-tipo">
                         <option value="tasa">Tasa (Decimal)</option>
@@ -174,7 +174,7 @@ if ( empty($metricas_json) ) {
                 </td>
             </tr>
             <tr>
-                <th><label>Visibilidad</label></th>
+                <th><label>Visibilidad</label><?php Siarhe_Admin::help('Publico: lo ve cualquier visitante. Privado: solo usuarios con sesion iniciada. Oculto: no aparece en el sitio.'); ?></th>
                 <td>
                     <select id="modal-metric-visibilidad">
                         <option value="publico">Público</option>
@@ -185,14 +185,14 @@ if ( empty($metricas_json) ) {
                 </td>
             </tr>
             <tr>
-                <th><label>Clave Relacionada (Par)</label></th>
+                <th><label>Clave Relacionada (Par)</label><?php Siarhe_Admin::help('Clave de la metrica complementaria (la tasa si esta es el absoluto, o al reves). Permite alternar entre ambas en el selector.'); ?></th>
                 <td>
                     <input type="text" id="modal-metric-pair" class="regular-text" required placeholder="ej. enfermeras_quirurgicas">
                 </td>
             </tr>
             
             <tr style="border-top: 1px dashed #ccc;">
-                <th><label>Escala de Mapa por Defecto</label></th>
+                <th><label>Escala de Mapa por Defecto</label><?php Siarhe_Admin::help('Forma de colorear el mapa al cargar esta metrica: cuartiles automaticos, rangos propios o un solo color en degradado.'); ?></th>
                 <td>
                     <select id="modal-metric-scale-type" style="width: 100%;">
                         <option value="cuartiles">Degradado por Colores (Cuartiles autocalculados)</option>
@@ -204,7 +204,7 @@ if ( empty($metricas_json) ) {
             </tr>
 
             <tr>
-                <th><label>Opciones Avanzadas</label></th>
+                <th><label>Opciones Avanzadas</label><?php Siarhe_Admin::help('Permite fijar cortes de rango manuales y colores exclusivos para esta metrica, en lugar de los generales de Personalizar.'); ?></th>
                 <td>
                     <fieldset>
                         <label style="display:block; margin-bottom:8px;">
@@ -218,7 +218,7 @@ if ( empty($metricas_json) ) {
             </tr>
             
             <tr id="modal-metric-ranges-row" style="display: none;">
-                <th><label>Valores de Corte</label></th>
+                <th><label>Valores de Corte</label><?php Siarhe_Admin::help('Limites de cada rango. Usa comodines (Vmin, Q1, Q2, Q3, Vmax) que se calculan con los datos, o numeros fijos.'); ?></th>
                 <td>
                     <p class="description" style="margin-top:0; margin-bottom:10px;">
                         Comodines autocalculables: <code>Vmin</code>, <code>Q1</code>, <code>Q2</code>, <code>Q3</code>, <code>Vmax</code> o ingresa valores numéricos fijos.
@@ -262,7 +262,7 @@ if ( empty($metricas_json) ) {
             </tr>
 
             <tr id="modal-metric-colors-row" style="display: none;">
-                <th><label>Colores de Nivel</label></th>
+                <th><label>Colores de Nivel</label><?php Siarhe_Admin::help('Color de cada uno de los 4 rangos, solo para esta metrica.'); ?></th>
                 <td>
                     <div style="display:flex; flex-direction:column; gap:12px;">
                         <div style="display:flex; align-items:center; gap:10px;">
@@ -288,7 +288,7 @@ if ( empty($metricas_json) ) {
         </table>
         <div style="text-align:right; margin-top:20px; border-top: 1px solid #eee; padding-top: 15px;">
             <button type="button" class="button button-secondary" id="close-metric-modal">Cancelar</button>
-            <button type="button" class="button button-primary" id="save-metric-btn">Aplicar Cambios</button>
+            <button type="button" class="button button-primary" id="save-metric-btn">Guardar Cambios</button>
         </div>
     </div>
 </div>
@@ -321,34 +321,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const rangesRow = document.getElementById('modal-metric-ranges-row');
     const colorsRow = document.getElementById('modal-metric-colors-row');
 
-    // 🌟 Lógica blindada para el Botón Flotante
-    const btnFloatingSave = document.getElementById('btn-floating-save');
-    const originalSubmitBtn = document.querySelector('input[type="submit"]#submit');
-
-    if(btnFloatingSave && originalSubmitBtn) {
-        btnFloatingSave.addEventListener('click', () => {
-            // Quitamos el bloqueo si existiera
-            originalSubmitBtn.removeAttribute('disabled');
-            originalSubmitBtn.classList.remove('disabled');
-            if (typeof jQuery !== 'undefined') {
-                jQuery(originalSubmitBtn).prop('disabled', false).removeClass('disabled');
-            }
-            
-            const form = document.querySelector('form[action="options.php"]');
-            if (form) {
-                // Inyectamos un input invisible para imitar el clic exacto en el botón nativo de WP
-                const hiddenSubmit = document.createElement('input');
-                hiddenSubmit.type = 'hidden';
-                hiddenSubmit.name = originalSubmitBtn.name || 'submit';
-                hiddenSubmit.value = originalSubmitBtn.value || 'Guardar cambios';
-                form.appendChild(hiddenSubmit);
-                
-                HTMLFormElement.prototype.submit.call(form);
-            } else {
-                originalSubmitBtn.click();
-            }
-        });
-    }
 
     customRangesCb.addEventListener('change', function() {
         rangesRow.style.display = this.checked ? 'table-row' : 'none';
@@ -447,16 +419,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 const btnDelete = isCore 
-                    ? `<span class="dashicons dashicons-lock" style="color:#ccc; margin-left:10px;" title="Las métricas nativas no se pueden eliminar"></span>` 
-                    : `<button type="button" class="button button-small button-link-delete btn-delete-metrica" data-key="${key}" title="Eliminar métrica"><span class="dashicons dashicons-trash" style="color:#d63638;"></span></button>`;
+                    ? `<span class="dashicons dashicons-lock siarhe-action-icon siarhe-action-icon--lock" tabindex="0" data-help="Variable nativa del sistema: no se puede eliminar. Si puedes editar sus etiquetas y parametros."></span>` 
+                    : `<button type="button" class="button button-small button-danger btn-delete-metrica" data-key="${key}" title="Eliminar métrica"><span class="dashicons dashicons-trash"></span></button>`;
                     
                 let eyeIcon = 'dashicons-visibility';
                 let eyeColor = '#007cba';
-                let eyeTitle = 'Público: Visible para todos';
-                if (vis === 'registrados') { eyeIcon = 'dashicons-admin-users'; eyeColor = '#e68a00'; eyeTitle = 'Privado: Solo usuarios registrados'; }
-                if (vis === 'oculto') { eyeIcon = 'dashicons-hidden'; eyeColor = '#8c8f94'; eyeTitle = 'Oculto: No se mostrará en frontend'; }
+                let eyeTitle = 'Publico: lo ve cualquier visitante del sitio.';
+                if (vis === 'registrados') { eyeIcon = 'dashicons-admin-users'; eyeColor = '#e68a00'; eyeTitle = 'Privado: solo lo ven los usuarios con sesion iniciada.'; }
+                if (vis === 'oculto') { eyeIcon = 'dashicons-hidden'; eyeColor = '#8c8f94'; eyeTitle = 'Oculto: no se muestra en el sitio publico.'; }
 
-                const visIndicator = `<span class="dashicons ${eyeIcon}" style="color:${eyeColor}; margin-right: 8px; cursor: help;" title="${eyeTitle}"></span>`;
+                const visIndicator = `<span class="dashicons ${eyeIcon} siarhe-action-icon" style="color:${eyeColor};" tabindex="0" data-help="${eyeTitle}"></span>`;
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -480,11 +452,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         ${auditHtml}
                     </td>
                     <td data-label="Acciones">
+                        <div class="siarhe-row-actions">
                         ${visIndicator}
                         <button type="button" class="button button-small btn-edit-metrica" data-key="${key}" title="Modificar parámetros">
                             <span class="dashicons dashicons-edit"></span>
                         </button>
                         ${btnDelete}
+                        </div>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -579,22 +553,15 @@ document.addEventListener('DOMContentLoaded', function() {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 const key = this.getAttribute('data-key');
-                if (confirm(`¿Proceder con la eliminación de la métrica "${key}"? Esta acción no afectará el archivo CSV pero ocultará la información en el mapa.`)) {
+                window.SiarheAdmin.confirm(`¿Proceder con la eliminación de la métrica "${key}"? Esta acción no afectará el archivo CSV pero ocultará la información en el mapa.`, { okText: 'Eliminar' }).then(ok => {
+ if (!ok) return;
                     delete metricasObj[key];
                     updateHiddenInput();
                     // 🌟 Refiltrar todo desde cero para que el DOM se olvide de la llave eliminada
                     applySearchFilter(); 
                     
-                    if (window.SiarheAdmin && window.SiarheAdmin.showFloatingSaveBtn) {
-                        window.SiarheAdmin.showFloatingSaveBtn();
-                    }
-                    
-                    // 🌟 Mostrar aviso visual si no existe al borrar
-                    if (!document.getElementById('siarhe-save-notice')) {
-                        const headerEnd = document.querySelector('.wp-header-end');
-                        if (headerEnd) headerEnd.insertAdjacentHTML('afterend', '<div id="siarhe-save-notice" class="notice notice-warning"><p>⚠️ <strong>Atención:</strong> Existen cambios pendientes en la memoria temporal. Es necesario hacer clic en <strong>"Guardar Configuración"</strong> para aplicarlos al sistema.</p></div>');
-                    }
-                }
+                    window.SiarheAdmin.submitSettingsForm();
+                });
             });
         });
 
@@ -700,13 +667,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const newPair = document.getElementById('modal-metric-pair').value.trim();
         const isCore = document.getElementById('modal-metric-is-core').value === '1';
 
-        if (!newKey) { alert('La clave identificadora es obligatoria.'); return; }
+        if (!newKey) { window.SiarheAdmin.toast('La clave identificadora es obligatoria.', 'error'); return; }
 
         if (!originalKey && metricasObj.hasOwnProperty(newKey)) {
-            alert(`⚠️ ALERTA DE SEGURIDAD: La clave "${newKey}" ya existe en el sistema.`); return; 
+            window.SiarheAdmin.toast(`⚠️ ALERTA DE SEGURIDAD: La clave "${newKey}" ya existe en el sistema.`, 'error'); return; 
         }
         if (originalKey && originalKey !== newKey && metricasObj.hasOwnProperty(newKey)) {
-            alert(`⚠️ ALERTA DE SEGURIDAD: No puedes renombrar la clave a "${newKey}" porque ya está en uso.`); return; 
+            window.SiarheAdmin.toast(`⚠️ ALERTA DE SEGURIDAD: No puedes renombrar la clave a "${newKey}" porque ya está en uso.`, 'error'); return; 
         }
 
         let pairConflict = false;
@@ -719,7 +686,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (pairConflict) {
-            alert(`⚠️ ALERTA ESTRUCTURAL: Ya existe una métrica ("${conflictKey}") de tipo "${newTipo}" asociada a la clave relacionada "${newPair}".\n\nEl sistema requiere que cada par tenga máximo un valor Absoluto y una Tasa para mantener la integridad de las columnas en la tabla de datos.`);
+            window.SiarheAdmin.toast(`⚠️ ALERTA ESTRUCTURAL: Ya existe una métrica ("${conflictKey}") de tipo "${newTipo}" asociada a la clave relacionada "${newPair}".\n\nEl sistema requiere que cada par tenga máximo un valor Absoluto y una Tasa para mantener la integridad de las columnas en la tabla de datos.`, 'error');
             return; 
         }
 
@@ -764,25 +731,19 @@ document.addEventListener('DOMContentLoaded', function() {
         
         modal.style.display = 'none';
         
-        if (window.SiarheAdmin && window.SiarheAdmin.showFloatingSaveBtn) {
-            window.SiarheAdmin.showFloatingSaveBtn();
-        }
-        
-        if (!document.getElementById('siarhe-save-notice')) {
-            const headerEnd = document.querySelector('.wp-header-end');
-            if (headerEnd) headerEnd.insertAdjacentHTML('afterend', '<div id="siarhe-save-notice" class="notice notice-warning"><p>⚠️ <strong>Atención:</strong> Existen cambios pendientes en la memoria temporal. Es necesario hacer clic en <strong>"Guardar Configuración"</strong> para aplicarlos al sistema.</p></div>');
-        }
+        window.SiarheAdmin.submitSettingsForm();
     });
 
     document.getElementById('btn-reset-metricas').addEventListener('click', function() {
-        if (confirm('⚠️ PRECAUCIÓN: Esta acción purgará cualquier métrica personalizada e inicializará el catálogo a sus valores de fábrica. El proceso es irreversible. ¿Confirmar operación?')) {
+        window.SiarheAdmin.confirm('⚠️ PRECAUCIÓN: Esta acción purgará cualquier métrica personalizada e inicializará el catálogo a sus valores de fábrica. El proceso es irreversible. ¿Confirmar operación?', { okText: 'Restaurar' }).then(ok => {
+ if (!ok) return;
             metricasObj = JSON.parse(defaultJson);
             updateHiddenInput();
             this.innerHTML = '<span class="spinner is-active" style="float:none; margin:0 5px 0 0;"></span> Procesando...';
             this.disabled = true;
             const form = document.querySelector('form[action="options.php"]');
             if (form) HTMLFormElement.prototype.submit.call(form);
-        }
+        });
     });
 
     function updateHiddenInput() {

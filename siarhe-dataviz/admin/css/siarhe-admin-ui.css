@@ -1,0 +1,230 @@
+/* /admin/css/siarhe-admin-ui.css */
+/* =========================================
+   SISTEMA DE DISEÑO DEL ADMIN (tokens + componentes)
+   Convive con el estilo nativo de WordPress: el color primario sigue
+   el esquema de color del usuario (--wp-admin-theme-color).
+   Se carga después de siarhe-admin.css.
+   ========================================= */
+:root {
+    --s-primary: var(--wp-admin-theme-color, #2271b1);
+    --s-primary-dark: var(--wp-admin-theme-color-darker-10, #135e96);
+    --s-ok: #1a7f37;      --s-ok-bg: #dcfce7;
+    --s-warn: #92600a;    --s-warn-bg: #fef3c7;
+    --s-danger: #b32d2e;  --s-danger-bg: #fee2e2;
+    --s-muted: #646970;
+    --s-border: #dcdcde;
+    --s-surface: #fff;
+    --s-surface-alt: #f6f7f7;
+    --s-sp-1: 4px;  --s-sp-2: 8px;  --s-sp-3: 12px;
+    --s-sp-4: 16px; --s-sp-5: 24px; --s-sp-6: 32px;
+    --s-radius: 8px;
+    --s-radius-sm: 4px;
+    --s-shadow: 0 1px 2px rgba(0,0,0,.06), 0 1px 1px rgba(0,0,0,.04);
+    --s-shadow-lg: 0 10px 30px rgba(0,0,0,.22);
+}
+
+/* Encabezado de pantalla homogéneo */
+.siarhe-page-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: var(--s-sp-4); flex-wrap: wrap; margin: var(--s-sp-4) 0 var(--s-sp-5);
+}
+.siarhe-page-header h1 { margin: 0 0 var(--s-sp-1); padding: 0; }
+.siarhe-page-header p { margin: 0; color: var(--s-muted); max-width: 70ch; }
+.siarhe-page-actions { display: flex; gap: var(--s-sp-2); flex-wrap: wrap; }
+
+/* Tarjetas */
+.siarhe-card {
+    background: var(--s-surface); border: 1px solid var(--s-border);
+    border-radius: var(--s-radius); box-shadow: var(--s-shadow);
+    padding: var(--s-sp-5); margin-bottom: var(--s-sp-5); max-width: 100%;
+}
+.siarhe-card--flush { padding: 0; overflow: hidden; }
+.siarhe-card__title {
+    margin: 0 0 var(--s-sp-3); padding: 0; font-size: 16px; font-weight: 600;
+    display: flex; align-items: center; gap: var(--s-sp-2);
+}
+.siarhe-card--flush > .siarhe-card__title {
+    padding: var(--s-sp-4); margin: 0; border-bottom: 1px solid var(--s-border);
+}
+.siarhe-card .notice.inline { margin: var(--s-sp-3) 0 var(--s-sp-5); }
+.siarhe-card .notice ul { list-style: disc; margin-left: 20px; }
+.siarhe-field-narrow { max-width: 400px; }
+.siarhe-tab-content { margin-top: var(--s-sp-5); }
+
+/* Insignias adicionales */
+.siarhe-badge.danger { background: var(--s-danger-bg); color: var(--s-danger); }
+
+/* Estados con icono (Mapeado / Sin mapa, etc.) */
+.siarhe-status { display: inline-flex; align-items: center; gap: var(--s-sp-1); font-weight: 600; }
+.siarhe-status--ok { color: var(--s-ok); }
+.siarhe-status--off { color: var(--s-muted); font-weight: 400; }
+.siarhe-status .dashicons { width: 18px; height: 18px; font-size: 18px; }
+
+/* Texto auxiliar en celdas */
+.siarhe-code-sm { font-size: 11px; }
+.siarhe-empty-cell { text-align: center; padding: var(--s-sp-5) !important; color: var(--s-muted); }
+.siarhe-audit { line-height: 1.3; }
+.siarhe-audit + .siarhe-audit { border-top: 1px dashed var(--s-border); padding-top: 6px; margin-top: 8px; }
+.siarhe-audit__label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; }
+.siarhe-audit__label--edit { color: #0ea5e9; }
+.siarhe-audit__who { font-size: 12px; font-weight: 500; color: #0f172a; display: block; }
+.siarhe-audit__date { font-size: 11px; color: var(--s-muted); }
+.siarhe-count { font-size: 13px; color: var(--s-muted); }
+
+/* Botones de acción: una fila flex con tamaños uniformes */
+.siarhe-row-actions { display: flex; align-items: center; gap: var(--s-sp-1); flex-wrap: wrap; }
+.siarhe-row-actions form { display: contents; }
+.siarhe-row-actions .button,
+.siarhe-row-actions .button.button-small {
+    display: inline-flex; align-items: center; justify-content: center;
+    box-sizing: border-box; width: 30px; height: 30px; min-height: 30px;
+    padding: 0; margin: 0; line-height: 1;
+}
+.siarhe-row-actions .dashicons { width: 18px; height: 18px; font-size: 18px; line-height: 1; margin: 0; }
+.siarhe-row-actions .button-danger { color: var(--s-danger); border-color: var(--s-danger); }
+.siarhe-row-actions .button-danger:hover { background: var(--s-danger-bg); color: var(--s-danger); border-color: var(--s-danger); }
+.siarhe-row-actions .is-copied { color: var(--s-ok); border-color: var(--s-ok); }
+
+/* Paginación sin bordes dentro de la barra superior */
+.siarhe-pagination--bare { border-top: none; padding: 0; background: transparent; }
+.siarhe-toolbar label { font-size: 13px; color: #3c434a; }
+
+/* Modales */
+.siarhe-modal-overlay.is-open { display: block; }
+.siarhe-modal-title { margin-top: 0; padding-bottom: var(--s-sp-4); border-bottom: 1px solid var(--s-border); }
+.siarhe-modal-title span { color: var(--s-primary); }
+.siarhe-modal-footer {
+    display: flex; justify-content: flex-end; gap: var(--s-sp-2);
+    margin-top: var(--s-sp-5); padding-top: var(--s-sp-4); border-top: 1px solid var(--s-border);
+}
+.siarhe-confirm { max-width: 460px; }
+.siarhe-confirm__body { margin: 0; color: #3c434a; font-size: 14px; line-height: 1.5; }
+.siarhe-confirm__title { margin: 0 0 var(--s-sp-3); font-size: 16px; }
+.siarhe-confirm .button-danger-solid { background: var(--s-danger); border-color: var(--s-danger); color: #fff; }
+.siarhe-confirm .button-danger-solid:hover { background: #8a2324; border-color: #8a2324; color: #fff; }
+
+/* Avisos emergentes (toasts) */
+.siarhe-toasts {
+    position: fixed; top: 48px; right: 20px; z-index: 100001;
+    display: flex; flex-direction: column; gap: var(--s-sp-2); max-width: min(380px, calc(100vw - 40px));
+}
+.siarhe-toast {
+    background: #1d2327; color: #fff; border-radius: var(--s-radius-sm);
+    padding: var(--s-sp-3) var(--s-sp-4); box-shadow: var(--s-shadow-lg);
+    border-left: 4px solid var(--s-primary); font-size: 13px; line-height: 1.4;
+    animation: siarhe-toast-in .18s ease-out;
+}
+.siarhe-toast--success { border-left-color: #46b450; }
+.siarhe-toast--warning { border-left-color: #dba617; }
+.siarhe-toast--error   { border-left-color: #d63638; }
+@keyframes siarhe-toast-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .siarhe-toast { animation: none; } }
+
+/* Formulario en rejilla */
+.siarhe-form-grid { display: grid; grid-template-columns: 220px 1fr; gap: var(--s-sp-4) var(--s-sp-5); align-items: start; }
+.siarhe-form-grid > label { font-weight: 600; padding-top: 6px; }
+@media (max-width: 782px) {
+    .siarhe-form-grid { grid-template-columns: 1fr; gap: var(--s-sp-1); }
+    .siarhe-form-grid > label { padding-top: var(--s-sp-3); }
+}
+
+/* =========================================
+   DASHBOARD
+   ========================================= */
+.siarhe-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: var(--s-sp-4); margin-bottom: var(--s-sp-5); }
+.siarhe-stat {
+    background: var(--s-surface); border: 1px solid var(--s-border); border-radius: var(--s-radius);
+    padding: var(--s-sp-4); box-shadow: var(--s-shadow);
+}
+.siarhe-stat__value { font-size: 28px; font-weight: 700; line-height: 1.1; color: var(--s-primary); }
+.siarhe-stat__label { font-size: 12px; color: var(--s-muted); margin-top: var(--s-sp-1); }
+.siarhe-stat__bar { height: 4px; background: var(--s-surface-alt); border-radius: 2px; margin-top: var(--s-sp-3); overflow: hidden; }
+.siarhe-stat__bar > span { display: block; height: 100%; background: var(--s-primary); }
+
+.siarhe-health { list-style: none; margin: 0; padding: 0; }
+.siarhe-health li { display: flex; align-items: flex-start; gap: var(--s-sp-3); padding: var(--s-sp-3) var(--s-sp-5); border-bottom: 1px solid var(--s-border); }
+.siarhe-health li:last-child { border-bottom: none; }
+.siarhe-health .dashicons { flex: 0 0 20px; margin-top: 1px; }
+.siarhe-health .is-ok .dashicons { color: var(--s-ok); }
+.siarhe-health .is-warn .dashicons { color: #dba617; }
+.siarhe-health .is-fail .dashicons { color: var(--s-danger); }
+.siarhe-health .is-pending .dashicons { color: var(--s-muted); }
+.siarhe-health__label { font-weight: 600; }
+.siarhe-health__detail { color: var(--s-muted); font-size: 12px; }
+
+@media (min-width: 768px) {
+    .siarhe-matrix td, .siarhe-matrix th { text-align: center; }
+    .siarhe-matrix td:first-child, .siarhe-matrix th:first-child { text-align: left; }
+}
+.siarhe-matrix .siarhe-yes { color: var(--s-ok); }
+.siarhe-matrix .siarhe-no { color: #c3c4c7; }
+.siarhe-shortcodes { display: flex; gap: var(--s-sp-1); flex-wrap: wrap; justify-content: center; }
+.siarhe-shortcodes .button { font-size: 12px; min-height: 26px; line-height: 24px; padding: 0 10px; }
+.siarhe-shortcodes .button.is-copied { color: var(--s-ok); border-color: var(--s-ok); }
+.siarhe-coming { text-align: center; padding: var(--s-sp-6) var(--s-sp-5); color: var(--s-muted); }
+.siarhe-coming .dashicons { font-size: 48px; width: 48px; height: 48px; color: #c3c4c7; }
+
+@media (max-width: 767px) {
+    .siarhe-matrix .siarhe-shortcodes { justify-content: flex-end; }
+}
+
+/* Botones solo-icono fuera de .siarhe-row-actions (p. ej. "probar enlace") */
+.siarhe-icon-btn.button, .siarhe-icon-btn.button.button-small {
+    display: inline-flex; align-items: center; justify-content: center;
+    box-sizing: border-box; width: 30px; height: 30px; min-height: 30px; padding: 0; flex-shrink: 0; line-height: 1;
+}
+.siarhe-icon-btn .dashicons { width: 18px; height: 18px; font-size: 18px; line-height: 1; margin: 0; }
+
+
+/* Botones con icono + texto: alineacion vertical centrada */
+.button.siarhe-btn-icon { display: inline-flex; align-items: center; justify-content: center; gap: 6px; line-height: 1.2; }
+.button.siarhe-btn-icon .dashicons { width: 18px; height: 18px; font-size: 18px; line-height: 18px; margin: 0; }
+.button.siarhe-btn-icon .dashicons:before { display: block; width: 18px; height: 18px; line-height: 18px; }
+.siarhe-icon-btn .dashicons:before, .siarhe-row-actions .dashicons:before { display: block; width: 18px; height: 18px; line-height: 18px; font-size: 18px; }
+
+/* Ayuda contextual "?" (mismo aspecto que los "?" de Personalizar) */
+button.siarhe-help {
+    display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
+    width: 16px; height: 16px; min-height: 0; margin: 0 0 0 4px; padding: 0; vertical-align: middle;
+    border: 0; border-radius: 50%; background: #dcdcde; color: #3c434a;
+    font: 700 11px/1 -apple-system, "Segoe UI", sans-serif; cursor: help; flex-shrink: 0; box-shadow: none;
+}
+button.siarhe-help:hover, button.siarhe-help:focus { background: var(--s-primary); color: #fff; outline: none; box-shadow: none; }
+button.siarhe-help:focus-visible { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--s-primary); }
+.siarhe-help-tip {
+    position: fixed; z-index: 100002; width: max-content; max-width: 260px; padding: 8px 10px;
+    background: #1d2327; color: #fff; border-radius: 4px; text-align: left;
+    font-size: 12px; font-weight: 400; line-height: 1.4; box-shadow: 0 2px 8px rgba(0,0,0,.25); pointer-events: none;
+}
+
+/* Iconos informativos en la columna de acciones (visibilidad, candado) */
+.siarhe-row-actions .siarhe-action-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; margin: 0; font-size: 18px; line-height: 1; cursor: help;
+}
+.siarhe-row-actions .siarhe-action-icon:before { display: block; width: 18px; height: 18px; font-size: 18px; line-height: 18px; }
+.siarhe-row-actions .siarhe-action-icon--lock { color: #c3c4c7; }
+.siarhe-row-actions .siarhe-action-icon:focus { outline: 2px solid var(--s-primary); outline-offset: -2px; border-radius: 4px; }
+
+.siarhe-field-error { color: var(--s-danger); font-weight: 600; margin-top: var(--s-sp-1); }
+.siarhe-field-error[hidden] { display: none; }
+
+/* Boton flotante "Subir" (volver al inicio) */
+button#btn-floating-save.siarhe-scroll-top {
+    display: inline-flex; align-items: center; gap: 4px;
+    opacity: 0; visibility: hidden; transform: translateY(8px);
+    transition: opacity .2s ease, transform .2s ease, visibility .2s;
+}
+button#btn-floating-save.siarhe-scroll-top.is-visible { opacity: 1; visibility: visible; transform: none; }
+button#btn-floating-save.siarhe-scroll-top .dashicons { width: 18px; height: 18px; font-size: 18px; line-height: 18px; }
+button#btn-floating-save.siarhe-scroll-top .dashicons:before { display: block; width: 18px; height: 18px; line-height: 18px; }
+/* La flecha siempre es blanca, también en hover/focus/active */
+button#btn-floating-save.siarhe-scroll-top .dashicons,
+button#btn-floating-save.siarhe-scroll-top:hover .dashicons,
+button#btn-floating-save.siarhe-scroll-top:focus .dashicons,
+button#btn-floating-save.siarhe-scroll-top:active .dashicons { color: #fff; }
+@media (prefers-reduced-motion: reduce) { button#btn-floating-save.siarhe-scroll-top { transition: none; } }
+
+/* Etiquetas de formularios de carga: espacio para que el "?" no baje de linea */
+.siarhe-upload-card .form-table th { width: 260px; }
+@media (max-width: 767px) { .siarhe-upload-card .form-table th { width: 100%; } }

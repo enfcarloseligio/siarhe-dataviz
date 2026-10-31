@@ -111,8 +111,8 @@ $entidades = [
     <table id="siarhe-enlaces-table" class="siarhe-table" style="table-layout: fixed; width: 100%;">
         <thead>
             <tr>
-                <th style="width: 40%;">Entidad / Mapa / Documento</th>
-                <th style="width: 60%;">Destino (Escribe para buscar)</th>
+                <th style="width: 40%;">Entidad / Mapa / Documento<?php Siarhe_Admin::help('Cada fila es un mapa o documento legal del sitio que puede enlazarse.'); ?></th>
+                <th style="width: 60%;">Destino (Escribe para buscar)<?php Siarhe_Admin::help('Pagina o categoria de WordPress a la que lleva el enlace. Escribe para buscar y usa el boton de la derecha para probarlo.'); ?></th>
             </tr>
         </thead>
         <tbody id="siarhe-enlaces-tbody">
@@ -154,8 +154,8 @@ $entidades = [
                         </div>
                         
                         <?php if ( ! empty($link_url) ) : ?>
-                            <a href="<?php echo esc_url($link_url); ?>" target="_blank" class="button button-small" title="Probar enlace seleccionado" style="flex-shrink: 0;">
-                                <span class="dashicons dashicons-external" style="line-height: 1.3;"></span>
+                            <a href="<?php echo esc_url($link_url); ?>" target="_blank" class="button button-small siarhe-icon-btn" title="Probar enlace seleccionado">
+                                <span class="dashicons dashicons-external"></span>
                             </a>
                         <?php endif; ?>
 

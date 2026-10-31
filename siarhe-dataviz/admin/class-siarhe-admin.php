@@ -34,6 +34,9 @@ class Siarhe_Admin {
 
         // --- HANDLERS: MARCADORES (Subida Específica) ---
         add_action( 'admin_post_siarhe_upload_marker', array( $this, 'handle_marker_upload' ) );
+        add_action( 'admin_post_siarhe_marker_var_add', array( $this, 'handle_marker_var_add' ) );
+        add_action( 'admin_post_siarhe_marker_var_delete', array( $this, 'handle_marker_var_delete' ) );
+        add_action( 'admin_post_siarhe_marker_var_reset', array( $this, 'handle_marker_var_reset' ) );
     }
 
     // 🌟 AQUÍ ESTÁ LA CORRECCIÓN: Verifica columna por columna
@@ -76,10 +79,13 @@ class Siarhe_Admin {
     public function enqueue_styles( $hook ) {
         if ( strpos( $hook, 'siarhe' ) === false ) return; // Solo en las pantallas del plugin
         wp_enqueue_style( 'siarhe-admin-css', SIARHE_URL . 'admin/css/siarhe-admin.css', array(), SIARHE_VERSION, 'all' );
+        wp_enqueue_style( 'siarhe-admin-ui', SIARHE_URL . 'admin/css/siarhe-admin-ui.css', array( 'siarhe-admin-css' ), SIARHE_VERSION, 'all' );
+        $deps = array( 'jquery' );
         if ( strpos( $hook, 'siarhe-settings' ) !== false || strpos( $hook, 'siarhe-customize' ) !== false ) {
             wp_enqueue_style( 'wp-color-picker' );
-            wp_enqueue_script( 'siarhe-admin-js', SIARHE_URL . 'admin/js/siarhe-admin.js', array( 'wp-color-picker' ), SIARHE_VERSION, true );
+            $deps[] = 'wp-color-picker';
         }
+        wp_enqueue_script( 'siarhe-admin-js', SIARHE_URL . 'admin/js/siarhe-admin.js', $deps, SIARHE_VERSION, true );
     }
 
     public function inject_dynamic_css() {
@@ -173,8 +179,27 @@ class Siarhe_Admin {
      */
     private function sanitize_slug( $raw ) {
         $slug = sanitize_title( wp_unslash( $raw ) );
-        if ( $slug === '' ) wp_die( 'Entidad no válida.' );
+        if ( $slug === '' ) $this->upload_fail( 'Entidad no válida.' );
         return $slug;
+    }
+
+    /**
+     * Error de subida: en lugar de una pagina en blanco en admin-post.php, se guarda el
+     * mensaje y se regresa a la pestana de origen, donde se muestra como aviso y popup.
+     */
+    private function upload_fail( $message ) {
+        $tabs   = array(
+            'siarhe_upload_geojson'     => 'geojson',
+            'siarhe_upload_localidades' => 'localidades',
+            'siarhe_upload_static'      => 'static',
+            'siarhe_upload_marker'      => 'marcadores',
+        );
+        $action = isset( $_POST['action'] ) ? sanitize_key( wp_unslash( $_POST['action'] ) ) : '';
+        $tab    = isset( $tabs[ $action ] ) ? $tabs[ $action ] : 'geojson';
+        $clean  = trim( wp_strip_all_tags( str_replace( array( '<br>', '<br/>' ), ' ', (string) $message ) ) );
+        set_transient( 'siarhe_error_' . get_current_user_id(), $clean, 2 * MINUTE_IN_SECONDS );
+        wp_safe_redirect( admin_url( 'admin.php?page=siarhe-uploader&tab=' . $tab . '&status=error' ) );
+        exit;
     }
 
     /**
@@ -185,15 +210,15 @@ class Siarhe_Admin {
         $name = isset( $file['name'] ) ? sanitize_file_name( $file['name'] ) : '';
         $ext  = strtolower( pathinfo( $name, PATHINFO_EXTENSION ) );
         if ( ! in_array( $ext, $allowed_ext, true ) ) {
-            wp_die( 'Tipo de archivo no permitido. Extensiones válidas: ' . esc_html( implode( ', ', $allowed_ext ) ) . '.' );
+            $this->upload_fail( 'Tipo de archivo no permitido. Extensiones válidas: ' . esc_html( implode( ', ', $allowed_ext ) ) . '.' );
         }
         if ( empty( $file['tmp_name'] ) || ! is_uploaded_file( $file['tmp_name'] ) ) {
-            wp_die( 'Archivo de carga no válido.' );
+            $this->upload_fail( 'Archivo de carga no válido.' );
         }
         if ( $check_geojson ) {
             $data = json_decode( file_get_contents( $file['tmp_name'] ), true );
             if ( ! is_array( $data ) || empty( $data['type'] ) ) {
-                wp_die( 'El archivo no es un GeoJSON válido.' );
+                $this->upload_fail( 'El archivo no es un GeoJSON válido.' );
             }
             return $data; // ya decodificado: evita leer y parsear el archivo dos veces
         }
@@ -238,7 +263,22 @@ class Siarhe_Admin {
     }
 
     /** Imprime (y consume) los avisos pendientes del usuario actual. */
+    /**
+     * Imprime un icono "?" de ayuda; el texto se muestra en un globo (siarhe-admin.js).
+     */
+    public static function help( $text ) {
+        echo '<button type="button" class="siarhe-help" aria-label="Ayuda" data-help="' . esc_attr( $text ) . '">?</button>';
+    }
+
     public static function render_flash_notice() {
+        $err_key = 'siarhe_error_' . get_current_user_id();
+        $error   = get_transient( $err_key );
+        if ( ! empty( $error ) && is_string( $error ) ) {
+            delete_transient( $err_key );
+            echo '<div class="notice notice-error is-dismissible"><p><strong>No se subió el archivo.</strong> ' . esc_html( $error ) . '</p></div>';
+            echo '<script>document.addEventListener("DOMContentLoaded",function(){if(window.SiarheAdmin)SiarheAdmin.alert(' . wp_json_encode( $error ) . ',"No se subió el archivo");});</script>';
+        }
+
         $key      = 'siarhe_notice_' . get_current_user_id();
         $messages = get_transient( $key );
         if ( empty( $messages ) || ! is_array( $messages ) ) return;
@@ -298,7 +338,7 @@ class Siarhe_Admin {
 
         if ( ! is_array( $data ) || ! isset( $data['type'] ) || $data['type'] !== 'FeatureCollection'
             || empty( $data['features'] ) || ! is_array( $data['features'] ) ) {
-            wp_die( 'El GeoJSON debe ser un FeatureCollection con al menos un elemento en "features".' );
+            $this->upload_fail( 'El GeoJSON debe ser un FeatureCollection con al menos un elemento en "features".' );
         }
 
         $national  = ( $slug === 'republica-mexicana' );
@@ -320,7 +360,7 @@ class Siarhe_Admin {
                 $pt = $this->first_coordinate( $geom['coordinates'] );
                 if ( $pt ) {
                     if ( abs( $pt[0] ) > 180 || abs( $pt[1] ) > 90 ) {
-                        wp_die( 'Las coordenadas del GeoJSON no están en longitud/latitud (WGS84). Reproyéctalo a EPSG:4326 antes de subirlo.' );
+                        $this->upload_fail( 'Las coordenadas del GeoJSON no están en longitud/latitud (WGS84). Reproyéctalo a EPSG:4326 antes de subirlo.' );
                     }
                     if ( $slug !== 'extranjero' && ( $pt[0] < -120 || $pt[0] > -84 || $pt[1] < 14 || $pt[1] > 34 ) ) {
                         $warnings[] = 'La primera geometría queda fuera del territorio mexicano (lon ' . round( $pt[0], 2 ) . ', lat ' . round( $pt[1], 2 ) . '). Verifica que sea el archivo correcto.';
@@ -339,7 +379,7 @@ class Siarhe_Admin {
         }
 
         if ( $no_geom === $total ) {
-            wp_die( 'Ningún elemento del GeoJSON tiene geometría.' );
+            $this->upload_fail( 'Ningún elemento del GeoJSON tiene geometría.' );
         }
         if ( $no_geom > 0 ) {
             $warnings[] = $no_geom . ' elemento(s) del GeoJSON no tienen geometría y no se dibujarán.';
@@ -360,18 +400,18 @@ class Siarhe_Admin {
         $warnings = array();
 
         $fh = ( ! empty( $tmp_path ) && is_readable( $tmp_path ) ) ? fopen( $tmp_path, 'r' ) : false;
-        if ( ! $fh ) wp_die( 'No se pudo leer el CSV para validarlo.' );
+        if ( ! $fh ) $this->upload_fail( 'No se pudo leer el CSV para validarlo.' );
 
         $first = fgets( $fh );
         if ( $first === false || trim( $first ) === '' ) {
             fclose( $fh );
-            wp_die( 'El CSV está vacío.' );
+            $this->upload_fail( 'El CSV está vacío.' );
         }
         $first = preg_replace( '/^\xEF\xBB\xBF/', '', $first ); // BOM
 
         if ( substr_count( $first, ',' ) === 0 && ( substr_count( $first, ';' ) > 0 || substr_count( $first, "\t" ) > 0 ) ) {
             fclose( $fh );
-            wp_die( 'El CSV parece usar punto y coma o tabulador como separador. Guárdalo con comas (CSV UTF-8) antes de subirlo.' );
+            $this->upload_fail( 'El CSV parece usar punto y coma o tabulador como separador. Guárdalo con comas (CSV UTF-8) antes de subirlo.' );
         }
 
         $raw_header = array_map( 'trim', str_getcsv( $first ) );
@@ -402,7 +442,7 @@ class Siarhe_Admin {
 
             if ( $missing ) {
                 fclose( $fh );
-                wp_die( 'El CSV no tiene las columnas requeridas: ' . esc_html( implode( '; ', $missing ) ) . '.' );
+                $this->upload_fail( 'El CSV no tiene las columnas requeridas: ' . esc_html( implode( '; ', $missing ) ) . '.' );
             }
 
             // Metricas configuradas en el admin: cada clave es el nombre de una columna del CSV
@@ -447,7 +487,7 @@ class Siarhe_Admin {
             }
             if ( $lat_i === false || $lon_i === false ) {
                 fclose( $fh );
-                wp_die( 'El CSV de marcadores necesita las columnas de coordenadas: Latitud/Longitud (o lat/lon).' );
+                $this->upload_fail( 'El CSV de marcadores necesita las columnas de coordenadas: Latitud/Longitud (o lat/lon).' );
             }
 
             $invalid = 0;
@@ -464,7 +504,7 @@ class Siarhe_Admin {
         }
 
         fclose( $fh );
-        if ( $rows === 0 ) wp_die( 'El CSV solo tiene encabezado: no hay filas de datos.' );
+        if ( $rows === 0 ) $this->upload_fail( 'El CSV solo tiene encabezado: no hay filas de datos.' );
 
         return $warnings;
     }
@@ -501,9 +541,9 @@ class Siarhe_Admin {
             $geo_data = $this->validate_upload( $_FILES['siarhe_file'], array( 'geojson', 'json' ), true );
             $this->flash_notice( $this->validate_geojson_data( $geo_data, $entidad_slug, true ) );
             $anio = intval( $_POST['anio_reporte'] );
-            $fecha_corte = sanitize_text_field( $_POST['fecha_corte'] ); 
-            $referencia = wp_kses_post( $_POST['referencia'] ); 
-            $comentarios = sanitize_textarea_field( $_POST['comentarios'] );
+            $fecha_corte = sanitize_text_field( wp_unslash( $_POST['fecha_corte'] ) ); 
+            $referencia = wp_kses_post( wp_unslash( $_POST['referencia'] ) ); 
+            $comentarios = sanitize_textarea_field( wp_unslash( $_POST['comentarios'] ) );
             
             $current_user = wp_get_current_user();
             $editor_name = $current_user->display_name ?: $current_user->user_login;
@@ -545,12 +585,12 @@ class Siarhe_Admin {
 
                 wp_redirect( admin_url( 'admin.php?page=siarhe-uploader&tab=geojson&status=success' ) ); exit;
             } else { 
-                wp_die( '<strong>Error al mover el archivo al servidor.</strong><br>Verifica los permisos de escritura (755) de la carpeta.' ); 
+                $this->upload_fail( '<strong>Error al mover el archivo al servidor.</strong><br>Verifica los permisos de escritura (755) de la carpeta.' ); 
             }
         } else { 
             $error_code = isset($_FILES['siarhe_file']['error']) ? $_FILES['siarhe_file']['error'] : 'Desconocido';
             $max_size = ini_get('upload_max_filesize');
-            wp_die( '<strong>El archivo no pudo ser procesado o fue rechazado por el servidor.</strong><br>Código de error PHP: ' . $error_code . '<br>Tu servidor actualmente solo permite subir archivos de hasta: <strong>' . $max_size . '</strong>.' ); 
+            $this->upload_fail( '<strong>El archivo no pudo ser procesado o fue rechazado por el servidor.</strong><br>Código de error PHP: ' . $error_code . '<br>Tu servidor actualmente solo permite subir archivos de hasta: <strong>' . $max_size . '</strong>.' ); 
         }
     }
 
@@ -564,7 +604,7 @@ class Siarhe_Admin {
 
         if ( $file_id > 0 ) {
             $wpdb->update( $wpdb->prefix . 'siarhe_static_assets', 
-                array( 'anio_reporte' => intval( $_POST['anio_reporte'] ), 'fecha_corte' => sanitize_text_field( $_POST['fecha_corte'] ), 'referencia_bibliografica' => wp_kses_post( $_POST['referencia'] ), 'comentarios' => sanitize_textarea_field( $_POST['comentarios'] ), 'modificado_por' => $editor_name, 'fecha_modificacion' => current_time('mysql') ), 
+                array( 'anio_reporte' => intval( $_POST['anio_reporte'] ), 'fecha_corte' => sanitize_text_field( wp_unslash( $_POST['fecha_corte'] ) ), 'referencia_bibliografica' => wp_kses_post( wp_unslash( $_POST['referencia'] ) ), 'comentarios' => sanitize_textarea_field( wp_unslash( $_POST['comentarios'] ) ), 'modificado_por' => $editor_name, 'fecha_modificacion' => current_time('mysql') ), 
                 array( 'id' => $file_id ) 
             );
             wp_redirect( admin_url( 'admin.php?page=siarhe-uploader&tab=geojson&status=updated' ) ); exit;
@@ -604,9 +644,9 @@ class Siarhe_Admin {
             $geo_data = $this->validate_upload( $_FILES['siarhe_file'], array( 'geojson', 'json' ), true );
             $this->flash_notice( $this->validate_geojson_data( $geo_data, $entidad_slug, false ) );
             $anio = intval( $_POST['anio_reporte'] );
-            $fecha_corte = sanitize_text_field( $_POST['fecha_corte'] ); 
-            $referencia = wp_kses_post( $_POST['referencia'] ); 
-            $comentarios = sanitize_textarea_field( $_POST['comentarios'] );
+            $fecha_corte = sanitize_text_field( wp_unslash( $_POST['fecha_corte'] ) ); 
+            $referencia = wp_kses_post( wp_unslash( $_POST['referencia'] ) ); 
+            $comentarios = sanitize_textarea_field( wp_unslash( $_POST['comentarios'] ) );
             
             $current_user = wp_get_current_user();
             $editor_name = $current_user->display_name ?: $current_user->user_login;
@@ -647,8 +687,8 @@ class Siarhe_Admin {
                 }
 
                 wp_redirect( admin_url( 'admin.php?page=siarhe-uploader&tab=localidades&status=success' ) ); exit;
-            } else { wp_die( 'Error al mover el archivo.' ); }
-        } else { wp_die( 'Error de carga en servidor.' ); }
+            } else { $this->upload_fail( 'Error al mover el archivo.' ); }
+        } else { $this->upload_fail( 'Error de carga en servidor.' ); }
     }
 
     public function handle_localidades_meta_update() { 
@@ -661,7 +701,7 @@ class Siarhe_Admin {
 
         if ( $file_id > 0 ) {
             $wpdb->update( $wpdb->prefix . 'siarhe_static_assets', 
-                array( 'anio_reporte' => intval( $_POST['anio_reporte'] ), 'fecha_corte' => sanitize_text_field( $_POST['fecha_corte'] ), 'referencia_bibliografica' => wp_kses_post( $_POST['referencia'] ), 'comentarios' => sanitize_textarea_field( $_POST['comentarios'] ), 'modificado_por' => $editor_name, 'fecha_modificacion' => current_time('mysql') ), 
+                array( 'anio_reporte' => intval( $_POST['anio_reporte'] ), 'fecha_corte' => sanitize_text_field( wp_unslash( $_POST['fecha_corte'] ) ), 'referencia_bibliografica' => wp_kses_post( wp_unslash( $_POST['referencia'] ) ), 'comentarios' => sanitize_textarea_field( wp_unslash( $_POST['comentarios'] ) ), 'modificado_por' => $editor_name, 'fecha_modificacion' => current_time('mysql') ), 
                 array( 'id' => $file_id ) 
             );
             wp_redirect( admin_url( 'admin.php?page=siarhe-uploader&tab=localidades&status=updated' ) ); exit;
@@ -701,9 +741,9 @@ class Siarhe_Admin {
             $this->validate_upload( $_FILES['siarhe_file'], array( 'csv' ) );
             $this->flash_notice( $this->validate_csv_file( $_FILES['siarhe_file']['tmp_name'], 'static', $entidad_slug ) );
             $anio = intval( $_POST['anio_reporte'] );
-            $fecha_corte = sanitize_text_field( $_POST['fecha_corte'] ); 
-            $referencia = wp_kses_post( $_POST['referencia'] ); 
-            $comentarios = sanitize_textarea_field( $_POST['comentarios'] );
+            $fecha_corte = sanitize_text_field( wp_unslash( $_POST['fecha_corte'] ) ); 
+            $referencia = wp_kses_post( wp_unslash( $_POST['referencia'] ) ); 
+            $comentarios = sanitize_textarea_field( wp_unslash( $_POST['comentarios'] ) );
 
             $current_user = wp_get_current_user();
             $editor_name = $current_user->display_name ?: $current_user->user_login;
@@ -745,8 +785,8 @@ class Siarhe_Admin {
                 }
 
                 wp_redirect( admin_url( 'admin.php?page=siarhe-uploader&tab=static&status=success' ) ); exit;
-            } else { wp_die( 'Error mover.' ); }
-        } else { wp_die( 'Error carga PHP.' ); }
+            } else { $this->upload_fail( 'Error mover.' ); }
+        } else { $this->upload_fail( 'Error carga PHP.' ); }
     }
 
     public function handle_static_meta_update() {
@@ -762,7 +802,7 @@ class Siarhe_Admin {
         if ( $file_id > 0 ) {
             $wpdb->update( 
                 $table_name, 
-                array( 'anio_reporte' => intval( $_POST['anio_reporte'] ), 'fecha_corte' => sanitize_text_field( $_POST['fecha_corte'] ), 'referencia_bibliografica' => wp_kses_post( $_POST['referencia'] ), 'comentarios' => sanitize_textarea_field( $_POST['comentarios'] ), 'modificado_por' => $editor_name, 'fecha_modificacion' => current_time('mysql') ), 
+                array( 'anio_reporte' => intval( $_POST['anio_reporte'] ), 'fecha_corte' => sanitize_text_field( wp_unslash( $_POST['fecha_corte'] ) ), 'referencia_bibliografica' => wp_kses_post( wp_unslash( $_POST['referencia'] ) ), 'comentarios' => sanitize_textarea_field( wp_unslash( $_POST['comentarios'] ) ), 'modificado_por' => $editor_name, 'fecha_modificacion' => current_time('mysql') ), 
                 array( 'id' => $file_id )
             );
 
@@ -780,14 +820,101 @@ class Siarhe_Admin {
         if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Sin permisos.' );
         global $wpdb;
         $table_name = $wpdb->prefix . 'siarhe_static_assets';
-        $file = $wpdb->get_row( $wpdb->prepare( "SELECT ruta_archivo FROM $table_name WHERE id = %d", $file_id ) );
+        $file = $wpdb->get_row( $wpdb->prepare( "SELECT ruta_archivo, tipo_archivo FROM $table_name WHERE id = %d", $file_id ) );
+        $tab_destino = 'static';
         if ( $file ) {
+            if ( $file->tipo_archivo === 'marcador' ) $tab_destino = 'marcadores';
             $upload_dir = wp_upload_dir();
             $filepath = $upload_dir['basedir'] . '/siarhe-data/' . $file->ruta_archivo;
             if ( file_exists( $filepath ) ) unlink( $filepath );
             $wpdb->delete( $table_name, array( 'id' => $file_id ) );
         }
-        wp_redirect( admin_url( 'admin.php?page=siarhe-uploader&tab=static&status=deleted' ) ); exit;
+        wp_redirect( admin_url( 'admin.php?page=siarhe-uploader&tab=' . $tab_destino . '&status=deleted' ) ); exit;
+    }
+
+    // -------------------------------------------------------------------------
+    // HANDLERS: VARIABLES DE MARCADORES (alta / baja / restaurar)
+    // Se procesan en admin-post y redirigen (la pagina se recarga ya actualizada).
+    // -------------------------------------------------------------------------
+    private static function marker_core_types() {
+        return array(
+            'CATETER'          => array( 'label' => 'Clínicas de Catéteres', 'filename' => 'clinicas-cateteres.csv', 'is_core' => true ),
+            'HERIDAS'          => array( 'label' => 'Clínicas de Heridas', 'filename' => 'clinicas-heridas.csv', 'is_core' => true ),
+            'ESTABLECIMIENTOS' => array( 'label' => 'Establecimientos de Salud (Todas)', 'filename' => 'establecimientos-salud.csv', 'is_core' => true ),
+        );
+    }
+
+    private function marker_types() {
+        $tipos = json_decode( wp_unslash( get_option( 'siarhe_archivos_marcadores', '' ) ), true );
+        return ( is_array( $tipos ) && ! empty( $tipos ) ) ? $tipos : self::marker_core_types();
+    }
+
+    private function save_marker_types( $tipos ) {
+        update_option( 'siarhe_archivos_marcadores', wp_json_encode( $tipos, JSON_UNESCAPED_UNICODE ) );
+    }
+
+    private function marker_redirect( $status ) {
+        wp_safe_redirect( admin_url( 'admin.php?page=siarhe-uploader&tab=marcadores&status=' . $status ) );
+        exit;
+    }
+
+    /** Borra el CSV fisico y el registro de una variable de marcador. */
+    private function purge_marker_asset( $key, $filename ) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'siarhe_static_assets';
+        $dir   = ( defined( 'SIARHE_UPLOAD_DIR' ) ? SIARHE_UPLOAD_DIR : wp_upload_dir()['basedir'] . '/siarhe-data/' ) . 'markers/';
+        $asset = $wpdb->get_row( $wpdb->prepare( "SELECT id, ruta_archivo FROM $table WHERE tipo_archivo = %s AND entidad_slug = %s", 'marcador', $key ) );
+        if ( $asset ) {
+            $path = $dir . basename( $asset->ruta_archivo );
+            if ( file_exists( $path ) ) @unlink( $path );
+            $wpdb->delete( $table, array( 'id' => $asset->id ) );
+        } else {
+            $path = $dir . basename( $filename );
+            if ( file_exists( $path ) ) @unlink( $path );
+        }
+    }
+
+    public function handle_marker_var_add() {
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Sin permisos.' );
+        check_admin_referer( 'siarhe_add_variable_nonce', 'add_nonce' );
+        $tipos = $this->marker_types();
+
+        $key   = sanitize_text_field( strtoupper( str_replace( ' ', '_', wp_unslash( isset( $_POST['new_file_key'] ) ? $_POST['new_file_key'] : '' ) ) ) );
+        $label = sanitize_text_field( wp_unslash( isset( $_POST['new_file_label'] ) ? $_POST['new_file_label'] : '' ) );
+        $file  = sanitize_file_name( strtolower( str_replace( ' ', '-', wp_unslash( isset( $_POST['new_file_name'] ) ? $_POST['new_file_name'] : '' ) ) ) );
+        if ( $file !== '' && strpos( $file, '.csv' ) === false ) $file .= '.csv';
+
+        if ( $key === '' || $file === '' ) $this->marker_redirect( 'var_invalid' );
+        if ( isset( $tipos[ $key ] ) ) $this->marker_redirect( 'var_exists' );
+
+        $tipos[ $key ] = array( 'label' => $label, 'filename' => $file, 'is_core' => false );
+        $this->save_marker_types( $tipos );
+        $this->marker_redirect( 'var_added' );
+    }
+
+    public function handle_marker_var_delete() {
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Sin permisos.' );
+        check_admin_referer( 'siarhe_delete_variable_nonce', 'del_nonce' );
+        $tipos = $this->marker_types();
+        $key   = sanitize_text_field( wp_unslash( isset( $_POST['del_file_key'] ) ? $_POST['del_file_key'] : '' ) );
+
+        if ( isset( $tipos[ $key ] ) && empty( $tipos[ $key ]['is_core'] ) ) {
+            $this->purge_marker_asset( $key, $tipos[ $key ]['filename'] );
+            unset( $tipos[ $key ] );
+            $this->save_marker_types( $tipos );
+            $this->marker_redirect( 'var_deleted' );
+        }
+        $this->marker_redirect( 'var_invalid' );
+    }
+
+    public function handle_marker_var_reset() {
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Sin permisos.' );
+        check_admin_referer( 'reset_variables_nonce', 'reset_nonce' );
+        foreach ( $this->marker_types() as $key => $inf ) {
+            if ( empty( $inf['is_core'] ) ) $this->purge_marker_asset( $key, $inf['filename'] );
+        }
+        $this->save_marker_types( self::marker_core_types() );
+        $this->marker_redirect( 'var_reset' );
     }
 
     // -------------------------------------------------------------------------
@@ -810,21 +937,21 @@ class Siarhe_Admin {
 
         $tipo = isset($_POST['marker_type']) ? sanitize_text_field($_POST['marker_type']) : '';
         
-        if ( ! array_key_exists($tipo, $tipos_marcadores) ) wp_die('Tipo de marcador no válido.');
+        if ( ! array_key_exists($tipo, $tipos_marcadores) ) $this->upload_fail('Tipo de marcador no válido.');
 
         $nombre_final = $tipos_marcadores[$tipo]['filename'];
 
         if ( isset($_FILES['marker_file']) && !empty($_FILES['marker_file']['name']) ) {
             $anio = intval( $_POST['anio_reporte'] );
-            $fecha_corte = sanitize_text_field( $_POST['fecha_corte'] ); 
-            $referencia = wp_kses_post( $_POST['referencia'] ); 
-            $comentarios = sanitize_textarea_field( $_POST['comentarios'] );
+            $fecha_corte = sanitize_text_field( wp_unslash( $_POST['fecha_corte'] ) ); 
+            $referencia = wp_kses_post( wp_unslash( $_POST['referencia'] ) ); 
+            $comentarios = sanitize_textarea_field( wp_unslash( $_POST['comentarios'] ) );
             
             $current_user = wp_get_current_user();
             $editor_name = $current_user->display_name ?: $current_user->user_login;
 
             $ext_marker = strtolower( pathinfo( sanitize_file_name( $_FILES['marker_file']['name'] ), PATHINFO_EXTENSION ) );
-            if ( $ext_marker !== 'csv' ) wp_die( 'Solo se permiten archivos CSV.' );
+            if ( $ext_marker !== 'csv' ) $this->upload_fail( 'Solo se permiten archivos CSV.' );
             $this->flash_notice( $this->validate_csv_file( $_FILES['marker_file']['tmp_name'], 'marker', $tipo ) );
 
             if ( ! function_exists( 'wp_handle_upload' ) ) require_once( ABSPATH . 'wp-admin/includes/file.php' );
@@ -890,8 +1017,8 @@ class Siarhe_Admin {
 
                     wp_redirect( admin_url( 'admin.php?page=siarhe-uploader&tab=marcadores&status=success' ) );
                     exit;
-                } else { wp_die('Error al mover el archivo.'); }
-            } else { wp_die( $movefile['error'] ); }
-        } else { wp_die('No se seleccionó ningún archivo.'); }
+                } else { $this->upload_fail('Error al mover el archivo.'); }
+            } else { $this->upload_fail( $movefile['error'] ); }
+        } else { $this->upload_fail('No se seleccionó ningún archivo.'); }
     }
 }
