@@ -258,3 +258,8 @@ button#btn-floating-save.siarhe-scroll-top:active .dashicons { color: #fff; }
 /* Actividad reciente de versiones */
 .siarhe-audit-list { margin: 0; padding-left: var(--s-sp-5); }
 .siarhe-audit-list li { margin-bottom: var(--s-sp-1); }
+
+/* Selectores compactos de las barras de herramientas de tablas */
+.siarhe-toolbar .siarhe-select-sm { margin: 0 5px; padding: 2px 24px 2px 8px; font-size: 13px; min-height: 28px; }
+.siarhe-toolbar .siarhe-count { color: var(--s-muted); font-size: 13px; }
+.siarhe-page-numbers .siarhe-page-gap { color: var(--s-muted); }

@@ -174,6 +174,26 @@ $icons = array( 'ok' => 'yes-alt', 'warn' => 'warning', 'fail' => 'dismiss', 'pe
 
     <div class="siarhe-card siarhe-card--flush">
         <h2 class="siarhe-card__title"><span class="dashicons dashicons-grid-view"></span> Entidades y shortcodes</h2>
+        <div class="siarhe-toolbar">
+            <div class="siarhe-table-controls">
+                <label>
+                    <select id="siarhe-matrix-filter" class="siarhe-select-sm" aria-label="Filtrar entidades">
+                        <option value="">Todas las entidades</option>
+                        <option value="ready">Listas (mapa + base)</option>
+                        <option value="incomplete">Incompletas</option>
+                        <option value="nogeo">Sin GeoJSON</option>
+                        <option value="nocsv">Sin base estática (CSV)</option>
+                        <option value="noloc">Sin localidades</option>
+                    </select>
+                </label>
+            </div>
+            <div class="siarhe-count" id="siarhe-matrix-count"></div>
+            <div class="siarhe-search-box">
+                <span class="dashicons dashicons-search"></span>
+                <input type="text" id="siarhe-matrix-search" placeholder="Buscar entidad o clave...">
+            </div>
+        </div>
+
         <table class="siarhe-table siarhe-matrix">
             <thead>
                 <tr>
@@ -194,7 +214,7 @@ $icons = array( 'ok' => 'yes-alt', 'warn' => 'warning', 'fail' => 'dismiss', 'pe
                         : '<span class="dashicons dashicons-minus siarhe-no" title="Falta"></span><span class="screen-reader-text">No</span>';
                 };
                 ?>
-                <tr>
+                <tr class="siarhe-data-row" data-geo="<?php echo $m['geo'] ? 1 : 0; ?>" data-csv="<?php echo $m['csv'] ? 1 : 0; ?>" data-loc="<?php echo $m['loc'] ? 1 : 0; ?>">
                     <td data-label="Entidad" data-mobile-role="primary"><strong><?php echo esc_html( $m['nombre'] ); ?></strong></td>
                     <td data-label="CVE" data-mobile-role="secondary"><span class="siarhe-badge neutral"><?php echo esc_html( $m['cve'] ); ?></span></td>
                     <td data-label="GeoJSON"><?php echo $flag( $m['geo'] ); // phpcs:ignore WordPress.Security.EscapeOutput -- marcado fijo ?></td>
@@ -219,6 +239,9 @@ $icons = array( 'ok' => 'yes-alt', 'warn' => 'warning', 'fail' => 'dismiss', 'pe
                     </td>
                 </tr>
             <?php endforeach; ?>
+            <tr id="siarhe-matrix-empty" style="display: none;">
+                <td colspan="7" class="siarhe-empty-cell">Ninguna entidad coincide con el filtro o la búsqueda.</td>
+            </tr>
             </tbody>
         </table>
     </div>
@@ -228,6 +251,25 @@ $icons = array( 'ok' => 'yes-alt', 'warn' => 'warning', 'fail' => 'dismiss', 'pe
 document.addEventListener('DOMContentLoaded', function() {
     if (window.SiarheAdmin) {
         window.SiarheAdmin.initMobileTables();
+        var matrixRows = document.querySelectorAll('.siarhe-matrix .siarhe-data-row');
+        if (window.SiarheAdmin.initTable && matrixRows.length) {
+            window.SiarheAdmin.initTable({
+                rows:    matrixRows,
+                search:  document.getElementById('siarhe-matrix-search'),
+                filters: [{ el: document.getElementById('siarhe-matrix-filter'), match: function(row, val) {
+                    var geo = row.getAttribute('data-geo') === '1', csv = row.getAttribute('data-csv') === '1', loc = row.getAttribute('data-loc') === '1';
+                    if (val === 'ready') return geo && csv;
+                    if (val === 'incomplete') return !(geo && csv);
+                    if (val === 'nogeo') return !geo;
+                    if (val === 'nocsv') return !csv;
+                    if (val === 'noloc') return !loc;
+                    return true;
+                } }],
+                count:   document.getElementById('siarhe-matrix-count'),
+                empty:   document.getElementById('siarhe-matrix-empty'),
+                defaultPerPage: 'all'
+            });
+        }
         document.querySelectorAll('.siarhe-date-formatter').forEach(function(el) {
             var raw = el.getAttribute('data-date');
             if (raw) el.textContent = window.SiarheAdmin.formatDate(raw);

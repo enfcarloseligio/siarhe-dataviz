@@ -6,7 +6,13 @@ $versions = Siarhe_Versions::list_all();
 $events   = Siarhe_Versions::events();
 $fmt_ts   = function ( $ts ) { return $ts ? wp_date( 'd/m/Y H:i', $ts ) : '—'; };
 $fmt_mysql = function ( $s ) { return $s ? wp_date( 'd/m/Y H:i', strtotime( $s ) ) : '—'; };
-$labels   = array( 'geojson' => 'Geolocalización', 'localidades' => 'Localidades', 'static-min' => 'Base estática', 'markers' => 'Marcador' );
+// Filtro por tipo de carga: los tipos base siempre; el resto solo si ya tienen copias
+$type_counts = array();
+foreach ( $versions as $v ) $type_counts[ $v['dir'] ] = isset( $type_counts[ $v['dir'] ] ) ? $type_counts[ $v['dir'] ] + 1 : 1;
+$filter_types = array();
+foreach ( Siarhe_Versions::dirs() as $d ) {
+    if ( in_array( $d, Siarhe_Versions::CORE_TYPES, true ) || ! empty( $type_counts[ $d ] ) ) $filter_types[] = $d;
+}
 ?>
 
 <div class="siarhe-card siarhe-card--flush">
@@ -15,6 +21,38 @@ $labels   = array( 'geojson' => 'Geolocalización', 'localidades' => 'Localidade
     <?php if ( ! $versions ) : ?>
         <p class="siarhe-empty-cell">Aún no hay copias guardadas. Se crean automáticamente cuando reemplazas un archivo de datos.</p>
     <?php else : ?>
+        <div class="siarhe-toolbar">
+            <div class="siarhe-table-controls">
+                <label>
+                    Mostrar
+                    <select id="siarhe-items-per-page" class="siarhe-select-sm">
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="all">Todos</option>
+                    </select>
+                    registros
+                </label>
+                <label>
+                    <select id="siarhe-versions-type" class="siarhe-select-sm" aria-label="Filtrar por tipo de carga">
+                        <option value="">Todas las cargas (<?php echo (int) count( $versions ); ?>)</option>
+                        <?php foreach ( $filter_types as $d ) : ?>
+                            <option value="<?php echo esc_attr( $d ); ?>"><?php echo esc_html( Siarhe_Versions::type_label( $d ) . ' (' . ( isset( $type_counts[ $d ] ) ? (int) $type_counts[ $d ] : 0 ) . ')' ); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+            </div>
+
+            <div class="siarhe-pagination siarhe-pagination--bare">
+                <div class="siarhe-page-numbers" id="siarhe-pagination-controls-top"></div>
+            </div>
+
+            <div class="siarhe-search-box">
+                <span class="dashicons dashicons-search"></span>
+                <input type="text" id="siarhe-search-versions" placeholder="Buscar archivo, usuario o fecha...">
+            </div>
+        </div>
+
         <table class="siarhe-table" id="siarhe-versions-table">
             <thead>
                 <tr>
@@ -29,9 +67,9 @@ $labels   = array( 'geojson' => 'Geolocalización', 'localidades' => 'Localidade
             </thead>
             <tbody>
                 <?php foreach ( $versions as $v ) : ?>
-                    <tr>
+                    <tr class="siarhe-data-row" data-type="<?php echo esc_attr( $v['dir'] ); ?>">
                         <td data-label="Archivo" data-mobile-role="primary"><code class="siarhe-code-sm"><?php echo esc_html( $v['file'] ); ?></code></td>
-                        <td data-label="Tipo" data-mobile-role="secondary"><?php echo esc_html( isset( $labels[ $v['dir'] ] ) ? $labels[ $v['dir'] ] : $v['dir'] ); ?></td>
+                        <td data-label="Tipo" data-mobile-role="secondary"><?php echo esc_html( Siarhe_Versions::type_label( $v['dir'] ) ); ?></td>
                         <td data-label="Reemplazada el"><?php echo esc_html( $fmt_ts( $v['ts'] ) ); ?></td>
                         <td data-label="Reemplazada por"><?php echo esc_html( $v['by'] !== '' ? $v['by'] : '—' ); ?></td>
                         <td data-label="Tamaño"><?php echo esc_html( size_format( $v['size'] ) ?: '0 B' ); ?></td>
@@ -57,8 +95,16 @@ $labels   = array( 'geojson' => 'Geolocalización', 'localidades' => 'Localidade
                         </td>
                     </tr>
                 <?php endforeach; ?>
+                <tr id="siarhe-versions-empty" style="display: none;">
+                    <td colspan="7" class="siarhe-empty-cell">No se encontraron copias con ese filtro o búsqueda.</td>
+                </tr>
             </tbody>
         </table>
+
+        <div class="siarhe-pagination">
+            <div id="siarhe-versions-count" class="siarhe-count"></div>
+            <div class="siarhe-page-numbers" id="siarhe-pagination-controls-bottom"></div>
+        </div>
     <?php endif; ?>
 </div>
 
@@ -80,6 +126,19 @@ $labels   = array( 'geojson' => 'Geolocalización', 'localidades' => 'Localidade
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    if (window.SiarheAdmin && window.SiarheAdmin.initMobileTables) window.SiarheAdmin.initMobileTables();
+    if (!window.SiarheAdmin) return;
+    if (window.SiarheAdmin.initMobileTables) window.SiarheAdmin.initMobileTables();
+    var typeSel = document.getElementById('siarhe-versions-type');
+    if (window.SiarheAdmin.initTable && typeSel) {
+        window.SiarheAdmin.initTable({
+            rows:    document.querySelectorAll('#siarhe-versions-table .siarhe-data-row'),
+            search:  document.getElementById('siarhe-search-versions'),
+            perPage: document.getElementById('siarhe-items-per-page'),
+            filters: [{ el: typeSel, match: function(row, val) { return row.getAttribute('data-type') === val; } }],
+            pagers:  [document.getElementById('siarhe-pagination-controls-top'), document.getElementById('siarhe-pagination-controls-bottom')],
+            count:   document.getElementById('siarhe-versions-count'),
+            empty:   document.getElementById('siarhe-versions-empty')
+        });
+    }
 });
 </script>

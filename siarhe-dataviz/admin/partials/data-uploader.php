@@ -14,7 +14,7 @@ $tabs = [
     'formaciones'   => 'Formaciones',
     'escuelas'      => 'Escuelas',
     'investigacion' => 'Investigación',
-    'servicio'      => 'Servicio Social'
+    'carreras'      => 'Carreras'
 ];
 ?>
 

@@ -20,8 +20,33 @@ class Siarhe_Versions {
     const MAX_KEEP     = 5;
     const MAX_EVENTS   = 15;
 
-    /** Carpetas (dentro de siarhe-data) que guardan versiones. */
-    const DIRS = array( 'geojson', 'localidades', 'static-min', 'markers' );
+    /**
+     * Cargas que guardan copias: carpeta (dentro de siarhe-data) => etiqueta.
+     * Una carga nueva solo debe llamar a Siarhe_Versions::archive() al reemplazar su archivo
+     * y agregarse aqui: aparece sola en el historial y en su filtro.
+     */
+    const TYPES = array(
+        'geojson'       => 'Geolocalización',
+        'localidades'   => 'Localidades',
+        'static-min'    => 'Bases estáticas',
+        'markers'       => 'Marcadores',
+        'pivote'        => 'Pivotes',
+        'formaciones'   => 'Formaciones',
+        'escuelas'      => 'Escuelas',
+        'investigacion' => 'Investigación',
+        'carreras'      => 'Carreras',
+    );
+
+    /** Tipos que siempre aparecen en el filtro del historial aunque no tengan copias. */
+    const CORE_TYPES = array( 'geojson', 'localidades', 'static-min', 'markers' );
+
+    public static function dirs() {
+        return array_keys( self::TYPES );
+    }
+
+    public static function type_label( $dir ) {
+        return isset( self::TYPES[ $dir ] ) ? self::TYPES[ $dir ] : $dir;
+    }
 
     // -------------------------------------------------------------------------
     // CONFIGURACION
@@ -136,7 +161,7 @@ class Siarhe_Versions {
         if ( ! is_array( $log ) ) $log = array();
         $out = array();
 
-        foreach ( self::DIRS as $d ) {
+        foreach ( self::dirs() as $d ) {
             $vdir = $base . '/' . $d . '/_versions';
             if ( ! is_dir( $vdir ) ) continue;
             foreach ( (array) scandir( $vdir ) as $f ) {
@@ -198,7 +223,8 @@ class Siarhe_Versions {
     /** Valida una ruta relativa de version y devuelve sus datos, o null si no es valida. */
     private static function resolve( $rel ) {
         $rel = str_replace( '\\', '/', (string) $rel );
-        if ( ! preg_match( '#^(geojson|localidades|static-min|markers)/_versions/(.+)-(\d{8})-(\d{6})\.([A-Za-z0-9]+)(\.gz)?$#', $rel, $m ) ) return null;
+        $dirs = implode( '|', array_map( function ( $d ) { return preg_quote( $d, '#' ); }, self::dirs() ) );
+        if ( ! preg_match( '#^(' . $dirs . ')/_versions/(.+)-(\d{8})-(\d{6})\.([A-Za-z0-9]+)(\.gz)?$#', $rel, $m ) ) return null;
         if ( strpbrk( $m[2], '/\\' ) !== false || strpos( $m[2], '..' ) !== false ) return null;
         $path = self::base_dir() . '/' . $rel;
         if ( ! is_file( $path ) ) return null;

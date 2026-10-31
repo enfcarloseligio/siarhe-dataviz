@@ -306,6 +306,101 @@ window.SiarheAdmin = {
     },
 
     /**
+     * Busqueda, filtros y paginacion de una tabla (se ocultan/muestran las filas del DOM).
+     * cfg: {
+     *   rows:    filas de datos (array o NodeList),
+     *   search:  <input> de busqueda (opcional),
+     *   perPage: <select> con 25/50/100/all (opcional; si falta se usa defaultPerPage),
+     *   filters: [{ el: <select>, match: (fila, valor) => bool }] (opcionales; valor vacio = sin filtro),
+     *   pagers:  [elementos donde dibujar los numeros de pagina] (opcional),
+     *   count:   elemento para "Mostrando del X al Y de Z" (opcional),
+     *   empty:   fila "sin resultados" (opcional),
+     *   defaultPerPage: 25 | 'all'
+     * }
+     */
+    initTable: function(cfg) {
+        const rows = Array.from(cfg.rows || []);
+        const pagers = (cfg.pagers || []).filter(Boolean);
+        const norm = (t) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const parsePer = (v) => v === 'all' ? 'all' : (parseInt(v, 10) || 25);
+
+        let page = 1;
+        let per = cfg.perPage ? parsePer(cfg.perPage.value) : (cfg.defaultPerPage || 25);
+        let matched = rows.slice();
+
+        const pagerHtml = (totalPages) => {
+            if (totalPages <= 1) return '';
+            let start = Math.max(1, page - 2), end = Math.min(totalPages, page + 2);
+            if (page <= 2) end = Math.min(totalPages, 5);
+            if (page >= totalPages - 1) start = Math.max(1, totalPages - 4);
+            let h = '<a href="#" class="siarhe-page-btn' + (page === 1 ? ' disabled' : '') + '" data-page="prev">« Ant</a>';
+            if (start > 1) {
+                h += '<a href="#" class="siarhe-page-btn" data-page="1">1</a>';
+                if (start > 2) h += '<span class="siarhe-page-gap">...</span>';
+            }
+            for (let i = start; i <= end; i++) {
+                h += '<a href="#" class="siarhe-page-btn' + (i === page ? ' active' : '') + '" data-page="' + i + '">' + i + '</a>';
+            }
+            if (end < totalPages) {
+                if (end < totalPages - 1) h += '<span class="siarhe-page-gap">...</span>';
+                h += '<a href="#" class="siarhe-page-btn" data-page="' + totalPages + '">' + totalPages + '</a>';
+            }
+            return h + '<a href="#" class="siarhe-page-btn' + (page === totalPages ? ' disabled' : '') + '" data-page="next">Sig »</a>';
+        };
+
+        const render = () => {
+            const total = matched.length;
+            const totalPages = per === 'all' ? 1 : (Math.ceil(total / per) || 1);
+            if (page > totalPages) page = totalPages;
+
+            rows.forEach(r => { r.style.display = 'none'; });
+            if (cfg.empty) cfg.empty.style.display = total === 0 ? '' : 'none';
+
+            const start = per === 'all' ? 0 : (page - 1) * per;
+            const slice = per === 'all' ? matched : matched.slice(start, start + per);
+            slice.forEach(r => { r.style.display = ''; });
+
+            if (cfg.count) {
+                cfg.count.innerHTML = total === 0
+                    ? 'No hay registros para mostrar.'
+                    : 'Mostrando del <strong>' + (start + 1) + '</strong> al <strong>' + (start + slice.length) + '</strong> de <strong>' + total + '</strong> registros';
+            }
+            const html = total === 0 ? '' : pagerHtml(totalPages);
+            pagers.forEach(el => { el.innerHTML = html; });
+        };
+
+        const apply = () => {
+            const term = cfg.search ? norm(cfg.search.value) : '';
+            matched = rows.filter(row => {
+                if (term && !norm(row.textContent).includes(term)) return false;
+                return (cfg.filters || []).every(f => !f.el.value || f.match(row, f.el.value));
+            });
+            page = 1;
+            render();
+        };
+
+        pagers.forEach(el => el.addEventListener('click', e => {
+            const a = e.target.closest ? e.target.closest('.siarhe-page-btn') : null;
+            if (!a) return;
+            e.preventDefault();
+            if (a.classList.contains('disabled')) return;
+            const t = a.getAttribute('data-page');
+            const totalPages = per === 'all' ? 1 : (Math.ceil(matched.length / per) || 1);
+            if (t === 'prev') page = Math.max(1, page - 1);
+            else if (t === 'next') page = Math.min(totalPages, page + 1);
+            else page = parseInt(t, 10) || 1;
+            render();
+        }));
+
+        if (cfg.search) cfg.search.addEventListener('input', apply);
+        (cfg.filters || []).forEach(f => f.el.addEventListener('change', apply));
+        if (cfg.perPage) cfg.perPage.addEventListener('change', () => { per = parsePer(cfg.perPage.value); page = 1; render(); });
+
+        apply();
+        return { refresh: apply };
+    },
+
+    /**
      * Mejora de los formularios de carga (inputs file con data-check):
      *  - zona para arrastrar y soltar el archivo;
      *  - vista previa (primeras filas del CSV o resumen del GeoJSON);

@@ -381,147 +381,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
 
-    // Motor de Búsqueda y Paginación (Homologado)
-    const searchInput = document.getElementById('siarhe-search-<?php echo esc_js( $k ); ?>');
-    const itemsPerPageSelect = document.getElementById('siarhe-items-per-page');
-    const paginationControlsTop = document.getElementById('siarhe-pagination-controls-top');
-    const paginationControlsBottom = document.getElementById('siarhe-pagination-controls-bottom');
-    const countDisplay = document.getElementById('siarhe-<?php echo esc_js( $k ); ?>-count');
-    
-    const allRows = Array.from(document.querySelectorAll('.siarhe-data-row'));
-    const emptyRow = document.getElementById('siarhe-<?php echo esc_js( $k ); ?>-empty');
-
-    let currentPage = 1;
-    let itemsPerPage = 25;
-    let matchedRows = allRows;
-
-    function applySearchFilter() {
-        const term = searchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        
-        matchedRows = allRows.filter(row => {
-            const text = row.textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            const match = text.includes(term);
-            if (!match) row.style.display = 'none';
-            return match;
-        });
-
-        currentPage = 1;
-        renderPagination();
-    }
-
-    function renderPagination() {
-        const totalItems = matchedRows.length;
-        let totalPages = 1;
-        
-        // Ocultar todos los registros previamente a la paginación
-        allRows.forEach(row => row.style.display = 'none');
-        emptyRow.style.display = totalItems === 0 ? '' : 'none';
-
-        if (itemsPerPage === 'all') {
-            matchedRows.forEach(row => row.style.display = '');
-        } else {
-            totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
-            if (currentPage > totalPages) currentPage = totalPages;
-            
-            const start = (currentPage - 1) * itemsPerPage;
-            const end = start + itemsPerPage;
-            
-            matchedRows.slice(start, end).forEach(row => {
-                row.style.display = '';
-            });
-        }
-        
-        updatePaginationUI(totalItems, itemsPerPage === 'all' ? totalItems : Math.min(itemsPerPage, totalItems - (currentPage-1)*itemsPerPage), totalPages);
-    }
-
-    function generatePaginationHTML(totalPages) {
-        let html = '';
-        if (totalPages <= 1) return html;
-
-        let startPage = Math.max(1, currentPage - 2);
-        let endPage = Math.min(totalPages, currentPage + 2);
-
-        if (currentPage <= 2) endPage = Math.min(totalPages, 5);
-        if (currentPage >= totalPages - 1) startPage = Math.max(1, totalPages - 4);
-
-        html += `<a href="#" class="siarhe-page-btn ${currentPage === 1 ? 'disabled' : ''}" data-page="prev">« Ant</a>`;
-
-        if (startPage > 1) {
-            html += `<a href="#" class="siarhe-page-btn" data-page="1">1</a>`;
-            if (startPage > 2) html += `<span style="color:#8c8f94;">...</span>`;
-        }
-
-        for (let i = startPage; i <= endPage; i++) {
-            html += `<a href="#" class="siarhe-page-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</a>`;
-        }
-
-        if (endPage < totalPages) {
-            if (endPage < totalPages - 1) html += `<span style="color:#8c8f94;">...</span>`;
-            html += `<a href="#" class="siarhe-page-btn" data-page="${totalPages}">${totalPages}</a>`;
-        }
-
-        html += `<a href="#" class="siarhe-page-btn ${currentPage === totalPages ? 'disabled' : ''}" data-page="next">Sig »</a>`;
-        
-        return html;
-    }
-
-    function handlePaginationClick(e) {
-        if (!e.target.classList.contains('siarhe-page-btn')) return;
-        e.preventDefault();
-        
-        if (e.target.classList.contains('disabled')) return;
-
-        const pageTarget = e.target.getAttribute('data-page');
-        let totalPages = Math.ceil(matchedRows.length / itemsPerPage);
-
-        if (pageTarget === 'prev' && currentPage > 1) {
-            currentPage--;
-        } else if (pageTarget === 'next' && currentPage < totalPages) {
-            currentPage++;
-        } else if (!isNaN(parseInt(pageTarget))) {
-            currentPage = parseInt(pageTarget);
-        }
-
-        renderPagination();
-    }
-
-    function updatePaginationUI(totalItems, currentItemsCount, totalPages) {
-        if (totalItems === 0) {
-            countDisplay.innerHTML = 'No hay registros para mostrar.';
-            paginationControlsTop.innerHTML = '';
-            paginationControlsBottom.innerHTML = '';
-            return;
-        }
-
-        let startRange = 1;
-        let endRange = totalItems;
-
-        if (itemsPerPage !== 'all') {
-            startRange = ((currentPage - 1) * itemsPerPage) + 1;
-            endRange = startRange + currentItemsCount - 1;
-        }
-
-        countDisplay.innerHTML = `Mostrando del <strong>${startRange}</strong> al <strong>${endRange}</strong> de <strong>${totalItems}</strong> registros`;
-
-        const phtml = generatePaginationHTML(totalPages);
-        paginationControlsTop.innerHTML = phtml;
-        paginationControlsBottom.innerHTML = phtml;
-
-        paginationControlsTop.querySelectorAll('a').forEach(a => a.addEventListener('click', handlePaginationClick));
-        paginationControlsBottom.querySelectorAll('a').forEach(a => a.addEventListener('click', handlePaginationClick));
-    }
-
-    if(searchInput) searchInput.addEventListener('input', applySearchFilter);
-    
-    if(itemsPerPageSelect) {
-        itemsPerPageSelect.addEventListener('change', (e) => {
-            itemsPerPage = e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10);
-            currentPage = 1;
-            renderPagination();
+    // Búsqueda y paginación (motor compartido)
+    if (window.SiarheAdmin && window.SiarheAdmin.initTable) {
+        window.SiarheAdmin.initTable({
+            rows:    document.querySelectorAll('.siarhe-data-row'),
+            search:  document.getElementById('siarhe-search-<?php echo esc_js( $k ); ?>'),
+            perPage: document.getElementById('siarhe-items-per-page'),
+            pagers:  [document.getElementById('siarhe-pagination-controls-top'), document.getElementById('siarhe-pagination-controls-bottom')],
+            count:   document.getElementById('siarhe-<?php echo esc_js( $k ); ?>-count'),
+            empty:   document.getElementById('siarhe-<?php echo esc_js( $k ); ?>-empty')
         });
     }
-
-    // Inicializar la tabla al cargar la vista
-    applySearchFilter();
 });
 </script>
