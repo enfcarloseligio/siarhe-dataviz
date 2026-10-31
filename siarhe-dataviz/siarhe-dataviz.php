@@ -2,7 +2,7 @@
 /**
  * Plugin Name: SIARHE Data Visualization Engine
  * Description: Sistema modular de visualización de datos de enfermería con soporte SQL y GeoJSON.
- * Version: 0.0.13.3
+ * Version: 0.0.13.4
  * Author: Juan Carlos de la Cruz Eligio | @enfcarloseligio
  * Text Domain: siarhe-dataviz
  */
@@ -10,7 +10,7 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // 1. Definición de Constantes Básicas
-define( 'SIARHE_VERSION', '0.0.13.3' );
+define( 'SIARHE_VERSION', '0.0.13.4' );
 define( 'SIARHE_PATH', plugin_dir_path( __FILE__ ) );
 define( 'SIARHE_URL', plugin_dir_url( __FILE__ ) );
 
@@ -24,6 +24,8 @@ define( 'SIARHE_UPLOAD_URL', $upload_dir['baseurl'] . '/siarhe-data/' );
 require_once SIARHE_PATH . 'admin/class-siarhe-admin.php';
 require_once SIARHE_PATH . 'includes/helpers.php';
 require_once SIARHE_PATH . 'includes/class-siarhe-versions.php';
+require_once SIARHE_PATH . 'includes/class-siarhe-columns.php';
+require_once SIARHE_PATH . 'includes/class-siarhe-xlsx.php';
 require_once SIARHE_PATH . 'includes/db/class-db-installer.php';
 
 // --- NUEVO: Cargar la clase de Shortcodes ---

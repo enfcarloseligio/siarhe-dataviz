@@ -8,37 +8,7 @@ $current_user = wp_get_current_user();
 $editor_name = $current_user->display_name ?: $current_user->user_login;
 $current_time = current_time('mysql');
 
-$base_ranges = [
-    'scale_type' => 'cuartiles',
-    'custom_ranges' => false,
-    'custom_colors' => false,
-    'r1_min' => 'Vmin', 'r1_op' => '<', 'r1_max' => 'Q1',   'r1_color' => '',
-    'r2_min' => 'Q1',   'r2_op' => '<', 'r2_max' => 'Q2',   'r2_color' => '',
-    'r3_min' => 'Q2',   'r3_op' => '<', 'r3_max' => 'Q3',   'r3_color' => '',
-    'r4_min' => 'Q3',   'r4_op' => '<=', 'r4_max' => 'Vmax', 'r4_color' => '' 
-];
-
-$defaults = [
-    'tasa_total'                 => array_merge(['label' => 'Tasa Total', 'fullLabel' => 'Tasa de enfermeras por cada mil habitantes', 'abrev' => 'Tasa Total', 'tipo' => 'tasa', 'pair' => 'enfermeras_total', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-    'enfermeras_total'           => array_merge(['label' => 'Total Enfermeras', 'fullLabel' => 'Total de profesionales de enfermería', 'abrev' => 'Total Enf.', 'tipo' => 'absoluto', 'pair' => 'enfermeras_total', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-    'tasa_primer'                => array_merge(['label' => 'Tasa Primer Nivel', 'fullLabel' => 'Tasa de enfermeras en Primer Nivel de Atención', 'abrev' => 'Tasa Enf. 1er Nivel', 'tipo' => 'tasa', 'pair' => 'enfermeras_primer', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-    'enfermeras_primer'          => array_merge(['label' => 'Enfermeras Primer Nivel', 'fullLabel' => 'Enfermeras en Primer Nivel de Atención', 'abrev' => 'Enf. 1er Nivel', 'tipo' => 'absoluto', 'pair' => 'enfermeras_primer', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-    'tasa_segundo'               => array_merge(['label' => 'Tasa Segundo Nivel', 'fullLabel' => 'Tasa de enfermeras en Segundo Nivel de Atención', 'abrev' => 'Tasa Enf. 2do Nivel', 'tipo' => 'tasa', 'pair' => 'enfermeras_segundo', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-    'enfermeras_segundo'         => array_merge(['label' => 'Enfermeras Segundo Nivel', 'fullLabel' => 'Enfermeras en Segundo Nivel de Atención', 'abrev' => 'Enf. 2do Nivel', 'tipo' => 'absoluto', 'pair' => 'enfermeras_segundo', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-    'tasa_tercer'                => array_merge(['label' => 'Tasa Tercer Nivel', 'fullLabel' => 'Tasa de enfermeras en Tercer Nivel de Atención', 'abrev' => 'Tasa Enf. 3er Nivel', 'tipo' => 'tasa', 'pair' => 'enfermeras_tercer', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-    'enfermeras_tercer'          => array_merge(['label' => 'Enfermeras Tercer Nivel', 'fullLabel' => 'Enfermeras en Tercer Nivel de Atención', 'abrev' => 'Enf. 3er Nivel', 'tipo' => 'absoluto', 'pair' => 'enfermeras_tercer', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-    'tasa_apoyo'                 => array_merge(['label' => 'Tasa Apoyo', 'fullLabel' => 'Tasa de enfermeras en establecimientos de apoyo', 'abrev' => 'Tasa Enf. Apoyo', 'tipo' => 'tasa', 'pair' => 'enfermeras_apoyo', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-    'enfermeras_apoyo'           => array_merge(['label' => 'Enfermeras Apoyo', 'fullLabel' => 'Enfermeras en establecimientos de apoyo', 'abrev' => 'Enf. Apoyo', 'tipo' => 'absoluto', 'pair' => 'enfermeras_apoyo', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-    'tasa_administrativas'       => array_merge(['label' => 'Tasa Enfermeras Administrativas', 'fullLabel' => 'Tasa de enfermeras con funciones administrativas', 'abrev' => 'Tasa Enf. Admin.', 'tipo' => 'tasa', 'pair' => 'enfermeras_administrativas', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-    'enfermeras_administrativas' => array_merge(['label' => 'Enfermeras Administrativas', 'fullLabel' => 'Enfermeras con funciones administrativas', 'abrev' => 'Enf. Admin.', 'tipo' => 'absoluto', 'pair' => 'enfermeras_administrativas', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-    'tasa_escuelas'              => array_merge(['label' => 'Tasa Enfermeras Escuelas', 'fullLabel' => 'Tasa de enfermeras en escuelas de enfermería', 'abrev' => 'Tasa Enf. Escuelas', 'tipo' => 'tasa', 'pair' => 'enfermeras_escuelas', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-    'enfermeras_escuelas'        => array_merge(['label' => 'Enfermeras Escuelas', 'fullLabel' => 'Enfermeras en escuelas de enfermería', 'abrev' => 'Enf. Escuelas', 'tipo' => 'absoluto', 'pair' => 'enfermeras_escuelas', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-    'tasa_no_aplica'             => array_merge(['label' => 'Tasa Enfermeras Otros', 'fullLabel' => 'Tasa de enfermeras en otros establecimientos', 'abrev' => 'Tasa Enf. Otros', 'tipo' => 'tasa', 'pair' => 'enfermeras_no_aplica', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-    'enfermeras_no_aplica'       => array_merge(['label' => 'Enfermeras Otros', 'fullLabel' => 'Enfermeras en otros establecimientos', 'abrev' => 'Enf. Otros', 'tipo' => 'absoluto', 'pair' => 'enfermeras_no_aplica', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-    'tasa_no_asignado'           => array_merge(['label' => 'Tasa Enfermeras No Asignado', 'fullLabel' => 'Tasa de enfermeras con funciones no asignadas', 'abrev' => 'Tasa Enf. No Asignado', 'tipo' => 'tasa', 'pair' => 'enfermeras_no_asignado', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-    'enfermeras_no_asignado'     => array_merge(['label' => 'Enfermeras No Asignado', 'fullLabel' => 'Enfermeras con funciones no asignadas', 'abrev' => 'Enf. No Asignado', 'tipo' => 'absoluto', 'pair' => 'enfermeras_no_asignado', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-    'poblacion'                  => array_merge(['label' => 'Población', 'fullLabel' => 'Población total', 'abrev' => 'Población', 'tipo' => 'absoluto', 'pair' => 'poblacion', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges)
-];
+$defaults = siarhe_get_default_metricas();
 
 $defaults_json = wp_json_encode($defaults);
 

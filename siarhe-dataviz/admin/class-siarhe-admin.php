@@ -44,12 +44,81 @@ class Siarhe_Admin {
         // --- VERSIONES (copias de seguridad de los archivos) ---
         add_action( 'admin_post_siarhe_version_restore', array( $this, 'handle_version_restore' ) );
         add_action( 'admin_post_siarhe_version_delete', array( $this, 'handle_version_delete' ) );
+
+        // --- PLANTILLAS Y DICCIONARIO DE VARIABLES (descargas) ---
+        add_action( 'admin_post_siarhe_download_columns', array( $this, 'handle_download_columns' ) );
         add_action( 'add_option_' . Siarhe_Versions::OPT_KEEP, array( 'Siarhe_Versions', 'on_keep_changed' ) );
         add_action( 'update_option_' . Siarhe_Versions::OPT_KEEP, array( 'Siarhe_Versions', 'on_keep_changed' ) );
     }
 
     public function handle_version_restore() {
         $this->version_action( 'restore' );
+    }
+
+    /** URL de descarga de una plantilla o del diccionario (con nonce). */
+    public static function columns_url( $kind, $what, $extra = array() ) {
+        $args = array_merge( array( 'action' => 'siarhe_download_columns', 'kind' => $kind, 'what' => $what ), $extra );
+        $args['_wpnonce'] = wp_create_nonce( 'siarhe_columns' );
+        return add_query_arg( $args, admin_url( 'admin-post.php' ) );
+    }
+
+    /** Botones de descarga de plantillas y diccionario ($kind: 'static' o 'marker'). */
+    public static function render_columns_downloads( $kind ) {
+        $dict_ext = Siarhe_Xlsx::available() ? '.xlsx' : '.csv';
+        echo '<div class="siarhe-downloads"><span class="siarhe-downloads__label">Plantillas y diccionario';
+        self::help( $kind === 'static'
+            ? 'Descarga un CSV con las columnas que lee el mapa (identificador, nombre, población y métricas nativas) y una fila de ejemplo. Tus métricas propias se agregan como columnas adicionales. El diccionario explica cada columna.'
+            : 'Descarga un CSV con las columnas que necesita el mapa y una fila de ejemplo. Agrega después las columnas de valor que use la configuración de cada marcador. El diccionario explica cada columna.' );
+        echo '</span>';
+        if ( $kind === 'static' ) {
+            echo '<a class="button" href="' . esc_url( self::columns_url( 'static', 'plantilla', array( 'variante' => 'nacional' ) ) ) . '"><span class="dashicons dashicons-download"></span> Plantilla nacional (CSV)</a>';
+            echo '<a class="button" href="' . esc_url( self::columns_url( 'static', 'plantilla', array( 'variante' => 'municipal' ) ) ) . '"><span class="dashicons dashicons-download"></span> Plantilla municipal (CSV)</a>';
+            echo '<a class="button" href="' . esc_url( self::columns_url( 'static', 'diccionario' ) ) . '"><span class="dashicons dashicons-media-spreadsheet"></span> Diccionario de variables (' . esc_html( $dict_ext ) . ')</a>';
+        } else {
+            echo '<a class="button" href="' . esc_url( self::columns_url( 'marker', 'plantilla' ) ) . '"><span class="dashicons dashicons-download"></span> Plantilla de marcadores (CSV)</a>';
+            echo '<a class="button" href="' . esc_url( self::columns_url( 'marker', 'diccionario' ) ) . '"><span class="dashicons dashicons-media-spreadsheet"></span> Diccionario de variables (' . esc_html( $dict_ext ) . ')</a>';
+        }
+        echo '</div>';
+    }
+
+    public function handle_download_columns() {
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'No tienes permisos.' );
+        check_admin_referer( 'siarhe_columns' );
+
+        $kind = isset( $_GET['kind'] ) ? sanitize_key( $_GET['kind'] ) : '';
+        $what = isset( $_GET['what'] ) ? sanitize_key( $_GET['what'] ) : '';
+        if ( ! in_array( $kind, array( 'static', 'marker' ), true ) || ! in_array( $what, array( 'plantilla', 'diccionario' ), true ) ) wp_die( 'Solicitud no válida.' );
+
+        if ( $kind === 'static' ) {
+            $variante = ( isset( $_GET['variante'] ) && $_GET['variante'] === 'municipal' ) ? 'municipal' : 'nacional';
+            if ( $what === 'plantilla' ) {
+                $cols = Siarhe_Columns::static_columns( $variante );
+                Siarhe_Columns::send_csv( 'plantilla-base-estatica-' . $variante . '.csv', array( wp_list_pluck( $cols, 'name' ), Siarhe_Columns::example_row( $cols ) ) );
+            }
+            $sheets = array(
+                'Nacional'  => Siarhe_Columns::dictionary_rows( Siarhe_Columns::static_columns( 'nacional' ) ),
+                'Municipal' => Siarhe_Columns::dictionary_rows( Siarhe_Columns::static_columns( 'municipal' ) ),
+                'Notas'     => Siarhe_Columns::notas(),
+            );
+            $csv_name = 'diccionario-base-estatica.csv';
+            $csv_rows = array_merge( array( array( 'NACIONAL' ) ), $sheets['Nacional'], array( array(), array( 'MUNICIPAL' ) ), $sheets['Municipal'], array( array() ), $sheets['Notas'] );
+        } else {
+            $cols = Siarhe_Columns::marker_columns();
+            if ( $what === 'plantilla' ) {
+                Siarhe_Columns::send_csv( 'plantilla-marcadores.csv', array( wp_list_pluck( $cols, 'name' ), Siarhe_Columns::example_row( $cols ) ) );
+            }
+            $sheets = array(
+                'Marcadores' => Siarhe_Columns::dictionary_rows( $cols ),
+                'Notas'      => Siarhe_Columns::notas(),
+            );
+            $csv_name = 'diccionario-marcadores.csv';
+            $csv_rows = array_merge( $sheets['Marcadores'], array( array() ), $sheets['Notas'] );
+        }
+
+        // Diccionario: .xlsx si el servidor tiene ZipArchive; si no, CSV
+        if ( ! Siarhe_Xlsx::send( preg_replace( '/\.csv$/', '.xlsx', $csv_name ), $sheets ) ) {
+            Siarhe_Columns::send_csv( $csv_name, $csv_rows );
+        }
     }
 
     public function handle_version_delete() {
@@ -475,6 +544,9 @@ class Siarhe_Admin {
                 if ( strpos( $h, 'pob' ) === 0 ) { $has_pob = true; break; }
             }
             if ( ! $has_pob ) $missing[] = 'población (una columna que empiece con "pob")';
+            foreach ( array( 'tasa_total', 'enfermeras_total' ) as $must ) {
+                if ( ! in_array( $must, $raw_header, true ) ) $missing[] = $must . ' (sin ella el mapa no muestra datos)';
+            }
 
             if ( $missing ) {
                 fclose( $fh );

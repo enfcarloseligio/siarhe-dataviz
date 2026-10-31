@@ -15,7 +15,7 @@ $siarhe_up = array(
     'msg_updated'       => 'Metadatos del mapa actualizados en el sistema.',
     'msg_deleted'       => 'Mapa y metadatos eliminados permanentemente.',
     'title'             => '📤 Cargar Mapa GeoJSON',
-    'title_help'        => 'Sube el mapa de la entidad (limites de municipios o estados). Es la base sobre la que se colorean los datos. Reemplazar el archivo conserva las 3 versiones anteriores.',
+    'title_help'        => 'Sube el mapa de la entidad (limites de municipios o estados). Es la base sobre la que se colorean los datos. Al reemplazar el archivo se guardan copias de la versión anterior (se configuran en Configuración › Versiones y Copias).',
     'info'              => array(
         '<strong>Formatos admitidos:</strong> Archivos estructurados <code>.json</code> o <code>.geojson</code>.',
         '<strong>Nomenclatura:</strong> El archivo se normalizará automáticamente con el nombre estándar <code>{entidad}.geojson</code> (ej. aguascalientes.geojson).',

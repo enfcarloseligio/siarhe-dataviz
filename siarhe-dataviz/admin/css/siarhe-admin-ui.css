@@ -310,3 +310,9 @@ button#btn-floating-save.siarhe-scroll-top:active .dashicons { color: #fff; }
 .siarhe-panel { display: flex; gap: var(--s-sp-5); flex-wrap: wrap; padding: var(--s-sp-4); border-radius: 6px; border: 1px dashed var(--s-border); }
 .siarhe-panel--purple { background: #faf5ff; border-color: #d8b4fe; margin-top: var(--s-sp-4); }
 .siarhe-panel--blue { background: #f0f9ff; border-color: #bae6fd; }
+
+/* Descargas de plantillas y diccionario en las pantallas de carga */
+.siarhe-downloads { display: flex; align-items: center; gap: var(--s-sp-2); flex-wrap: wrap; margin: 0 0 var(--s-sp-5); }
+.siarhe-downloads__label { font-weight: 600; display: inline-flex; align-items: center; margin-right: var(--s-sp-2); }
+.siarhe-downloads .button { display: inline-flex; align-items: center; gap: var(--s-sp-1); }
+.siarhe-downloads .button .dashicons { width: 18px; height: 18px; font-size: 18px; }

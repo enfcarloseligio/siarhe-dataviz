@@ -50,7 +50,8 @@ if ( isset($_GET['status']) ) {
             <?php endforeach; ?>
         </ul>
     </div>
-    
+    <?php if ( ! empty( $u['columns'] ) ) Siarhe_Admin::render_columns_downloads( $u['columns'] ); ?>
+
     <form method="post" enctype="multipart/form-data" action="<?php echo admin_url('admin-post.php'); ?>">
         <input type="hidden" name="action" value="<?php echo esc_attr( $u['action_upload'] ); ?>">
         <?php wp_nonce_field( $u['nonce_upload'], 'siarhe_nonce' ); ?>

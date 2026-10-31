@@ -58,6 +58,7 @@ if ( isset($_GET['status']) ) {
             <li><strong>Proyección:</strong> Es necesario que las bases de datos usen las variables <code>CVE_ENT</code>, <code>CVE_MUN</code>, <code>LATITUD</code>, <code>LONGITUD</code>.</li>
         </ul>
     </div>
+    <?php Siarhe_Admin::render_columns_downloads( 'marker' ); ?>
 
     <form method="post" enctype="multipart/form-data" action="<?php echo admin_url('admin-post.php'); ?>" id="form-upload-marker">
         <input type="hidden" name="action" value="siarhe_upload_marker">
