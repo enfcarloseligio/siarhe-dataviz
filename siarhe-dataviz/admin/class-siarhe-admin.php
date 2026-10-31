@@ -598,13 +598,29 @@ class Siarhe_Admin {
                 $this->upload_fail( 'El CSV de marcadores necesita las columnas de coordenadas: Latitud/Longitud (o lat/lon).' );
             }
 
-            $invalid = 0;
+            // Claves geograficas: el mapa de cada entidad usa CVE_ENT para dibujar solo sus puntos
+            $geo_req = array( 'CVE_ENT', 'ENTIDAD', 'CVE_MUN', 'MUNICIPIO', 'CVE_LOC', 'LOCALIDAD' );
+            $missing_geo = array();
+            foreach ( $geo_req as $g ) {
+                if ( ! in_array( strtolower( $g ), $header, true ) ) $missing_geo[] = $g;
+            }
+            if ( $missing_geo ) {
+                fclose( $fh );
+                $this->upload_fail( 'El CSV de marcadores no tiene las columnas requeridas: ' . esc_html( implode( ', ', $missing_geo ) ) . '. Descarga la plantilla en esta pantalla para ver el formato.' );
+            }
+            $ent_i = array_search( 'cve_ent', $header, true );
+
+            $invalid = 0; $no_ent = 0;
             while ( ( $row = fgetcsv( $fh ) ) !== false && $rows < 300000 ) {
                 if ( $row === array( null ) ) continue;
                 $rows++;
+                if ( ! isset( $row[ $ent_i ] ) || trim( $row[ $ent_i ] ) === '' ) $no_ent++;
                 $lat = isset( $row[ $lat_i ] ) ? (float) $row[ $lat_i ] : 0;
                 $lon = isset( $row[ $lon_i ] ) ? (float) $row[ $lon_i ] : 0;
                 if ( $lat < 14 || $lat > 33 || $lon < -119 || $lon > -86 ) $invalid++;
+            }
+            if ( $no_ent > 0 ) {
+                $warnings[] = $no_ent . ' fila(s) no tienen CVE_ENT y aparecerían en el mapa de todas las entidades; completa la clave para que cada una salga solo en la suya.';
             }
             if ( $rows > 0 && ( $invalid / $rows ) > 0.2 ) {
                 $warnings[] = round( ( $invalid / $rows ) * 100 ) . '% de las filas tienen coordenadas vacías o fuera de México y no se dibujarán.';
