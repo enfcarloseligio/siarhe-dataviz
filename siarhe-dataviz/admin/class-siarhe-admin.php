@@ -40,6 +40,36 @@ class Siarhe_Admin {
 
         // Subidas con barra de progreso (XHR): la redireccion final se devuelve como JSON
         add_filter( 'wp_redirect', array( $this, 'redirect_as_json_for_xhr' ), 10, 1 );
+
+        // --- VERSIONES (copias de seguridad de los archivos) ---
+        add_action( 'admin_post_siarhe_version_restore', array( $this, 'handle_version_restore' ) );
+        add_action( 'admin_post_siarhe_version_delete', array( $this, 'handle_version_delete' ) );
+        add_action( 'add_option_' . Siarhe_Versions::OPT_KEEP, array( 'Siarhe_Versions', 'on_keep_changed' ) );
+        add_action( 'update_option_' . Siarhe_Versions::OPT_KEEP, array( 'Siarhe_Versions', 'on_keep_changed' ) );
+    }
+
+    public function handle_version_restore() {
+        $this->version_action( 'restore' );
+    }
+
+    public function handle_version_delete() {
+        $this->version_action( 'delete' );
+    }
+
+    private function version_action( $what ) {
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'No tienes permisos.' );
+        $rel = isset( $_POST['version'] ) ? sanitize_text_field( wp_unslash( $_POST['version'] ) ) : '';
+        check_admin_referer( 'siarhe_version_' . $rel );
+
+        $res = ( $what === 'restore' ) ? Siarhe_Versions::restore( $rel ) : Siarhe_Versions::delete( $rel );
+        if ( $res !== true ) {
+            set_transient( 'siarhe_error_' . get_current_user_id(), (string) $res, 2 * MINUTE_IN_SECONDS );
+            $status = 'error';
+        } else {
+            $status = ( $what === 'restore' ) ? 'restored' : 'vdeleted';
+        }
+        wp_safe_redirect( admin_url( 'admin.php?page=siarhe-settings&tab=versiones&status=' . $status ) );
+        exit;
     }
 
     /**
@@ -160,6 +190,14 @@ class Siarhe_Admin {
         register_setting( 'siarhe_metricas_group', 'siarhe_metricas_config', $json );
         register_setting( 'siarhe_tooltip_group', 'siarhe_tooltip_config', $arr );
         register_setting( 'siarhe_marcadores_group', 'siarhe_marcadores_config', $json );
+        register_setting( 'siarhe_versions_group', Siarhe_Versions::OPT_KEEP, array(
+            'sanitize_callback' => array( 'Siarhe_Versions', 'sanitize_keep' ),
+            'default'           => Siarhe_Versions::DEFAULT_KEEP,
+        ) );
+        register_setting( 'siarhe_versions_group', Siarhe_Versions::OPT_GZ, array(
+            'sanitize_callback' => array( 'Siarhe_Versions', 'sanitize_bool' ),
+            'default'           => '0',
+        ) );
     }
 
     /**
@@ -312,25 +350,7 @@ class Siarhe_Admin {
      * Permite recuperar el archivo anterior si la nueva carga resulta equivocada.
      */
     private function archive_previous_version( $file_path ) {
-        if ( ! is_file( $file_path ) ) return;
-
-        $dir  = dirname( $file_path );
-        $name = pathinfo( $file_path, PATHINFO_FILENAME );
-        $ext  = pathinfo( $file_path, PATHINFO_EXTENSION );
-        $vdir = $dir . '/_versions';
-        if ( ! wp_mkdir_p( $vdir ) ) return;
-
-        copy( $file_path, $vdir . '/' . $name . '-' . gmdate( 'Ymd-His' ) . '.' . $ext );
-
-        $pattern  = '/^' . preg_quote( $name, '/' ) . '-\d{8}-\d{6}\.' . preg_quote( $ext, '/' ) . '$/';
-        $versions = array();
-        foreach ( (array) scandir( $vdir ) as $entry ) {
-            if ( preg_match( $pattern, $entry ) ) $versions[] = $entry;
-        }
-        rsort( $versions );
-        foreach ( array_slice( $versions, 3 ) as $old ) {
-            @unlink( $vdir . '/' . $old );
-        }
+        Siarhe_Versions::archive( $file_path );
     }
 
     /** Primer par [lon, lat] dentro de un arreglo de coordenadas GeoJSON de cualquier profundidad. */

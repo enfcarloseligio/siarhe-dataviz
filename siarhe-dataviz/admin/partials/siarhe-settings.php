@@ -20,6 +20,7 @@ $siarhe_screens = array(
             'tooltip'    => array( 'label' => 'Tooltips',          'icon' => 'dashicons-info',        'group' => 'siarhe_tooltip_group' ),
             'metricas'   => array( 'label' => 'Métricas (CSV)',    'icon' => 'dashicons-chart-bar',   'group' => 'siarhe_metricas_group' ),
             'marcadores' => array( 'label' => 'Marcadores (CSV)',  'icon' => 'dashicons-location',    'group' => 'siarhe_marcadores_group' ),
+            'versiones'  => array( 'label' => 'Versiones y Copias', 'icon' => 'dashicons-backup',      'group' => 'siarhe_versions_group' ),
         ),
     ),
 );
@@ -67,6 +68,7 @@ $option_group = $screen['tabs'][ $active_tab ]['group'];
             ?>
         </form>
         <?php if ( ! empty( $siarhe_autosave ) ) : ?><span data-siarhe-scrolltop hidden></span><?php endif; ?>
+        <?php if ( ! empty( $siarhe_after_form ) && file_exists( $siarhe_after_form ) ) include $siarhe_after_form; ?>
 
     </div>
 </div>

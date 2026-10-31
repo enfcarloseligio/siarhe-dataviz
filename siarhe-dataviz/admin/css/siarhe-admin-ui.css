@@ -254,3 +254,7 @@ button#btn-floating-save.siarhe-scroll-top:active .dashicons { color: #fff; }
 .siarhe-progress__fill { height: 100%; width: 0; background: var(--s-primary); transition: width .15s linear; }
 .siarhe-progress__label { min-width: 12em; color: var(--s-muted); font-size: 12px; }
 @media (prefers-reduced-motion: reduce) { .siarhe-progress__fill, .siarhe-dropzone { transition: none; } }
+
+/* Actividad reciente de versiones */
+.siarhe-audit-list { margin: 0; padding-left: var(--s-sp-5); }
+.siarhe-audit-list li { margin-bottom: var(--s-sp-1); }

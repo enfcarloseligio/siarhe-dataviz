@@ -72,6 +72,10 @@ foreach ( $subdirs as $d ) {
 }
 $dir_ok = ( is_dir( $upload_base ) && wp_is_writable( $upload_base ) && ! $no_write );
 
+$ver_summary = Siarhe_Versions::summary();
+$ver_keep    = Siarhe_Versions::keep();
+$zlib_ok     = Siarhe_Versions::zlib_available();
+
 $health = array(
     array(
         'state'  => $dir_ok ? 'ok' : 'fail',
@@ -92,6 +96,18 @@ $health = array(
         'state'  => $mem_ok ? 'ok' : 'warn',
         'label'  => 'Memoria de PHP',
         'detail' => 'memory_limit: ' . ( $mem === -1 ? 'sin límite' : size_format( $mem ) ) . ( $mem_ok ? '' : ' (se recomiendan 128 MB o más para validar archivos grandes)' ),
+    ),
+    array(
+        'state'  => $zlib_ok ? 'ok' : 'warn',
+        'label'  => 'Compresión de copias (zlib)',
+        'detail' => $zlib_ok
+            ? ( Siarhe_Versions::compress_enabled() ? 'Disponible y activada: las copias nuevas se guardan comprimidas (.gz).' : 'Disponible. Puedes activarla en Configuración › Versiones y Copias para que las copias ocupen mucho menos.' )
+            : 'La extensión zlib de PHP no está disponible: las copias se guardan sin comprimir. Pídele a tu hosting que la active.',
+    ),
+    array(
+        'state'  => 'ok',
+        'label'  => 'Copias de seguridad',
+        'detail' => ( $ver_keep === 0 ? 'No se guardan copias' : $ver_keep . ' copia(s) por archivo' ) . ' · ' . (int) $ver_summary['count'] . ' guardada(s) · ' . ( size_format( $ver_summary['bytes'] ) ?: '0 B' ) . ' de espacio',
     ),
     array(
         'state'  => 'ok',

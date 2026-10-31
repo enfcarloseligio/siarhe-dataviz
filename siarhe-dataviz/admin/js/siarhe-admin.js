@@ -195,7 +195,9 @@ window.SiarheAdmin = {
         document.addEventListener('focusout', e => { if (isHelp(e)) hide(); });
         document.addEventListener('click', e => {
             const b = isHelp(e);
-            if (b) { e.preventDefault(); e.stopPropagation(); owner === b ? hide() : show(b); }
+            // Solo los botones "?" alternan el globo al hacer clic; los botones de accion
+            // con data-help (editar, eliminar, restaurar...) conservan su comportamiento
+            if (b && b.classList.contains('siarhe-help')) { e.preventDefault(); e.stopPropagation(); owner === b ? hide() : show(b); }
             else hide();
         });
         document.addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
