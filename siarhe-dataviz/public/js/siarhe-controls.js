@@ -351,7 +351,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     else if (val === 'detalle' && geoLocUrl) {
                         setLoading('Cargando ' + labelNivel2 + '...');
 
-                        const dataPromise = state.locGeoData ? Promise.resolve(state.locGeoData) : d3.json(geoLocUrl);
+                        const dataPromise = state.locGeoData ? Promise.resolve(state.locGeoData) : app.controls.loadLocGeo(container, state, geoLocUrl, (pct) => setLoading('Preparando ' + labelNivel2 + '... ' + pct + '%'));
                         dataPromise.then(data => {
                             if (!data || !Array.isArray(data.features) || data.features.length === 0) {
                                 throw new Error('El GeoJSON detallado esta vacio o no es valido');
@@ -545,6 +545,68 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 app.controls.updateMarkerDropdownText(state);
                 if (app.urlState) app.urlState.write(container, state);
             }
+        },
+
+        /**
+         * Worker que prepara la capa detallada (municipios o localidades): descarga el GeoJSON, lo proyecta y genera
+         * trazos en tres niveles de detalle fuera del hilo principal. Si no se puede usar, devuelve null.
+         */
+        _geoWorker: function(container) {
+            if (app._geoWorkerFailed) return null;
+            if (app._geoWorker) return app._geoWorker;
+            const src = container.dataset.geoWorker;
+            if (!src || typeof Worker === 'undefined') return null;
+            try {
+                const w = new Worker(src);
+                w._pending = new Map();
+                w._seq = 0;
+                w.onmessage = (e) => {
+                    const m = e.data || {};
+                    const p = w._pending.get(m.id);
+                    if (!p) return;
+                    if (m.ok === undefined) { if (p.onProgress && m.progress !== undefined) p.onProgress(m.progress); return; }
+                    w._pending.delete(m.id);
+                    if (m.ok) p.resolve(m); else p.reject(new Error(m.error || 'error en el worker'));
+                };
+                w.onerror = () => {
+                    app._geoWorkerFailed = true;
+                    app._geoWorker = null;
+                    w._pending.forEach(p => p.reject(new Error('el worker no pudo ejecutarse')));
+                    w._pending.clear();
+                    try { w.terminate(); } catch (err) {}
+                };
+                app._geoWorker = w;
+                return w;
+            } catch (err) {
+                app._geoWorkerFailed = true;
+                return null;
+            }
+        },
+
+        /**
+         * Capa detallada lista para dibujar. Con el worker devuelve { _prepared: true, features: [{ properties, bounds, d: [3 trazos] }] };
+         * sin el, el GeoJSON tal cual (se proyecta y dibuja en el hilo principal, como antes).
+         */
+        loadLocGeo: function(container, state, url, onProgress) {
+            const worker = app.controls._geoWorker(container);
+            const p = state.projection;
+            const near0 = (v) => Math.abs(v) < 1e-9;
+            // El worker solo reproduce Mercator sin rotacion y centrada en [0,0] (la proyeccion del mapa)
+            const reproducible = worker && p && typeof p.scale === 'function' && p.rotate().every(near0) && p.center().every(near0);
+            if (!reproducible) return d3.json(url);
+
+            const t0 = performance.now();
+            return new Promise((resolve, reject) => {
+                const id = ++worker._seq;
+                worker._pending.set(id, { resolve: resolve, reject: reject, onProgress: onProgress });
+                worker.postMessage({ id: id, url: url, proj: { scale: p.scale(), translate: p.translate() }, tolerances: [0.25, 0.06] });
+            }).then((res) => {
+                app.utils.perf('worker de geometrias: capa detallada lista', t0, res.features.length + ' poligonos');
+                return { type: 'FeatureCollection', _prepared: true, features: res.features };
+            }).catch((err) => {
+                console.warn('[SIARHE] El worker de geometrias no pudo preparar la capa, se usa el modo normal:', err);
+                return d3.json(url);
+            });
         },
 
         /**

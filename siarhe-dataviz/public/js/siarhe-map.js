@@ -105,6 +105,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const mapDiv = container.querySelector('.siarhe-map-container');
             if (!mapDiv) return;
             mapDiv.innerHTML = '';
+            state._cv = null; // el canvas de marcadores se vuelve a crear con el nuevo contenedor
 
             const width = 1600; 
             const height = 900; 
@@ -135,9 +136,19 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             state.gLabels = gMain.append("g").attr("class", "labels-layer").style("display", "none").style("pointer-events", "none");
             state.gMarkers = gMain.append("g").attr("class", "markers-layer");
             
+            // Capa superior (leyendas y medicion), con el mismo viewBox y ajuste que el SVG principal.
+            // Va por encima del canvas de marcadores (si lo hay) para que las leyendas y la medicion no queden tapadas.
+            const ovl = d3.select(mapDiv).append("svg")
+                .attr("class", "siarhe-overlay-svg")
+                .attr("viewBox", `0 0 ${width} ${height}`)
+                .attr("preserveAspectRatio", "xMidYMid meet")
+                .style("font-family", "'Roboto', Arial, sans-serif");
+            state.ovl = ovl;
+            state.gMeasureHost = ovl.append("g").attr("class", "siarhe-overlay-main"); // sigue el zoom del mapa
+
             // Grupos SVG con posición inicial segura (el ResizeObserver lo moverá de inmediato)
-            state.gLegend = svg.append("g").attr("class", "siarhe-legend-group").attr("transform", "translate(20, 20)"); 
-            state.gMarkerLegend = svg.append("g").attr("class", "siarhe-marker-legend-group").attr("transform", `translate(20, ${height - 20})`);
+            state.gLegend = ovl.append("g").attr("class", "siarhe-legend-group").attr("transform", "translate(20, 20)"); 
+            state.gMarkerLegend = ovl.append("g").attr("class", "siarhe-marker-legend-group").attr("transform", `translate(20, ${height - 20})`);
 
             const projection = d3.geoMercator().fitSize([width, height], state.geoData); 
             state.projection = projection;
@@ -211,12 +222,27 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             app.map.enableKeyboard(container, state, mapDiv);
 
             let maxZoom = state.initialTransform.k * 25; 
-            if (maxZoom < 50) maxZoom = 50; 
-
+            if (maxZoom < 50) maxZoom = 50;
+            // Mapa nacional: 50x deja ~84 m por pixel en PC y ~223 m en movil, poco para separar establecimientos de una
+            // ciudad. Se amplia hasta ~30 m por pixel (tope 400x); los mapas estatales ya parten de un acercamiento mayor.
+            try {
+                const gb = d3.geoBounds(state.geoData);
+                const latMid = (gb[0][1] + gb[1][1]) / 2;
+                const metersPerUnit = 111320 * Math.cos(latMid * Math.PI / 180) / (projection.scale() * Math.PI / 180);
+                const mr = mapDiv.getBoundingClientRect();
+                const scr = (mr.width > 0 && mr.height > 0) ? Math.min(mr.width / width, mr.height / height) : 0.5;
+                const byResolution = Math.round(metersPerUnit / (30 * Math.max(scr, 0.2)));
+                if (isFinite(byResolution)) maxZoom = Math.max(maxZoom, Math.min(400, byResolution));
+            } catch (err) {}
             const zoom = d3.zoom()
                 .scaleExtent([1, maxZoom]) 
                 .on("zoom", (e) => {
                     gMain.attr("transform", e.transform);
+                    if (state.gMeasureHost) state.gMeasureHost.attr("transform", e.transform);
+                    // Animaciones programadas (Restablecer, botones + y -): el canvas se dibuja en el mismo cuadro que el mapa;
+                    // si se agendara para el siguiente, los marcadores irian un paso atras durante el movimiento.
+                    // Con el puntero o el dedo (sourceEvent) se agrupa en un solo dibujo por cuadro.
+                    if (e.sourceEvent) app.map._cvSchedule(state); else app.map._cvDraw(state);
                     const k = e.transform.k;
                     
                     state.gLabels.selectAll("text.siarhe-label")
@@ -224,7 +250,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         .attr("stroke-width", 2.5 / k);
                     
                     state.gPaths.selectAll("path.siarhe-feature").attr("stroke-width", 0.5 / k);
-                    state.gLocPaths.selectAll("path.siarhe-loc-feature").attr("stroke-width", 0.5 / k);
+                    if (state.isGeoLocMode && state._locBuilt) {
+                        app.map._locApplyLod(state, k);
+                        if (state._locStrokeK !== k) { // un desplazamiento (misma escala) no toca los miles de bordes
+                            state._locStrokeK = k;
+                            state.gLocPaths.selectAll("path.siarhe-loc-feature").attr("stroke-width", 0.5 / k);
+                        }
+                    }
 
                     // Geometria de marcadores (posicion, espectro y spike): solo los que estan en pantalla
                     app.map._refreshMarkerGeometry(state, e.transform);
@@ -295,6 +327,25 @@ window.SiarheDataViz = window.SiarheDataViz || {};
          * y despues solo se muestran con un fundido. Devuelve una Promise que se resuelve al terminar.
          * onProgress(pct) permite informar el avance en el overlay de carga.
          */
+        /** Nivel de detalle de la capa de municipios segun el zoom: 0 (muy simplificado), 1 o 2 (completo). */
+        _locLodFor: function(k) {
+            return k < 2.5 ? 0 : (k < 10 ? 1 : 2);
+        },
+
+        /** Cambia el trazo de cada municipio al nivel que corresponde al zoom (solo si el nivel cambio o se fuerza). */
+        _locApplyLod: function(state, k, force) {
+            const data = state.locGeoData;
+            if (!state.isGeoLocMode || !data || !data._prepared || state._locBuilt !== data || !state.gLocPaths) return;
+            const lod = app.map._locLodFor(k);
+            if (!force && state._locLod === lod) return;
+            state._locLod = lod;
+            const nodes = state.gLocPaths.node().children;
+            for (let i = 0; i < nodes.length; i++) {
+                const f = nodes[i].__data__;
+                if (f && f.d) nodes[i].setAttribute("d", f.d[lod]);
+            }
+        },
+
         updateGeography: function(container, state, onProgress) {
             const mapDiv = container.querySelector('.siarhe-map-container');
             if (!mapDiv || !state.gLocPaths || !state.path) return Promise.resolve();
@@ -325,6 +376,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 layer.style("display", "block").style("opacity", 0)
                     .transition().duration(app.utils.motionMs(400)).style("opacity", 1);
                 layer.selectAll("path.siarhe-loc-feature").attr("stroke-width", 0.5 / zoomK());
+                app.map._locApplyLod(state, zoomK(), true);   // el zoom pudo cambiar mientras la capa estaba oculta
             };
 
             // Ya construida: solo se vuelve a mostrar (antes se recalculaba el 'd' de todos los poligonos)
@@ -342,6 +394,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const layerNode = layer.node();
             const total = features.length;
             const strokeW = 0.5 / zoomK();
+            // Capa preparada por el worker: ya viene proyectada, en tres niveles de detalle
+            const prepared = !!state.locGeoData._prepared;
+            const lod = prepared ? app.map._locLodFor(zoomK()) : 0;
+            if (prepared) state._locLod = lod;
             let i = 0;
 
             return new Promise((resolve) => {
@@ -352,7 +408,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const frag = document.createDocumentFragment();
                     do {
                         const f = features[i++];
-                        const dStr = f ? state.path(f) : null;
+                        const dStr = f ? (prepared ? f.d[lod] : state.path(f)) : null;
                         if (dStr) {
                             const el = document.createElementNS(ns, "path");
                             el.setAttribute("class", "siarhe-loc-feature");
@@ -773,6 +829,401 @@ window.SiarheDataViz = window.SiarheDataViz || {};
          *   y se actualizan cuando entran a la vista.
          * - Los de posicion comparten la misma forma por tipo: se calcula una vez y se reutiliza.
          */
+        // =====================================================================
+        // CANVAS DE MARCADORES DE POSICION (cuando hay muchos puntos)
+        // =====================================================================
+        CANVAS_MIN: 3000,   // con mas marcadores de posicion activos que esto se usa canvas
+        CANVAS_MIN_TOUCH: 800, // en tactiles antes: el canvas da un area de toque de 16 px; un simbolo SVG chico es dificil de acertar
+
+        /** ?siarhe_canvas=1 fuerza el canvas, =0 lo apaga; sin parametro es automatico. */
+        _cvMode: function() {
+            const m = /[?&]siarhe_canvas=(0|1)/.exec(window.location.search);
+            return m ? (m[1] === '1' ? 'on' : 'off') : 'auto';
+        },
+
+        _cvDecide: function(state, points) {
+            const mode = app.map._cvMode();
+            if (mode === 'off') return false;
+            try { if (!document.createElement('canvas').getContext('2d')) return false; } catch (e) { return false; }
+            // Posicion, burbujas y picos se dibujan juntos en el mismo canvas (asi se conserva el orden de apilado)
+            const min = app.map._deviceInfo(state).isTouch ? app.map.CANVAS_MIN_TOUCH : app.map.CANVAS_MIN;
+            return mode === 'on' ? points.length > 0 : points.length > min;
+        },
+
+        /** Crea (una vez por mapa) el canvas, justo despues del SVG principal y antes de la capa superior. */
+        _cvEnsure: function(state) {
+            let cv = state._cv;
+            if (cv && cv.el && cv.el.isConnected) return cv;
+            const svgNode = state.svg && state.svg.node();
+            if (!svgNode) return null;
+            const el = document.createElement('canvas');
+            el.className = 'siarhe-canvas-markers';
+            el.setAttribute('aria-hidden', 'true');
+            svgNode.insertAdjacentElement('afterend', el);
+            cv = state._cv = { el: el, ctx: el.getContext('2d'), dpr: 1, w: 0, h: 0, pts: [], qt: null, alpha: 1, hover: null, raf: 0, moveRaf: 0, sig: '' };
+            app.map._cvBind(state);
+            app.map._cvResize(state);
+            return cv;
+        },
+
+        _cvResize: function(state) {
+            const cv = state._cv;
+            if (!cv || !cv.el || !state.svg) return;
+            const r = state.svg.node().getBoundingClientRect();
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            if (r.width <= 0 || r.height <= 0) return;
+            if (cv.w !== r.width || cv.h !== r.height || cv.dpr !== dpr) {
+                cv.w = r.width; cv.h = r.height; cv.dpr = dpr;
+                cv.el.width = Math.round(r.width * dpr);
+                cv.el.height = Math.round(r.height * dpr);
+                cv.sprites = {};
+            }
+            app.map._cvSchedule(state);
+        },
+
+        /** Define los puntos del canvas (posicion, burbujas y picos): proyecta una vez, arma el indice espacial y los muestra con un fundido. */
+        _cvSet: function(state, points) {
+            if (!points.length && !state._cv) return;
+            const cv = app.map._cvEnsure(state);
+            if (!cv) return;
+
+            const LEVELS = 32;      // niveles de color de los picos
+            const spk = {};         // por tipo de pico: colores por nivel y color del borde
+            const pts = [];
+            let hasSpk = false, hasBub = false;
+            for (let i = 0; i < points.length; i++) {
+                const d = points[i];
+                const c = state.projection ? state.projection([d.lon, d.lat]) : null;
+                if (!c || isNaN(c[0]) || isNaN(c[1])) continue;
+                const cfg = state.markerLabels[d.tipo] || {};
+                const p = { d: d, x: c[0], y: c[1], i: pts.length, kind: 'pos' };
+
+                if (cfg.tipo === 'spike' || cfg.tipo === 'espectro') {
+                    const val = app.map._markerValue(d, cfg, state, d.tipo);
+                    if (!(val > 0)) continue;                    // sin valor: no se dibuja (igual que en SVG)
+                    const max = (state.espectroMaxVals && state.espectroMaxVals[d.tipo]) || 1;
+                    if (cfg.tipo === 'spike') {
+                        const min = (state.espectroMinVals && state.espectroMinVals[d.tipo]) || max;
+                        p.kind = 'spk';
+                        p.t = max > min ? Math.max(0, Math.min(1, (val - min) / (max - min))) : 1;
+                        p.lv = Math.round(p.t * (LEVELS - 1));
+                        if (!spk[d.tipo]) {
+                            const st = app.utils.getMarkerStyle(d.tipo, state);
+                            const ramp = app.map._spikeRamp(st);
+                            const colors = [];
+                            for (let l = 0; l < LEVELS; l++) colors.push(ramp(l / (LEVELS - 1)));
+                            const col = d3.color(st.fill);
+                            spk[d.tipo] = { colors: colors, edge: col ? col.darker(0.7).formatRgb() : '#7f1d1d' };
+                        }
+                        hasSpk = true;
+                    } else {
+                        // Posicion de la burbuja entre el area minima y la maxima (igual que d3.scaleLinear con dominio [1, max])
+                        p.kind = 'bub';
+                        p.frac = max === 1 ? 0.5 : Math.max(0, Math.min(1, (val - 1) / (max - 1)));
+                        hasBub = true;
+                    }
+                }
+                pts.push(p);
+            }
+            cv.pts = pts; cv.spk = spk; cv.hasSpk = hasSpk; cv.hasBub = hasBub;
+            cv.qt = pts.length ? d3.quadtree().x(p => p.x).y(p => p.y).addAll(pts) : null;
+            cv.hover = null;
+
+            // Fundido de entrada solo si cambia el conjunto de puntos
+            const sig = pts.length + ':' + (pts.length ? pts[0].d._uid + '|' + pts[pts.length - 1].d._uid : '');
+            const changed = sig !== cv.sig;
+            cv.sig = sig;
+            const ms = app.utils.motionMs(450);
+            if (changed && pts.length && ms > 0) {
+                cv.alpha = 0;
+                const t0 = performance.now();
+                const step = () => {
+                    cv.alpha = Math.min(1, (performance.now() - t0) / ms);
+                    app.map._cvDraw(state);
+                    if (cv.alpha < 1 && state._cv === cv) requestAnimationFrame(step);
+                };
+                requestAnimationFrame(step);
+            } else {
+                cv.alpha = 1;
+                app.map._cvSchedule(state);
+            }
+            if (state.tooltip && !pts.length) state.tooltip.style('display', 'none');
+        },
+
+        _cvSchedule: function(state) {
+            const cv = state._cv;
+            if (!cv || cv.raf) return;
+            cv.raf = requestAnimationFrame(() => { cv.raf = 0; app.map._cvDraw(state); });
+        },
+
+        /** Geometria de la pantalla: pixeles CSS <-> unidades del viewBox (el SVG se ajusta con "meet"). */
+        _cvView: function(state) {
+            const cv = state._cv;
+            const W = cv.w, H = cv.h;
+            if (!W || !H) return null;
+            let t;
+            try { t = d3.zoomTransform(state.svg.node()); } catch (e) { return null; }
+            const sc = Math.min(W / 1600, H / 900);
+            return { t: t, k: t.k, sc: sc, ox: (W - 1600 * sc) / 2, oy: (H - 900 * sc) / 2, W: W, H: H };
+        },
+
+        /**
+         * Medidas (en px de pantalla) de las burbujas y los picos con el zoom actual. Las burbujas escalan entre un area
+         * minima y una maxima segun su valor; los picos miden de hMin a hMax segun el suyo y su base es fija.
+         */
+        _cvDensityDims: function(state, v) {
+            const m = app.map._markerMetrics(state, v.k);
+            const k2 = v.k * v.k * v.sc * v.sc;
+            return {
+                m: m,
+                aMin: m.symbolSize * 2.5 * m.bubArea * k2, aMax: m.symbolSize * 25 * m.bubArea * k2,
+                spkW: m.spk.half, spkMin: m.spk.hMin, spkMax: m.spk.hMax,
+                spkHit: m.isTouch ? 9 : 5,           // semi-base minima del area de toque de una espina (px)
+                spkStroke: m.strokePx / 1.5,         // los picos usan un borde de 1 (los demas 1.5)
+            };
+        },
+
+        /** Imagen pequena de un simbolo (relleno y borde), para repetirla miles de veces con drawImage. */
+        _cvSprite: function(state, type, areaPx, sc, dpr, bubble) {
+            const cv = state._cv;
+            const key = type + '|' + (bubble ? 'b' : 'p') + '|' + areaPx.toFixed(2) + '|' + sc.toFixed(4) + '|' + dpr;
+            if (!cv.sprites) cv.sprites = {};
+            if (cv.sprites[key]) return cv.sprites[key];
+            if (Object.keys(cv.sprites).length > 160) cv.sprites = {};   // el zoom genera tamanos nuevos continuamente
+
+            const style = app.utils.getMarkerStyle(type, state);
+            const fill = bubble ? (style.fill.startsWith('rgba') ? style.fill : app.map.hexToRgba(style.fill, 0.75)) : style.fill;
+            const lw = app.map._strokePx(sc);
+            const side = Math.ceil(Math.sqrt(areaPx) * 1.8 + lw * 2 + 4);
+            const img = document.createElement('canvas');
+            img.width = Math.max(1, Math.ceil(side * dpr)); img.height = img.width;
+            const g = img.getContext('2d');
+            g.scale(dpr, dpr);
+            g.translate(side / 2, side / 2);
+            const path = new Path2D(d3.symbol().type(app.utils.getD3Shape(style.shape)).size(areaPx)());
+            g.fillStyle = fill; g.strokeStyle = style.stroke; g.lineWidth = lw;
+            g.fill(path); g.stroke(path);
+            return (cv.sprites[key] = { img: img, side: side, path: path, style: style, fill: fill, lw: lw });
+        },
+
+        /** Area (px^2) cuantizada de una burbuja: pasos de ~6 %, para reutilizar imagenes en lugar de una por punto. */
+        _cvBubbleArea: function(dims, frac) {
+            const a = dims.aMin + (dims.aMax - dims.aMin) * frac;
+            const idx = Math.max(0, Math.round(Math.log(a / 4) / 0.05827));    // ln(1.06)
+            return { idx: idx, area: 4 * Math.pow(1.06, idx) };
+        },
+
+        _cvTriangle: function(ctx, sx, sy, w, h) {
+            ctx.beginPath();
+            ctx.moveTo(sx - w, sy); ctx.lineTo(sx, sy - h); ctx.lineTo(sx + w, sy);
+            ctx.closePath();
+        },
+
+        _cvDraw: function(state) {
+            const cv = state._cv;
+            if (!cv || !cv.el) return;
+            const t0 = performance.now();
+            const ctx = cv.ctx, dpr = cv.dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, cv.w, cv.h);
+            if (!cv.pts.length) return;
+            const v = app.map._cvView(state);
+            if (!v) return;
+
+            const dims = app.map._cvDensityDims(state, v);
+            const areaPos = dims.m.symbolSize * v.k * v.k * v.sc * v.sc;   // area de un marcador de posicion en pantalla (px CSS)
+            const pts = cv.pts;
+            const margin = 24 + (cv.hasSpk ? dims.spkMax : 0) + (cv.hasBub ? Math.sqrt(dims.aMax / Math.PI) * 1.4 : 0);
+            const posSprites = {}, bubSprites = {};
+            ctx.globalAlpha = cv.alpha;
+            ctx.lineWidth = dims.spkStroke;
+            let drawn = 0;
+            for (let i = 0; i < pts.length; i++) {
+                const p = pts[i];
+                const sx = Math.round(v.ox + v.sc * (v.t.x + v.k * p.x));
+                if (sx < -margin || sx > v.W + margin) continue;
+                const sy = Math.round(v.oy + v.sc * (v.t.y + v.k * p.y));
+                if (sy < -margin || sy > v.H + margin) continue;
+                const type = p.d.tipo;
+
+                if (p.kind === 'pos') {
+                    const sp = posSprites[type] || (posSprites[type] = app.map._cvSprite(state, type, areaPos, v.sc, dpr, false));
+                    const h = sp.side / 2;
+                    ctx.drawImage(sp.img, sx - h, sy - h, sp.side, sp.side);
+                } else if (p.kind === 'bub') {
+                    const q = app.map._cvBubbleArea(dims, p.frac);
+                    const bs = bubSprites[type] || (bubSprites[type] = {});
+                    const sp = bs[q.idx] || (bs[q.idx] = app.map._cvSprite(state, type, q.area, v.sc, dpr, true));
+                    const h = sp.side / 2;
+                    ctx.drawImage(sp.img, sx - h, sy - h, sp.side, sp.side);
+                } else {
+                    const col = cv.spk[type];
+                    app.map._cvTriangle(ctx, sx, sy, dims.spkW, dims.spkMin + (dims.spkMax - dims.spkMin) * p.t);
+                    ctx.fillStyle = col.colors[p.lv]; ctx.strokeStyle = col.edge;
+                    ctx.fill(); ctx.stroke();
+                }
+                drawn++;
+            }
+            ctx.globalAlpha = 1;
+
+            // Marcador bajo el cursor: borde mas grueso
+            const hv = cv.hover;
+            if (hv) {
+                const sx = Math.round(v.ox + v.sc * (v.t.x + v.k * hv.x)), sy = Math.round(v.oy + v.sc * (v.t.y + v.k * hv.y));
+                if (hv.kind === 'spk') {
+                    const col = cv.spk[hv.d.tipo];
+                    app.map._cvTriangle(ctx, sx, sy, dims.spkW, dims.spkMin + (dims.spkMax - dims.spkMin) * hv.t);
+                    ctx.fillStyle = col.colors[hv.lv]; ctx.strokeStyle = col.edge; ctx.lineWidth = dims.spkStroke * 2;
+                    ctx.fill(); ctx.stroke();
+                } else {
+                    const area = hv.kind === 'bub' ? app.map._cvBubbleArea(dims, hv.frac).area : areaPos;
+                    const sp = app.map._cvSprite(state, hv.d.tipo, area, v.sc, dpr, hv.kind === 'bub');
+                    ctx.save();
+                    ctx.translate(sx, sy);
+                    ctx.fillStyle = sp.fill; ctx.strokeStyle = sp.style.stroke; ctx.lineWidth = 2 * sp.lw;
+                    ctx.fill(sp.path); ctx.stroke(sp.path);
+                    ctx.restore();
+                }
+            }
+            app.utils.perf('canvas: dibujo de marcadores', t0, drawn + ' de ' + pts.length + ' visibles');
+        },
+
+        /**
+         * Marcador bajo el puntero (clientX/clientY), o null. Cada tipo se prueba con su forma:
+         * posicion = circulo de toque, burbuja = su radio, pico = su triangulo. Gana el de posicion mas cercano (van encima);
+         * si no hay, el de burbuja o pico dibujado al final (el que se ve arriba).
+         */
+        _cvHit: function(state, clientX, clientY) {
+            const cv = state._cv;
+            if (!cv || !cv.qt || !cv.pts.length) return null;
+            const v = app.map._cvView(state);
+            if (!v) return null;
+            const r = state.svg.node().getBoundingClientRect();
+            const k2 = v.k * v.sc;                                   // unidades del mapa -> px
+            const mx = (((clientX - r.left) - v.ox) / v.sc - v.t.x) / v.k;
+            const my = (((clientY - r.top) - v.oy) / v.sc - v.t.y) / v.k;
+
+            const dims = app.map._cvDensityDims(state, v);
+            const posR = dims.m.isTouch ? 16 : 9;
+            const tol = dims.m.isTouch ? 8 : 3;
+            const reach = Math.max(posR, cv.hasBub ? Math.sqrt(dims.aMax / Math.PI) + tol : 0, cv.hasSpk ? dims.spkMax + tol : 0);
+            const R = reach / k2;
+
+            let bestPos = null, bestPosD = Infinity, bestDen = null;
+            cv.qt.visit((node, x0, y0, x1, y1) => {
+                if (!node.length) {
+                    let n = node;
+                    do {
+                        const p = n.data;
+                        const dx = (mx - p.x) * k2, dy = (my - p.y) * k2;      // px; dy > 0: el puntero esta debajo del punto
+                        if (p.kind === 'pos') {
+                            const d2 = dx * dx + dy * dy;
+                            if (d2 <= posR * posR && d2 < bestPosD) { bestPosD = d2; bestPos = p; }
+                        } else if (!bestDen || p.i > bestDen.i) {
+                            if (p.kind === 'bub') {
+                                const rad = Math.sqrt((dims.aMin + (dims.aMax - dims.aMin) * p.frac) / Math.PI) + tol;
+                                if (dx * dx + dy * dy <= rad * rad) bestDen = p;
+                            } else {
+                                const h = dims.spkMin + (dims.spkMax - dims.spkMin) * p.t;
+                                if (dy <= tol && dy >= -h - tol) {
+                                    const up = Math.min(1, Math.max(0, -dy / h));
+                                    if (Math.abs(dx) <= Math.max(dims.spkW, dims.spkHit) * (1 - up) + tol) bestDen = p;
+                                }
+                            }
+                        }
+                    } while ((n = n.next));
+                }
+                return x0 > mx + R || x1 < mx - R || y0 > my + R || y1 < my - R;
+            });
+            return bestPos || bestDen;
+        },
+
+        /** Eventos sobre el canvas (que no recibe el puntero): tooltip, resaltado y clic para medir. */
+        _cvBind: function(state) {
+            const node = state.svg && state.svg.node();
+            if (!node || node.__siarheCvBound) return;
+            node.__siarheCvBound = true;
+
+            node.addEventListener('mousemove', (e) => {
+                const cv = state._cv;
+                if (!cv || !cv.pts.length) return;
+                cv.lastEvent = e;
+                if (cv.moveRaf) return;
+                cv.moveRaf = requestAnimationFrame(() => { cv.moveRaf = 0; app.map._cvPointer(state, cv.lastEvent); });
+            });
+            node.addEventListener('mouseleave', () => {
+                const cv = state._cv;
+                if (cv && cv.hover) { cv.hover = null; node.style.cursor = ''; app.map._cvSchedule(state); }
+            });
+            // En captura: un clic sobre un marcador no debe llegar al poligono de abajo (doble clic = cambiar de entidad)
+            node.addEventListener('click', (e) => {
+                const cv = state._cv;
+                if (!cv || !cv.pts.length) return;
+                const hit = app.map._cvHit(state, e.clientX, e.clientY);
+                if (!hit) return;
+                e.stopPropagation();
+                if (state.measure && state.measure.active) app.map.measureAddPoint(state, hit.d);
+            }, true);
+        },
+
+        _cvPointer: function(state, e) {
+            const cv = state._cv;
+            if (!cv || !e || !state.svg) return;
+            const node = state.svg.node();
+            const mapDiv = node.parentNode;
+            const hit = app.map._cvHit(state, e.clientX, e.clientY);
+
+            if (hit) {
+                const changed = cv.hover !== hit;
+                cv.hover = hit;
+                node.style.cursor = 'pointer';
+                if (app.tooltips) app.tooltips.showMarkerTooltip(e, hit.d, state, mapDiv);
+                if (changed) app.map._cvSchedule(state);
+            } else if (cv.hover) {
+                cv.hover = null;
+                node.style.cursor = '';
+                app.map._cvSchedule(state);
+                // Se devuelve el tooltip de la region que esta debajo del puntero
+                const tg = e.target;
+                if (tg && tg.classList && (tg.classList.contains('siarhe-feature') || tg.classList.contains('siarhe-loc-feature')) && tg.__data__ && app.tooltips) {
+                    app.tooltips.showGeoTooltip(e, tg.__data__, state, mapDiv);
+                } else if (state.tooltip) {
+                    state.tooltip.style('opacity', 0).style('display', 'none');
+                }
+            }
+        },
+
+        /** Para exportar a PNG: crea elementos SVG para los puntos del canvas dentro de la capa de marcadores del clon. */
+        _cvMaterialize: function(state, layerEl) {
+            const cv = state._cv;
+            if (!cv || !cv.pts.length || !layerEl) return;
+            const NS = 'http://www.w3.org/2000/svg';
+            const v = app.map._cvView(state);
+            const metrics = app.map._markerMetrics(state, v ? v.k : undefined);
+            const cache = {};
+            const byType = {};
+            const frag = document.createDocumentFragment();
+            for (let i = 0; i < cv.pts.length; i++) {
+                const p = cv.pts[i];
+                // Posicion: una forma por tipo; burbujas y picos: cada punto tiene su tamano o altura
+                const dens = app.utils.isDensity((state.markerLabels[p.d.tipo] || {}).tipo);
+                let sh = dens ? null : byType[p.d.tipo];
+                if (!sh) {
+                    sh = app.map._markerShape(p.d, state, metrics, cache);
+                    if (!dens) byType[p.d.tipo] = sh;
+                }
+                if (!sh.path) continue;
+                const el = document.createElementNS(NS, 'path');
+                el.setAttribute('d', sh.path);
+                el.setAttribute('transform', 'translate(' + p.x + ',' + p.y + ')');
+                el.setAttribute('fill', sh.fill);
+                el.setAttribute('stroke', sh.stroke);
+                el.setAttribute('stroke-width', (metrics.strokePx * sh.strokeW / 1.5) / (metrics.k * metrics.sc));
+                frag.appendChild(el);
+            }
+            layerEl.appendChild(frag);
+        },
+
         /**
          * Rectangulo visible del SVG en unidades del viewBox (1600x900). El viewBox se ajusta con "meet":
          * si el contenedor tiene otra proporcion (pantalla completa vertical en movil, pantallas cuadradas o
@@ -796,6 +1247,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
         // Al cambiar el tamano del contenedor (pantalla completa, rotar el telefono) la region visible cambia sin que haya zoom
         _onMapResize: function(state) {
+            state._devCache = null;
+            app.map._cvResize(state);
             if (!state._mkNodes || !state.svg) return;
             if (state._mkResizeRaf) cancelAnimationFrame(state._mkResizeRaf);
             state._mkResizeRaf = requestAnimationFrame(() => {
@@ -807,11 +1260,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             });
         },
 
-        _refreshMarkerGeometry: function(state, t) {
+        _refreshMarkerGeometry: function(state, t, all) {
             const nodes = state._mkNodes;
             if (!nodes || nodes.length === 0) return;
             const k = t.k;
-            if (state._mkLastK === k && !state._mkStale) return;
+            if (!all && state._mkLastK === k && !state._mkStale) return;
             state._mkLastK = k;
             const tZoom = performance.now();
 
@@ -825,14 +1278,14 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const pad = 80 / k;
             const x0 = (vr.x0 - t.x) / k - pad, x1 = (vr.x1 - t.x) / k + pad;
             const y0 = (vr.y0 - t.y) / k - pad, y1 = (vr.y1 - t.y) / k + pad;
-            const sw = 1.5 / k;
+            const sw = metrics.strokePx / (k * metrics.sc);
             let stale = false;
 
             for (let i = 0; i < nodes.length; i++) {
                 const n = nodes[i];
                 if (n.__x === undefined) continue;   // aun en la cola de pintado: se pinta con el zoom vigente
                 if (n.__k === k) continue;           // ya esta al dia
-                if (n.__x < x0 || n.__x > x1 || n.__y < y0 || n.__y > y1) { stale = true; continue; }
+                if (!all && (n.__x < x0 || n.__x > x1 || n.__y < y0 || n.__y > y1)) { stale = true; continue; }
                 const d = n.__data__;
                 if (!d) continue;
 
@@ -853,6 +1306,39 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         },
 
         // Tamano de simbolo segun el zoom actual (compartido por updateMarkers, el zoom y el pintado por cuadros)
+        /**
+         * Dispositivo segun el CONTENEDOR del mapa (no solo la ventana) y si el puntero es tactil.
+         * kind: 'phone' (< 520 px), 'tablet' (< 900 px o puntero tactil) o 'pc'. isTouch: puntero tactil o mapa angosto.
+         * Se guarda 200 ms para no forzar una medicion de la pagina en cada marcador y cada cuadro.
+         */
+        _deviceInfo: function(state) {
+            const now = performance.now();
+            if (state._devCache && now - state._devCache.t < 200) return state._devCache;
+            let w = 0, h = 0;
+            const node = state.svg && state.svg.node && state.svg.node();
+            if (node && node.getBoundingClientRect) { const r = node.getBoundingClientRect(); w = r.width; h = r.height; }
+            if (!w || !h) { w = window.innerWidth || 1100; h = w * 9 / 16; }
+            let coarse = false;
+            try { coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); } catch (e) {}
+            const kind = w < 520 ? 'phone' : ((w < 900 || coarse) ? 'tablet' : 'pc');
+            return (state._devCache = { t: now, w: w, h: h, coarse: coarse, kind: kind, isTouch: coarse || w < 700, sc: Math.min(w / 1600, h / 900) });
+        },
+
+        /**
+         * Tamano del simbolo segun el zoom. Se define en PIXELES DE PANTALLA (ancho de una cruz): constante hasta k=4,
+         * se reduce suavemente hasta un minimo en k=25 y ahi se queda. Antes el minimo estaba en unidades del mapa y
+         * los marcadores volvian a crecer al acercarse mucho.
+         * symbolSize: area en unidades del mapa (la usan el SVG, el canvas y las burbujas); la cruz de d3 mide 3*sqrt(area/5).
+         */
+        /**
+         * Grosor del borde de los marcadores en PIXELES de pantalla. Como el simbolo mide pixeles fijos, el borde no
+         * puede depender de la escala del contenedor: en pantalla completa de PC (escala ~1) llegaba a 1.5 px y tapaba el
+         * color del relleno. Se conserva lo que ya se veia bien (movil ~0.4 px, PC normal ~1 px) y se topa en 1 px.
+         */
+        _strokePx: function(sc) {
+            return Math.min(1, Math.max(0.4, 1.5 * sc));
+        },
+
         _markerMetrics: function(state, kOverride) {
             let k = kOverride;
             if (!k) {
@@ -860,15 +1346,33 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(e) {} }
             }
 
-            let shrinkFactor = 1;
-            if (k > 8) shrinkFactor = 1 + ((k - 8) * 0.15);
+            const dev = app.map._deviceInfo(state);
+            const SIZES = { phone: [11, 8], tablet: [15, 10], pc: [14, 8] };   // [tamano base, tamano minimo] en px
+            const base = SIZES[dev.kind][0], min = SIZES[dev.kind][1];
+            let px = base;
+            if (k >= 25) px = min;
+            else if (k > 4) px = base * Math.pow(min / base, Math.log(k / 4) / Math.log(25 / 4));
 
-            // Areas tactiles mas grandes para movil/tablet
-            const isTouch = window.innerWidth < 1024;
-            const baseSize = isTouch ? 500 : 250;
-            const minSymbolSize = isTouch ? 0.25 : 0.05;
-
-            return { k: k, isTouch: isTouch, symbolSize: Math.max((baseSize / shrinkFactor) / (k * k), minSymbolSize) };
+            const sc = dev.sc > 0.05 ? dev.sc : 0.5;
+            const extentUser = px / sc;                          // ancho en unidades del viewBox
+            const areaScreen = 5 * Math.pow(extentUser / 3, 2);  // area equivalente en pantalla
+            // Burbujas y espinas (densidad): tamano en pixeles de pantalla que CRECE al acercar (de k=4 a k=25), para que
+            // con zoom sean mas faciles de ver y de tocar. Antes se definian en unidades del mapa: en el movil la base de
+            // una espina medida ~3 px.
+            const zt = k <= 4 ? 0 : (k >= 25 ? 1 : Math.log(k / 4) / Math.log(25 / 4));
+            const lerp = (a, b) => a + (b - a) * zt;
+            const SPK = {                                       // [con poco zoom, con mucho zoom]
+                pc:     { half: [3.4, 4.5], hMin: [17, 22], hMax: [69, 88] },
+                tablet: { half: [3.4, 5.0], hMin: [18, 24], hMax: [74, 96] },
+                phone:  { half: [2.4, 6.0], hMin: [11, 24], hMax: [46, 96] },
+            }[dev.kind];
+            const BUB = { pc: 1.25, tablet: 1.3, phone: 1.35 }[dev.kind];   // multiplicador lineal de las burbujas a mucho zoom
+            const bubMul = lerp(1, BUB);
+            return {
+                k: k, isTouch: dev.isTouch, kind: dev.kind, sc: sc, strokePx: app.map._strokePx(sc), symbolSize: areaScreen / (k * k),
+                bubArea: bubMul * bubMul,
+                spk: { half: lerp(SPK.half[0], SPK.half[1]), hMin: lerp(SPK.hMin[0], SPK.hMin[1]), hMax: lerp(SPK.hMax[0], SPK.hMax[1]) },
+            };
         },
 
         // Valor numerico de un punto de densidad: columna configurada o numero de registros agrupados
@@ -915,10 +1419,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 // el menor mide SPIKE_MIN_H unidades y el mayor SPIKE_MAX_H (unidades del viewBox)
                 const min = (state.espectroMinVals && state.espectroMinVals[type]) || max;
                 const t = max > min ? Math.max(0, Math.min(1, (val - min) / (max - min))) : 1;
-                const f = metrics.isTouch ? 1.5 : 1;                     // mas grande en movil/tablet
-                const hMin = 25 * f, hMax = 100 * f;
-                const h = (hMin + (hMax - hMin) * t) / metrics.k;        // altura constante en pantalla al hacer zoom
-                const w = (metrics.isTouch ? 7 : 5) / metrics.k;         // semi-base constante
+                // Medidas en pixeles de pantalla (metrics.spk) convertidas a unidades del mapa: constantes al hacer zoom
+                const sp = metrics.spk;
+                const h = (sp.hMin + (sp.hMax - sp.hMin) * t) / (metrics.sc * metrics.k);
+                const w = sp.half / (metrics.sc * metrics.k);
                 const ramp = cache['ramp:' + type] || (cache['ramp:' + type] = app.map._spikeRamp(styleCfg));
                 const edge = cache['edge:' + type] || (cache['edge:' + type] = (function() {
                     const c = d3.color(styleCfg.fill);
@@ -935,7 +1439,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (val > 0) {
                     const scale = cache['scale:' + type] || (cache['scale:' + type] = d3.scaleLinear()
                         .domain([1, max])
-                        .range([metrics.symbolSize * 2.5, metrics.symbolSize * 25]).clamp(true));
+                        .range([metrics.symbolSize * 2.5 * metrics.bubArea, metrics.symbolSize * 25 * metrics.bubArea]).clamp(true));
                     size = scale(val);
                 }
                 const fill = styleCfg.fill.startsWith('rgba') ? styleCfg.fill : app.map.hexToRgba(styleCfg.fill, 0.75);
@@ -999,7 +1503,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 }
             });
 
-            const markers = state.gMarkers.selectAll("path.siarhe-marker").data(allPoints, d => d._uid);
+            // Reparto: con muchos marcadores (posicion, burbujas y picos) se dibujan todos en canvas, un dibujo por cuadro
+            // en vez de miles de elementos SVG; con pocos puntos siguen en SVG
+            const cvOn = app.map._cvDecide(state, allPoints);
+            const cvPoints = cvOn ? allPoints : [];
+            const svgPoints = cvOn ? [] : allPoints;
+
+            const markers = state.gMarkers.selectAll("path.siarhe-marker").data(svgPoints, d => d._uid);
             markers.exit().remove();
 
             // Solo los nodos NUEVOS se crean, se enlazan a eventos y se pintan; los existentes no se tocan
@@ -1025,7 +1535,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         const k = zoomK();
                         const config = state.markerLabels[d.tipo] || {};
 
-                        node.setAttribute("stroke-width", 3 / k);
+                        const mt = app.map._markerMetrics(state, k);
+                        node.setAttribute("stroke-width", (2 * mt.strokePx) / (k * mt.sc));
                         if (!app.utils.isDensity(config.tipo)) { d3.select(node).raise(); }
 
                         const mapDiv = node.closest('.siarhe-map-container');
@@ -1033,7 +1544,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     })
                     .on("mouseout", function(e) {
                         if (!isMarker(e)) return;
-                        e.target.setAttribute("stroke-width", 1.5 / zoomK());
+                        const kz = zoomK(), mz = app.map._markerMetrics(state, kz);
+                        e.target.setAttribute("stroke-width", mz.strokePx / (kz * mz.sc));
                         if (state.tooltip) state.tooltip.style("display", "none");
                     })
                     .on("click", function(e) {
@@ -1053,7 +1565,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             // Lista de nodos para el zoom y modo denso: con muchos puntos se prioriza la velocidad de dibujo
             state._mkNodes = state.gMarkers.selectAll("path.siarhe-marker").nodes();
             state._mkStale = false;
-            state.gMarkers.classed("siarhe-markers-dense", allPoints.length > 5000);
+            state.gMarkers.classed("siarhe-markers-dense", svgPoints.length > 5000);
+            app.map._cvSet(state, cvPoints);
 
             app.map.renderMarkerLegend(state);
 
@@ -1148,7 +1661,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             node.setAttribute("transform", `translate(${coords[0]}, ${coords[1]})`);
             node.setAttribute("fill", shape.fill);
             node.setAttribute("stroke", shape.stroke);
-            node.setAttribute("stroke-width", shape.strokeW / metrics.k);
+            node.setAttribute("stroke-width", (metrics.strokePx * shape.strokeW / 1.5) / (metrics.k * metrics.sc));
             node.__x = coords[0]; node.__y = coords[1]; node.__k = metrics.k; // para actualizar solo lo visible al hacer zoom
             node.style.opacity = 1; // dispara el fundido de entrada
         },
@@ -1289,7 +1802,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         initMeasure: function(container, state, mapDiv, toggleBtn) {
             const ms = state.measure = { active: false, mode: 'chain', points: [], btn: toggleBtn, mapDiv: mapDiv, note: '' };
 
-            state.gMeasure = state.gMain.append('g').attr('class', 'measure-layer').style('pointer-events', 'none');
+            state.gMeasure = (state.gMeasureHost || state.gMain).append('g').attr('class', 'measure-layer').style('pointer-events', 'none');
+            if (state.gMeasureHost && state.svg) { try { state.gMeasureHost.attr('transform', d3.zoomTransform(state.svg.node())); } catch (e) {} }
 
             const panel = document.createElement('div');
             panel.className = 'siarhe-measure-panel';
@@ -1753,7 +2267,21 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (withLabels) state.gLabels.style("display", "block");
 
             setTimeout(() => {
+                // Marcadores SVG fuera de pantalla pueden tener un tamano anterior: se actualizan todos antes de clonar
+                try { app.map._refreshMarkerGeometry(state, d3.zoomTransform(svgNode), true); } catch (e) {}
                 const clone = svgNode.cloneNode(true);
+
+                // La capa superior (leyendas y medicion) y los marcadores del canvas viven fuera del SVG principal:
+                // se incorporan al clon para que el PNG salga completo
+                const ovlNode = state.ovl && state.ovl.node();
+                if (ovlNode) {
+                    ovlNode.querySelectorAll('.siarhe-legend-group, .siarhe-marker-legend-group').forEach(g => clone.appendChild(g.cloneNode(true)));
+                    const mg = state.gMeasure && state.gMeasure.node();
+                    const mapLayerEl = clone.querySelector('.map-layer');
+                    if (mg && mapLayerEl) mapLayerEl.appendChild(mg.cloneNode(true));
+                }
+                const mkLayerEl = clone.querySelector('.markers-layer');
+                if (mkLayerEl) app.map._cvMaterialize(state, mkLayerEl);
 
                 // Lienzo ampliado: el mapa conserva su proporcion (antes se estiraba 1600x900 -> 1600x820)
                 // y las leyendas se anclan a las esquinas del PNG con un tamano pensado para presentaciones.

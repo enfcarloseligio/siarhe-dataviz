@@ -990,3 +990,11 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 
 /* Con miles de marcadores se prioriza la velocidad de dibujo sobre el suavizado de bordes */
 .siarhe-viz-wrapper .siarhe-markers-dense path.siarhe-marker { shape-rendering: optimizeSpeed; }
+
+
+/* Capa superior (leyendas y medicion) y canvas de marcadores: encima del SVG, sin capturar el puntero */
+.siarhe-viz-wrapper .siarhe-map-container .siarhe-overlay-svg,
+.siarhe-viz-wrapper .siarhe-map-container .siarhe-canvas-markers {
+    position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none;
+}
+.siarhe-viz-wrapper .siarhe-map-container .siarhe-overlay-svg { background: transparent; }
