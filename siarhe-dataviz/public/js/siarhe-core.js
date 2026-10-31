@@ -109,6 +109,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             });
         },
 
+        /** Medicion opcional de rendimiento: solo escribe en la consola si la URL lleva ?siarhe_perf=1. */
+        perf: function(label, startMs, extra) {
+            if (app.utils._perfOn === undefined) app.utils._perfOn = /[?&]siarhe_perf=1/.test(window.location.search);
+            if (!app.utils._perfOn) return;
+            console.log('[SIARHE perf] ' + label + ': ' + (performance.now() - startMs).toFixed(1) + ' ms' + (extra ? ' (' + extra + ')' : ''));
+        },
+
         cleanKey: function(val) { 
             return (val === undefined || val === null) ? "" : val.toString().trim(); 
         },

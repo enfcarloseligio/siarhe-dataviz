@@ -221,6 +221,7 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
      data-geojson="<?php echo esc_url($geojson_url); ?>"
      data-csv="<?php echo esc_url($csv_url); ?>"
      data-geojson-loc="<?php echo esc_url($geojson_loc_url); ?>"
+     data-worker="<?php echo esc_url( SIARHE_URL . 'public/js/siarhe-worker.js?v=' . $siarhe_js_ver('siarhe-worker.js') ); ?>"
      data-marker-config='<?php echo esc_attr(wp_json_encode($marker_config)); ?>'
      data-marker-urls='<?php echo esc_attr(wp_json_encode($marker_urls)); ?>'
      data-marker-labels='<?php echo esc_attr(wp_json_encode($marker_labels)); ?>'

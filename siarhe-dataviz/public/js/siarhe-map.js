@@ -86,7 +86,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const mapDiv = container.querySelector('.siarhe-map-container');
             if (!mapDiv) return;
 
-            const observer = new ResizeObserver(() => app.map.layoutLegends(container, state));
+            const observer = new ResizeObserver(() => { app.map.layoutLegends(container, state); app.map._onMapResize(state); });
             observer.observe(mapDiv);
             state.legendObserver = observer;
         },
@@ -226,12 +226,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     state.gPaths.selectAll("path.siarhe-feature").attr("stroke-width", 0.5 / k);
                     state.gLocPaths.selectAll("path.siarhe-loc-feature").attr("stroke-width", 0.5 / k);
 
-                    // Geometria de marcadores (posicion, espectro y spike) con la misma funcion que el pintado inicial
-                    const metrics = app.map._markerMetrics(state, k);
-                    const shapeCache = {};
-                    state.gMarkers.selectAll("path.siarhe-marker")
-                        .attr("d", d => app.map._markerShape(d, state, metrics, shapeCache).path)
-                        .attr("stroke-width", 1.5 / k);
+                    // Geometria de marcadores (posicion, espectro y spike): solo los que estan en pantalla
+                    app.map._refreshMarkerGeometry(state, e.transform);
 
                     if (state.measure && state.measure.points.length > 0) app.map.renderMeasure(state, k);
                 });
@@ -769,6 +765,93 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
         },
 
+        /**
+         * Actualiza la forma y el borde de los marcadores al cambiar el zoom, sin recorrer los miles que
+         * quedan fuera de pantalla: con ~41 mil establecimientos esto era el costo principal de cada paso del zoom.
+         * - Un desplazamiento (misma escala) no toca nada, salvo que queden marcadores pendientes por actualizar.
+         * - Los marcadores fuera de la region visible se marcan como pendientes (node.__k distinto del zoom actual)
+         *   y se actualizan cuando entran a la vista.
+         * - Los de posicion comparten la misma forma por tipo: se calcula una vez y se reutiliza.
+         */
+        /**
+         * Rectangulo visible del SVG en unidades del viewBox (1600x900). El viewBox se ajusta con "meet":
+         * si el contenedor tiene otra proporcion (pantalla completa vertical en movil, pantallas cuadradas o
+         * muy anchas) se ve MAS mapa que el rectangulo 16:9 (arriba y abajo, o a los lados), y esa zona
+         * tambien debe actualizarse.
+         */
+        _visibleUserRegion: function(state) {
+            let x0 = 0, x1 = 1600, y0 = 0, y1 = 900;
+            const node = state.svg && state.svg.node();
+            if (node && node.getBoundingClientRect) {
+                const r = node.getBoundingClientRect();
+                if (r.width > 0 && r.height > 0) {
+                    const sc = Math.min(r.width / 1600, r.height / 900);
+                    const vw = r.width / sc, vh = r.height / sc;
+                    x0 = (1600 - vw) / 2; x1 = x0 + vw;
+                    y0 = (900 - vh) / 2; y1 = y0 + vh;
+                }
+            }
+            return { x0: x0, x1: x1, y0: y0, y1: y1 };
+        },
+
+        // Al cambiar el tamano del contenedor (pantalla completa, rotar el telefono) la region visible cambia sin que haya zoom
+        _onMapResize: function(state) {
+            if (!state._mkNodes || !state.svg) return;
+            if (state._mkResizeRaf) cancelAnimationFrame(state._mkResizeRaf);
+            state._mkResizeRaf = requestAnimationFrame(() => {
+                state._mkResizeRaf = 0;
+                state._mkStale = true;
+                let t = d3.zoomIdentity;
+                try { t = d3.zoomTransform(state.svg.node()); } catch (e) {}
+                app.map._refreshMarkerGeometry(state, t);
+            });
+        },
+
+        _refreshMarkerGeometry: function(state, t) {
+            const nodes = state._mkNodes;
+            if (!nodes || nodes.length === 0) return;
+            const k = t.k;
+            if (state._mkLastK === k && !state._mkStale) return;
+            state._mkLastK = k;
+            const tZoom = performance.now();
+
+            const metrics = app.map._markerMetrics(state, k);
+            const cache = {};
+            const fixedPath = {};
+            const isDensity = {};
+
+            // Region visible en coordenadas del mapa, con holgura para el tamano del simbolo
+            const vr = app.map._visibleUserRegion(state);
+            const pad = 80 / k;
+            const x0 = (vr.x0 - t.x) / k - pad, x1 = (vr.x1 - t.x) / k + pad;
+            const y0 = (vr.y0 - t.y) / k - pad, y1 = (vr.y1 - t.y) / k + pad;
+            const sw = 1.5 / k;
+            let stale = false;
+
+            for (let i = 0; i < nodes.length; i++) {
+                const n = nodes[i];
+                if (n.__x === undefined) continue;   // aun en la cola de pintado: se pinta con el zoom vigente
+                if (n.__k === k) continue;           // ya esta al dia
+                if (n.__x < x0 || n.__x > x1 || n.__y < y0 || n.__y > y1) { stale = true; continue; }
+                const d = n.__data__;
+                if (!d) continue;
+
+                if (isDensity[d.tipo] === undefined) isDensity[d.tipo] = app.utils.isDensity((state.markerLabels[d.tipo] || {}).tipo);
+                let path;
+                if (isDensity[d.tipo]) {
+                    path = app.map._markerShape(d, state, metrics, cache).path;
+                } else {
+                    path = fixedPath[d.tipo];
+                    if (path === undefined) path = fixedPath[d.tipo] = app.map._markerShape(d, state, metrics, cache).path;
+                }
+                n.setAttribute("d", path);
+                n.setAttribute("stroke-width", sw);
+                n.__k = k;
+            }
+            state._mkStale = stale;
+            app.utils.perf('zoom: geometria de marcadores', tZoom, nodes.length + ' marcadores');
+        },
+
         // Tamano de simbolo segun el zoom actual (compartido por updateMarkers, el zoom y el pintado por cuadros)
         _markerMetrics: function(state, kOverride) {
             let k = kOverride;
@@ -924,36 +1007,59 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .attr("class", "siarhe-marker")
                 .style("cursor", "pointer")
                 .style("opacity", 0)
-                .style("transition", app.utils.motionMs(1) === 0 ? "none" : "opacity 0.5s ease-out")
-                .on("mouseover", function(e, d) {
-                    let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
-                    const config = state.markerLabels[d.tipo] || {};
+                .style("transition", app.utils.motionMs(1) === 0 ? "none" : "opacity 0.5s ease-out");
 
-                    d3.select(this).attr("stroke-width", 3 / k);
-                    if (!app.utils.isDensity(config.tipo)) { d3.select(this).raise(); }
+            // Un solo manejador de eventos en el grupo (no uno por marcador): con decenas de miles de puntos
+            // evita cientos de miles de escuchadores. Se registra una vez por grupo.
+            const mkLayer = state.gMarkers.node();
+            if (mkLayer && !mkLayer.__siarheDelegated) {
+                mkLayer.__siarheDelegated = true;
+                const isMarker = (e) => e.target && e.target.classList && e.target.classList.contains('siarhe-marker');
+                const zoomK = () => { let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} } return k; };
 
-                    const mapDiv = this.closest('.siarhe-map-container');
-                    if(app.tooltips && mapDiv) app.tooltips.showMarkerTooltip(e, d, state, mapDiv);
-                })
-                .on("mouseout", function(e, d) {
-                    let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
-                    d3.select(this).attr("stroke-width", 1.5 / k);
-                    if(state.tooltip) state.tooltip.style("display", "none");
-                })
-                .on("click", function(e, d) {
-                    // Con el modo medicion activo, el clic selecciona el marcador como punto de la ruta
-                    if (state.measure && state.measure.active) {
-                        e.stopPropagation();
-                        app.map.measureAddPoint(state, d);
-                    }
-                });
+                state.gMarkers
+                    .on("mouseover", function(e) {
+                        if (!isMarker(e)) return;
+                        const node = e.target, d = node.__data__;
+                        if (!d) return;
+                        const k = zoomK();
+                        const config = state.markerLabels[d.tipo] || {};
+
+                        node.setAttribute("stroke-width", 3 / k);
+                        if (!app.utils.isDensity(config.tipo)) { d3.select(node).raise(); }
+
+                        const mapDiv = node.closest('.siarhe-map-container');
+                        if (app.tooltips && mapDiv) app.tooltips.showMarkerTooltip(e, d, state, mapDiv);
+                    })
+                    .on("mouseout", function(e) {
+                        if (!isMarker(e)) return;
+                        e.target.setAttribute("stroke-width", 1.5 / zoomK());
+                        if (state.tooltip) state.tooltip.style("display", "none");
+                    })
+                    .on("click", function(e) {
+                        if (!isMarker(e)) return;
+                        const d = e.target.__data__;
+                        // Con el modo medicion activo, el clic selecciona el marcador como punto de la ruta
+                        if (d && state.measure && state.measure.active) {
+                            e.stopPropagation();
+                            app.map.measureAddPoint(state, d);
+                        }
+                    });
+            }
 
             // El orden en el DOM define el apilado: solo hace falta reordenar si hay burbujas de espectro
             if (hasEspectro) entered.merge(markers).order();
 
+            // Lista de nodos para el zoom y modo denso: con muchos puntos se prioriza la velocidad de dibujo
+            state._mkNodes = state.gMarkers.selectAll("path.siarhe-marker").nodes();
+            state._mkStale = false;
+            state.gMarkers.classed("siarhe-markers-dense", allPoints.length > 5000);
+
             app.map.renderMarkerLegend(state);
 
-            return app.map._enqueueMarkers(state, entered.nodes());
+            const tPaint = performance.now();
+            const nuevos = entered.size();
+            return app.map._enqueueMarkers(state, entered.nodes()).then(function() { app.utils.perf('marcadores pintados', tPaint, nuevos + ' nuevos de ' + allPoints.length); });
         },
 
         /**
@@ -1043,6 +1149,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             node.setAttribute("fill", shape.fill);
             node.setAttribute("stroke", shape.stroke);
             node.setAttribute("stroke-width", shape.strokeW / metrics.k);
+            node.__x = coords[0]; node.__y = coords[1]; node.__k = metrics.k; // para actualizar solo lo visible al hacer zoom
             node.style.opacity = 1; // dispara el fundido de entrada
         },
 

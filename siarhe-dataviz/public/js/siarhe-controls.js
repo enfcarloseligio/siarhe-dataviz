@@ -548,6 +548,41 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         },
 
         /**
+         * Worker (hilo en segundo plano) que lee y procesa los CSV de marcadores. Uno por pagina; si el
+         * navegador no lo soporta o falla, devuelve null y se usa el procesamiento normal.
+         */
+        _markerWorker: function(container) {
+            if (app._markerWorkerFailed) return null;
+            if (app._markerWorker) return app._markerWorker;
+            const src = container.dataset.worker;
+            if (!src || typeof Worker === 'undefined') return null;
+            try {
+                const w = new Worker(src);
+                w._pending = new Map();
+                w._seq = 0;
+                w.onmessage = (e) => {
+                    const m = e.data || {};
+                    const p = w._pending.get(m.id);
+                    if (!p) return;
+                    w._pending.delete(m.id);
+                    if (m.ok) p.resolve(m); else p.reject(new Error(m.error || 'error en el worker'));
+                };
+                w.onerror = () => {
+                    app._markerWorkerFailed = true;
+                    app._markerWorker = null;
+                    w._pending.forEach(p => p.reject(new Error('el worker no pudo ejecutarse')));
+                    w._pending.clear();
+                    try { w.terminate(); } catch (err) {}
+                };
+                app._markerWorker = w;
+                return w;
+            } catch (err) {
+                app._markerWorkerFailed = true;
+                return null;
+            }
+        },
+
+        /**
          * Descarga, filtra y agrupa el CSV de un tipo de marcador. El trabajo se trocea por tiempo
          * (cede el hilo cada ~12 ms) para no disparar el aviso "la pagina esta tardando".
          * Las cargas simultaneas del mismo tipo comparten una sola Promise.
@@ -560,15 +595,47 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const url = state.markerUrls ? state.markerUrls[type] : null;
                 if (!url) throw new Error(`No hay URL configurada para el marcador ${type}`);
 
+                // Camino rapido: el worker descarga, lee, filtra y agrupa sin bloquear la pagina
+                const worker = app.controls._markerWorker(container);
+                if (worker) {
+                    try {
+                        const cfg = state.markerLabels[type] || {};
+                        const spec = {
+                            type: type,
+                            isNacional: !!state.isNacional,
+                            currentEnt: (container.dataset.cveEnt || '').toString().padStart(2, '0'),
+                            filtroCol: cfg.filtro_col ? cfg.filtro_col.toLowerCase().trim() : null,
+                            filtroVal: cfg.filtro_val ? cfg.filtro_val.toString().toLowerCase().trim() : null,
+                            agruparCol: cfg.agrupar_col ? cfg.agrupar_col.toLowerCase().trim() : null,
+                            reglas: (cfg.reglas_tooltip || []).map(r => ({ col: r.col, val: r.val, label: r.label })),
+                            espectroCol: cfg.espectro_col || ''
+                        };
+                        const tW = performance.now();
+                        const res = await new Promise((resolve, reject) => {
+                            const id = ++worker._seq;
+                            worker._pending.set(id, { resolve: resolve, reject: reject });
+                            worker.postMessage({ id: id, url: url, spec: spec });
+                        });
+                        state.markersData[type] = res.points;
+                        app.utils.perf('worker: ' + type + ' (descarga y lectura ' + res.readMs + ' ms, procesado ' + res.procMs + ' ms)', tW, res.rows + ' filas -> ' + res.points.length + ' puntos');
+                        return;
+                    } catch (err) {
+                        console.warn('[SIARHE] El worker no pudo procesar ' + type + ', se usa el modo normal:', err);
+                    }
+                }
+
                 let rawData;
                 if (state.rawCSVDataCache && state.rawCSVDataCache[url]) {
                     rawData = state.rawCSVDataCache[url];
                 } else {
+                    const tCsv = performance.now();
                     rawData = await d3.csv(url);
+                    app.utils.perf('CSV de ' + type + ' descargado y leido', tCsv, rawData.length + ' filas');
                     if (!state.rawCSVDataCache) state.rawCSVDataCache = {};
                     state.rawCSVDataCache[url] = rawData;
                 }
                 if (!Array.isArray(rawData)) rawData = [];
+                const tProc = performance.now();
 
                 const config = state.markerLabels[type] || {};
                 const filtroCol = config.filtro_col ? config.filtro_col.toLowerCase().trim() : null;
@@ -704,6 +771,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 }
 
                 state.markersData[type] = processedData;
+                app.utils.perf('filtrado y agrupado de ' + type, tProc, processedData.length + ' puntos');
             })();
 
             state._markerLoads[type] = task;

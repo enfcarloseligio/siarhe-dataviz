@@ -57,5 +57,7 @@ Additional admin ideas: export/import of the whole configuration as one JSON (co
 - Markers have no keyboard focus (thousands of points); selection for measuring is mouse/touch only. The measure panel is the accessible part (live announcements, copy, CSV).
 - On non-fullscreen mobile the legends top out around 6 px text because of the map's small width; fullscreen gets ~10 px.
 - D3/Select2 CDN fallback only triggers on failure or an incomplete library; a very slow (not failing) CDN waits for the browser timeout (no explicit timeout yet).
-- `parseCSV` via `d3.csv` is still synchronous for very large files; a Web Worker would remove that last long task.
+- Marker CSVs (10-14 MB, ~41k rows) are downloaded, parsed, filtered and grouped in `public/js/siarhe-worker.js` (Web Worker, URL passed via `data-worker`); `loadMarkerData` in `siarhe-controls.js` falls back to the main-thread path (`d3.csv`) if workers are unavailable or fail. Both paths must keep the same filtering/grouping logic. The static-base CSV (small) and GeoJSON still load on the main thread.
+- Large data files (>= 100 KB) are read from a copy (`*.geojson.json` / `*.csv.txt`, made by `siarhe_data_read_url()` / `siarhe_build_read_copy()` in `includes/helpers.php`) because many servers serve `.csv`/`.geojson` as `application/octet-stream` and do not compress them; the original stays untouched (backups, versions, download). Option `siarhe_read_copies` turns it off.
+- Marker rendering: one SVG `<path>` per point; zoom only refreshes visible markers (`_refreshMarkerGeometry`), events are delegated on the markers layer. `?siarhe_perf=1` logs timings to the console. If national zoom is still slow, the next step is canvas for `posicion` markers.
 

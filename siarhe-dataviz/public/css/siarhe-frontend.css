@@ -986,3 +986,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     .siarhe-viz-wrapper .siarhe-palette-actions { justify-content: stretch; }
     .siarhe-viz-wrapper .siarhe-palette-actions .siarhe-btn { flex: 1 1 auto; }
 }
+
+
+/* Con miles de marcadores se prioriza la velocidad de dibujo sobre el suavizado de bordes */
+.siarhe-viz-wrapper .siarhe-markers-dense path.siarhe-marker { shape-rendering: optimizeSpeed; }
