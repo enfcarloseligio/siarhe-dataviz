@@ -103,6 +103,11 @@ function siarhe_get_map_defaults() {
         // Casos especiales: valor 0 y sin dato
         'map_zero' => '#d9d9d9', 'map_null' => '#000000',
 
+        // Botones del frontend (todos comparten estilo): normal, al pasar el cursor y al presionar
+        'btn_bg'        => '#0A66C2', 'btn_border'        => '#0A66C2', 'btn_text'        => '#F8FAFC',
+        'btn_hover_bg'  => '#084C94', 'btn_hover_border'  => '#084C94', 'btn_hover_text'  => '#F8FAFC',
+        'btn_active_bg' => '#063A73', 'btn_active_border' => '#063A73', 'btn_active_text' => '#F8FAFC',
+
         // Tabla del frontend
         'th_bg'        => '#f4f4f4', 'th_text'      => '#333333',
         'tr_odd'       => '#ffffff', 'tr_odd_txt'   => '#555555',
@@ -137,6 +142,9 @@ function siarhe_get_css_variables_css() {
         '--s-tr-odd' => 'tr_odd', '--s-tr-odd-txt' => 'tr_odd_txt',
         '--s-tr-even' => 'tr_even', '--s-tr-even-txt' => 'tr_even_txt',
         '--s-total-bg' => 'tr_total_bg', '--s-total-txt' => 'tr_total_txt',
+        '--s-btn-bg' => 'btn_bg', '--s-btn-border' => 'btn_border', '--s-btn-text' => 'btn_text',
+        '--s-btn-hover-bg' => 'btn_hover_bg', '--s-btn-hover-border' => 'btn_hover_border', '--s-btn-hover-text' => 'btn_hover_text',
+        '--s-btn-active-bg' => 'btn_active_bg', '--s-btn-active-border' => 'btn_active_border', '--s-btn-active-text' => 'btn_active_text',
     );
 
     $css = ":root {\n";
@@ -185,4 +193,34 @@ function siarhe_get_default_metricas() {
         'poblacion'                  => array_merge(['label' => 'Población', 'fullLabel' => 'Población total', 'abrev' => 'Población', 'tipo' => 'absoluto', 'pair' => 'poblacion', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges)
     ];
     return $defaults;
+}
+
+/**
+ * Contenido del .htaccess de la carpeta de datos (siarhe-data).
+ * Con application/octet-stream (lo que muchos servidores asignan a .csv y .geojson) ni el servidor
+ * ni Cloudflare comprimen los archivos: un GeoJSON de 7 MB viaja completo en cada carga del mapa.
+ * Con el tipo correcto se comprimen solos (suele ser 5 a 10 veces menos).
+ */
+function siarhe_data_htaccess_content() {
+    return "# SIARHE-DATA (lo genera el plugin y se regenera solo; no lo edites)\n"
+        . "<IfModule mod_mime.c>\n"
+        . "    AddType text/csv .csv\n"
+        . "    AddType application/json .geojson .json\n"
+        . "</IfModule>\n"
+        . "<IfModule mod_deflate.c>\n"
+        . "    AddOutputFilterByType DEFLATE text/csv application/json\n"
+        . "</IfModule>\n";
+}
+
+/** Crea o actualiza el .htaccess de siarhe-data (no pisa uno que no sea del plugin). */
+function siarhe_ensure_data_htaccess() {
+    if ( ! defined( 'SIARHE_UPLOAD_DIR' ) || ! is_dir( SIARHE_UPLOAD_DIR ) || ! is_writable( SIARHE_UPLOAD_DIR ) ) return;
+    $file    = SIARHE_UPLOAD_DIR . '.htaccess';
+    $content = siarhe_data_htaccess_content();
+    if ( file_exists( $file ) ) {
+        $actual = (string) file_get_contents( $file );
+        if ( $actual === $content ) return;
+        if ( strpos( $actual, '# SIARHE-DATA' ) === false ) return; // archivo ajeno
+    }
+    @file_put_contents( $file, $content );
 }

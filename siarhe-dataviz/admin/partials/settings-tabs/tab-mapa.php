@@ -159,6 +159,24 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
         </tr>
     </table>
 
+    <h3 class="siarhe-section-spaced siarhe-section-title">Botones del Mapa y la Tabla<?php Siarhe_Admin::help('Estilo unico de todos los botones del sitio publico (Personalizar, Restablecer, Mapa PNG, Etiquetas, Copiar enlace, Descargar Excel). El color del texto tambien pinta los iconos del boton.'); ?></h3>
+    <p class="description">Todos los botones comparten este estilo. El color de texto también se aplica a sus íconos.</p>
+
+    <table class="form-table">
+        <tr>
+            <th scope="row">Estado normal<?php Siarhe_Admin::help('Colores del boton en reposo.'); ?></th>
+            <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[btn_bg]" value="<?php echo esc_attr($opts['btn_bg']); ?>" class="siarhe-color-field"></div><div><label>Borde:</label><br><input type="text" name="siarhe_map_options[btn_border]" value="<?php echo esc_attr($opts['btn_border']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[btn_text]" value="<?php echo esc_attr($opts['btn_text']); ?>" class="siarhe-color-field"></div></div></td>
+        </tr>
+        <tr>
+            <th scope="row">Al pasar el cursor<?php Siarhe_Admin::help('Colores cuando el cursor esta sobre el boton o recibe el foco del teclado.'); ?></th>
+            <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[btn_hover_bg]" value="<?php echo esc_attr($opts['btn_hover_bg']); ?>" class="siarhe-color-field"></div><div><label>Borde:</label><br><input type="text" name="siarhe_map_options[btn_hover_border]" value="<?php echo esc_attr($opts['btn_hover_border']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[btn_hover_text]" value="<?php echo esc_attr($opts['btn_hover_text']); ?>" class="siarhe-color-field"></div></div></td>
+        </tr>
+        <tr>
+            <th scope="row">Al presionar<?php Siarhe_Admin::help('Colores mientras el boton se mantiene presionado.'); ?></th>
+            <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[btn_active_bg]" value="<?php echo esc_attr($opts['btn_active_bg']); ?>" class="siarhe-color-field"></div><div><label>Borde:</label><br><input type="text" name="siarhe_map_options[btn_active_border]" value="<?php echo esc_attr($opts['btn_active_border']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[btn_active_text]" value="<?php echo esc_attr($opts['btn_active_text']); ?>" class="siarhe-color-field"></div></div></td>
+        </tr>
+    </table>
+
     <h3 class="siarhe-section-spaced siarhe-section-title">Estilos de Tabla de Datos<?php Siarhe_Admin::help('Apariencia de la tabla de datos que se muestra en el sitio publico.'); ?></h3>
     
     <table class="form-table">

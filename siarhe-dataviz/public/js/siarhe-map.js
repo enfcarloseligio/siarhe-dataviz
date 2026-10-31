@@ -191,7 +191,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 }) 
                 .on("mousemove", (e) => {
                     const [mx, my] = d3.pointer(e, mapDiv);
-                    if (state.tooltip) state.tooltip.style("left", (mx + 15) + "px").style("top", (my - 28) + "px");
+                    if (app.tooltips) app.tooltips.position(state, mapDiv, mx, my);
                 })
                 .on("mouseout", () => { 
                     let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
@@ -272,7 +272,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .on("mousemove", function(e) {
                     if (!isLoc(e.target)) return;
                     const [mx, my] = d3.pointer(e, mapDiv);
-                    if (state.tooltip) state.tooltip.style("left", (mx + 15) + "px").style("top", (my - 28) + "px");
+                    if (app.tooltips) app.tooltips.position(state, mapDiv, mx, my);
                 })
                 .on("mouseout", function(e) {
                     const t = e.target;
@@ -389,6 +389,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             
             const metricConfig = state.metricas[metric] || {};
             const mode = state.colorMode || metricConfig.scale_type || 'cuartiles'; 
+            const pal = app.palette(state);
             
             const values = state.csvData
                 .filter(d => !d.isTotal && !d.isSpecial && d[metric] !== null && d[metric] > 0)
@@ -400,8 +401,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     .style("fill", d => {
                         let cve = app.utils.getGeoKey(d.properties, state.isNacional);
                         const row = state.dataMap.get(cve);
-                        if (!row || row[metric] === null || row[metric] === undefined) return app.colors.NULL;
-                        return app.colors.ZERO;
+                        if (!row || row[metric] === null || row[metric] === undefined) return pal.NULL;
+                        return pal.ZERO;
                     });
                 const emptyStats = {min: 0, q1: 0, q2: 0, q3: 0, max: 0, Vmin: 0, Q1: 0, Q2: 0, Q3: 0, Vmax: 0};
                 app.map.renderLegend(state, emptyStats, mode);
@@ -428,20 +429,20 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 stats = { min, q1, q2, q3, max, Vmin: min, Q1: q1, Q2: q2, Q3: q3, Vmax: max };
 
                 if (mode === 'rangos') {
-                    const colorEvaluator = app.math.createRangeEvaluator(metricConfig, stats);
+                    const colorEvaluator = app.math.createRangeEvaluator(metricConfig, stats, pal);
                     
                     state.gPaths.selectAll("path.siarhe-feature").transition().duration(app.utils.motionMs(500))
                         .style("fill", d => {
                             let cve = app.utils.getGeoKey(d.properties, state.isNacional);
                             const row = state.dataMap.get(cve);
-                            if (!row || row[metric] === null || row[metric] === undefined) return app.colors.NULL; 
+                            if (!row || row[metric] === null || row[metric] === undefined) return pal.NULL; 
                             return colorEvaluator(row[metric]);
                         });
                 } else {
                     if (mode === 'cuartiles' || mode === 'degradado' || mode === 'quartiles') {
-                        colorScale = d3.scaleLinear().domain(domain).range(app.colors.RANGE).clamp(true);
+                        colorScale = d3.scaleLinear().domain(domain).range(pal.RANGE).clamp(true);
                     } else {
-                        let monoRange = app.colors.MONO;
+                        let monoRange = pal.MONO;
                         if (monoRange.length === 2) {
                             const interpolator = d3.interpolate(monoRange[0], monoRange[1]);
                             monoRange = [ interpolator(0), interpolator(0.25), interpolator(0.50), interpolator(0.75), interpolator(1) ];
@@ -454,8 +455,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                             let cve = app.utils.getGeoKey(d.properties, state.isNacional);
                             const row = state.dataMap.get(cve);
                             
-                            if (!row || row[metric] === null || row[metric] === undefined) return app.colors.NULL; 
-                            if (row[metric] === 0) return app.colors.ZERO; 
+                            if (!row || row[metric] === null || row[metric] === undefined) return pal.NULL; 
+                            if (row[metric] === 0) return pal.ZERO; 
                             
                             return colorScale(row[metric]);
                         });
@@ -517,6 +518,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
         renderLegend: function(state, stats, mode) {
             const g = state.gLegend;
+            const pal = app.palette(state);
             g.html("");
             g.style("font-family", "Roboto, Arial, sans-serif");
 
@@ -537,11 +539,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             let boxW, boxH;
 
             if (isRangos) {
-                const useColors = metricInfo.custom_colors === true;
-                const c1 = (useColors && metricInfo.r1_color) ? metricInfo.r1_color : app.colors.CUSTOM_RANGE[0];
-                const c2 = (useColors && metricInfo.r2_color) ? metricInfo.r2_color : app.colors.CUSTOM_RANGE[1];
-                const c3 = (useColors && metricInfo.r3_color) ? metricInfo.r3_color : app.colors.CUSTOM_RANGE[2];
-                const c4 = (useColors && metricInfo.r4_color) ? metricInfo.r4_color : app.colors.CUSTOM_RANGE[3];
+                const useColors = !pal.custom && metricInfo.custom_colors === true;
+                const c1 = (useColors && metricInfo.r1_color) ? metricInfo.r1_color : pal.CUSTOM_RANGE[0];
+                const c2 = (useColors && metricInfo.r2_color) ? metricInfo.r2_color : pal.CUSTOM_RANGE[1];
+                const c3 = (useColors && metricInfo.r3_color) ? metricInfo.r3_color : pal.CUSTOM_RANGE[2];
+                const c4 = (useColors && metricInfo.r4_color) ? metricInfo.r4_color : pal.CUSTOM_RANGE[3];
 
                 const parseLabel = (raw) => {
                     if (raw === undefined || raw === null || raw === '') return '';
@@ -603,11 +605,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 });
 
                 const g0 = g.append("g").attr("transform", `translate(0, ${12 + (4 * 36) + 8})`);
-                g0.append("rect").attr("width", 16).attr("height", 16).style("fill", app.colors.ZERO);
+                g0.append("rect").attr("width", 16).attr("height", 16).style("fill", pal.ZERO);
                 addLabel(g0, 26, 13, "0.00");
 
                 const gN = g.append("g").attr("transform", `translate(0, ${12 + (4 * 36) + 36})`);
-                gN.append("rect").attr("width", 16).attr("height", 16).style("fill", app.colors.NULL);
+                gN.append("rect").attr("width", 16).attr("height", 16).style("fill", pal.NULL);
                 addLabel(gN, 26, 13, "S/D");
 
             } else {
@@ -618,9 +620,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 let domainVals = [stats.min, stats.q1, stats.q2, stats.q3, stats.max];
 
                 if (currentMode === 'cuartiles' || currentMode === 'degradado' || currentMode === 'quartiles') {
-                    colorArr = app.colors.RANGE;
+                    colorArr = pal.RANGE;
                 } else {
-                    colorArr = app.colors.MONO;
+                    colorArr = pal.MONO;
                     if (colorArr.length === 2) {
                         const interpolator = d3.interpolate(colorArr[0], colorArr[1]);
                         colorArr = [ interpolator(0), interpolator(0.25), interpolator(0.50), interpolator(0.75), interpolator(1) ];
@@ -656,11 +658,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 });
 
                 const g0 = g.append("g").attr("transform", `translate(0, ${h + 34})`);
-                g0.append("rect").attr("width", 16).attr("height", 16).style("fill", app.colors.ZERO);
+                g0.append("rect").attr("width", 16).attr("height", 16).style("fill", pal.ZERO);
                 addLabel(g0, 26, 13, "0.00");
 
                 const gN = g.append("g").attr("transform", `translate(0, ${h + 62})`);
-                gN.append("rect").attr("width", 16).attr("height", 16).style("fill", app.colors.NULL);
+                gN.append("rect").attr("width", 16).attr("height", 16).style("fill", pal.NULL);
                 addLabel(gN, 26, 13, "S/D");
             }
 

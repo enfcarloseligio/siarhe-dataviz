@@ -32,6 +32,15 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         NULL: getVar('--s-map-null', '#000000')
     };
 
+    /**
+     * Paleta vigente de una instancia del mapa: la que el visitante personalizo (solo vive en su
+     * navegador, state.customColors) o, si no hay, la configurada en el sitio (app.colors).
+     * Con paleta personalizada pal.custom es true y sus colores tienen prioridad sobre los de cada metrica.
+     */
+    app.palette = function(state) {
+        return (state && state.customColors) ? Object.assign({ custom: true }, app.colors, state.customColors) : app.colors;
+    };
+
     // Objeto de ordenamiento compartido (usado por la tabla)
     app.sortConfig = { key: 'tasa', direction: 'desc' };
 
@@ -63,6 +72,40 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         esc: function(val) {
             return (val === undefined || val === null) ? '' : String(val).replace(/[&<>"']/g, function(c) {
                 return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        },
+
+        /**
+         * Texto de datos en formato "Nombre Propio" (para tooltips).
+         * Solo transforma las palabras escritas TODO en mayusculas; las que ya traen minusculas se respetan.
+         * Reglas: los conectores (de, del, la, las, los, y...) van en minusculas (salvo al inicio);
+         * las siglas de hasta 3 letras (UMF, HGZ, DIF) y una lista de siglas conocidas se conservan;
+         * lo que lleva numeros o puntos (A.C., IMSS-02) se conserva. No usar con CLUES.
+         */
+        titleCase: function(val) {
+            if (val === undefined || val === null) return '';
+            const CONECTORES = ['a', 'al', 'ante', 'con', 'de', 'del', 'e', 'el', 'en', 'entre', 'la', 'las', 'lo', 'los', 'o', 'para', 'por', 'sin', 'sobre', 'u', 'un', 'una', 'y'];
+            const CORTAS_NO_SIGLA = ['SAN', 'SUR', 'RIO', 'RÍO', 'VIA', 'VÍA', 'LUZ', 'MAR', 'SOL', 'PAZ', 'DON', 'SAL', 'NO', 'SU', 'MAS', 'MÁS', 'DOS', 'UNO', 'FE', 'PIE'];
+            const SIGLAS = ['IMSS', 'ISSSTE', 'PEMEX', 'SEDENA', 'SEMAR', 'UNEME', 'CAAPS', 'UNAM', 'CRIT', 'ISSSTECALI', 'ISSEMYM', 'ISSSTESON', 'ISSTE', 'SESA', 'SSA'];
+            const LET = 'A-Za-zÁÉÍÓÚÜÑáéíóúüñ';
+            let first = true;
+            const palabra = function(w) {
+                const esPrimera = first; first = false;
+                if (/\d/.test(w) || w.indexOf('.') >= 0) return w;
+                if (w !== w.toUpperCase() || w === w.toLowerCase()) return w; // ya tiene minusculas (o no tiene letras)
+                const lower = w.toLowerCase();
+                if (CONECTORES.indexOf(lower) >= 0) return esPrimera ? lower.charAt(0).toUpperCase() + lower.slice(1) : lower;
+                if (SIGLAS.indexOf(w) >= 0) return w;
+                if (w.length <= 3 && CORTAS_NO_SIGLA.indexOf(w) < 0) return w;
+                return lower.charAt(0).toUpperCase() + lower.slice(1);
+            };
+            const re = new RegExp('^([^' + LET + '0-9]*)(.*?)([^' + LET + '0-9]*)$');
+            return String(val).trim().replace(/\S+/g, function(token) {
+                const m = token.match(re);
+                if (!m || !m[2]) return token;
+                // Guiones y diagonales separan palabras (IMSS-BIENESTAR, ISSSTE/IMSS)
+                const partes = m[2].split(/([\-\/])/).map(function(x) { return /^[\-\/]$/.test(x) ? x : palabra(x); });
+                return m[1] + partes.join('') + m[3];
             });
         },
 
@@ -171,10 +214,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             return app.math.buildRange(minRaw, op, maxRaw, statsDict)(valToEval);
         },
 
-        createRangeEvaluator: function(metricConfig, statsDict) {
+        createRangeEvaluator: function(metricConfig, statsDict, pal) {
+            const P = pal || app.colors;
             const useColors = metricConfig.custom_colors === true;
             const useRanges = metricConfig.custom_ranges === true;
-            const color = (n) => (useColors && metricConfig['r' + n + '_color']) ? metricConfig['r' + n + '_color'] : app.colors.CUSTOM_RANGE[n - 1];
+            const color = (n) => (!P.custom && useColors && metricConfig['r' + n + '_color']) ? metricConfig['r' + n + '_color'] : P.CUSTOM_RANGE[n - 1];
             const pick = (n, field, def) => (useRanges && metricConfig['r' + n + '_' + field]) ? metricConfig['r' + n + '_' + field] : def;
 
             // Rangos de mayor a menor, resueltos una sola vez
@@ -190,12 +234,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }));
 
             return function(value) {
-                if (value === null || value === undefined || isNaN(value)) return app.colors.NULL;
-                if (value === 0) return app.colors.ZERO;
+                if (value === null || value === undefined || isNaN(value)) return P.NULL;
+                if (value === 0) return P.ZERO;
                 for (let i = 0; i < ranges.length; i++) {
                     if (ranges[i].test(value)) return ranges[i].color;
                 }
-                return app.colors.NULL;
+                return P.NULL;
             };
         }
     };

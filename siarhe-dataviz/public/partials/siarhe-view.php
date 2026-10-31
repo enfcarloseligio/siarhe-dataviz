@@ -283,13 +283,13 @@ if (!empty($geojson_url) && strpos($geojson_url, '?v=') === false) {
             </div>
 
             <div class="siarhe-map-actions">
-                <button class="button button-secondary btn-siarhe btn-download-map siarhe-btn-download-png">
+                <button class="siarhe-btn siarhe-btn-download-png">
                     <span class="dashicons dashicons-camera" style="margin-top: 3px;"></span> Mapa PNG
                 </button>
-                <button class="button button-secondary btn-siarhe btn-download-map siarhe-btn-toggle-labels">
+                <button class="siarhe-btn siarhe-btn-toggle-labels">
                     <span class="dashicons dashicons-tag" style="margin-top: 3px;"></span> Mapa con Etiquetas
                 </button>
-                <button type="button" class="button button-secondary btn-siarhe btn-download-map siarhe-btn-share">
+                <button type="button" class="siarhe-btn siarhe-btn-share">
                     <span class="dashicons dashicons-admin-links" style="margin-top: 3px;"></span> Copiar enlace de esta vista
                 </button>
             </div>
@@ -298,10 +298,13 @@ if (!empty($geojson_url) && strpos($geojson_url, '?v=') === false) {
     <?php endif; ?>
 
     <?php if ( strpos($mode, 'T') !== false ) : ?>
-        <section id="siarhe-table-section" class="siarhe-section-table siarhe-block-card">
-            <h2 style="margin-top: 0; margin-bottom: 10px;">
+        <?php $table_collapsible = ( strpos($mode, 'M') !== false && strpos($mode, 'T') !== false ); ?>
+        <section id="siarhe-table-section" class="siarhe-section-table siarhe-block-card<?php echo $table_collapsible ? ' siarhe-table-collapsible' : ''; ?>">
+            <?php if ($table_collapsible) : ?><details class="siarhe-table-details"><summary class="siarhe-table-summary"><?php endif; ?>
+            <h2 style="margin-top: 0; margin-bottom: <?php echo $table_collapsible ? '0' : '10px'; ?>;">
                 📊 Tasas y totales de profesionales de enfermería por <?php echo $es_nacional ? 'Entidad Federativa' : 'Municipio'; ?> en <?php echo $lugar_texto; ?> en <span class="siarhe-dynamic-year"><?php echo esc_html($anio); ?></span>
             </h2>
+            <?php if ($table_collapsible) : ?><span class="siarhe-table-toggle" aria-hidden="true"></span></summary><div class="siarhe-table-body"><?php endif; ?>
             <p style="margin-bottom: 20px; color: #555; line-height: 1.5;">
                 La siguiente tabla muestra el concentrado estadístico por <?php echo $es_nacional ? 'estado' : 'municipio'; ?>. Puede ordenar los datos para identificar rápidamente qué <?php echo $es_nacional ? 'entidades' : 'municipios'; ?> tienen la mayor o menor densidad de enfermeras por habitante.
             </p>
@@ -319,10 +322,11 @@ if (!empty($geojson_url) && strpos($geojson_url, '?v=') === false) {
             </div>
 
             <div style="text-align: center; margin-top: 15px;">
-                <button class="button button-primary btn-siarhe btn-primary siarhe-btn-download-excel">
+                <button class="siarhe-btn siarhe-btn-download-excel">
                     <span class="dashicons dashicons-media-spreadsheet" style="margin-top: 3px;"></span> Descargar Excel <?php echo $es_nacional ? 'Nacional' : 'Estatal'; ?>
                 </button>
             </div>
+            <?php if ($table_collapsible) : ?></div></details><?php endif; ?>
         </section>
     <?php endif; ?>
 

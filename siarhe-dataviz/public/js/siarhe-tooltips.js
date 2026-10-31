@@ -12,7 +12,32 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
     app.tooltips = {
 
+        /**
+         * Coloca el tooltip junto al puntero sin que se salga del contenedor del mapa:
+         * a la derecha por defecto; si no cabe, pasa a la izquierda; si no cabe abajo, sube;
+         * si no cabe arriba, baja. Sirve igual para mouse y toque (movil).
+         */
+        position: function(state, mapDiv, mx, my) {
+            const tip = state.tooltip && state.tooltip.node();
+            if (!tip || !mapDiv) return;
+            const W = mapDiv.clientWidth, H = mapDiv.clientHeight, M = 6;
+            tip.style.maxWidth = Math.max(160, Math.min(300, W - 2 * M)) + 'px';
+            const tw = tip.offsetWidth, th = tip.offsetHeight;
+            if (!tw || !th) return;
+
+            let left = mx + 15;
+            if (left + tw > W - M) left = mx - 15 - tw;
+            let top = my - 28;
+            if (top + th > H - M) top = my - th - 12;
+            if (top < M) top = my + 18;
+
+            left = Math.max(M, Math.min(left, W - tw - M));
+            top = Math.max(M, Math.min(top, H - th - M));
+            state.tooltip.style('left', left + 'px').style('top', top + 'px');
+        },
+
         showGeoTooltip: function(event, d, state, mapDiv) {
+            const tc = function(v) { return app.utils.titleCase(v); };
             let cve = app.utils.getGeoKey(d.properties, state.isNacional);
             let row = state.dataMap.get(cve);
             const wrapper = mapDiv.closest('.siarhe-viz-wrapper');
@@ -24,7 +49,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
             
             // LÓGICA INTELIGENTE DE TÍTULOS (NACIONAL VS ESTATAL)
-            let nombre = app.utils.esc(row ? row.estado : (d.properties.NOMGEO || d.properties.NOM_ENT || "Sin Datos"));
+            let nombre = app.utils.esc(tc(row ? row.estado : (d.properties.NOMGEO || d.properties.NOM_ENT || "Sin Datos")));
             
             if (state.isGeoLocMode) {
                 let ent = row ? row.estado : (d.properties.NOM_ENT || "");
@@ -34,15 +59,15 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (state.isNacional) {
                     if (!mun && d.properties.NOMGEO) mun = d.properties.NOMGEO; 
                     if (mun) {
-                        nombre = `${app.utils.esc(ent)} / <span style="opacity:0.8; font-weight:normal;">${app.utils.esc(mun)}</span>`;
+                        nombre = `${app.utils.esc(tc(ent))} / <span style="opacity:0.8; font-weight:normal;">${app.utils.esc(tc(mun))}</span>`;
                     }
                 } else {
                     let munName = row ? row.estado : (d.properties.NOM_MUN || d.properties.MUNICIPIO || "Municipio");
                     if (!loc && d.properties.NOMGEO) loc = d.properties.NOMGEO; 
                     if (munName && loc && munName !== loc) {
-                        nombre = `${app.utils.esc(munName)} / <span style="opacity:0.8; font-weight:normal;">${app.utils.esc(loc)}</span>`;
+                        nombre = `${app.utils.esc(tc(munName))} / <span style="opacity:0.8; font-weight:normal;">${app.utils.esc(tc(loc))}</span>`;
                     } else if (loc) {
-                        nombre = app.utils.esc(loc);
+                        nombre = app.utils.esc(tc(loc));
                     }
                 }
             }
@@ -219,13 +244,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     .style("padding", "10px 14px")
                     .style("box-shadow", "0 4px 15px rgba(0,0,0,0.2)")
                     .style("display", "block")
-                    .style("opacity", 1)
-                    .style("left", (mx + 15) + "px")
-                    .style("top", (my - 28) + "px");
+                    .style("opacity", 1);
+                app.tooltips.position(state, mapDiv, mx, my);
             }
         },
 
         showMarkerTooltip: function(event, d, state, mapDiv) {
+            const tc = function(v) { return app.utils.titleCase(v); };
             const tt = state.tooltipConfig || {}; 
             const hlVar = tt.mk_highlight_var || 'none';
             const hlColor = tt.mk_highlight_color || '#06b6d4';
@@ -240,21 +265,21 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const estLower = d.estrato.toString().toLowerCase().trim();
                 if (estLower === '1' || estLower === 'rural') zonaTexto = "Rural";
                 else if (estLower === '2' || estLower === 'urbano') zonaTexto = "Urbana";
-                else zonaTexto = d.estrato;
+                else zonaTexto = tc(d.estrato);
             }
             const titleLabel = zonaTexto ? `Establecimiento en Zona ${zonaTexto}` : (state.markerLabels[d.tipo] ? state.markerLabels[d.tipo].label : d.tipo);
 
             let blocks = {};
             
-            if (tt.mk_inst !== false && d.institucion) blocks['mk_inst'] = { label: 'Institución', value: d.institucion };
+            if (tt.mk_inst !== false && d.institucion) blocks['mk_inst'] = { label: 'Institución', value: tc(d.institucion) };
             if (tt.mk_clues !== false && d.clues) blocks['mk_clues'] = { label: 'CLUES', value: d.clues };
-            if (tt.mk_nivel !== false && d.nivel_atencion) blocks['mk_nivel'] = { label: 'Nivel', value: d.nivel_atencion };
-            if (tt.mk_juris !== false && d.jurisdiccion) blocks['mk_juris'] = { label: 'Jurisdicción', value: d.jurisdiccion };
+            if (tt.mk_nivel !== false && d.nivel_atencion) blocks['mk_nivel'] = { label: 'Nivel', value: tc(d.nivel_atencion) };
+            if (tt.mk_juris !== false && d.jurisdiccion) blocks['mk_juris'] = { label: 'Jurisdicción', value: tc(d.jurisdiccion) };
             
             if (tt.mk_tipo !== false && (d.tipo_estab || d.tipologia)) {
                 let valTipo = [];
-                if (d.tipo_estab) valTipo.push(d.tipo_estab);
-                if (d.tipologia) valTipo.push(d.tipologia);
+                if (d.tipo_estab) valTipo.push(tc(d.tipo_estab));
+                if (d.tipologia) valTipo.push(tc(d.tipologia));
                 blocks['mk_tipo'] = { label: 'Tipo', value: valTipo.join(' - ') };
             }
             
@@ -262,9 +287,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 let ubicacion = [];
                 const colEntidad = app.utils.getColValue(d._raw, ['entidad', 'nom_ent']);
                 const colLocalidad = app.utils.getColValue(d._raw, ['localidad', 'nom_loc']);
-                if (colEntidad) ubicacion.push(colEntidad);
-                if (d.municipio) ubicacion.push(d.municipio);
-                if (colLocalidad) ubicacion.push(colLocalidad);
+                if (colEntidad) ubicacion.push(tc(colEntidad));
+                if (d.municipio) ubicacion.push(tc(d.municipio));
+                if (colLocalidad) ubicacion.push(tc(colLocalidad));
                 if (ubicacion.length > 0) blocks['mk_mun'] = { label: 'Ubicación', value: ubicacion.join(', ') };
             }
 
@@ -320,7 +345,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             let html = `<div style="font-family:'Roboto', sans-serif; color:${txtColor};">`;
             html += `<div style="color: #06B6D4; font-weight:bold; font-size:12px; margin-bottom:4px; padding-bottom:4px;">${app.utils.esc(titleLabel)}</div>`;
-            html += `<div style="font-weight:bold; font-size:13px; font-family:'IBM Plex Sans', sans-serif; text-transform: uppercase; margin-bottom: 8px;">${app.utils.esc(d.nombre || 'Desconocido')}</div>`;
+            html += `<div style="font-weight:bold; font-size:13px; font-family:'IBM Plex Sans', sans-serif; margin-bottom: 8px;">${app.utils.esc(tc(d.nombre) || 'Desconocido')}</div>`;
             // Spike: el valor que define la altura y el color del pico
             const mkCfg = state.markerLabels[d.tipo] || {};
             if (mkCfg.tipo === 'spike' && app.map && app.map._markerValue) {
@@ -342,9 +367,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .style("padding", "10px 14px")
                 .style("box-shadow", "0 4px 15px rgba(0,0,0,0.2)")
                 .style("display", "block")
-                .style("opacity", 1)
-                .style("left", (mx + 10) + "px")
-                .style("top", (my - 20) + "px");
+                .style("opacity", 1);
+            app.tooltips.position(state, mapDiv, mx, my);
         }
     };
 

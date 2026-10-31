@@ -35,9 +35,15 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 wrapper.innerHTML = `
                     <div class="siarhe-controls-row">
                         <div class="siarhe-control-group" id="c-escala"><label>Estilo de Mapa</label></div>
+                        <div class="siarhe-control-group siarhe-control-group--action" id="c-personalizar">
+                            <button type="button" class="siarhe-btn siarhe-palette-btn" aria-expanded="false" title="Cambiar los colores del mapa (solo en tu navegador)">
+                                <svg class="siarhe-reset-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.3-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4a3.6 3.6 0 0 0 3.6-3.6C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11.5" r="1"/><circle cx="12" cy="7.5" r="1"/><circle cx="16.5" cy="11.5" r="1"/></svg>
+                                <span>Personalizar</span>
+                            </button>
+                        </div>
                         <div class="siarhe-control-group" id="c-vista"><label>Vista Geográfica</label></div>
                         <div class="siarhe-control-group siarhe-control-group--action" id="c-reset">
-                            <button type="button" class="button button-secondary btn-siarhe btn-download-map siarhe-reset-btn" title="Volver a la configuración inicial">
+                            <button type="button" class="siarhe-btn siarhe-reset-btn" title="Volver a la configuración inicial">
                                 <svg class="siarhe-reset-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 3 3 9 9 9"/></svg>
                                 <span>Restablecer</span>
                             </button>
@@ -373,9 +379,128 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const resetBtn = wrapper.querySelector('.siarhe-reset-btn');
             if (resetBtn) resetBtn.addEventListener('click', () => app.controls.resetAll(container, state, onUpdate));
 
+            if (!isTableOnly) app.controls.initPalette(container, state, wrapper, onUpdate);
+
             ph.appendChild(wrapper);
             app.controls.enhanceDropdowns(container, wrapper);
             app.controls.updateMarkerDropdownText(state);
+        },
+
+        /**
+         * Panel "Personalizar": el visitante cambia los colores del mapa para su vista y para la imagen
+         * que descargue. Los cambios viven solo en el navegador (state.customColors); no se guardan en el sitio.
+         */
+        initPalette: function(container, state, wrapper, onUpdate) {
+            const btn = wrapper.querySelector('.siarhe-palette-btn');
+            const row = wrapper.querySelector('.siarhe-controls-row');
+            if (!btn || !row) return;
+
+            const hex = (c) => { try { const k = d3.color(c); return k ? k.formatHex() : '#000000'; } catch (e) { return '#000000'; } };
+            const norm = (m) => (m === 'mono' || m === 'monocromatico') ? 'monocromatico' : (m === 'rangos' ? 'rangos' : 'cuartiles');
+
+            // Colores de los rangos: si la metrica trae los suyos se muestran esos
+            const rangeColors = () => {
+                const info = state.metricas[state.currentMetric] || {};
+                return [1, 2, 3, 4].map(n => (info.custom_colors === true && info['r' + n + '_color']) ? info['r' + n + '_color'] : app.colors.CUSTOM_RANGE[n - 1]);
+            };
+            const current = () => state.customColors || { RANGE: app.colors.RANGE, MONO: app.colors.MONO, CUSTOM_RANGE: rangeColors(), ZERO: app.colors.ZERO, NULL: app.colors.NULL };
+
+            const GROUPS = [
+                { id: 'cuartiles', title: 'Degradado por colores', key: 'RANGE', labels: ['Mínimo', 'Q1', 'Q2', 'Q3', 'Máximo'] },
+                { id: 'monocromatico', title: 'Escala monocromática', key: 'MONO', labels: ['Claro', 'Oscuro'] },
+                { id: 'rangos', title: 'Rangos', key: 'CUSTOM_RANGE', labels: ['Rango 1', 'Rango 2', 'Rango 3', 'Rango 4'] },
+                { id: 'especiales', title: 'Valores especiales', singles: [['ZERO', 'Valor 0'], ['NULL', 'Sin dato (S/D)']] }
+            ];
+
+            const panel = document.createElement('div');
+            panel.className = 'siarhe-palette-panel';
+            panel.hidden = true;
+            panel.setAttribute('role', 'group');
+            panel.setAttribute('aria-label', 'Personalizar colores del mapa');
+
+            const head = document.createElement('div');
+            head.className = 'siarhe-palette-head';
+            const hTitle = document.createElement('strong'); hTitle.textContent = 'Personalizar colores del mapa';
+            const hNote = document.createElement('span'); hNote.textContent = 'Solo cambia tu vista y la imagen que descargues. No se guarda en el sitio.';
+            head.appendChild(hTitle); head.appendChild(hNote);
+            panel.appendChild(head);
+
+            const groupsEl = document.createElement('div');
+            groupsEl.className = 'siarhe-palette-groups';
+            const inputs = [];
+
+            GROUPS.forEach(g => {
+                const fs = document.createElement('fieldset');
+                fs.className = 'siarhe-palette-group';
+                fs.setAttribute('data-style', g.id);
+                const lg = document.createElement('legend'); lg.textContent = g.title; fs.appendChild(lg);
+                const items = g.singles ? g.singles.map(x => ({ key: x[0], idx: null, label: x[1] }))
+                                        : current()[g.key].map((_, i) => ({ key: g.key, idx: i, label: g.labels[i] || ('Color ' + (i + 1)) }));
+                items.forEach(it => {
+                    const lab = document.createElement('label');
+                    lab.className = 'siarhe-palette-item';
+                    const inp = document.createElement('input');
+                    inp.type = 'color';
+                    inp.setAttribute('aria-label', g.title + ': ' + it.label);
+                    const txt = document.createElement('span'); txt.textContent = it.label;
+                    lab.appendChild(inp); lab.appendChild(txt);
+                    fs.appendChild(lab);
+                    inputs.push({ el: inp, key: it.key, idx: it.idx });
+                });
+                groupsEl.appendChild(fs);
+            });
+            panel.appendChild(groupsEl);
+
+            const actions = document.createElement('div');
+            actions.className = 'siarhe-palette-actions';
+            const restore = document.createElement('button');
+            restore.type = 'button'; restore.className = 'siarhe-btn siarhe-palette-restore'; restore.textContent = 'Restaurar colores del sitio';
+            const close = document.createElement('button');
+            close.type = 'button'; close.className = 'siarhe-btn siarhe-palette-close'; close.textContent = 'Cerrar';
+            actions.appendChild(restore); actions.appendChild(close);
+            panel.appendChild(actions);
+
+            row.insertAdjacentElement('afterend', panel);
+
+            const refresh = () => {
+                const pal = current();
+                inputs.forEach(i => { i.el.value = hex(i.idx === null ? pal[i.key] : pal[i.key][i.idx]); });
+                const mode = norm(state.colorMode || (state.metricas[state.currentMetric] || {}).scale_type);
+                groupsEl.querySelectorAll('.siarhe-palette-group').forEach(f => { const id = f.getAttribute('data-style'); f.hidden = !(id === mode || id === 'especiales'); });
+                restore.disabled = !state.customColors;
+                btn.classList.toggle('is-modified', !!state.customColors);
+            };
+            state._paletteRefresh = refresh;
+
+            let pending = false;
+            const schedule = () => {
+                if (pending) return;
+                pending = true;
+                requestAnimationFrame(() => { pending = false; if (typeof onUpdate === 'function') onUpdate(); refresh(); });
+            };
+
+            inputs.forEach(i => i.el.addEventListener('input', () => {
+                if (!state.customColors) {
+                    const c = current();
+                    state.customColors = { RANGE: c.RANGE.slice(), MONO: c.MONO.slice(), CUSTOM_RANGE: c.CUSTOM_RANGE.slice(), ZERO: c.ZERO, NULL: c.NULL };
+                }
+                if (i.idx === null) state.customColors[i.key] = i.el.value; else state.customColors[i.key][i.idx] = i.el.value;
+                schedule();
+            }));
+
+            const setOpen = (open) => {
+                panel.hidden = !open;
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                if (open) refresh();
+            };
+            btn.addEventListener('click', () => setOpen(panel.hidden));
+            close.addEventListener('click', () => { setOpen(false); btn.focus(); });
+            restore.addEventListener('click', () => { state.customColors = null; refresh(); if (typeof onUpdate === 'function') onUpdate(); });
+            panel.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setOpen(false); btn.focus(); } });
+
+            // Si cambian el estilo o el indicador con el panel abierto, se reflejan sus colores
+            container.addEventListener('change', (e) => { if (!panel.hidden && e.target && e.target.id === 'siarhe-escala-select') refresh(); });
+            panel.addEventListener('pointerenter', () => { if (!state.customColors) refresh(); });
         },
 
         toggleMarker: async function(type, state, container) {
@@ -508,8 +633,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     let keep = !isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0;
 
                     if (keep && !state.isNacional && cveEntKey) {
+                        // Sin clave de entidad el punto no se puede asignar a ningun mapa: no se dibuja
                         const cveEntMarker = fastVal(d, cveEntKey);
-                        if (cveEntMarker && cveEntMarker.padStart(2, '0') !== currentEnt) keep = false;
+                        if (!cveEntMarker || cveEntMarker.padStart(2, '0') !== currentEnt) keep = false;
                     }
 
                     if (keep && filtroCol && filtroVal) {
@@ -632,6 +758,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (state.svg && state.zoom && state.initialTransform) {
                 state.svg.transition().duration(app.utils.motionMs(600)).call(state.zoom.transform, state.initialTransform);
             }
+
+            // 5c) Colores personalizados por el visitante
+            state.customColors = null;
+            if (typeof state._paletteRefresh === 'function') state._paletteRefresh();
 
             // 6) Recolorear mapa, tabla y totales; la URL vuelve a quedar limpia
             if (typeof onUpdate === 'function') onUpdate();

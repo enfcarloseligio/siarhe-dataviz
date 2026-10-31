@@ -255,40 +255,42 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     margin-top: 20px;
 }
 
-.btn-siarhe {
+/* Botones: un solo estilo para todo el frontend, configurable en Personalizar > Mapa y Colores
+   (variables --s-btn-*). No usan las clases .button del tema para que este no los recolore. */
+.siarhe-viz-wrapper .siarhe-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 8px;
     padding: 8px 16px;
     border-radius: 4px;
     font-weight: 600;
-    cursor: pointer;
-    border: none;
-    transition: background 0.2s, transform 0.1s;
     font-size: 13px;
+    line-height: 1.4;
+    cursor: pointer;
     text-decoration: none;
+    text-shadow: none;
+    box-shadow: none;
+    background-color: var(--s-btn-bg, #0A66C2);
+    border: 1px solid var(--s-btn-border, #0A66C2);
+    color: var(--s-btn-text, #F8FAFC);
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.1s;
 }
-
-.btn-siarhe:active { transform: translateY(1px); }
-
-.btn-download-map {
-    background-color: #f0f0f1;
-    color: #1d2327;
-    border: 1px solid #c3c4c7;
+.siarhe-viz-wrapper .siarhe-btn:hover,
+.siarhe-viz-wrapper .siarhe-btn:focus-visible {
+    background-color: var(--s-btn-hover-bg, #084C94);
+    border-color: var(--s-btn-hover-border, #084C94);
+    color: var(--s-btn-hover-text, #F8FAFC);
 }
-.btn-download-map:hover { 
-    background-color: #e0e0e0;
-    color: #1d2327;
+.siarhe-viz-wrapper .siarhe-btn:active {
+    background-color: var(--s-btn-active-bg, #063A73);
+    border-color: var(--s-btn-active-border, #063A73);
+    color: var(--s-btn-active-text, #F8FAFC);
+    transform: translateY(1px);
 }
-
-.btn-primary {
-    background-color: #0A66C2; 
-    color: #F8FAFC;
-}
-.btn-primary:hover { 
-    background-color: #084C94; 
-    color: #F8FAFC;
-}
+.siarhe-viz-wrapper .siarhe-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.siarhe-viz-wrapper .siarhe-btn svg,
+.siarhe-viz-wrapper .siarhe-btn .dashicons { color: inherit; }
 
 /* =========================================
    8. FOOTER Y ENLACES LEGALES
@@ -658,7 +660,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 .siarhe-viz-wrapper .siarhe-cs-trigger:focus-visible,
 .siarhe-viz-wrapper .mc-trigger:focus-visible,
 .siarhe-viz-wrapper table.siarhe-data-table th:focus-visible,
-.siarhe-viz-wrapper .btn-siarhe:focus-visible {
+.siarhe-viz-wrapper .siarhe-btn:focus-visible {
     outline: 2px solid #0A66C2;
     outline-offset: 2px;
 }
@@ -681,7 +683,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 
 /* =========================================
    13. BOTON "RESTABLECER" (junto al Estilo de Mapa)
-   Hereda colores y estados (hover/foco) de .btn-siarhe / .btn-download-map, igual que los
+   Hereda colores y estados (hover/foco) de .siarhe-btn, igual que los
    botones de Mapa PNG, Etiquetas y Copiar enlace; aqui solo se ajusta la altura al selector.
    ========================================= */
 .siarhe-viz-wrapper .siarhe-control-group.siarhe-control-group--action {
@@ -913,4 +915,74 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
         max-width: none;
         padding: 6px 8px;
     }
+}
+
+
+/* =========================================
+   TABLA PLEGABLE (cuando se muestran mapa y tabla juntos)
+   Cerrada por defecto: las tablas grandes no empujan las referencias.
+   ========================================= */
+.siarhe-table-details > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.siarhe-table-details > summary::-webkit-details-marker { display: none; }
+.siarhe-table-details > summary h2 { margin: 0; flex: 1 1 320px; }
+.siarhe-table-toggle {
+    display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
+    padding: 8px 16px; border-radius: 4px; font-weight: 600; font-size: 13px; line-height: 1.4;
+    background-color: var(--s-btn-bg, #0A66C2);
+    border: 1px solid var(--s-btn-border, #0A66C2);
+    color: var(--s-btn-text, #F8FAFC);
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+.siarhe-table-toggle::before { content: "Mostrar tabla \25BE"; }
+.siarhe-table-details[open] .siarhe-table-toggle::before { content: "Ocultar tabla \25B4"; }
+.siarhe-table-details > summary:hover .siarhe-table-toggle,
+.siarhe-table-details > summary:focus-visible .siarhe-table-toggle {
+    background-color: var(--s-btn-hover-bg, #084C94);
+    border-color: var(--s-btn-hover-border, #084C94);
+    color: var(--s-btn-hover-text, #F8FAFC);
+}
+.siarhe-table-details > summary:active .siarhe-table-toggle {
+    background-color: var(--s-btn-active-bg, #063A73);
+    border-color: var(--s-btn-active-border, #063A73);
+    color: var(--s-btn-active-text, #F8FAFC);
+}
+.siarhe-table-details > summary:focus-visible { outline: 2px solid #0A66C2; outline-offset: 4px; border-radius: 6px; }
+.siarhe-table-body { margin-top: 16px; }
+
+
+/* =========================================
+   PERSONALIZAR COLORES DEL MAPA (solo en el navegador del visitante)
+   ========================================= */
+.siarhe-viz-wrapper .siarhe-palette-btn { height: 38px; white-space: nowrap; }
+.siarhe-viz-wrapper .siarhe-palette-btn svg { flex: none; width: 16px; height: 16px; }
+/* Con colores personalizados activos: un punto, sin cambiar el color del texto del boton */
+.siarhe-viz-wrapper .siarhe-palette-btn.is-modified::after {
+    content: ""; width: 8px; height: 8px; border-radius: 50%; background: #facc15; box-shadow: 0 0 0 1px rgba(0,0,0,.25);
+}
+.siarhe-viz-wrapper .siarhe-palette-panel {
+    background: #fff; border: 1px solid #c3d4e6; border-radius: 6px; padding: 12px 16px;
+    display: flex; flex-direction: column; gap: 10px;
+}
+.siarhe-viz-wrapper .siarhe-palette-panel[hidden] { display: none; }
+.siarhe-viz-wrapper .siarhe-palette-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.siarhe-viz-wrapper .siarhe-palette-head strong { color: #0F172A; font-size: 14px; }
+.siarhe-viz-wrapper .siarhe-palette-head span { color: #64748b; font-size: 12px; }
+.siarhe-viz-wrapper .siarhe-palette-groups { display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px 24px; }
+.siarhe-viz-wrapper .siarhe-palette-group {
+    flex: 0 1 auto; margin: 0; padding: 0; border: 0; min-width: 0;
+    display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px;
+}
+.siarhe-viz-wrapper .siarhe-palette-group[hidden] { display: none; }
+.siarhe-viz-wrapper .siarhe-palette-group legend {
+    float: left; width: 100%; padding: 0; margin: 0 0 6px; font-size: 12px; font-weight: 600; color: #0A66C2;
+}
+.siarhe-viz-wrapper .siarhe-palette-group[data-style="especiales"] { padding-left: 24px; border-left: 1px solid #e2e8f0; }
+.siarhe-viz-wrapper .siarhe-palette-item { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; color: #475569; cursor: pointer; }
+.siarhe-viz-wrapper .siarhe-palette-item input[type="color"] { width: 34px; height: 28px; padding: 0; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; cursor: pointer; }
+.siarhe-viz-wrapper .siarhe-palette-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 767px) {
+    .siarhe-viz-wrapper .siarhe-palette-btn { width: 100%; }
+    .siarhe-viz-wrapper .siarhe-palette-group[data-style="especiales"] { padding-left: 0; border-left: 0; }
+    .siarhe-viz-wrapper .siarhe-palette-actions { justify-content: stretch; }
+    .siarhe-viz-wrapper .siarhe-palette-actions .siarhe-btn { flex: 1 1 auto; }
 }
