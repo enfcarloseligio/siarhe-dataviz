@@ -158,7 +158,7 @@ $icons = array( 'ok' => 'yes-alt', 'warn' => 'warning', 'fail' => 'dismiss', 'pe
     </div>
 
     <div class="siarhe-card siarhe-card--flush">
-        <h2 class="siarhe-card__title"><span class="dashicons dashicons-heart"></span> Salud del sistema</h2>
+        <h2 class="siarhe-card__title"><span class="dashicons dashicons-heart"></span> Salud del sistema<?php Siarhe_Admin::help( 'Comprobaciones automáticas del servidor y del plugin: permisos de la carpeta de datos, límites de subida, memoria, compresión de copias y acceso a D3.js. Un aviso amarillo o rojo indica qué conviene revisar con tu hosting.' ); ?></h2>
         <ul class="siarhe-health">
             <?php foreach ( $health as $h ) : ?>
                 <li class="is-<?php echo esc_attr( $h['state'] ); ?>"<?php echo ! empty( $h['id'] ) ? ' id="' . esc_attr( $h['id'] ) . '"' : ''; ?>>
@@ -173,7 +173,7 @@ $icons = array( 'ok' => 'yes-alt', 'warn' => 'warning', 'fail' => 'dismiss', 'pe
     </div>
 
     <div class="siarhe-card siarhe-card--flush">
-        <h2 class="siarhe-card__title"><span class="dashicons dashicons-grid-view"></span> Entidades y shortcodes</h2>
+        <h2 class="siarhe-card__title"><span class="dashicons dashicons-grid-view"></span> Entidades y shortcodes<?php Siarhe_Admin::help( 'Las 34 entidades y qué archivos tiene cada una (GeoJSON, base CSV y localidades). Usa los botones Completo, Mapa o Tabla para copiar el shortcode y pegarlo en una página. Puedes buscar, filtrar por estado y ordenar las columnas.' ); ?></h2>
         <div class="siarhe-toolbar">
             <div class="siarhe-table-controls">
                 <label>

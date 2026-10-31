@@ -83,6 +83,7 @@ $entidades = [
 </div>
 
 <div class="siarhe-card siarhe-card--flush">
+    <h2 class="siarhe-card__title">Enlaces configurados<?php Siarhe_Admin::help( 'Cada fila es un mapa o documento del sitio y la página a la que lleva el enlace. Puedes buscar y ordenar la tabla; los cambios se guardan con el botón Guardar.' ); ?></h2>
     
     <div class="siarhe-toolbar">
         <div class="siarhe-table-controls">

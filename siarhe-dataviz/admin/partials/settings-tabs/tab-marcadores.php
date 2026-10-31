@@ -80,6 +80,7 @@ if ( empty($marcadores_json) ) {
 </div>
 
 <div class="siarhe-card siarhe-card--flush">
+    <h2 class="siarhe-card__title">Marcadores configurados<?php Siarhe_Admin::help( 'Variables de marcador que se dibujan sobre el mapa: tipo, CSV de origen y filtro. Puedes buscar, ordenar y editar cada una con el botón de acciones.' ); ?></h2>
     
     <div class="siarhe-toolbar">
         <div class="siarhe-table-controls">

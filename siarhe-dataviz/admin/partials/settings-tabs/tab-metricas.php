@@ -74,6 +74,7 @@ if ( empty($metricas_json) ) {
 </div>
 
 <div class="siarhe-card siarhe-card--flush">
+    <h2 class="siarhe-card__title">Métricas registradas<?php Siarhe_Admin::help( 'Columnas del CSV que el mapa y la tabla pueden mostrar como indicador. Las nativas (con candado) no se pueden eliminar. Puedes buscar, ordenar y editar cada métrica con el botón de acciones.' ); ?></h2>
     <div class="siarhe-toolbar">
         <div class="siarhe-table-controls">
             <label style="font-size: 13px; color: #3c434a;">
