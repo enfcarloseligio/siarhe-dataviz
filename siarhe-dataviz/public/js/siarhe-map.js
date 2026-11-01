@@ -182,7 +182,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
             state.initialTransform = initialTransform;
 
-            d3.selectAll(mapDiv.querySelectorAll(".siarhe-tooltip")).remove(); 
+            d3.selectAll(mapDiv.querySelectorAll(".siarhe-tooltip, .siarhe-stack-card")).remove();
             state.tooltip = d3.select(mapDiv).append("div")
                 .attr("class", "siarhe-tooltip")
                 .style("opacity", 0)
@@ -220,6 +220,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 });
 
             app.map.enableKeyboard(container, state, mapDiv);
+            app.map.stackBind(state);
 
             let maxZoom = state.initialTransform.k * 25; 
             if (maxZoom < 50) maxZoom = 50;
@@ -239,6 +240,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .on("zoom", (e) => {
                     gMain.attr("transform", e.transform);
                     if (state.gMeasureHost) state.gMeasureHost.attr("transform", e.transform);
+                    if (state._stack && e.sourceEvent) app.map.stackClose(state);   // el panel esta anclado en pantalla, no al mapa
                     // Animaciones programadas (Restablecer, botones + y -): el canvas se dibuja en el mismo cuadro que el mapa;
                     // si se agendara para el siguiente, los marcadores irian un paso atras durante el movimiento.
                     // Con el puntero o el dedo (sourceEvent) se agrupa en un solo dibujo por cuadro.
@@ -927,7 +929,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
             cv.pts = pts; cv.spk = spk; cv.hasSpk = hasSpk; cv.hasBub = hasBub;
             cv.qt = pts.length ? d3.quadtree().x(p => p.x).y(p => p.y).addAll(pts) : null;
-            cv.hover = null;
+            cv.hover = null; cv.sel = null;
 
             // Fundido de entrada solo si cambia el conjunto de puntos
             const sig = pts.length + ':' + (pts.length ? pts[0].d._uid + '|' + pts[pts.length - 1].d._uid : '');
@@ -1067,8 +1069,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             ctx.globalAlpha = 1;
 
             // Marcador bajo el cursor: borde mas grueso
-            const hv = cv.hover;
-            if (hv) {
+            [cv.hover, cv.sel].forEach(function(hv) {
+                if (!hv) return;
                 const sx = Math.round(v.ox + v.sc * (v.t.x + v.k * hv.x)), sy = Math.round(v.oy + v.sc * (v.t.y + v.k * hv.y));
                 if (hv.kind === 'spk') {
                     const col = cv.spk[hv.d.tipo];
@@ -1084,7 +1086,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     ctx.fill(sp.path); ctx.stroke(sp.path);
                     ctx.restore();
                 }
-            }
+            });
             app.utils.perf('canvas: dibujo de marcadores', t0, drawn + ' de ' + pts.length + ' visibles');
         },
 
@@ -1138,6 +1140,134 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             return bestPos || bestDen;
         },
 
+        /**
+         * Marcadores encimados en el canvas: el que esta bajo el puntero (primero) y despues los que tambien cubren su
+         * centro, del de mas arriba al de mas abajo. Solo se calcula al hacer clic o tocar. No agrupa: cada marcador sigue siendo uno.
+         * Posicion: centros a menos de ~75 % del radio de toque; burbuja y pico: su forma real.
+         */
+        _cvStackAt: function(state, clientX, clientY) {
+            const top = app.map._cvHit(state, clientX, clientY);
+            if (!top) return [];
+            const cv = state._cv, v = app.map._cvView(state);
+            if (!v) return [top.d];
+            const k2 = v.k * v.sc;
+            const dims = app.map._cvDensityDims(state, v);
+            const tol = dims.m.isTouch ? 8 : 3;
+            const posR = (dims.m.isTouch ? 16 : 9) * 0.75;
+            const reach = Math.max(posR, cv.hasBub ? Math.sqrt(dims.aMax / Math.PI) + tol : 0, cv.hasSpk ? dims.spkMax + tol : 0);
+            const R = reach / k2;
+            const found = [];
+            cv.qt.visit((node, x0, y0, x1, y1) => {
+                if (!node.length) {
+                    let n = node;
+                    do {
+                        const p = n.data;
+                        if (p !== top) {
+                            const dx = (top.x - p.x) * k2, dy = (top.y - p.y) * k2;
+                            let ok = false;
+                            if (p.kind === 'pos') ok = dx * dx + dy * dy <= posR * posR;
+                            else if (p.kind === 'bub') {
+                                const rad = Math.sqrt((dims.aMin + (dims.aMax - dims.aMin) * p.frac) / Math.PI) + tol;
+                                ok = dx * dx + dy * dy <= rad * rad;
+                            } else {
+                                const h = dims.spkMin + (dims.spkMax - dims.spkMin) * p.t;
+                                if (dy <= tol && dy >= -h - tol) {
+                                    const up = Math.min(1, Math.max(0, -dy / h));
+                                    ok = Math.abs(dx) <= Math.max(dims.spkW, dims.spkHit) * (1 - up) + tol;
+                                }
+                            }
+                            if (ok) found.push(p);
+                        }
+                    } while ((n = n.next));
+                }
+                return x0 > top.x + R || x1 < top.x - R || y0 > top.y + R || y1 < top.y - R;
+            });
+            found.sort((a, b) => b.i - a.i);                           // mayor indice = dibujado despues = mas arriba
+            found.unshift(top);
+            state._stackPts = found;                                   // para resaltar el elegido en el canvas
+            return found.map(p => p.d);
+        },
+
+        /** Marcadores encimados en el punto tocado, en SVG (pocos marcadores): los elementos que hay bajo el puntero. */
+        _svgStackAt: function(e) {
+            const els = document.elementsFromPoint ? document.elementsFromPoint(e.clientX, e.clientY) : [e.target];
+            const out = [], seen = new Set();
+            els.forEach(function(el) {
+                if (el.classList && el.classList.contains('siarhe-marker') && el.__data__ && !seen.has(el.__data__._uid)) {
+                    seen.add(el.__data__._uid);
+                    out.push({ d: el.__data__, el: el });
+                }
+            });
+            const first = out.findIndex(o => o.el === e.target);       // el tocado va primero
+            if (first > 0) out.unshift(out.splice(first, 1)[0]);
+            return out;
+        },
+
+        /**
+         * Clic o toque sobre un marcador. Con uno solo, no cambia nada. Con varios encimados abre el panel (1 de N);
+         * otro toque en el mismo lugar pasa al siguiente. Devuelve true si atendio el clic como pila.
+         */
+        stackClick: function(state, e, list, nodes) {
+            const mapDiv = state.svg.node().parentNode;
+            const pt = d3.pointer(e, mapDiv);
+            const st = state._stack;
+            if (list.length < 2) { app.map.stackClose(state); return false; }
+
+            const same = st && st.list.length === list.length && st.list.every((d, i) => d._uid === list[i]._uid);
+            const near = st && Math.hypot(st.ax - pt[0], st.ay - pt[1]) <= 8;
+            if (same || near && st.list.some(d => d._uid === list[0]._uid)) {
+                st.idx = (st.idx + 1) % st.list.length;
+                st.ax = pt[0]; st.ay = pt[1];
+            } else {
+                state._stack = { list: list, idx: 0, ax: pt[0], ay: pt[1], nodes: nodes || null, pts: nodes ? null : (state._stackPts || null) };
+            }
+            if (state.tooltip) state.tooltip.style('opacity', 0).style('display', 'none');
+            app.map.stackShow(state);
+            return true;
+        },
+
+        /** Muestra el panel y resalta el marcador actual. */
+        stackShow: function(state) {
+            const st = state._stack;
+            if (!st) return;
+            const mapDiv = state.svg.node().parentNode;
+            app.tooltips.showStackCard(state, mapDiv, st);
+            app.map._stackMark(state);
+        },
+
+        /** Resalta el marcador actual de la pila (canvas: borde grueso encima; SVG: borde grueso y al frente). */
+        _stackMark: function(state) {
+            const st = state._stack, cv = state._cv;
+            if (cv) {
+                cv.sel = (st && st.pts) ? st.pts[st.idx] : null;
+                app.map._cvSchedule(state);
+            }
+            if (state._stackEl) { app.map._svgUnmark(state, state._stackEl); state._stackEl = null; }
+            if (st && st.nodes && st.nodes[st.idx]) {
+                const el = st.nodes[st.idx];
+                let k = 1; try { k = d3.zoomTransform(state.svg.node()).k; } catch (err) {}
+                const mt = app.map._markerMetrics(state, k);
+                el.setAttribute('stroke-width', (2.5 * mt.strokePx) / (k * mt.sc));
+                if (!app.utils.isDensity((state.markerLabels[el.__data__.tipo] || {}).tipo)) d3.select(el).raise();
+                state._stackEl = el;
+            }
+        },
+
+        _svgUnmark: function(state, el) {
+            let k = 1; try { k = d3.zoomTransform(state.svg.node()).k; } catch (err) {}
+            const mt = app.map._markerMetrics(state, k);
+            el.setAttribute('stroke-width', mt.strokePx / (k * mt.sc));
+        },
+
+        /** Cierra el panel (clic en otro lado, zoom, cerrar o cambio de marcadores). */
+        stackClose: function(state) {
+            if (!state._stack && !(state.stackCard && state.stackCard.style.display !== 'none')) return;
+            state._stack = null;
+            state._stackPts = null;
+            if (state.stackCard) state.stackCard.style.display = 'none';
+            app.map._stackMark(state);
+        },
+
         /** Eventos sobre el canvas (que no recibe el puntero): tooltip, resaltado y clic para medir. */
         _cvBind: function(state) {
             const node = state.svg && state.svg.node();
@@ -1155,20 +1285,37 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const cv = state._cv;
                 if (cv && cv.hover) { cv.hover = null; node.style.cursor = ''; app.map._cvSchedule(state); }
             });
-            // En captura: un clic sobre un marcador no debe llegar al poligono de abajo (doble clic = cambiar de entidad)
+        },
+
+        /**
+         * Clic o toque sobre los marcadores (canvas o SVG), en captura: un clic sobre un marcador no debe llegar al poligono
+         * de abajo (doble clic = cambiar de entidad). Los encimados se calculan solo aqui, no mientras se mueve el puntero.
+         */
+        stackBind: function(state) {
+            const node = state.svg && state.svg.node();
+            if (!node || node.__siarheStackBound) return;
+            node.__siarheStackBound = true;
+
             node.addEventListener('click', (e) => {
                 const cv = state._cv;
-                if (!cv || !cv.pts.length) return;
-                const hit = app.map._cvHit(state, e.clientX, e.clientY);
-                if (!hit) return;
+                let list = [], nodes = null;
+                if (cv && cv.pts.length) {
+                    list = app.map._cvStackAt(state, e.clientX, e.clientY);
+                } else if (e.target && e.target.classList && e.target.classList.contains('siarhe-marker')) {
+                    const items = app.map._svgStackAt(e);
+                    list = items.map(o => o.d); nodes = items.map(o => o.el);
+                }
+                if (!list.length) { app.map.stackClose(state); return; }     // clic en otro lado: se cierra el panel
                 e.stopPropagation();
-                if (state.measure && state.measure.active) app.map.measureAddPoint(state, hit.d);
+                if (list.length > 1) { app.map.stackClick(state, e, list, nodes); return; }
+                app.map.stackClose(state);
+                if (state.measure && state.measure.active) app.map.measureAddPoint(state, list[0]);
             }, true);
         },
 
         _cvPointer: function(state, e) {
             const cv = state._cv;
-            if (!cv || !e || !state.svg) return;
+            if (!cv || !e || !state.svg || state._stack) return;       // con el panel abierto no hay tooltip al pasar
             const node = state.svg.node();
             const mapDiv = node.parentNode;
             const hit = app.map._cvHit(state, e.clientX, e.clientY);
@@ -1505,6 +1652,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             // Reparto: con muchos marcadores (posicion, burbujas y picos) se dibujan todos en canvas, un dibujo por cuadro
             // en vez de miles de elementos SVG; con pocos puntos siguen en SVG
+            app.map.stackClose(state);          // los puntos cambian: el panel de encimados ya no aplica
             const cvOn = app.map._cvDecide(state, allPoints);
             const cvPoints = cvOn ? allPoints : [];
             const svgPoints = cvOn ? [] : allPoints;
@@ -1529,7 +1677,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
                 state.gMarkers
                     .on("mouseover", function(e) {
-                        if (!isMarker(e)) return;
+                        if (!isMarker(e) || state._stack) return;
                         const node = e.target, d = node.__data__;
                         if (!d) return;
                         const k = zoomK();
@@ -1543,20 +1691,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         if (app.tooltips && mapDiv) app.tooltips.showMarkerTooltip(e, d, state, mapDiv);
                     })
                     .on("mouseout", function(e) {
-                        if (!isMarker(e)) return;
+                        if (!isMarker(e) || e.target === state._stackEl) return;
                         const kz = zoomK(), mz = app.map._markerMetrics(state, kz);
                         e.target.setAttribute("stroke-width", mz.strokePx / (kz * mz.sc));
                         if (state.tooltip) state.tooltip.style("display", "none");
-                    })
-                    .on("click", function(e) {
-                        if (!isMarker(e)) return;
-                        const d = e.target.__data__;
-                        // Con el modo medicion activo, el clic selecciona el marcador como punto de la ruta
-                        if (d && state.measure && state.measure.active) {
-                            e.stopPropagation();
-                            app.map.measureAddPoint(state, d);
-                        }
                     });
+                // El clic (medir, marcadores encimados) se atiende en app.map.stackBind
             }
 
             // El orden en el DOM define el apilado: solo hace falta reordenar si hay burbujas de espectro

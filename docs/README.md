@@ -7,6 +7,7 @@ Documentación técnica y de decisiones del plugin. Vive en la raíz del reposit
 | [requisitos.md](requisitos.md) | Versiones mínimas de PHP y WordPress, extensiones, servidor y navegadores |
 | [arquitectura.md](arquitectura.md) | Cómo está organizado el plugin: backend, frontend, datos y capas del mapa |
 | [administracion.md](administracion.md) | Pantallas del panel (Dashboard, Carga de Datos, Configuración, Personalizar) |
+| [metricas-y-marcadores.md](metricas-y-marcadores.md) | **Guía campo por campo** para agregar métricas y marcadores nuevos y qué hace cada cosa en el panel |
 | [formatos-de-datos.md](formatos-de-datos.md) | Reglas de los CSV y GeoJSON que se suben, columnas obligatorias y plantillas |
 | [rendimiento-mapa.md](rendimiento-mapa.md) | Optimizaciones del mapa (canvas, workers, copias de lectura), números medidos y banderas de diagnóstico |
 | [decisiones.md](decisiones.md) | Decisiones de diseño importantes y su porqué |

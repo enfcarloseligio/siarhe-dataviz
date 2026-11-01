@@ -2,6 +2,14 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.1.0] - 2026-10-31
+
+### Mapa
+- **Marcadores encimados:** al hacer clic o tocar un marcador que tiene otros debajo (o en la misma coordenada) se abre un panel con "n de N", flechas, una lista numerada tocable y la tarjeta del marcador actual; otro toque en el mismo lugar pasa al siguiente. Se calcula solo al tocar, no agrupa ni fusiona marcadores y funciona en canvas y en SVG. Con la medición activa, una pila ofrece *Agregar a la medición*.
+
+### Documentación
+- Nueva guía [docs/metricas-y-marcadores.md](docs/metricas-y-marcadores.md): campo por campo para agregar métricas y marcadores y qué hace cada cosa en el panel.
+
 ## [0.1.0.1] - 2026-10-31
 
 ### Proyecto

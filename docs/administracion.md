@@ -33,6 +33,8 @@ Reemplazar un archivo **guarda una copia del anterior** (ver *Versiones y Copias
 - **Tooltips:** contenido, orden y colores de las tarjetas del mapa y de los marcadores.
 - **Métricas (CSV):** indicadores (columnas del CSV). Las **nativas** están protegidas; se pueden agregar propias con tipo (tasa o absoluto), escala y colores.
 - **Marcadores (CSV):** variables de marcador (posición, espectro o *spike*), su CSV de origen, filtros, agrupación y reglas del tooltip.
+
+> La guía detallada, campo por campo, de **métricas** y **marcadores** (y los pasos para agregar uno nuevo) está en [metricas-y-marcadores.md](metricas-y-marcadores.md).
 - **Versiones y Copias:** cuántas copias conservar por archivo (0–5, por defecto 1), compresión `.gz` de las copias (si hay `zlib`), espacio usado, **copias de lectura** (activar/desactivar), **historial de versiones** con filtro por tipo, buscador y paginación, y **restaurar** o eliminar cada copia con confirmación. La actividad reciente (quién restauró o eliminó qué) queda registrada.
 
 ## Tablas del panel

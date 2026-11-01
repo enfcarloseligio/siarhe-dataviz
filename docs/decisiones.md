@@ -35,6 +35,8 @@ Formato: **qué se decidió** — porqué — consecuencias. Las más recientes 
 - **Los motores de tabla de Enlaces, Métricas y Marcadores no se unificaron del todo**: son editores con filas mutables; se les añadió solo el orden por columna.
 - **Diccionario en `.xlsx` con `ZipArchive`**, con respaldo a CSV si no está disponible.
 
+- **Marcadores encimados: se calculan solo al hacer clic o tocar, sin agrupar.** Al tocar un marcador, una sola consulta al índice espacial (`_cvStackAt`; en SVG, `elementsFromPoint`) junta los que cubren su centro (posición: centros a menos de ~75 % del radio de toque; burbujas y espinas: su forma real). Si son 2 o más se abre un panel tocable ("1 de N", flechas y lista numerada; el tocado es el 1 y los demás van de arriba hacia abajo según el apilado) y otro toque en el mismo lugar pasa al siguiente. No se fusiona nada: dos establecimientos con la misma coordenada siguen siendo marcadores distintos (la agrupación por CLUES es otra cosa y ya viene hecha en los datos). Con la medición activa, un marcador aislado se agrega como siempre y una pila abre el panel con el botón *Agregar a la medición*. Mover el mapa, acercar, cambiar los marcadores o tocar en otro lado cierra el panel.
+
 ## Proyecto
 
 - **Mapa estático primero, dinámico (SQL) después.** El Gestor de Bases será el punto de entrada del mapa dinámico; ver [versiones-y-publicacion.md](versiones-y-publicacion.md).

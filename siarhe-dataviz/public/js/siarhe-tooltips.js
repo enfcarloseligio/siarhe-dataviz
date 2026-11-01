@@ -250,6 +250,22 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         },
 
         showMarkerTooltip: function(event, d, state, mapDiv) {
+            const card = app.tooltips.markerCard(d, state);
+            const [mx, my] = d3.pointer(event, mapDiv);
+
+            state.tooltip.html(card.html)
+                .style("background-color", card.bg)
+                .style("color", card.txt)
+                .style("border-radius", "6px")
+                .style("padding", "10px 14px")
+                .style("box-shadow", "0 4px 15px rgba(0,0,0,0.2)")
+                .style("display", "block")
+                .style("opacity", 1);
+            app.tooltips.position(state, mapDiv, mx, my);
+        },
+
+        /** Contenido (HTML) y colores de la tarjeta de un marcador; lo usan el tooltip y el panel de marcadores apilados. */
+        markerCard: function(d, state) {
             const tc = function(v) { return app.utils.titleCase(v); };
             const tt = state.tooltipConfig || {}; 
             const hlVar = tt.mk_highlight_var || 'none';
@@ -358,17 +374,84 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             html += htmlReglas; 
             html += `</div>`;
 
-            const [mx, my] = d3.pointer(event, mapDiv);
+            return { html: html, bg: finalBgColor, txt: txtColor };
+        },
 
-            state.tooltip.html(html)
-                .style("background-color", finalBgColor)
-                .style("color", txtColor)
-                .style("border-radius", "6px")
-                .style("padding", "10px 14px")
-                .style("box-shadow", "0 4px 15px rgba(0,0,0,0.2)")
-                .style("display", "block")
-                .style("opacity", 1);
-            app.tooltips.position(state, mapDiv, mx, my);
+        /**
+         * Panel de marcadores apilados (los que se tapan entre si en el mismo punto). A diferencia del tooltip, recibe toques:
+         * flechas para pasar al anterior o siguiente, una lista numerada para saltar a cualquiera y, con la medicion
+         * activa, un boton para agregar o quitar el marcador mostrado. `stack` = { list, idx, ax, ay } (ax, ay: px dentro del mapa).
+         */
+        showStackCard: function(state, mapDiv, stack) {
+            const esc = app.utils.esc;
+            let el = state.stackCard;
+            if (!el || !el.isConnected) {
+                el = state.stackCard = document.createElement('div');
+                el.className = 'siarhe-stack-card';
+                el.setAttribute('role', 'dialog');
+                el.setAttribute('aria-label', 'Marcadores encimados');
+                mapDiv.appendChild(el);
+                // Nada de lo que se toque aqui debe llegar al mapa (zoom, arrastre, clic en un poligono)
+                ['click', 'dblclick', 'mousedown', 'touchstart', 'pointerdown', 'wheel'].forEach(function(t) {
+                    el.addEventListener(t, function(ev) { ev.stopPropagation(); }, { passive: true });
+                });
+                el.addEventListener('click', function(ev) {
+                    const b = ev.target.closest && ev.target.closest('[data-act]');
+                    if (!b || !state._stack) return;
+                    const st = state._stack, act = b.getAttribute('data-act'), n = st.list.length;
+                    if (act === 'prev') st.idx = (st.idx - 1 + n) % n;
+                    else if (act === 'next') st.idx = (st.idx + 1) % n;
+                    else if (act === 'go') st.idx = parseInt(b.getAttribute('data-i'), 10) || 0;
+                    else if (act === 'close') { app.map.stackClose(state); return; }
+                    else if (act === 'measure') { app.map.measureAddPoint(state, st.list[st.idx]); }
+                    app.map.stackShow(state);
+                });
+            }
+
+            const list = stack.list, n = list.length, cur = list[stack.idx];
+            const card = app.tooltips.markerCard(cur, state);
+            const ms = state.measure;
+            const cfgCur = state.markerLabels[cur.tipo] || {};
+
+            let html = `<div class="siarhe-stack-head">
+                <button type="button" class="siarhe-stack-btn" data-act="prev" aria-label="Marcador anterior">&#9664;</button>
+                <span class="siarhe-stack-count" aria-live="polite">${stack.idx + 1} de ${n}</span>
+                <button type="button" class="siarhe-stack-btn" data-act="next" aria-label="Marcador siguiente">&#9654;</button>
+                <button type="button" class="siarhe-stack-btn siarhe-stack-close" data-act="close" aria-label="Cerrar">&times;</button>
+            </div>`;
+            html += card.html;
+            if (ms && ms.active && cfgCur.tipo === 'posicion') {
+                const inMs = ms.points.some(function(p) { return p.uid === cur._uid; });
+                html += `<button type="button" class="siarhe-stack-measure" data-act="measure">${inMs ? 'Quitar de la medición' : 'Agregar a la medición'}</button>`;
+            }
+            html += `<ol class="siarhe-stack-list">`;
+            list.forEach(function(d, i) {
+                const st = app.utils.getMarkerStyle(d.tipo, state);
+                const nm = app.utils.titleCase(d.nombre || d.clues || (state.markerLabels[d.tipo] || {}).label || 'Marcador');
+                html += `<li><button type="button" data-act="go" data-i="${i}" class="${i === stack.idx ? 'is-current' : ''}">
+                    <span class="siarhe-stack-n">${i + 1}</span>
+                    <span class="siarhe-stack-dot" style="background:${esc(st.fill)}"></span>
+                    <span class="siarhe-stack-name">${esc(nm)}</span></button></li>`;
+            });
+            html += `</ol>`;
+
+            el.style.backgroundColor = card.bg;
+            el.style.color = card.txt;
+            el.innerHTML = html;
+            el.style.display = 'block';
+
+            // Posicion: junto al punto, sin salirse del mapa
+            const W = mapDiv.clientWidth, H = mapDiv.clientHeight, M = 6;
+            el.style.maxWidth = Math.max(180, Math.min(300, W - 2 * M)) + 'px';
+            el.style.maxHeight = Math.max(160, H - 2 * M) + 'px';
+            const tw = el.offsetWidth, th = el.offsetHeight;
+            let left = stack.ax + 15;
+            if (left + tw > W - M) left = stack.ax - 15 - tw;
+            let top = stack.ay - 28;
+            if (top + th > H - M) top = stack.ay - th - 12;
+            if (top < M) top = stack.ay + 18;
+            el.style.left = Math.max(M, Math.min(left, W - tw - M)) + 'px';
+            el.style.top = Math.max(M, Math.min(top, H - th - M)) + 'px';
         }
     };
 
