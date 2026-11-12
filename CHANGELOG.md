@@ -2,6 +2,12 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.4.0] - 2026-11-12
+
+### Métricas
+- **62 variables nuevas de RHEMX** (124 columnas con sus tasas): los estudios (auxiliar, técnico, postécnico, licenciatura, **LEO**, especialidad, maestría, doctorado, posgrado, perfiles) y las áreas de especialización (`esp_*`, cada una también en postécnico y posgrado). Vienen de fábrica (`includes/metricas-rhemx.php`, generado del diccionario de RHEMX) como métricas **opcionales**: solo aparecen en el selector de indicadores si la base cargada trae su columna, y la carga no avisa si faltan.
+- Las instalaciones que ya tenían métricas guardadas las reciben sin perder su configuración (`siarhe_get_metricas_config()` agrega las nativas que falten). Al cambiar de año o de unidad, el selector se ajusta a las columnas de esa base.
+
 ## [0.1.3.0] - 2026-11-12
 
 ### Mapa y tabla

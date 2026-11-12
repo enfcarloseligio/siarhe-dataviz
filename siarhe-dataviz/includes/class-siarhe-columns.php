@@ -48,7 +48,8 @@ class Siarhe_Columns {
             $desc = ( isset( $m['fullLabel'] ) && $m['fullLabel'] !== '' ? $m['fullLabel'] : $key ) . ( $tasa ? '. Tasa por cada mil habitantes (decimal).' : '. Valor absoluto (entero).' );
             $oblig = in_array( $key, $indispensables, true );
             $desc .= $oblig ? ' Sin esta columna el mapa no muestra datos.' : ' Vacío o S/D se trata como sin dato.';
-            $cols[] = self::col( $key, $oblig ? self::OBLIGATORIA : self::RECOMENDADA, 'Métrica nativa', $tasa ? 'Decimal' : 'Entero', $desc, $tasa ? '3.657' : '5214' );
+            $nivel_col = $oblig ? self::OBLIGATORIA : ( ! empty( $m['opcional'] ) ? self::OPCIONAL : self::RECOMENDADA );
+            $cols[] = self::col( $key, $nivel_col, 'Métrica nativa', $tasa ? 'Decimal' : 'Entero', $desc, $tasa ? '3.657' : '5214' );
         }
         return $cols;
     }

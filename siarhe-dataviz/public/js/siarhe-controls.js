@@ -383,6 +383,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             ph.appendChild(wrapper);
             app.controls.buildBaseSelectors(container, state, wrapper, onUpdate);
+            app.controls.syncIndicatorOptions(container, state);
             app.controls.enhanceDropdowns(container, wrapper);
             app.controls.updateMarkerDropdownText(state);
         },
@@ -1007,6 +1008,25 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         },
 
         /**
+         * Oculta del selector de indicadores las metricas opcionales cuya columna no trae la base cargada (p. ej. las areas de
+         * especializacion en una base antigua). Si el indicador activo deja de existir, regresa a la tasa total.
+         */
+        syncIndicatorOptions: function(container, state, reselect) {
+            if (!state.columnas) return;
+            container.querySelectorAll('.siarhe-cs-option[data-key]').forEach(function(o) {
+                const info = state.metricas[o.dataset.key] || {};
+                o.hidden = !!info.opcional && !state.columnas.has(o.dataset.key);
+            });
+            if (reselect) {
+                const actual = state.metricas[state.currentMetric] || {};
+                if (actual.opcional && !state.columnas.has(state.currentMetric)) {
+                    const base = container.querySelector('.siarhe-cs-option[data-key="tasa_total"]');
+                    if (base) base.click();
+                }
+            }
+        },
+
+        /**
          * Selectores de año y unidad (plazas / recursos humanos) de las bases estáticas cargadas para la entidad
          * (atributo data-bases). Al cambiar, se descarga esa base y se redibuja todo con onUpdate. Solo aparecen si hay
          * más de una opción.
@@ -1058,6 +1078,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (loading) loading.style.display = 'flex';
                 app.data.loadBase(info.url).then(function(rows) {
                     app.data.setBase(container, state, rows, state.base.anio);
+                    app.controls.syncIndicatorOptions(container, state, true);
                     if (loading) loading.style.display = 'none';
                     onUpdate();
                 }).catch(function(err) {

@@ -102,8 +102,7 @@ foreach ($marcadores_array as $key => $mk) {
 
 
 // LECTURA DINÁMICA DE MÉTRICAS 
-$metricas_json = get_option( 'siarhe_metricas_config', '' );
-$metricas_array = json_decode( wp_unslash( $metricas_json ), true );
+$metricas_array = siarhe_get_metricas_config();
 
 if ( empty($metricas_array) || !is_array($metricas_array) ) {
     $metricas_array = [

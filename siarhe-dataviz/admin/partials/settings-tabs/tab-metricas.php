@@ -12,12 +12,8 @@ $defaults = siarhe_get_default_metricas();
 
 $defaults_json = wp_json_encode($defaults);
 
-$metricas_json = get_option( 'siarhe_metricas_config', '' );
-if ( empty($metricas_json) ) {
-    $metricas_json = $defaults_json;
-} else {
-    $metricas_json = wp_unslash($metricas_json);
-}
+$metricas_guardadas = siarhe_get_metricas_config();
+$metricas_json = $metricas_guardadas ? wp_json_encode( $metricas_guardadas ) : $defaults_json;
 ?>
 
 

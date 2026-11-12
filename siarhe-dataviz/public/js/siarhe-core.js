@@ -425,6 +425,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
         // Pone las filas como la base vigente: reconstruye el mapa de datos y actualiza totales y el año que muestra la pagina
         setBase: function(container, state, rows, anio) {
+            state.columnas = new Set(Object.keys(rows[0] || {}));
             state.csvData = app.data.processCSV(rows, state.metricas);
             state.dataMap.clear();
             state.csvData.forEach(row => {
@@ -604,6 +605,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (app.urlState) app.urlState.apply(container, state);
             
             if (csv) {
+                state.columnas = new Set(Object.keys(csv[0] || {}));
                 state.csvData = app.data.processCSV(csv, state.metricas);
                 state.csvData.forEach(row => { 
                     let targetKey = state.isNacional ? row.CVE_ENT : row.CVE_MUN;

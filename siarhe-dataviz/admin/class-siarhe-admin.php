@@ -611,10 +611,10 @@ class Siarhe_Admin {
             // Metricas configuradas en el admin: cada clave es el nombre de una columna del CSV
             $metric_idx = array();
             $missing_m  = array();
-            $cfg = json_decode( wp_unslash( (string) get_option( 'siarhe_metricas_config', '' ) ), true );
+            $cfg = siarhe_get_metricas_config();
             if ( is_array( $cfg ) ) {
-                foreach ( array_keys( $cfg ) as $k ) {
-                    if ( $k === 'poblacion' ) continue;
+                foreach ( $cfg as $k => $m_cfg ) {
+                    if ( $k === 'poblacion' || ! empty( $m_cfg['opcional'] ) ) continue; // las opcionales solo se muestran si la base trae la columna
                     $i = array_search( $k, $raw_header, true );
                     if ( $i === false ) $missing_m[] = $k; else $metric_idx[] = $i;
                 }

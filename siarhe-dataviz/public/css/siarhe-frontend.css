@@ -1085,3 +1085,6 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none;
 }
 .siarhe-viz-wrapper .siarhe-map-container .siarhe-overlay-svg { background: transparent; }
+
+/* Indicadores opcionales cuya columna no trae la base cargada */
+.siarhe-viz-wrapper .siarhe-cs-option[hidden] { display: none; }

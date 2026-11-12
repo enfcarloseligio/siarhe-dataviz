@@ -192,7 +192,30 @@ function siarhe_get_default_metricas() {
         'enfermeras_no_asignado'     => array_merge(['label' => 'Enfermeras No Asignado', 'fullLabel' => 'Enfermeras en establecimientos con tipo de establecimiento no asignado', 'abrev' => 'Enf. No Asignado', 'tipo' => 'absoluto', 'pair' => 'enfermeras_no_asignado', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
         'poblacion'                  => array_merge(['label' => 'Población', 'fullLabel' => 'Población total', 'abrev' => 'Población', 'tipo' => 'absoluto', 'pair' => 'poblacion', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges)
     ];
+
+    // Estudios (con LEO) y areas de especializacion de RHEMX: opcionales, solo se muestran si la base trae la columna
+    $extra = include SIARHE_PATH . 'includes/metricas-rhemx.php';
+    foreach ( $extra as $v ) {
+        list( $clave, $grupo, $nombre, $desc ) = $v;
+        $comun = array( 'grupo' => $grupo, 'is_core' => true, 'opcional' => true, 'visibilidad' => 'publico' );
+        $defaults[ 'tasa_' . $clave ] = array_merge( array( 'label' => 'Tasa ' . $nombre, 'fullLabel' => 'Tasa de enfermeras (' . $grupo . '): ' . $nombre, 'abrev' => 'Tasa ' . $nombre, 'tipo' => 'tasa', 'pair' => 'enfermeras_' . $clave, 'descripcion' => $desc ), $comun, $base_ranges );
+        $defaults[ 'enfermeras_' . $clave ] = array_merge( array( 'label' => 'Enfermeras ' . $nombre, 'fullLabel' => $desc, 'abrev' => $nombre, 'tipo' => 'absoluto', 'pair' => 'enfermeras_' . $clave ), $comun, $base_ranges );
+    }
     return $defaults;
+}
+
+/**
+ * Configuracion de metricas vigente: la guardada en el panel mas las metricas nativas que se agregaron despues de guardarla
+ * (las nativas no se pueden borrar, asi que completar las que faltan no pisa ninguna decision del administrador).
+ * Devuelve un arreglo; vacio si no hay nada guardado (quien llama usa entonces sus valores por defecto).
+ */
+function siarhe_get_metricas_config() {
+    $saved = json_decode( wp_unslash( (string) get_option( 'siarhe_metricas_config', '' ) ), true );
+    if ( empty( $saved ) || ! is_array( $saved ) ) return array();
+    foreach ( siarhe_get_default_metricas() as $key => $def ) {
+        if ( ! isset( $saved[ $key ] ) ) $saved[ $key ] = $def;
+    }
+    return $saved;
 }
 
 /**
