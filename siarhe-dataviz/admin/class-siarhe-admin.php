@@ -618,16 +618,26 @@ class Siarhe_Admin {
             }
 
             // Claves geograficas: el mapa de cada entidad usa CVE_ENT para dibujar solo sus puntos
-            $geo_req = array( 'CVE_ENT', 'ENTIDAD', 'CVE_MUN', 'MUNICIPIO', 'CVE_LOC', 'LOCALIDAD' );
+            // Tambien se aceptan los encabezados del catalogo CLUES (CLAVE DE LA ENTIDAD, CLAVE DEL MUNICIPIO, CLAVE DE LA LOCALIDAD)
+            $geo_req = array(
+                'CVE_ENT' => array( 'cve_ent', 'clave de la entidad' ), 'ENTIDAD' => array( 'entidad' ),
+                'CVE_MUN' => array( 'cve_mun', 'clave del municipio' ), 'MUNICIPIO' => array( 'municipio' ),
+                'CVE_LOC' => array( 'cve_loc', 'clave de la localidad' ), 'LOCALIDAD' => array( 'localidad' ),
+            );
             $missing_geo = array();
-            foreach ( $geo_req as $g ) {
-                if ( ! in_array( strtolower( $g ), $header, true ) ) $missing_geo[] = $g;
+            $ent_i = false;
+            foreach ( $geo_req as $g => $alias ) {
+                $found = false;
+                foreach ( $alias as $a ) {
+                    $pos = array_search( $a, $header, true );
+                    if ( $pos !== false ) { $found = true; if ( $g === 'CVE_ENT' ) $ent_i = $pos; break; }
+                }
+                if ( ! $found ) $missing_geo[] = $g;
             }
             if ( $missing_geo ) {
                 fclose( $fh );
                 $this->upload_fail( 'El CSV de marcadores no tiene las columnas requeridas: ' . esc_html( implode( ', ', $missing_geo ) ) . '. Descarga la plantilla en esta pantalla para ver el formato.' );
             }
-            $ent_i = array_search( 'cve_ent', $header, true );
 
             $invalid = 0; $no_ent = 0;
             while ( ( $row = fgetcsv( $fh ) ) !== false && $rows < 300000 ) {

@@ -85,7 +85,7 @@ async function loadFile(url) {
 }
 
 // Columnas de la fila original que otros modulos siguen leyendo despues (tooltips y densidad)
-const RAW_COLS = ['entidad', 'nom_ent', 'localidad', 'nom_loc', 'cve_mun', 'cve mun', 'municipio', 'clave_municipio'];
+const RAW_COLS = ['entidad', 'nom_ent', 'localidad', 'nom_loc', 'cve_mun', 'cve mun', 'clave del municipio', 'municipio', 'clave_municipio'];
 
 function processRows(file, spec) {
     const header = file.header, rows = file.rows;
@@ -108,13 +108,13 @@ function processRows(file, spec) {
 
     const latIdx = resolve(['latitud', 'lat']);
     const lonIdx = resolve(['longitud', 'lon']);
-    const cveEntIdx = resolve(['cve_ent', 'cve ent', 'entidad', 'clave_entidad']);
+    const cveEntIdx = resolve(['cve_ent', 'cve ent', 'clave de la entidad', 'clave_entidad', 'entidad']);
     const cluesIdx = resolve(['clues']);
-    const institucionIdx = resolve(['institución', 'institucion', 'clave_institucion']);
+    const institucionIdx = resolve(['institución', 'institucion', 'nombre de la institucion', 'clave_institucion']);
     const nombreIdx = resolve(['nombre_unidad', 'nombre de la unidad', 'unidad']);
     const municipioIdx = resolve(['municipio']);
-    const tipoEstabIdx = resolve(['tipo_establecimiento', 'tipo establecimiento']);
-    const tipologiaIdx = resolve(['nombre_tipologia', 'nombre tipologia']);
+    const tipoEstabIdx = resolve(['tipo_establecimiento', 'tipo establecimiento', 'nombre tipo establecimiento']);
+    const tipologiaIdx = resolve(['nombre_tipologia', 'nombre tipologia', 'nombre de tipologia']);
     const nivelIdx = resolve(['nivel_atencion', 'nivel atencion']);
     const cveNivelIdx = resolve(['cve_n_atencion', 'cve_ n_atencion', 'cve n atencion']);
     const jurisdiccionIdx = resolve(['jurisdiccion', 'jurisdicción']);

@@ -154,7 +154,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                                 } else {
                                     let mkMun = null;
                                     if (mk._raw) {
-                                        mkMun = app.utils.getColValue(mk._raw, ['cve_mun', 'cve mun', 'municipio', 'clave_municipio']);
+                                        mkMun = app.utils.getColValue(mk._raw, ['cve_mun', 'cve mun', 'clave del municipio', 'municipio', 'clave_municipio']);
                                         if (mkMun) mkMun = mkMun.toString().padStart(3, '0');
                                     }
                                     if (mkEnt === mapCveEnt && mkMun === mapCveMun) match = true;

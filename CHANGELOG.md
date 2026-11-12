@@ -2,6 +2,11 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.1.1] - 2026-11-12
+
+### Marcadores
+- **CSV con encabezados del catálogo CLUES:** además de `CVE_ENT`, `CVE_MUN` y `CVE_LOC`, los marcadores aceptan `CLAVE DE LA ENTIDAD`, `CLAVE DEL MUNICIPIO` y `CLAVE DE LA LOCALIDAD`, y para la institución, el tipo de establecimiento y la tipología `NOMBRE DE LA INSTITUCION`, `NOMBRE TIPO ESTABLECIMIENTO` y `NOMBRE DE TIPOLOGIA`. Así se puede subir tal cual el `clues_<año>.csv` que genera RHEMX. La validación al subir, el lector en segundo plano, el respaldo en el hilo principal y los tooltips usan los mismos nombres.
+
 ## [0.1.1.0] - 2026-10-31
 
 ### Mapa

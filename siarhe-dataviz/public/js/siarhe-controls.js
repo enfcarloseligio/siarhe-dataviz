@@ -724,13 +724,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
                 const latKey = resolveKey(['latitud', 'lat']);
                 const lonKey = resolveKey(['longitud', 'lon']);
-                const cveEntKey = resolveKey(['cve_ent', 'cve ent', 'entidad', 'clave_entidad']);
+                const cveEntKey = resolveKey(['cve_ent', 'cve ent', 'clave de la entidad', 'clave_entidad', 'entidad']);
                 const cluesKey = resolveKey(['clues']);
-                const institucionKey = resolveKey(['institución', 'institucion', 'clave_institucion']);
+                const institucionKey = resolveKey(['institución', 'institucion', 'nombre de la institucion', 'clave_institucion']);
                 const nombreKey = resolveKey(['nombre_unidad', 'nombre de la unidad', 'unidad']);
                 const municipioKey = resolveKey(['municipio']);
-                const tipoEstabKey = resolveKey(['tipo_establecimiento', 'tipo establecimiento']);
-                const tipologiaKey = resolveKey(['nombre_tipologia', 'nombre tipologia']);
+                const tipoEstabKey = resolveKey(['tipo_establecimiento', 'tipo establecimiento', 'nombre tipo establecimiento']);
+                const tipologiaKey = resolveKey(['nombre_tipologia', 'nombre tipologia', 'nombre de tipologia']);
                 const nivelAtencionKey = resolveKey(['nivel_atencion', 'nivel atencion']);
                 const cveNivelKey = resolveKey(['cve_n_atencion', 'cve_ n_atencion', 'cve n atencion']);
                 const jurisdiccionKey = resolveKey(['jurisdiccion', 'jurisdicción']);
