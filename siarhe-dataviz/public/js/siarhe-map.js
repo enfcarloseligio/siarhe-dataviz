@@ -91,6 +91,64 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             state.legendObserver = observer;
         },
 
+        /**
+         * Dibuja los polígonos del mapa base (entidades o municipios) con sus eventos. Lo usan el primer dibujo y el cambio
+         * de marco geoestadístico; el grosor del borde sigue el acercamiento vigente.
+         */
+        _drawBase: function(state, mapDiv) {
+            const path = state.path;
+            let k0 = 1;
+            if (state.svg && state.zoom) { try { k0 = d3.zoomTransform(state.svg.node()).k; } catch (err) {} }
+            state.gPaths.selectAll("path.siarhe-feature").remove();
+
+            state.gPaths.selectAll("path.siarhe-feature")
+                .data(state.geoData.features).enter().append("path")
+                .attr("d", path).attr("class", "siarhe-feature")
+                .attr("stroke", "#fff").attr("stroke-width", 0.5 / k0)
+                .style("fill", "#e6f0f8")
+                .style("cursor", "pointer")
+                .on("mouseover", (e, d) => {
+                    if(app.tooltips) app.tooltips.showGeoTooltip(e, d, state, mapDiv);
+                }) 
+                .on("mousemove", (e) => {
+                    const [mx, my] = d3.pointer(e, mapDiv);
+                    if (app.tooltips) app.tooltips.position(state, mapDiv, mx, my);
+                })
+                .on("mouseout", () => { 
+                    let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
+                    state.gPaths.selectAll("path.siarhe-feature").attr("stroke", "#fff").attr("stroke-width", 0.5 / k); 
+                    if (state.tooltip) state.tooltip.style("opacity", 0).style("display", "none"); 
+                })
+                .on("click", (e, d) => {
+                    const ahora = Date.now();
+                    if (ahora - (state.lastClickTime || 0) < 400) { 
+                        app.map.handleMapClick(d, state); 
+                    } else { 
+                        if(app.tooltips) app.tooltips.showGeoTooltip(e, d, state, mapDiv); 
+                    }
+                    state.lastClickTime = ahora;
+                });
+        },
+
+        /**
+         * Cambia el mapa base por el de otro marco geoestadístico sin reconstruir el mapa: se conservan la proyección, el
+         * acercamiento, las leyendas y los marcadores. La capa detallada (municipios o localidades) se descarta porque
+         * pertenece al marco anterior; si estaba a la vista, el llamador vuelve antes a la vista base.
+         */
+        swapGeography: function(container, state, geo) {
+            const mapDiv = container.querySelector('.siarhe-map-container');
+            if (!mapDiv || !state.gPaths || !geo || !Array.isArray(geo.features) || geo.features.length === 0) return;
+            state.geoData = geo;
+            state.baseGeoData = geo;
+            state.locGeoData = null;
+            state._locBuilt = null;
+            state._locBuildGen = (state._locBuildGen || 0) + 1;
+            if (state.gLocPaths) state.gLocPaths.style("display", "none").selectAll("*").remove();
+            app.map._drawBase(state, mapDiv);
+            if (typeof state._kbdRefresh === 'function') state._kbdRefresh();
+            app.map.updateVisuals(container, state);
+        },
+
         render: function(container, state, cveEnt) {
             state.containerEl = container; // lo usan las leyendas para reacomodarse al cambiar su contenido
             // Sin geometrias no hay nada que dibujar: avisamos en vez de romper el render
@@ -191,33 +249,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .style("pointer-events", "none")
                 .style("z-index", "9999");
 
-            state.gPaths.selectAll("path.siarhe-feature")
-                .data(state.geoData.features).enter().append("path")
-                .attr("d", path).attr("class", "siarhe-feature")
-                .attr("stroke", "#fff").attr("stroke-width", "0.5")
-                .style("fill", "#e6f0f8")
-                .style("cursor", "pointer")
-                .on("mouseover", (e, d) => {
-                    if(app.tooltips) app.tooltips.showGeoTooltip(e, d, state, mapDiv);
-                }) 
-                .on("mousemove", (e) => {
-                    const [mx, my] = d3.pointer(e, mapDiv);
-                    if (app.tooltips) app.tooltips.position(state, mapDiv, mx, my);
-                })
-                .on("mouseout", () => { 
-                    let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
-                    state.gPaths.selectAll("path.siarhe-feature").attr("stroke", "#fff").attr("stroke-width", 0.5 / k); 
-                    if (state.tooltip) state.tooltip.style("opacity", 0).style("display", "none"); 
-                })
-                .on("click", (e, d) => {
-                    const ahora = Date.now();
-                    if (ahora - (state.lastClickTime || 0) < 400) { 
-                        app.map.handleMapClick(d, state); 
-                    } else { 
-                        if(app.tooltips) app.tooltips.showGeoTooltip(e, d, state, mapDiv); 
-                    }
-                    state.lastClickTime = ahora;
-                });
+            app.map._drawBase(state, mapDiv);
 
             app.map.enableKeyboard(container, state, mapDiv);
             app.map.stackBind(state);
@@ -745,13 +777,20 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                .attr('aria-label', 'Mapa de ' + (state.isNacional ? 'entidades federativas' : 'municipios'))
                .attr('aria-describedby', hintId);
 
-            const nodes = state.gPaths.selectAll('path.siarhe-feature').nodes();
+            // Los polígonos se reemplazan al cambiar de marco geoestadístico: state._kbdRefresh vuelve a leer la lista
+            let nodes = [];
+            let current = null;
+            const leeNodos = () => {
+                nodes = state.gPaths.selectAll('path.siarhe-feature').nodes();
+                nodes.forEach((n, i) => n.setAttribute('tabindex', i === 0 ? '0' : '-1'));
+                current = nodes[0] || null;
+            };
+            leeNodos();
+            state._kbdRefresh = leeNodos;
             if (nodes.length === 0) return;
-            nodes.forEach((n, i) => n.setAttribute('tabindex', i === 0 ? '0' : '-1'));
-            let current = nodes[0];
 
             const focusNode = (n) => {
-                current.setAttribute('tabindex', '-1');
+                if (current) current.setAttribute('tabindex', '-1');
                 n.setAttribute('tabindex', '0');
                 current = n;
                 n.focus();

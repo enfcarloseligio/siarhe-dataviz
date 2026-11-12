@@ -4,7 +4,8 @@
  * ------------------------------------------------------------------
  * Gestiona la inicialización de la visualización, la definición del
  * Estado Global (State), las utilidades compartidas, la descarga
- * de datos crudos (CSV/GeoJSON) y el cálculo de métricas en memoria.
+ * de datos crudos (bases estáticas y geometrías TopoJSON / GeoJSON) y el
+ * cálculo de métricas en memoria.
  */
 
 window.SiarheDataViz = window.SiarheDataViz || {};
@@ -285,6 +286,66 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     };
 
     // ==========================================
+    // 3a. GEOMETRÍAS (TopoJSON / GeoJSON) Y MARCO GEOESTADÍSTICO
+    // ==========================================
+    // El mapa base y la capa detallada se cargan por marco quinquenal (data-geos): { base: { marco: { url, fecha, ref } },
+    // loc: { marco: { url } } }. Cada año de datos usa el marco de su quinquenio (ver SiarheTopo.marcoPara).
+    app.geo = {
+        /** Carga topojson-client (copia local) la primera vez que llega una topología. */
+        ensureTopo: function() {
+            if (window.topojson && typeof window.topojson.feature === 'function') return Promise.resolve();
+            const url = (window.SiarheDataVizConfig || {}).topojson;
+            if (!url) return Promise.reject(new Error('No está configurada la librería para leer TopoJSON'));
+            if (!app._topoLib) {
+                app._topoLib = new Promise(function(resolve, reject) {
+                    const s = document.createElement('script');
+                    s.src = url;
+                    s.onload = resolve;
+                    s.onerror = function() { app._topoLib = null; reject(new Error('No se pudo cargar topojson-client')); };
+                    document.head.appendChild(s);
+                });
+            }
+            return app._topoLib;
+        },
+
+        /** Descarga una geometría y la devuelve como colección de elementos, sea TopoJSON o GeoJSON. */
+        load: function(url) {
+            return d3.json(url).then(function(data) {
+                if (!window.SiarheTopo || !window.SiarheTopo.esTopologia(data)) return data;
+                return app.geo.ensureTopo().then(function() {
+                    return window.SiarheTopo.aColeccion(data, window.topojson, d3.geoArea);
+                });
+            });
+        },
+
+        /** Scripts que el worker de geometrías necesita para leer una topología. */
+        workerLibs: function() {
+            const cfg = window.SiarheDataVizConfig || {};
+            return [cfg.topoHelper, cfg.topojson].filter(Boolean);
+        },
+
+        /** Marco (clave de state.geos.base o .loc) que corresponde a un año, o null si no hay ninguno cargado. */
+        marcoFor: function(anio, mapa) {
+            return window.SiarheTopo ? window.SiarheTopo.marcoPara(anio, Object.keys(mapa || {})) : null;
+        },
+
+        /** URL de la capa detallada (municipios o localidades) para un año, o '' si no hay. */
+        locUrl: function(state, anio) {
+            const loc = (state.geos && state.geos.loc) || {};
+            const m = app.geo.marcoFor(anio, loc);
+            return (m && loc[m] && loc[m].url) || '';
+        },
+
+        /** Fuente y fecha de corte del marco en uso, en el pie de la visualización. */
+        updateFooter: function(container, state) {
+            const info = state.geos && state.geos.base ? state.geos.base[state.marco] : null;
+            if (!info) return;
+            container.querySelectorAll('.siarhe-geo-ref').forEach(function(n) { n.textContent = info.ref || ''; });
+            container.querySelectorAll('.siarhe-geo-date').forEach(function(n) { n.textContent = info.fecha || ''; });
+        }
+    };
+
+    // ==========================================
     // 3b. ESTADO COMPARTIBLE POR URL (hash)
     // ==========================================
     // Formato: #siarhe-<CVE_ENT>=<querystring codificada>  (varias instancias se separan con ';')
@@ -338,7 +399,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             if (p.view === 'detalle') {
                 const sel = container.querySelector('#siarhe-vista-select');
-                if (sel && sel.querySelector('option[value="detalle"]')) {
+                const optDetalle = sel ? sel.querySelector('option[value="detalle"]') : null;
+                if (optDetalle && !optDetalle.disabled) {
                     sel.value = 'detalle';
                     sel.dispatchEvent(new Event('change'));
                 }
@@ -347,7 +409,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (p.markers.length > 0 && app.controls) {
                 (async function() {
                     for (const type of p.markers) {
-                        if (state.markerUrls && state.markerUrls[type] && !state.activeMarkers.has(type)) {
+                        if (app.controls.markerUrl(state, type) && !state.activeMarkers.has(type)) {
                             await app.controls.toggleMarker(type, state, container);
                             const chk = container.querySelector('.mc-check[value="' + CSS.escape(type) + '"]');
                             if (chk) chk.checked = true;
@@ -531,7 +593,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     // ==========================================
     app.initVisualization = function(container) {
         const cveEnt = container.dataset.cveEnt;
-        const geojsonUrl = container.dataset.geojson;
+        let geojsonUrl = container.dataset.geojson;
         let csvUrl = container.dataset.csv;
         const mode = (container.dataset.mode || '').trim();
         const isNacional = (cveEnt === '33' || container.dataset.slug === 'republica-mexicana');
@@ -593,9 +655,17 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
         } catch (e) { /* sin bases o URL invalida: se usa la base inicial */ }
 
+        // Marco geoestadístico del año inicial: mapa base y capa detallada (municipios o localidades)
+        const geos = safeParseJSON(container.dataset.geos, {}) || {};
+        state.geos = { base: geos.base || {}, loc: geos.loc || {} };
+        state.marco = app.geo.marcoFor(container.dataset.anio, state.geos.base);
+        if (state.marco && state.geos.base[state.marco]) geojsonUrl = state.geos.base[state.marco].url;
+        state.geoLocUrl = app.geo.locUrl(state, container.dataset.anio) || container.dataset.geojsonLoc || '';
+        app.geo.updateFooter(container, state);
+
         // Descarga paralela de archivos (Solo trae lo necesario)
         Promise.all([
-            geojsonUrl && mode.includes('M') ? d3.json(geojsonUrl) : Promise.resolve(null),
+            geojsonUrl && mode.includes('M') ? app.geo.load(geojsonUrl) : Promise.resolve(null),
             csvUrl ? app.data.loadBase(csvUrl) : Promise.resolve(null)
         ])
         .then(([geo, csv]) => {

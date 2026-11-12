@@ -51,28 +51,64 @@ El JSON (`formato: "siarhe-estatico"`, `version: 1`) lleva las mismas columnas q
 
 Métricas nativas (pares absoluto/tasa): total, primer, segundo y tercer nivel de atención, apoyo, administrativas (unidades administrativas), escuelas (establecimientos formadores de recursos humanos en enfermería), otros y no asignado (establecimientos con tipo de establecimiento no asignado). Sus descripciones viven en `siarhe_get_default_metricas()` (`includes/helpers.php`).
 
-## Marcadores (un CSV por variable)
+## Marcadores (un archivo por tipo y periodo)
+
+Cada tipo de marcador (clínicas de catéteres, de heridas, establecimientos de salud o los que se agreguen) es una familia de archivos, **uno por periodo**: un año de datos o **Toda la historia** (`total`: todas las unidades que han existido o reportado al menos una vez). El mapa usa el archivo del año que el visitante ve; si no existe, el de toda la historia; si tampoco, el del año anterior más cercano. Se guardan en `markers/` como `{nombre del tipo}-{periodo}.csv` y `.json` (`clinicas-cateteres-2025.json`, `clinicas-heridas-total.json`).
+
+### CSV o JSON: se acepta cualquiera y siempre existen los dos
+
+Igual que en las bases estáticas: el archivo que se sube se valida y de él se obtiene el otro (`Siarhe_Marker_Json`). El mapa lee el JSON; si no se pudo crear, lee el CSV.
+
+**CSV**
 
 | Columna | Nivel | Notas |
 |---|---|---|
 | `LATITUD`, `LONGITUD` | **Obligatorias** | Grados decimales WGS84; también `lat`/`lon`. Las filas sin coordenadas o con 0 no se dibujan; si más del 20 % cae fuera de México se avisa al subir |
-| `CVE_ENT`, `ENTIDAD`, `CVE_MUN`, `MUNICIPIO`, `CVE_LOC`, `LOCALIDAD` | **Obligatorias** | Todas se validan. En el mapa de una entidad **solo se dibujan los puntos de esa entidad**; una fila sin `CVE_ENT` se avisa y **no se dibuja en ningún mapa** |
+| `CVE_ENT` o `CLAVE DE LA ENTIDAD` | **Obligatoria** | En el mapa de una entidad **solo se dibujan los puntos de esa entidad**; una fila sin clave se avisa y **no se dibuja en ningún mapa** estatal |
+| `ENTIDAD`, `CVE_MUN`, `MUNICIPIO`, `CVE_LOC`, `LOCALIDAD` | Recomendadas | Si faltan se avisa: los puntos se dibujan, pero no hay resumen por municipio |
 | `VALOR_MARCADOR_1`, `VALOR_MARCADOR_2`… | Opcionales | Datos propios del marcador: se les pone el nombre que se configure en *Configuración › Marcadores* (densidad, filtro, agrupación, reglas de tooltip) |
+
+Se aceptan los encabezados del catálogo CLUES (`clues_<año>.csv` de RHEMX): `NOMBRE DE LA UNIDAD`, `NOMBRE DE LA INSTITUCION`, `NIVEL ATENCION`, `NOMBRE DE TIPOLOGIA`, `NOMBRE TIPO ESTABLECIMIENTO`, `JURISDICCION`… Los nombres de columna se comparan sin distinguir mayúsculas, acentos ni guion bajo.
+
+**JSON (formato `siarhe-marcadores`, el de las capas de RHEMX)**
+
+```json
+{
+  "formato": "siarhe-marcadores", "version": 1, "periodo": "2026",
+  "fila": ["latitud", "longitud", "clues", "nombre", "institucion", "nivel", "tipologia", "entidad", "estrato", "tipo_estab", "jurisdiccion", "municipio", "localidad", "plazas", "personas", "anterior"],
+  "instituciones": ["…"], "niveles": ["No Aplica", "Primer Nivel", "Segundo Nivel", "Tercer Nivel"], "tipologias": ["…"],
+  "estratos": ["Urbana", "Rural"], "tipos_establecimiento": ["…"], "jurisdicciones": ["…"], "municipios": ["…"], "localidades": ["…"],
+  "unidades": [[21.88213, -102.30027, "ASCIJ000012", "Cij Aguascalientes", 0, 1, 14, 1, 0, 2, 4, 35, 191, 0, 0]]
+}
+```
+
+- `fila` dice qué campo ocupa cada posición de una fila de `unidades`.
+- Los campos `institucion`, `nivel`, `tipologia`, `estrato`, `tipo_estab`, `jurisdiccion`, `municipio` y `localidad` guardan la **posición** del texto en su lista (-1 = sin dato); `entidad` es la clave de la entidad como número.
+- Cualquier otro campo (plazas, reportes, conteos de densidad…) va tal cual. Una fila puede omitir sus últimos campos si están vacíos.
+- Los archivos de RHEMX se suben sin cambios (`unidades_clues_<año>.json`, `clinicas_cateteres_<año>.json`, `clinicas_cateteres_historico.json`, `clinicas_heridas_historico.json`); no llevan `formato`, se reconocen por `fila` y `unidades`. Un JSON creado desde un CSV agrega `columnas` (el encabezado original de cada campo) para que el CSV y el JSON den exactamente las mismas columnas.
 
 Tipos de marcador: **posición** (símbolo fijo), **espectro** (burbuja con área proporcional al valor) y **spike** (espina cuya altura y color siguen el valor). Los de densidad comparten la columna numérica configurada o, si no hay, el conteo de filas agrupadas.
 
-Los campos que el mapa reconoce de forma opcional para el tooltip (`CLUES`, `NOMBRE_UNIDAD`, `INSTITUCION`, `NIVEL_ATENCION`, `JURISDICCION`, etc.) se leen si existen, pero no se piden.
+**Marcadores del sistema:** los establecimientos de salud por nivel de atención (`ESTAB_1`, `ESTAB_2`, `ESTAB_3`, `ESTAB_6`, `ESTAB_NE`) leen el tipo *Establecimientos de Salud*, filtran `nivel_atencion` por *Primer Nivel*, *Segundo Nivel*, *Tercer Nivel*, *No Aplica* y *No Especificado* (los textos de RHEMX) y solo permiten cambiar su visibilidad (`siarhe_get_default_marcadores()`).
 
-## GeoJSON
+## Geometrías (TopoJSON por marco geoestadístico)
 
-- **Proyección:** WGS84 (EPSG:4326), obligatoria para que alinee con las coordenadas.
-- **Entidades** (`geojson/{entidad}.geojson`): propiedades `CVE_ENT` (y `CVEGEO`, `NOMGEO`). El nacional lleva los 32 estados.
-- **Municipios / localidades** (`localidades/{entidad}.geojson`): propiedades `CVE_ENT`, `CVE_MUN`, `NOMGEO`. Es la capa de la *Vista geográfica* detallada.
-- Referencia de peso real: el GeoJSON nacional de entidades pesa ~7 MB (330 mil vértices) y el de municipios ~37 MB (2,469 polígonos, 1.78 millones de vértices); ver [rendimiento-mapa.md](rendimiento-mapa.md).
+El formato de carga es el **TopoJSON que exporta RHEMX** (`python src/geo_mapas.py`; copia lista para el plugin en `data/processed/geo/<marco>/`, con un `LEEME.txt`). Hay un archivo por **capa, entidad y marco**, guardado como `{entidad}-{marco}.json`.
+
+| Pestaña | Capa | República Mexicana | Cada entidad | Clave `c` |
+|---|---|---|---|---|
+| *Geolocalización* (`geojson/`) | Mapa base | `entidades.json` | `municipios_NN.json` | 2 dígitos / 5 dígitos |
+| *Localidades (Geo)* (`localidades/`) | Capa detallada | `municipios_republica.json` | `localidades_NN.json` | 5 dígitos / 9 dígitos |
+
+- **Estructura:** `"type": "Topology"`, objeto `datos` cuyas geometrías llevan `c` (clave), `n` (nombre) y, en las localidades, `t` (`u` urbana, `r` rural). Coordenadas en longitud/latitud **WGS84 (EPSG:4326)**. La clave une cada polígono con su fila de la base estática (`CVE_ENT`, o `CVE_MUN` = los tres últimos dígitos de la clave del municipio).
+- **Marco:** quinquenal (2005, 2010, 2015, 2020, 2025; 2030 cuando llegue). Cada marco dibuja los datos de sus cinco años; si el del año no está cargado se usa el anterior más cercano. El marco de 2016 se carga en 2015 y su fecha real va en *Fecha de corte*.
+- **Validación:** al subir se comprueba la capa (por los dígitos de la clave) y la entidad (por los dos primeros). Un archivo de otra capa, de otra entidad o de AGEB se rechaza.
+- **GeoJSON anteriores:** los `FeatureCollection` ya cargados (`{entidad}.geojson`, propiedades `CVE_ENT`, `CVE_MUN`, `NOMGEO`) se siguen leyendo y quedaron en el marco 2025.
+- Referencia de peso: el TopoJSON nacional de entidades pesa ~0.55 MB y el de municipios ~2.1 MB (antes, en GeoJSON, ~7 MB y ~37 MB); ver [rendimiento-mapa.md](rendimiento-mapa.md).
 
 ## Copias de lectura
 
-Los archivos de **100 KB o más** tienen junto a ellos una copia idéntica con extensión `.json` (GeoJSON) o `.txt` (CSV) que es la que lee el mapa. **El archivo original no cambia** y es el que se respalda, versiona y descarga. Los menores de 100 KB no la tienen.
+Los archivos `.geojson` y `.csv` de **100 KB o más** tienen junto a ellos una copia idéntica con extensión `.json` (GeoJSON) o `.txt` (CSV) que es la que lee el mapa (los `.json` de geometrías, bases y marcadores no la necesitan: el servidor ya los comprime). **El archivo original no cambia** y es el que se respalda, versiona y descarga. Los menores de 100 KB no la tienen.
 
 ## Futuras bases a SQL (0.5.0.0)
 

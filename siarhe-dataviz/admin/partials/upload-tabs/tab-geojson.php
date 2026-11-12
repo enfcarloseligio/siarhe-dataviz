@@ -1,7 +1,10 @@
 <?php // /admin/partials/upload-tabs/tab-geojson.php
+/**
+ * Pestaña Geolocalizacion: mapa base de cada entidad (entidades en el nacional, municipios en el de cada estado),
+ * un archivo por marco geoestadistico. Solo declara lo que cambia; el formulario y la tabla viven en _uploader.php.
+ */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// Solo declara lo que cambia entre tipos de carga; el resto vive en _uploader.php
 $siarhe_up = array(
     'key'               => 'geojson',
     'tipo'              => 'geojson',
@@ -11,32 +14,34 @@ $siarhe_up = array(
     'nonce_upload'      => 'siarhe_upload_nonce',
     'nonce_delete'      => 'siarhe_delete_nonce_',
     'nonce_meta'        => 'siarhe_update_meta_nonce',
-    'msg_ok'            => 'Mapa GeoJSON cargado y procesado correctamente.',
+    'msg_ok'            => 'Mapa cargado y procesado correctamente.',
     'msg_updated'       => 'Metadatos del mapa actualizados en el sistema.',
     'msg_deleted'       => 'Mapa y metadatos eliminados permanentemente.',
-    'title'             => '📤 Cargar Mapa GeoJSON',
-    'title_help'        => 'Sube el mapa de la entidad (limites de municipios o estados). Es la base sobre la que se colorean los datos. Al reemplazar el archivo se guardan copias de la versión anterior (se configuran en Configuración › Versiones y Copias).',
+    'title'             => '📤 Cargar Mapa Base (TopoJSON)',
+    'title_help'        => 'Sube el mapa de la entidad (límites de entidades o de municipios) para un marco geoestadístico. Es la base sobre la que se colorean los datos. Al reemplazar el archivo se guardan copias de la versión anterior (se configuran en Configuración › Versiones y Copias).',
     'info'              => array(
-        '<strong>Formatos admitidos:</strong> Archivos estructurados <code>.json</code> o <code>.geojson</code>.',
-        '<strong>Nomenclatura:</strong> El archivo se normalizará automáticamente con el nombre estándar <code>{entidad}.geojson</code> (ej. aguascalientes.geojson).',
-        '<strong>Proyección:</strong> Es estrictamente obligatorio que el mapa esté exportado en formato <strong>WGS84 (EPSG:4326)</strong> para garantizar la alineación de coordenadas.',
+        '<strong>Un mapa por entidad y marco.</strong> El marco es quinquenal (2005, 2010, 2015…) y dibuja los datos de sus cinco años; el mapa cambia solo cuando el visitante elige un año de otro quinquenio. Subir otro archivo para la misma entidad y marco lo reemplaza.',
+        '<strong>Formatos admitidos:</strong> <code>.json</code> o <code>.topojson</code> con una topología <strong>TopoJSON</strong>, tal como la exporta RHEMX (<code>python src/geo_mapas.py</code>; los archivos quedan en <code>data/processed/geo/&lt;marco&gt;/</code>).',
+        '<strong>Qué archivo va aquí:</strong> en República Mexicana, <code>entidades.json</code>; en cada entidad, su <code>municipios_NN.json</code> (por ejemplo <code>municipios_01.json</code> en Aguascalientes).',
+        '<strong>Estructura:</strong> objeto <code>datos</code> cuyas geometrías llevan <code>c</code> (clave: 2 dígitos la entidad, 5 el municipio) y <code>n</code> (nombre), con coordenadas en longitud/latitud <strong>WGS84 (EPSG:4326)</strong>. La clave es la que une cada polígono con su fila de la base estática.',
+        '<strong>Nomenclatura:</strong> el archivo se guarda como <code>{entidad}-{marco}.json</code> (ej. <code>aguascalientes-2025.json</code>). Los GeoJSON cargados antes se siguen leyendo y quedaron en el marco 2025.',
     ),
     'entity_label'      => 'Entidad Federativa',
-    'entity_help'       => 'Entidad a la que pertenece el archivo. Define el shortcode donde se usara, por ejemplo CVE_ENT 09 para Ciudad de Mexico. Solo hay un archivo activo por entidad: al subir otro se reemplaza.',
-    'file_label'        => 'Archivo GeoEspacial',
-    'file_help'         => 'Archivo .json o .geojson en proyeccion WGS84 (EPSG:4326). Se guarda con el nombre estandar de la entidad.',
-    'accept'            => '.json,.geojson',
+    'entity_help'       => 'Entidad a la que pertenece el archivo. Define el shortcode donde se usará, por ejemplo CVE_ENT 09 para Ciudad de México.',
+    'file_label'        => 'Archivo del Mapa (TopoJSON)',
+    'file_help'         => 'Archivo .json o .topojson con la topología del mapa en WGS84 (EPSG:4326). El plugin comprueba que las claves correspondan a la entidad y a la capa antes de guardarlo.',
+    'accept'            => '.json,.topojson',
     'check'             => 'geojson',
-    'ref_placeholder'   => 'Ej: Marco Geoestadístico INEGI 2025.',
-    'notes_placeholder' => 'Notas sobre la simplificación topológica del mapa...',
-    'table_title'       => 'Estado de Mapas GeoJSON',
-    'table_help'        => 'Resumen por entidad de los mapas cargados. Desde aqui puedes copiar el enlace, editar los metadatos, descargar o eliminar.',
+    'ref_placeholder'   => 'Ej: INEGI. (2025). Marco Geoestadístico. Diciembre 2025.',
+    'notes_placeholder' => 'Notas internas: fecha de publicación del marco, simplificación aplicada…',
+    'table_title'       => 'Mapas Base Cargados',
+    'table_help'        => 'Una fila por entidad y marco cargado; las entidades sin mapa aparecen una vez. Desde aquí puedes copiar el enlace, editar los metadatos, descargar o eliminar.',
     'status_icon'       => 'location',
     'status_ok'         => 'Mapeado',
     'status_off'        => 'Sin Mapa',
-    'delete_confirm'    => '⚠️ ATENCIÓN: ¿Estás seguro de eliminar este mapa GEOJSON? Esta acción borrará el registro y el archivo físico del servidor de forma irreversible.',
+    'delete_confirm'    => '⚠️ ATENCIÓN: ¿Estás seguro de eliminar este mapa? Esta acción borrará el registro y el archivo físico del servidor de forma irreversible.',
     'delete_title'      => 'Eliminar Mapa y Registro',
-    'modal_title'       => 'Editar Metadatos GeoJSON',
+    'modal_title'       => 'Editar Metadatos del Mapa',
 );
 
 include __DIR__ . '/_uploader.php';

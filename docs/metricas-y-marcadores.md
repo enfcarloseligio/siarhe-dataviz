@@ -14,7 +14,7 @@ Una métrica es una **columna numérica de la base estática** (el CSV de cada e
 
 | Dónde se ve | Qué campo usa |
 |---|---|
-| Selector **Indicador Principal** (mapa y tabla) | *Nombre del indicador* (si no hay, la etiqueta corta); la tasa y la frecuencia comparten nombre y el conmutador **Medida** elige entre ellas |
+| Selector **Indicador** (mapa y tabla) | *Nombre del indicador* (si no hay, la etiqueta corta); la tasa y la frecuencia comparten nombre y el conmutador **Medida** elige entre ellas |
 | Texto bajo el selector | *Descripción* (con `{unidad}` → plazas / personas según la base) |
 | Selector **Tema** | *Tema* |
 | Título de la leyenda del mapa | *Etiqueta abreviada* (si no hay, la corta) |
@@ -84,7 +84,7 @@ La *clave relacionada* **no es una columna del CSV**: es un **nombre de grupo** 
 4. Si tiene tasa o absoluto complementario, ponle a ambas el **mismo par**.
 5. Elige la **escala por defecto**; si quieres cortes o colores especiales, marca las opciones avanzadas.
 6. **Guardar Cambios** y vuelve a cargar la base estática si el CSV no tenía la columna.
-7. Comprueba en un mapa: debe aparecer en *Indicador Principal*.
+7. Comprueba en un mapa: debe aparecer en *Indicador*.
 
 **Ejemplo:** pasantes por beca A.
 

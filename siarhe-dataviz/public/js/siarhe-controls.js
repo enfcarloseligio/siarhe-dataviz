@@ -53,7 +53,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     </div>
                     <div class="siarhe-controls-row">
                         <div class="siarhe-control-group" id="c-tema"><label>Tema</label></div>
-                        <div class="siarhe-control-group" id="c-indicador"><label>Indicador Principal</label></div>
+                        <div class="siarhe-control-group" id="c-indicador"><label>Indicador</label></div>
                         <div class="siarhe-control-group" id="c-medida"><label>Medida</label></div>
                         <div class="siarhe-control-group" id="c-posicion"><label>Marcadores (Posición)</label></div>
                         <div class="siarhe-control-group" id="c-espectro"><label>Marcadores (Densidad)</label></div>
@@ -190,7 +190,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     optionsContainerInd.querySelectorAll('.siarhe-cs-option').forEach(o => o.classList.remove('selected'));
                     opt.classList.add('selected');
                     menuInd.classList.remove('open');
-                    app.controls.updateIndicatorDesc(container, state);
                     if (state.refreshMeasure) state.refreshMeasure();
                     
                     onUpdate(); 
@@ -227,7 +226,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (!isTableOnly) {
                 const buildMarkerDropdown = (targetId, typeFilter, placeholderTitle) => {
                     const containerDiv = wrapper.querySelector('#' + targetId);
-                    const validMarkers = Object.keys(state.markerUrls).filter(k => state.markerUrls[k] && app.utils.markerGroup((state.markerLabels[k] || {}).tipo) === typeFilter);
+                    const validMarkers = Object.keys(state.markerUrls).filter(k => app.controls.markerUrl(state, k) && app.utils.markerGroup((state.markerLabels[k] || {}).tipo) === typeFilter);
                     
                     if (validMarkers.length === 0) {
                         containerDiv.innerHTML += `<div class="mc-trigger is-placeholder" style="cursor:not-allowed; background:#f1f5f9;"><span>No disponibles</span></div>`;
@@ -327,12 +326,14 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const cVista = wrapper.querySelector('#c-vista');
                 const labelNivel1 = state.isNacional ? 'Entidades Federativas' : 'Municipios';
                 const labelNivel2 = state.isNacional ? 'Municipios' : 'Localidades';
-                const geoLocUrl = container.dataset.geojsonLoc;
+                // La capa detallada depende del marco geoestadístico del año que se ve (state.geoLocUrl): la opción existe
+                // si algún marco la tiene y se desactiva en los años cuyo marco no la trae.
+                const hayDetalle = !!state.geoLocUrl || Object.keys((state.geos && state.geos.loc) || {}).length > 0;
 
                 cVista.innerHTML += `
                     <select class="siarhe-metric-select" id="siarhe-vista-select">
                         <option value="base">${labelNivel1}</option>
-                        ${geoLocUrl ? `<option value="detalle">${labelNivel2}</option>` : ''}
+                        ${hayDetalle ? `<option value="detalle"${state.geoLocUrl ? '' : ' disabled'}>${labelNivel2}</option>` : ''}
                     </select>
                 `;
                 
@@ -354,13 +355,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         if (app.map) app.map.updateGeography(container, state);
                         onUpdate();
                     }
-                    else if (val === 'detalle' && geoLocUrl) {
+                    else if (val === 'detalle' && state.geoLocUrl) {
                         setLoading('Cargando ' + labelNivel2 + '...');
 
-                        const dataPromise = state.locGeoData ? Promise.resolve(state.locGeoData) : app.controls.loadLocGeo(container, state, geoLocUrl, (pct) => setLoading('Preparando ' + labelNivel2 + '... ' + pct + '%'));
+                        const dataPromise = state.locGeoData ? Promise.resolve(state.locGeoData) : app.controls.loadLocGeo(container, state, state.geoLocUrl, (pct) => setLoading('Preparando ' + labelNivel2 + '... ' + pct + '%'));
                         dataPromise.then(data => {
                             if (!data || !Array.isArray(data.features) || data.features.length === 0) {
-                                throw new Error('El GeoJSON detallado esta vacio o no es valido');
+                                throw new Error('La capa detallada esta vacia o no es valida');
                             }
                             state.locGeoData = data;
                             state.isGeoLocMode = true;
@@ -373,7 +374,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                             hideLoading();
                             onUpdate();
                         }).catch(err => {
-                            console.error("[SIARHE] Error al cargar GeoJSON detallado", err);
+                            console.error("[SIARHE] Error al cargar la capa detallada", err);
                             hideLoading();
                             state.isGeoLocMode = false;
                             e.target.value = 'base';
@@ -393,7 +394,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             app.controls.buildMeasureSwitch(container, state, wrapper);
             app.controls.addControlIcons(container, wrapper);
             app.controls.syncIndicatorOptions(container, state);
-            app.controls.updateIndicatorDesc(container, state);
             app.controls.enhanceDropdowns(container, wrapper);
             app.controls.updateMarkerDropdownText(state);
         },
@@ -560,6 +560,52 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         },
 
         /**
+         * Archivo de un marcador para el año que se ve. state.markerUrls[tipo] es { periodo: url } con los años cargados y,
+         * si existe, la capa "total" (todas las unidades de la historia). Se usa el del año; si no hay, el total; si tampoco,
+         * el año anterior más cercano y, en último caso, el más antiguo que exista. Devuelve '' si no hay ninguno.
+         */
+        markerUrl: function(state, type) {
+            const urls = state.markerUrls ? state.markerUrls[type] : null;
+            if (!urls) return '';
+            if (typeof urls === 'string') return urls;
+            const anio = String((state.base && state.base.anio) || (state.containerEl && state.containerEl.dataset.anio) || '');
+            if (urls[anio]) return urls[anio];
+            if (urls.total) return urls.total;
+            const anios = Object.keys(urls).map(Number).filter(function(a) { return a > 0; }).sort(function(a, b) { return a - b; });
+            if (!anios.length) return '';
+            let elegido = null;
+            anios.forEach(function(a) { if (a <= Number(anio)) elegido = a; });
+            return urls[String(elegido === null ? anios[0] : elegido)] || '';
+        },
+
+        /**
+         * Tras cambiar de año: los marcadores cuyo archivo cambia se descartan y, si estaban activos, se vuelven a cargar
+         * con el archivo del año nuevo.
+         */
+        refreshMarkersForYear: async function(container, state) {
+            const tipos = Object.keys(state.markersData || {});
+            const recargar = [];
+            state._markerUrlUsed = state._markerUrlUsed || {};
+            tipos.forEach(function(type) {
+                const url = app.controls.markerUrl(state, type);
+                if (state._markerUrlUsed[type] === url) return;
+                delete state.markersData[type];
+                if (state.activeMarkers.has(type)) recargar.push(type);
+            });
+            for (const type of recargar) {
+                try { await app.controls.loadMarkerData(type, state, container); }
+                catch (err) {
+                    console.error('[SIARHE] No se pudo cargar el marcador ' + type + ' del año elegido:', err);
+                    state.activeMarkers.delete(type);
+                    const chk = container.querySelector('.mc-check[value="' + CSS.escape(type) + '"]');
+                    if (chk) chk.checked = false;
+                }
+            }
+            if (recargar.length && app.map) { app.map.updateMarkers(state); app.map.renderMarkerLegend(state); }
+            app.controls.updateMarkerDropdownText(state);
+        },
+
+        /**
          * Worker que prepara la capa detallada (municipios o localidades): descarga el GeoJSON, lo proyecta y genera
          * trazos en tres niveles de detalle fuera del hilo principal. Si no se puede usar, devuelve null.
          */
@@ -597,7 +643,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
         /**
          * Capa detallada lista para dibujar. Con el worker devuelve { _prepared: true, features: [{ properties, bounds, d: [3 trazos] }] };
-         * sin el, el GeoJSON tal cual (se proyecta y dibuja en el hilo principal, como antes).
+         * sin el, la coleccion de elementos tal cual (se proyecta y dibuja en el hilo principal).
          */
         loadLocGeo: function(container, state, url, onProgress) {
             const worker = app.controls._geoWorker(container);
@@ -605,19 +651,19 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const near0 = (v) => Math.abs(v) < 1e-9;
             // El worker solo reproduce Mercator sin rotacion y centrada en [0,0] (la proyeccion del mapa)
             const reproducible = worker && p && typeof p.scale === 'function' && p.rotate().every(near0) && p.center().every(near0);
-            if (!reproducible) return d3.json(url);
+            if (!reproducible) return app.geo.load(url);
 
             const t0 = performance.now();
             return new Promise((resolve, reject) => {
                 const id = ++worker._seq;
                 worker._pending.set(id, { resolve: resolve, reject: reject, onProgress: onProgress });
-                worker.postMessage({ id: id, url: url, proj: { scale: p.scale(), translate: p.translate() }, tolerances: [0.25, 0.06] });
+                worker.postMessage({ id: id, url: url, proj: { scale: p.scale(), translate: p.translate() }, tolerances: [0.25, 0.06], libs: app.geo.workerLibs() });
             }).then((res) => {
                 app.utils.perf('worker de geometrias: capa detallada lista', t0, res.features.length + ' poligonos');
                 return { type: 'FeatureCollection', _prepared: true, features: res.features };
             }).catch((err) => {
                 console.warn('[SIARHE] El worker de geometrias no pudo preparar la capa, se usa el modo normal:', err);
-                return d3.json(url);
+                return app.geo.load(url);
             });
         },
 
@@ -666,8 +712,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (state._markerLoads[type]) return state._markerLoads[type];
 
             const task = (async () => {
-                const url = state.markerUrls ? state.markerUrls[type] : null;
-                if (!url) throw new Error(`No hay URL configurada para el marcador ${type}`);
+                const url = app.controls.markerUrl(state, type);
+                if (!url) throw new Error(`No hay archivo cargado para el marcador ${type}`);
 
                 // Camino rapido: el worker descarga, lee, filtra y agrupa sin bloquear la pagina
                 const worker = app.controls._markerWorker(container);
@@ -688,9 +734,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         const res = await new Promise((resolve, reject) => {
                             const id = ++worker._seq;
                             worker._pending.set(id, { resolve: resolve, reject: reject });
-                            worker.postMessage({ id: id, url: url, spec: spec });
+                            worker.postMessage({ id: id, url: url, spec: spec, libs: [(window.SiarheDataVizConfig || {}).capas].filter(Boolean) });
                         });
                         state.markersData[type] = res.points;
+                        (state._markerUrlUsed = state._markerUrlUsed || {})[type] = url;
                         app.utils.perf('worker: ' + type + ' (descarga y lectura ' + res.readMs + ' ms, procesado ' + res.procMs + ' ms)', tW, res.rows + ' filas -> ' + res.points.length + ' puntos');
                         return;
                     } catch (err) {
@@ -703,8 +750,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     rawData = state.rawCSVDataCache[url];
                 } else {
                     const tCsv = performance.now();
-                    rawData = await d3.csv(url);
-                    app.utils.perf('CSV de ' + type + ' descargado y leido', tCsv, rawData.length + ' filas');
+                    // Capa en JSON o CSV: las dos dan las mismas filas
+                    rawData = /\.json(\?|$)/i.test(url) ? window.SiarheCapas.aObjetos(await d3.json(url)) : await d3.csv(url);
+                    app.utils.perf('archivo de ' + type + ' descargado y leido', tCsv, rawData.length + ' filas');
                     if (!state.rawCSVDataCache) state.rawCSVDataCache = {};
                     state.rawCSVDataCache[url] = rawData;
                 }
@@ -721,13 +769,14 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 // vez por CSV (no por fila). Antes, cada fila pagaba varios
                 // Object.keys().find() (uno por cada campo, ~12 por fila), lo cual
                 // es muy costoso en datasets nacionales grandes.
+                const norm = window.SiarheCapas.normaliza;
                 const colMap = {};
                 if (rawData.length > 0) {
-                    Object.keys(rawData[0]).forEach(k => { colMap[k.trim().toLowerCase()] = k; });
+                    Object.keys(rawData[0]).forEach(k => { colMap[norm(k)] = k; });
                 }
                 const resolveKey = (names) => {
                     for (let n of names) {
-                        const real = colMap[n.toLowerCase().trim()];
+                        const real = colMap[norm(n)];
                         if (real) return real;
                     }
                     return null;
@@ -845,6 +894,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 }
 
                 state.markersData[type] = processedData;
+                (state._markerUrlUsed = state._markerUrlUsed || {})[type] = url;
                 app.utils.perf('filtrado y agrupado de ' + type, tProc, processedData.length + ' puntos');
             })();
 
@@ -880,7 +930,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             });
             state.medida = info.tipo === 'tasa' ? 'tasa' : (info.tipo ? 'absoluto' : state.medida);
             if (state.refreshThemes) state.refreshThemes(); else app.controls.syncIndicatorOptions(container, state);
-            app.controls.updateIndicatorDesc(container, state);
             if (state.refreshMeasure) state.refreshMeasure();
             const selEscala = container.querySelector('#siarhe-escala-select');
             if (selEscala) selEscala.value = (state.colorMode === 'degradado' || state.colorMode === 'quartiles') ? 'cuartiles' : (state.colorMode === 'mono' ? 'monocromatico' : state.colorMode);
@@ -1088,21 +1137,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
         },
 
-        /** Texto del indicador activo bajo el selector; {unidad} / {Unidad} se sustituyen por la unidad de la base que se ve. */
-        updateIndicatorDesc: function(container, state) {
-            const host = container.querySelector('#c-indicador');
-            if (!host) return;
-            let p = host.querySelector('.siarhe-ind-desc');
-            if (!p) { p = document.createElement('p'); p.className = 'siarhe-ind-desc'; host.appendChild(p); }
-            const info = state.metricas[state.currentMetric] || {};
-            const palabra = (state.base && state.base.unidad === 'personas') ? 'personas' : 'plazas';
-            const txt = String(info.descripcion || '')
-                .replace(/\{Unidad\}/g, palabra.charAt(0).toUpperCase() + palabra.slice(1))
-                .replace(/\{unidad\}/g, palabra);
-            p.textContent = txt;
-            p.hidden = !txt;
-        },
-
         /**
          * Conmutador Medida (Tasa / Frecuencia): alterna el indicador entre su tasa por mil habitantes y su frecuencia (numero de
          * plazas o personas). Cada boton se desactiva si el indicador no tiene esa medida.
@@ -1236,12 +1270,20 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (!info) return;
                 const loading = container.querySelector('.siarhe-loading-overlay');
                 if (loading) loading.style.display = 'flex';
-                app.data.loadBase(info.url).then(function(rows) {
-                    app.data.setBase(container, state, rows, state.base.anio);
-                    app.controls.updateIndicatorDesc(container, state);
+
+                // El año puede pertenecer a otro marco geoestadístico: su mapa base se descarga junto con los datos
+                const marco = app.map ? app.geo.marcoFor(state.base.anio, state.geos && state.geos.base) : null;
+                const cambiaMarco = !!marco && marco !== state.marco && !!state.geos.base[marco];
+                const geoNuevo = cambiaMarco ? app.geo.load(state.geos.base[marco].url) : Promise.resolve(null);
+
+                Promise.all([app.data.loadBase(info.url), geoNuevo]).then(function(res) {
+                    app.data.setBase(container, state, res[0], state.base.anio);
+                    if (cambiaMarco && res[1]) app.controls.applyMarco(container, state, marco, res[1]);
+                    else app.controls.syncDetalle(container, state);
                     if (state.refreshThemes) state.refreshThemes(); else app.controls.syncIndicatorOptions(container, state, true);
                     if (loading) loading.style.display = 'none';
                     onUpdate();
+                    app.controls.refreshMarkersForYear(container, state);
                 }).catch(function(err) {
                     console.error('[SIARHE Controls] No se pudo cargar la base', err);
                     if (loading) loading.style.display = 'none';
@@ -1252,6 +1294,43 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             row.insertBefore(gUnidad, row.firstChild);
             row.insertBefore(gAnio, row.firstChild);
+        },
+
+        /**
+         * Capa detallada (municipios o localidades) que corresponde al año que se ve. Si cambia de archivo, la que estaba
+         * cargada se descarta y el mapa vuelve a la vista base; la opción del selector se desactiva cuando no hay capa.
+         */
+        syncDetalle: function(container, state) {
+            const url = app.geo.locUrl(state, state.base ? state.base.anio : (container.dataset.anio || ''));
+            const selVista = container.querySelector('#siarhe-vista-select');
+            if (url !== state.geoLocUrl) {
+                state.geoLocUrl = url;
+                state.locGeoData = null;
+                state._locBuilt = null;
+                if (state.isGeoLocMode) {
+                    state.isGeoLocMode = false;
+                    if (selVista) selVista.value = 'base';
+                    if (app.map) app.map.updateGeography(container, state);
+                }
+            }
+            const optDetalle = selVista ? selVista.querySelector('option[value="detalle"]') : null;
+            if (optDetalle) optDetalle.disabled = !state.geoLocUrl;
+        },
+
+        /**
+         * Pone en uso otro marco geoestadístico: cambia los polígonos del mapa base (la capa detallada del marco anterior
+         * se descarta y el mapa vuelve a la vista base), ajusta la vista detallada disponible y la fuente del pie.
+         */
+        applyMarco: function(container, state, marco, geo) {
+            const selVista = container.querySelector('#siarhe-vista-select');
+            state.isGeoLocMode = false;
+            if (selVista) selVista.value = 'base';
+
+            state.marco = marco;
+            state.geoLocUrl = null; // obliga a syncDetalle a tomar la capa del marco nuevo
+            if (app.map) app.map.swapGeography(container, state, geo);
+            app.controls.syncDetalle(container, state);
+            app.geo.updateFooter(container, state);
         },
 
         setupActionButtons: function(container, state) {

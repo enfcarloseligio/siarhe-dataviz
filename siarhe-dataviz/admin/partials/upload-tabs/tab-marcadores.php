@@ -1,4 +1,9 @@
 <?php // /admin/partials/upload-tabs/tab-marcadores.php
+/**
+ * Carga de marcadores. Cada tipo de marcador (clínicas de catéteres, de heridas, establecimientos de salud...) es una familia
+ * de archivos, uno por periodo: un año de datos o «total» (todas las unidades de la historia). Se sube el CSV o la capa en
+ * JSON que exporta RHEMX; el plugin crea el otro formato y el mapa lee el JSON.
+ */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // 1. Gestor dinámico del diccionario de archivos
@@ -19,13 +24,16 @@ if ( empty($tipos_marcadores) || !is_array($tipos_marcadores) || (isset($tipos_m
 global $wpdb;
 $table_assets = $wpdb->prefix . 'siarhe_static_assets';
 $existing_files = $wpdb->get_results( 
-    $wpdb->prepare( "SELECT * FROM $table_assets WHERE tipo_archivo = %s AND es_activo = 1", 'marcador' )
+    $wpdb->prepare( "SELECT * FROM $table_assets WHERE tipo_archivo = %s AND es_activo = 1 ORDER BY anio_reporte DESC, id DESC", 'marcador' )
 );
 
+// Un archivo por tipo y periodo (anio_reporte 0 = toda la historia)
 $files_by_type = [];
 foreach ($existing_files as $file) {
-    $files_by_type[$file->entidad_slug] = $file;
+    $periodo_file = (int) $file->anio_reporte;
+    if ( ! isset( $files_by_type[$file->entidad_slug][$periodo_file] ) ) $files_by_type[$file->entidad_slug][$periodo_file] = $file;
 }
+$periodo_anio_max = max( 2026, (int) gmdate( 'Y' ) );
 
 // Directorio base de validación física
 $upload_base_dir = (defined('SIARHE_UPLOAD_DIR') ? SIARHE_UPLOAD_DIR : wp_upload_dir()['basedir'] . '/siarhe-data/') . 'markers/';
@@ -35,7 +43,7 @@ Siarhe_Admin::render_flash_notice();
 if ( isset($_GET['status']) ) {
     if ( $_GET['status'] == 'success' ) echo '<div class="notice notice-success is-dismissible"><p>Marcador procesado y actualizado correctamente.</p></div>';
     if ( $_GET['status'] == 'updated' ) echo '<div class="notice notice-success is-dismissible"><p>Metadatos sincronizados exitosamente.</p></div>';
-    if ( $_GET['status'] == 'deleted' ) echo '<div class="notice notice-warning is-dismissible"><p>Archivo CSV y registro eliminados.</p></div>';
+    if ( $_GET['status'] == 'deleted' ) echo '<div class="notice notice-warning is-dismissible"><p>Archivos (CSV y JSON) y registro eliminados.</p></div>';
     if ( $_GET['status'] == 'var_added' ) echo '<div class="notice notice-success is-dismissible"><p>Variable registrada. Ya puedes cargar su archivo CSV.</p></div>';
     if ( $_GET['status'] == 'var_deleted' ) echo '<div class="notice notice-warning is-dismissible"><p>Variable y archivo CSV asociado eliminados permanentemente.</p></div>';
     if ( $_GET['status'] == 'var_reset' ) echo '<div class="notice notice-warning is-dismissible"><p>Se restauraron las variables iniciales; los archivos personalizados fueron eliminados.</p></div>';
@@ -48,14 +56,16 @@ if ( isset($_GET['status']) ) {
 
 
 <div class="siarhe-card siarhe-upload-card">
-    <h2>📍 Gestión de Marcadores (Clínicas y Espectros)<?php Siarhe_Admin::help('Carga los CSV de puntos que se dibujan sobre el mapa (posicion, espectro o spike).'); ?></h2>
-    
+    <h2>📍 Gestión de Marcadores (Clínicas y Espectros)<?php Siarhe_Admin::help('Carga los archivos de puntos que se dibujan sobre el mapa (posición, espectro o spike), por periodo.'); ?></h2>
+
     <div class="notice notice-info inline">
-        <p><strong>Política de Archivos Únicos:</strong></p>
+        <p><strong>Cómo funcionan los archivos:</strong></p>
         <ul>
-            <li><strong>Formatos admitidos:</strong> Archivos .csv.</li>
-            <li><strong>Nomenclatura:</strong> El archivo se guardará automáticamente con el nombre estándar configurado.</li>
-            <li><strong>Proyección:</strong> Es necesario que las bases de datos usen las variables <code>CVE_ENT</code>, <code>CVE_MUN</code>, <code>LATITUD</code>, <code>LONGITUD</code>.</li>
+            <li><strong>Un archivo por tipo de marcador y periodo.</strong> El periodo es un año de datos o <strong>Toda la historia</strong> (todas las unidades que han existido o reportado al menos una vez). El mapa usa el archivo del año que el visitante está viendo y, si no existe, el de toda la historia. Subir otro para la misma combinación lo reemplaza.</li>
+            <li><strong>Formatos admitidos:</strong> <code>.csv</code> (separado por comas) o <code>.json</code> con la capa de puntos que exporta RHEMX (<code>unidades_clues_&lt;año&gt;.json</code>, <code>clinicas_cateteres_&lt;año&gt;.json</code>, <code>clinicas_cateteres_historico.json</code>, <code>clinicas_heridas_historico.json</code>). Al subir uno, el plugin crea el otro; el mapa lee el JSON, que pesa menos.</li>
+            <li><strong>Estructura del CSV:</strong> <code>LATITUD</code>, <code>LONGITUD</code> y la clave de la entidad (<code>CVE_ENT</code> o <code>CLAVE DE LA ENTIDAD</code>) son obligatorias; se aceptan los encabezados del catálogo CLUES (<code>clues_&lt;año&gt;.csv</code> de RHEMX).</li>
+            <li><strong>Estructura del JSON:</strong> <code>fila</code> (el campo de cada posición: <code>latitud</code>, <code>longitud</code>, <code>clues</code>, <code>nombre</code>, <code>institucion</code>, <code>nivel</code>…), las listas de textos (<code>instituciones</code>, <code>niveles</code>, <code>municipios</code>…) y <code>unidades</code> (una lista por punto).</li>
+            <li><strong>Nomenclatura:</strong> los archivos se guardan como <code>{nombre del tipo}-{periodo}.csv</code> y <code>.json</code> (ej. <code>clinicas-cateteres-2025.json</code>, <code>clinicas-heridas-total.json</code>).</li>
         </ul>
     </div>
     <?php Siarhe_Admin::render_columns_downloads( 'marker' ); ?>
@@ -77,15 +87,20 @@ if ( isset($_GET['status']) ) {
                 </td>
             </tr>
             <tr>
-                <th scope="row"><label for="marker_file">Archivo CSV</label><?php Siarhe_Admin::help('CSV con los puntos del marcador (coordenadas y, segun el tipo, la columna numerica). Se valida antes de guardarse.'); ?></th>
+                <th scope="row"><label for="periodo">Periodo de los Datos</label><?php Siarhe_Admin::help('Año al que corresponden los puntos, o «Toda la historia» para la capa con todas las unidades (por ejemplo, las clínicas que han reportado al menos una vez).'); ?></th>
                 <td>
-                    <input type="file" data-check="marker-csv" name="marker_file" id="marker_file" accept=".csv" required>
+                    <select name="periodo" id="periodo" required>
+                        <?php for ( $y = $periodo_anio_max; $y >= 2005; $y-- ) : ?>
+                            <option value="<?php echo (int) $y; ?>"<?php selected( $y, $periodo_anio_max ); ?>><?php echo (int) $y; ?></option>
+                        <?php endfor; ?>
+                        <option value="total">Toda la historia (total)</option>
+                    </select>
                 </td>
             </tr>
             <tr>
-                <th scope="row"><label for="anio_reporte">Año de los Datos</label><?php Siarhe_Admin::help('Anio al que corresponden los datos. Se muestra en las referencias del mapa.'); ?></th>
+                <th scope="row"><label for="marker_file">Archivo de Puntos (CSV o JSON)</label><?php Siarhe_Admin::help('CSV con los puntos del marcador, o la capa en JSON que exporta RHEMX. Se valida antes de guardarse y se crea el otro formato.'); ?></th>
                 <td>
-                    <input type="number" name="anio_reporte" placeholder="Ej: 2026" class="small-text" required min="2000" max="2100">
+                    <input type="file" data-check="marker-csv" name="marker_file" id="marker_file" accept=".csv,.json" required>
                 </td>
             </tr>
             <tr>
@@ -182,9 +197,10 @@ if ( isset($_GET['status']) ) {
     <table id="siarhe-marcadores-table" class="siarhe-table">
         <thead>
             <tr>
-                <th style="width: 20%" data-sort="text">Marcador</th>
-                <th style="width: 15%" data-sort="text">Estado</th>
-                <th style="width: 20%" data-sort="text">Archivo Sistema</th>
+                <th style="width: 18%" data-sort="text">Marcador</th>
+                <th style="width: 9%" data-sort="num">Periodo</th>
+                <th style="width: 12%" data-sort="text">Estado</th>
+                <th style="width: 16%" data-sort="text">Archivo Sistema</th>
                 <th style="width: 10%" data-sort="num">Fecha de Corte</th>
                 <th style="width: 15%" data-sort="num">Auditoría</th>
                 <th style="width: 5%" data-sort="num">Tamaño</th>
@@ -192,19 +208,28 @@ if ( isset($_GET['status']) ) {
             </tr>
         </thead>
         <tbody id="siarhe-marcadores-tbody">
-            <?php foreach ($tipos_marcadores as $key => $info) : 
-                $db_file = isset($files_by_type[$key]) ? $files_by_type[$key] : null;
-                
-                $filename = $info['filename'];
+            <?php
+            // Una fila por tipo y periodo cargado; los tipos sin archivo conservan una fila para ver lo que falta
+            foreach ($tipos_marcadores as $key => $info) :
+              $archivos_tipo = isset($files_by_type[$key]) ? $files_by_type[$key] : [ -1 => null ];
+              foreach ($archivos_tipo as $periodo_fila => $db_file) :
+                // Con registro, el archivo es el suyo; sin registro, el que pudo copiarse a la carpeta con el nombre del tipo
+                $filename = $db_file ? basename( $db_file->ruta_archivo ) : $info['filename'];
                 $ruta_fisica = $upload_base_dir . $filename;
                 $existe_fisico = file_exists($ruta_fisica);
-                
+                $json_name = ( $db_file && ! empty( $db_file->ruta_json ) && file_exists( $upload_base_dir . basename( $db_file->ruta_json ) ) ) ? basename( $db_file->ruta_json ) : '';
+                $periodo_txt = $db_file ? ( $periodo_fila > 0 ? (string) $periodo_fila : 'Toda la historia' ) : '—';
+
                 $url_publica = defined('SIARHE_UPLOAD_URL') ? SIARHE_UPLOAD_URL . 'markers/' . $filename : '';
             ?>
             <tr class="siarhe-data-row">
                 <td data-label="Marcador" data-mobile-role="primary">
                     <strong><?php echo esc_html($info['label']); ?></strong>
                     <?php if(!empty($info['is_core'])) echo '<br><small class="siarhe-text-faint">(Nativo)</small>'; ?>
+                </td>
+
+                <td data-label="Periodo" data-sort-value="<?php echo $db_file ? ( $periodo_fila > 0 ? (int) $periodo_fila : 9999 ) : 0; ?>">
+                    <?php echo esc_html( $periodo_txt ); ?>
                 </td>
                 
                 <td data-label="Estado" data-mobile-role="secondary">
@@ -218,6 +243,7 @@ if ( isset($_GET['status']) ) {
                 <td data-label="Archivo Sistema">
                     <?php if ($existe_fisico) : ?>
                         <code class="siarhe-code-sm"><?php echo esc_html($filename); ?></code>
+                        <?php if ( $json_name ) : ?><br><code class="siarhe-code-sm"><?php echo esc_html( $json_name ); ?></code><?php endif; ?>
                     <?php else : ?>—<?php endif; ?>
                 </td>
                 
@@ -288,8 +314,8 @@ if ( isset($_GET['status']) ) {
                         <?php if ($db_file) : ?>
                         <button type="button" class="button button-small edit-meta-btn" 
                                 data-id="<?php echo absint( $db_file->id ); ?>" 
-                                data-nombre="<?php echo esc_attr($info['label']); ?>" 
-                                data-anio="<?php echo esc_attr($db_file->anio_reporte); ?>" 
+                                data-nombre="<?php echo esc_attr( $info['label'] . ' · ' . $periodo_txt ); ?>"
+                                data-anio="<?php echo esc_attr( $periodo_txt ); ?>"  
                                 data-corte="<?php echo esc_attr($db_file->fecha_corte); ?>" 
                                 data-ref="<?php echo esc_attr($db_file->referencia_bibliografica); ?>" 
                                 data-notes="<?php echo esc_attr($db_file->comentarios); ?>"
@@ -298,23 +324,28 @@ if ( isset($_GET['status']) ) {
                         </button>
                         <?php endif; ?>
 
-                        <a href="<?php echo esc_url( $url_con_version ); ?>" target="_blank" class="button button-small" title="Descargar">
+                        <a href="<?php echo esc_url( $url_con_version ); ?>" target="_blank" class="button button-small" title="Descargar el CSV">
                             <span class="dashicons dashicons-download"></span>
                         </a>
+                        <?php if ( $json_name ) : ?>
+                        <a href="<?php echo esc_url( SIARHE_UPLOAD_URL . 'markers/' . $json_name . '?v=' . filemtime( $upload_base_dir . $json_name ) ); ?>" target="_blank" rel="noopener" class="button button-small" title="Descargar el JSON">
+                            <span class="dashicons dashicons-media-code"></span>
+                        </a>
+                        <?php endif; ?>
 
                         <?php if ( $db_file ) : ?>
-                        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-confirm="¿Eliminar solo el archivo CSV de este marcador? La variable se conserva y podrás volver a cargar un archivo.">
+                        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-confirm="¿Eliminar los archivos (CSV y JSON) de este periodo? La variable se conserva y podrás volver a cargar un archivo.">
                             <input type="hidden" name="action" value="siarhe_delete_static">
                             <input type="hidden" name="file_id" value="<?php echo absint( $db_file->id ); ?>">
                             <?php wp_nonce_field( 'siarhe_delete_static_nonce_' . $db_file->id ); ?>
-                            <button type="submit" class="button button-small button-danger" data-help="Eliminar solo el archivo CSV. La variable se conserva."><span class="dashicons dashicons-trash"></span></button>
+                            <button type="submit" class="button button-small button-danger" data-help="Eliminar los archivos de este periodo. La variable se conserva."><span class="dashicons dashicons-trash"></span></button>
                         </form>
                         <?php endif; ?>
 
                     <?php else : ?>—<?php endif; ?>
                     
                     <?php if (empty($info['is_core'])): ?>
-                        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-confirm="¿Eliminar esta variable de forma permanente? El archivo CSV y su registro en la base de datos también serán borrados.">
+                        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-confirm="¿Eliminar esta variable de forma permanente? Sus archivos de todos los periodos y sus registros en la base de datos también serán borrados.">
                             <input type="hidden" name="action" value="siarhe_marker_var_delete">
                             <?php wp_nonce_field( 'siarhe_delete_variable_nonce', 'del_nonce' ); ?>
                             <input type="hidden" name="del_file_key" value="<?php echo esc_attr($key); ?>">
@@ -324,9 +355,9 @@ if ( isset($_GET['status']) ) {
                     </div>
                 </td>
             </tr>
-            <?php endforeach; ?>
+            <?php endforeach; endforeach; ?>
             <tr id="siarhe-marcadores-empty" style="display: none;">
-                <td colspan="7" class="siarhe-empty-cell">No se encontraron resultados para su búsqueda.</td>
+                <td colspan="8" class="siarhe-empty-cell">No se encontraron resultados para su búsqueda.</td>
             </tr>
         </tbody>
     </table>
@@ -349,7 +380,7 @@ if ( isset($_GET['status']) ) {
             <?php wp_nonce_field( 'siarhe_update_static_meta_nonce', 'siarhe_meta_nonce' ); ?>
 
             <table class="form-table">
-                <tr><th><label>Año de los Datos</label><?php Siarhe_Admin::help('Anio al que corresponden los datos. Se muestra en las referencias del mapa.'); ?></th><td><input type="number" name="anio_reporte" id="modal-anio" class="regular-text" required></td></tr>
+                <tr><th><label>Periodo de los Datos</label><?php Siarhe_Admin::help('El periodo identifica al archivo: para cambiarlo, súbelo de nuevo en el periodo correcto y elimina este.'); ?></th><td><input type="text" id="modal-anio" class="regular-text" readonly></td></tr>
                 <tr><th><label>Fecha de Corte</label><?php Siarhe_Admin::help('Fecha hasta la cual el archivo contiene informacion. Se muestra al usuario como vigencia de los datos.'); ?></th><td><input type="date" name="fecha_corte" id="modal-corte" class="regular-text" required></td></tr>
                 <tr><th><label>Fuente / Referencia</label><?php Siarhe_Admin::help('Origen de la informacion (institucion, documento, version). Aparece como referencia bibliografica.'); ?></th><td><textarea name="referencia" id="modal-ref" rows="3" class="large-text"></textarea></td></tr>
                 <tr><th><label>Comentarios Internos</label><?php Siarhe_Admin::help('Notas para el equipo administrador. No se muestran en el sitio publico.'); ?></th><td><textarea name="comentarios" id="modal-notes" rows="3" class="large-text"></textarea></td></tr>

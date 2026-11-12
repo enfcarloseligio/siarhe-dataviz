@@ -25,8 +25,7 @@ siarhe-dataviz/uploads/*
 
 # Build
 *.zip
-# Scripts locales y builds (NO subir al repo)
-build.ps1
+# Resultado del empaquetador (build.ps1 sí se versiona; builds/ no)
 builds/
 estructura.bat
 estructura.txt

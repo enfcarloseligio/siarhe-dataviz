@@ -1,10 +1,12 @@
+/* /public/js/siarhe-worker.js */
 /**
  * SIARHE DataViz - Worker de marcadores
  * ------------------------------------------------------------------
- * Descarga, lee, filtra y agrupa el CSV de un marcador FUERA del hilo principal: con decenas de miles
- * de filas (10 a 14 MB) el navegador deja de bloquearse mientras se prepara el mapa.
+ * Descarga, lee, filtra y agrupa el archivo de un marcador FUERA del hilo principal: con decenas de miles
+ * de filas (10 a 14 MB en CSV) el navegador deja de bloquearse mientras se prepara el mapa. Lee la capa en JSON
+ * (formato "siarhe-marcadores", con siarhe-capas.js) o el CSV; los dos dan la misma tabla.
  *
- * Recibe { id, url, spec } y responde { id, ok, points, ms } (o { id, ok:false, error }).
+ * Recibe { id, url, spec, libs: [siarhe-capas.js] } y responde { id, ok, points, ms } (o { id, ok:false, error }).
  * La logica de filtrado y agrupado replica la de loadMarkerData() de siarhe-controls.js, que se conserva
  * como respaldo cuando el navegador no puede usar workers.
  */
@@ -70,7 +72,13 @@ function parseCSV(text) {
     return { header: header, rows: rows };
 }
 
-async function loadFile(url) {
+/** Nombre de columna normalizado (minusculas, sin acentos, guion bajo como espacio); mismo criterio que SiarheCapas.normaliza. */
+function norm(nombre) {
+    return String(nombre === undefined || nombre === null ? '' : nombre).trim().toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[_\s]+/g, ' ');
+}
+
+async function loadFile(url, libs) {
     if (FILES.has(url)) {
         const f = FILES.get(url);
         FILES.delete(url); FILES.set(url, f);   // se marca como el mas reciente
@@ -78,7 +86,19 @@ async function loadFile(url) {
     }
     const res = await fetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status + ' al descargar ' + url);
-    const parsed = parseCSV(await res.text());
+    let parsed;
+    if (/\.json(\?|$)/i.test(url)) {
+        // Capa en JSON: se convierte a la misma tabla que da su CSV
+        if (!self.SiarheCapas) {
+            if (!Array.isArray(libs) || !libs.length) throw new Error('Falta la libreria para leer la capa JSON');
+            importScripts.apply(self, libs);
+        }
+        const capa = await res.json();
+        if (!self.SiarheCapas.esCapa(capa)) throw new Error('El JSON no es una capa de marcadores');
+        parsed = self.SiarheCapas.aTabla(capa);
+    } else {
+        parsed = parseCSV(await res.text());
+    }
     FILES.set(url, parsed);
     while (FILES.size > MAX_FILES) FILES.delete(FILES.keys().next().value);
     return parsed;
@@ -90,12 +110,12 @@ const RAW_COLS = ['entidad', 'nom_ent', 'localidad', 'nom_loc', 'cve_mun', 'cve 
 function processRows(file, spec) {
     const header = file.header, rows = file.rows;
 
-    // Nombre de columna (minusculas, sin espacios al borde) -> posicion. Si se repite gana la ultima, como en el modo normal.
+    // Nombre de columna normalizado -> posicion. Si se repite gana la ultima, como en el modo normal.
     const colMap = {};
-    for (let i = 0; i < header.length; i++) colMap[header[i].trim().toLowerCase()] = i;
+    for (let i = 0; i < header.length; i++) colMap[norm(header[i])] = i;
     const resolve = (names) => {
         for (let k = 0; k < names.length; k++) {
-            const idx = colMap[names[k].toLowerCase().trim()];
+            const idx = colMap[norm(names[k])];
             if (idx !== undefined) return idx;
         }
         return -1;
@@ -129,10 +149,10 @@ function processRows(file, spec) {
 
     // Columnas que se conservan en _raw
     const keep = {};
-    RAW_COLS.concat(spec.espectroCol ? [String(spec.espectroCol).toLowerCase().trim()] : []).forEach(n => { keep[n] = true; });
+    RAW_COLS.concat(spec.espectroCol ? [spec.espectroCol] : []).forEach(n => { keep[norm(n)] = true; });
     const rawIdx = [];
     for (let i = 0; i < header.length; i++) {
-        if (keep[header[i].trim().toLowerCase()] && colMap[header[i].trim().toLowerCase()] === i) rawIdx.push(i);
+        if (keep[norm(header[i])] && colMap[norm(header[i])] === i) rawIdx.push(i);
     }
 
     // 1) Filtrado
@@ -213,7 +233,7 @@ self.onmessage = async function(e) {
     const msg = e.data || {};
     const t0 = Date.now();
     try {
-        const file = await loadFile(msg.url);
+        const file = await loadFile(msg.url, msg.libs);
         const t1 = Date.now();
         const points = processRows(file, msg.spec || {});
         self.postMessage({ id: msg.id, ok: true, points: points, rows: file.rows.length, readMs: t1 - t0, procMs: Date.now() - t1 });

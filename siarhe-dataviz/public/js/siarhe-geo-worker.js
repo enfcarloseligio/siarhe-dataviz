@@ -1,11 +1,13 @@
+/* /public/js/siarhe-geo-worker.js */
 /**
  * SIARHE DataViz - Worker de geometrias (municipios / localidades)
  * ------------------------------------------------------------------
- * Descarga el GeoJSON detallado, lo proyecta y prepara los trazos SVG en TRES niveles de detalle,
- * todo fuera del hilo principal. El GeoJSON nacional de municipios pesa ~37 MB (1.8 millones de vertices):
- * proyectarlo y dibujarlo completo en cada cuadro es lo que volvia lenta la vista por municipios.
+ * Descarga la capa detallada (TopoJSON de RHEMX o GeoJSON), la proyecta y prepara los trazos SVG en TRES niveles
+ * de detalle, todo fuera del hilo principal. La capa nacional de municipios en GeoJSON pesa ~37 MB (1.8 millones de
+ * vertices): proyectarla y dibujarla completa en cada cuadro es lo que volvia lenta la vista por municipios.
  *
- * Recibe { id, url, proj: { scale, translate: [tx, ty] }, tolerances: [t0, t1] }
+ * Recibe { id, url, proj: { scale, translate: [tx, ty] }, tolerances: [t0, t1], libs: [siarhe-topo.js, topojson-client] }
+ * (libs solo se cargan si el archivo es una topologia).
  * Responde { id, progress } mientras trabaja y al final { id, ok, features: [{ properties, bounds, d: [lod0, lod1, lod2] }] }.
  *  - d[0] y d[1]: simplificados con Douglas-Peucker (tolerancia en unidades del viewBox).
  *  - d[2]: detalle completo (2 decimales).
@@ -118,9 +120,17 @@ self.onmessage = async function(e) {
     try {
         const res = await fetch(msg.url);
         if (!res.ok) throw new Error('HTTP ' + res.status + ' al descargar ' + msg.url);
-        const data = await res.json();
+        let data = await res.json();
+        // TopoJSON: se convierte con las mismas funciones que usa la pagina (siarhe-topo.js + topojson-client)
+        if (data && data.type === 'Topology') {
+            if (!self.SiarheTopo || !self.topojson) {
+                if (!Array.isArray(msg.libs) || !msg.libs.length) throw new Error('Faltan las librerias para leer TopoJSON');
+                importScripts.apply(self, msg.libs);
+            }
+            data = self.SiarheTopo.aColeccion(data, self.topojson);
+        }
         const feats = Array.isArray(data && data.features) ? data.features : [];
-        if (!feats.length) throw new Error('El GeoJSON detallado esta vacio o no es valido');
+        if (!feats.length) throw new Error('La capa detallada esta vacia o no es valida');
 
         const scale = msg.proj.scale, tx = msg.proj.translate[0], ty = msg.proj.translate[1];
         const tol = msg.tolerances || [0.25, 0.06];

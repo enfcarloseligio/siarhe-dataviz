@@ -21,22 +21,13 @@ if ( file_exists($markers_dir) && is_dir($markers_dir) ) {
     }
 }
 
-$defaults = [
-    'CATETER' => ['label' => 'Clínicas de catéteres', 'tipo' => 'posicion', 'archivo' => 'clinicas-cateteres.csv', 'filtro_col' => '', 'filtro_val' => '', 'visibilidad' => 'publico', 'is_core' => true],
-    'HERIDAS' => ['label' => 'Clínicas de heridas', 'tipo' => 'posicion', 'archivo' => 'clinicas-heridas.csv', 'filtro_col' => '', 'filtro_val' => '', 'visibilidad' => 'publico', 'is_core' => true],
-    'ESTAB_1' => ['label' => 'Establecimientos (1er Nivel)', 'tipo' => 'posicion', 'archivo' => 'establecimientos-salud.csv', 'filtro_col' => 'cve_n_atencion', 'filtro_val' => '1', 'visibilidad' => 'publico', 'is_core' => true],
-    'ESTAB_2' => ['label' => 'Establecimientos (2do Nivel)', 'tipo' => 'posicion', 'archivo' => 'establecimientos-salud.csv', 'filtro_col' => 'cve_n_atencion', 'filtro_val' => '2', 'visibilidad' => 'publico', 'is_core' => true],
-    'ESTAB_3' => ['label' => 'Establecimientos (3er Nivel)', 'tipo' => 'posicion', 'archivo' => 'establecimientos-salud.csv', 'filtro_col' => 'cve_n_atencion', 'filtro_val' => '3', 'visibilidad' => 'publico', 'is_core' => true],
-    'ESTAB_6' => ['label' => 'Establecimientos (No Aplica)', 'tipo' => 'posicion', 'archivo' => 'establecimientos-salud.csv', 'filtro_col' => 'cve_n_atencion', 'filtro_val' => '6', 'visibilidad' => 'publico', 'is_core' => true]
-];
+// Marcadores con que viene el plugin; los del sistema (establecimientos por nivel de atención) solo permiten cambiar su visibilidad
+$defaults = siarhe_get_default_marcadores();
 
 $defaults_json = wp_json_encode($defaults);
 
 // Se decodifica con el mismo ayudante que el resto: no quita barras a un JSON valido (eso volvia "ó" en "u00f3") y repara lo ya dañado
-$marcadores_guardados = siarhe_decode_json_option( get_option( 'siarhe_marcadores_config', '' ) );
-$marcadores_json = ( is_array( $marcadores_guardados ) && $marcadores_guardados )
-    ? wp_json_encode( $marcadores_guardados, JSON_UNESCAPED_UNICODE )
-    : wp_json_encode( $defaults, JSON_UNESCAPED_UNICODE );
+$marcadores_json = wp_json_encode( siarhe_get_marcadores_config(), JSON_UNESCAPED_UNICODE );
 ?>
 
 <style>
@@ -133,7 +124,8 @@ $marcadores_json = ( is_array( $marcadores_guardados ) && $marcadores_guardados 
         </h2>
         
         <div class="notice notice-info inline" id="modal-mk-core-notice" style="display:none; margin-bottom:15px;">
-            <p>🔒 Este es un marcador <strong>nativo</strong> del sistema. Su clave interna y fuente no pueden modificarse.</p>
+            <p>🔒 Este es un marcador <strong>nativo</strong> del sistema. Su clave interna y fuente no pueden modificarse; en los de establecimientos de salud por nivel de atención solo se puede cambiar la visibilidad.</p>
+            <input type="hidden" id="modal-mk-sistema" value="0">
         </div>
 
         <input type="hidden" id="modal-mk-original-key">
@@ -605,6 +597,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         tipoSelect.dispatchEvent(new Event('change'));
 
+        // Marcador del sistema: sus textos, su archivo y su filtro son fijos; solo se elige quién lo ve
+        modal.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(el => {
+            if (el.id !== 'modal-mk-visibilidad') el.disabled = item.sistema === true;
+        });
+        modal.querySelectorAll('.btn-remove-rule, #btn-add-rule').forEach(el => { el.style.pointerEvents = item.sistema === true ? 'none' : ''; });
+        document.getElementById('modal-mk-sistema').value = item.sistema === true ? '1' : '0';
+
         if (item.is_core) {
             keyInput.readOnly = true; keyInput.style.background = '#f0f0f1';
             archivoInput.disabled = true; archivoInput.style.background = '#f0f0f1';
@@ -677,6 +676,7 @@ document.addEventListener('DOMContentLoaded', function() {
             resumen_geo: isResumenGeo, 
             visibilidad: document.getElementById('modal-mk-visibilidad').value,
             is_core: isCore,
+            sistema: document.getElementById('modal-mk-sistema').value === '1',
             created_by: originalCreator,    
             created_at: originalCreatedAt,
             last_edited_by: currentUser,    

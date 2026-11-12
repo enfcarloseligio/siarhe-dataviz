@@ -28,7 +28,7 @@ Mapa estático optimizado (canvas para marcadores, Web Worker para los CSV, vist
 3. **Cambiar ambas** con `sed` (no con `Set-Content` de PowerShell, que agrega un BOM). Comprobar que el archivo empieza con los bytes `3c3f70` (`<?p`).
 4. **Verificar:** `node --check` de cada `.js`; no hay PHP en el equipo de desarrollo, así que se revisa el balance de llaves y se prueba en el sitio.
 5. **Commit** cuyo mensaje empieza con la versión (`0.1.0.0 …`) y push a `main`.
-6. **Empaquetar** (opcional): `.\build.ps1` desde la raíz del repositorio; lee la versión de `SIARHE_VERSION` y genera `builds\…zip` (la carpeta y el script no se suben al repositorio).
+6. **Empaquetar** (opcional): `.\build.ps1` desde la raíz del repositorio; lee la versión de `SIARHE_VERSION` y genera `builds\…zip` (el script `build.ps1` sí se versiona; la carpeta `builds\` y los `.zip` no se suben al repositorio).
 7. En el sitio: actualizar el plugin, **entrar a una pantalla del panel** (crea el `.htaccess` y las copias de lectura que falten), **vaciar la caché de LiteSpeed y la de Cloudflare**, y revisar el Dashboard (compresión de los datos, salud del sistema).
 8. Agregar la entrada a [`CHANGELOG.md`](../CHANGELOG.md).
 

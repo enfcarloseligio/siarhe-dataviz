@@ -3,3 +3,9 @@ Version: 7.9.0 (ISC, ver LICENSE-d3.txt)
 Origen:  https://d3js.org/d3.v7.min.js
 Se carga solo si el CDN falla o no trae las funciones que usa el plugin.
 Para actualizarla, reemplaza d3.v7.min.js y ajusta la version en class-siarhe-shortcodes.php.
+
+topojson-client (lectura de las geometrias TopoJSON; siempre se usa esta copia local)
+Version: 3.1.0 (ISC, Copyright 2019 Mike Bostock; misma licencia que D3, ver LICENSE-d3.txt)
+Origen:  https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js
+Se carga solo cuando el mapa recibe una topologia (la pagina y el worker de geometrias).
+Para actualizarla, reemplaza topojson-client.min.js y ajusta la version en class-siarhe-shortcodes.php.

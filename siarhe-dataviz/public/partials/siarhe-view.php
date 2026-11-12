@@ -8,8 +8,10 @@ $siarhe_js_ver = function( $file ) {
     return file_exists( $path ) ? filemtime( $path ) : SIARHE_VERSION;
 };
 
-// 1. Core y Controles (Siempre se necesitan para leer datos y selectores)
-wp_enqueue_script( 'siarhe-core-js', SIARHE_URL . 'public/js/siarhe-core.js', array('d3-js'), $siarhe_js_ver('siarhe-core.js'), true );
+// 1. Core y Controles (Siempre se necesitan para leer datos y selectores). siarhe-topo.js lee las geometrias TopoJSON.
+wp_enqueue_script( 'siarhe-topo-js', SIARHE_URL . 'public/js/siarhe-topo.js', array(), $siarhe_js_ver('siarhe-topo.js'), true );
+wp_enqueue_script( 'siarhe-capas-js', SIARHE_URL . 'public/js/siarhe-capas.js', array(), $siarhe_js_ver('siarhe-capas.js'), true );
+wp_enqueue_script( 'siarhe-core-js', SIARHE_URL . 'public/js/siarhe-core.js', array('d3-js', 'siarhe-topo-js', 'siarhe-capas-js'), $siarhe_js_ver('siarhe-core.js'), true );
 wp_enqueue_script( 'siarhe-controls-js', SIARHE_URL . 'public/js/siarhe-controls.js', array('siarhe-core-js'), $siarhe_js_ver('siarhe-controls.js'), true );
 
 // 2. Mapa (Solo si el shortcode incluye la letra 'M')
@@ -34,7 +36,7 @@ if ( $csv_meta && !empty($csv_meta->anio_reporte) ) {
 }
 
 // CONSULTA DE METADATOS DEL MARCADOR DE ESTABLECIMIENTOS PARA REFERENCIA
-$mk_meta = $wpdb->get_row( "SELECT referencia_bibliografica, fecha_corte FROM $table_assets WHERE entidad_slug = 'ESTABLECIMIENTOS' AND tipo_archivo = 'marcador' AND es_activo = 1" );
+$mk_meta = $wpdb->get_row( "SELECT referencia_bibliografica, fecha_corte FROM $table_assets WHERE entidad_slug = 'ESTABLECIMIENTOS' AND tipo_archivo = 'marcador' AND es_activo = 1 ORDER BY anio_reporte DESC LIMIT 1" );
 $mk_ref  = ($mk_meta && !empty($mk_meta->referencia_bibliografica)) ? $mk_meta->referencia_bibliografica : 'Catálogo de Establecimientos de Salud.';
 $mk_date = ($mk_meta && !empty($mk_meta->fecha_corte)) ? date_i18n('d/M/Y', strtotime($mk_meta->fecha_corte)) : '—';
 
@@ -53,29 +55,35 @@ $upload_base_dir_front = defined('SIARHE_UPLOAD_DIR') ? SIARHE_UPLOAD_DIR : wp_u
 $upload_base_url_front = defined('SIARHE_UPLOAD_URL') ? SIARHE_UPLOAD_URL : wp_upload_dir()['baseurl'] . '/siarhe-data/';
 
 // 2. MOTOR DINÁMICO DE MARCADORES
-$marcadores_json = get_option( 'siarhe_marcadores_config', '' );
-$marcadores_array = siarhe_decode_json_option( $marcadores_json );
-
-if (empty($marcadores_array)) {
-    $marcadores_array = [
-        'CATETER' => ['label' => 'Clínicas de catéteres', 'archivo' => 'clinicas-cateteres.csv', 'visibilidad' => 'publico'],
-        'HERIDAS' => ['label' => 'Clínicas de heridas', 'archivo' => 'clinicas-heridas.csv', 'visibilidad' => 'publico']
-    ];
-}
+// Cada marcador lee un tipo de archivo, que puede estar cargado para varios periodos (años y "total"): el mapa recibe
+// todos y usa el del año que se ve. Los marcadores cuyo archivo no esta cargado no se ofrecen.
+$marcadores_array = siarhe_get_marcadores_config();
+$marcadores_archivos = siarhe_get_marker_file_urls();
 
 $marker_config = [];
 $marker_urls = [];
 $marker_labels = []; 
 $is_user_logged_in = is_user_logged_in();
 
-// OBTENER Y FIRMAR GEOJSON DE LOCALIDADES
-$geo_loc_meta = $wpdb->get_row( $wpdb->prepare( "SELECT ruta_archivo FROM $table_assets WHERE entidad_slug = %s AND tipo_archivo = 'localidades_geojson' AND es_activo = 1", $slug ) );
-$geojson_loc_url = '';
-if ($geo_loc_meta && !empty($geo_loc_meta->ruta_archivo)) {
-    $ruta_fisica_loc = $upload_base_dir_front . ltrim($geo_loc_meta->ruta_archivo, '/');
-    $v_loc = file_exists($ruta_fisica_loc) ? filemtime($ruta_fisica_loc) : time();
-    $geojson_loc_url = siarhe_data_read_url( $upload_base_url_front . ltrim($geo_loc_meta->ruta_archivo, '/') . '?v=' . $v_loc );
+// GEOMETRIAS POR MARCO GEOESTADISTICO
+// $geos llega del shortcode: array( 'base' => array( marco => fila ), 'loc' => array( marco => fila ) ).
+// El mapa recibe todos los marcos para cambiar de geometria cuando el visitante elige un año de otro quinquenio:
+// { base: { marco: { url, fecha, ref } }, loc: { marco: { url } } }
+$geos_mapa = array( 'base' => array(), 'loc' => array() );
+foreach ( $geos['base'] as $marco_g => $fila_g ) {
+    $geos_mapa['base'][ (string) $marco_g ] = array(
+        'url'   => Siarhe_Geo::url( $fila_g ),
+        'fecha' => $fila_g->fecha_corte ? date_i18n( 'd/M/Y', strtotime( $fila_g->fecha_corte ) ) : '',
+        'ref'   => wp_strip_all_tags( (string) $fila_g->referencia_bibliografica ),
+    );
 }
+foreach ( $geos['loc'] as $marco_g => $fila_g ) {
+    $geos_mapa['loc'][ (string) $marco_g ] = array( 'url' => Siarhe_Geo::url( $fila_g ) );
+}
+
+// Capa detallada (municipios o localidades) del marco que corresponde al año inicial
+$marco_loc = Siarhe_Geo::marco_para( $anio, array_keys( $geos['loc'] ) );
+$geojson_loc_url = $marco_loc ? $geos_mapa['loc'][ (string) $marco_loc ]['url'] : '';
 
 foreach ($marcadores_array as $key => $mk) {
     $visibilidad = isset($mk['visibilidad']) ? $mk['visibilidad'] : 'publico';
@@ -83,14 +91,11 @@ foreach ($marcadores_array as $key => $mk) {
     if ($visibilidad === 'oculto') continue; 
     if ($visibilidad === 'registrados' && !$is_user_logged_in) continue;
     
+    if ( empty( $mk['archivo'] ) || empty( $marcadores_archivos[ $mk['archivo'] ] ) ) continue;
+
     $s_key = strtolower($key);
-    
-    // 🌟 CACHE BUSTING PARA MARCADORES
-    $ruta_mk = $upload_base_dir_front . 'markers/' . $mk['archivo'];
-    $v_mk = file_exists($ruta_mk) ? filemtime($ruta_mk) : time();
-    
-    $marker_urls[$key] = siarhe_data_read_url( $upload_base_url_front . 'markers/' . $mk['archivo'] . '?v=' . $v_mk );
-    $marker_labels[$key] = $mk; 
+    $marker_urls[$key] = $marcadores_archivos[ $mk['archivo'] ]; // { periodo: url }
+    $marker_labels[$key] = $mk;  
     
     $marker_config[$key] = [
         'shape' => isset($opts["m_{$s_key}_shape"]) ? $opts["m_{$s_key}_shape"] : 'circle',
@@ -242,6 +247,7 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
      data-anio="<?php echo esc_attr( $anio ); ?>"
      data-unidad="<?php echo esc_attr( ( $csv_meta && ! empty( $csv_meta->unidad ) ) ? $csv_meta->unidad : 'plazas' ); ?>"
      data-geojson-loc="<?php echo esc_url($geojson_loc_url); ?>"
+     data-geos='<?php echo esc_attr( wp_json_encode( $geos_mapa ) ); ?>'
      data-worker="<?php echo esc_url( SIARHE_URL . 'public/js/siarhe-worker.js?v=' . $siarhe_js_ver('siarhe-worker.js') ); ?>"
      data-geo-worker="<?php echo esc_url( SIARHE_URL . 'public/js/siarhe-geo-worker.js?v=' . $siarhe_js_ver('siarhe-geo-worker.js') ); ?>"
      data-marker-config='<?php echo esc_attr(wp_json_encode($marker_config)); ?>'
@@ -361,8 +367,8 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
             <div class="siarhe-ref-col">
                 <strong><span class="dashicons dashicons-admin-site"></span> Datos Espaciales</strong>
                 <p class="siarhe-break-text">
-                    <strong>Fuente:</strong> <?php echo esc_html($geo_ref); ?><br>
-                    <strong>Fecha de corte:</strong> <?php echo esc_html($geo_date); ?>
+                    <strong>Fuente:</strong> <span class="siarhe-geo-ref"><?php echo esc_html($geo_ref); ?></span><br>
+                    <strong>Fecha de corte:</strong> <span class="siarhe-geo-date"><?php echo esc_html($geo_date); ?></span>
                 </p>
             </div>
 

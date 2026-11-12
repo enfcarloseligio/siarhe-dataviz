@@ -26,8 +26,15 @@ Scripts de Node (con `jsdom` instalado fuera del proyecto) que cargan los archiv
 | Tamaños y zoom | Tamaños por dispositivo, clasificación (incluido iPad), borde en píxeles, espinas/burbujas, el tamaño nunca se encoge al acercar, zoom máximo del mapa nacional vs. estatal |
 | Capa de municipios | El worker con el archivo real de 37 MB (proyección idéntica a d3, error de simplificación, 15× menos vértices) y, con 300 municipios reales, carga con progreso, respaldos y cambio de nivel al hacer zoom |
 
+## Pruebas en el repositorio (0.1.7.0)
+
+La carpeta [`tests/`](../tests/LEEME.md) guarda las pruebas de la lectura de geometrías (TopoJSON por marco) y de marcadores (CSV y JSON por periodo), que se ejecutan con Node y PHP contra los archivos reales de RHEMX. En la 0.1.7.0 pasaron las cuatro; lo que cubren y cómo ejecutarlas está en su `LEEME.md`.
+
+> [!IMPORTANT]
+> La 0.1.7.0 **no se ha probado en un WordPress real**: faltan la carga de archivos desde el panel (geometrías por marco y marcadores por periodo), la migración del esquema (versión 3) y el cambio de marco al cambiar de año en el mapa.
+
 ## Pendiente
 
-- **Mover esas pruebas a `tests/` en el repositorio** (son scripts de Node que no viajan en el `.zip` del plugin) con una nota de cómo ejecutarlas. Hoy viven en una carpeta temporal de la sesión de trabajo y se perderían.
+- Las pruebas escritas para la 0.1.0.0 (tabla de arriba) no se conservaron; las nuevas van en `tests/`.
 - Pruebas del PHP (validadores de CSV, catálogo de columnas, copias de seguridad); requeriría PHP en el entorno de desarrollo o un contenedor.
 - Las pruebas de aspecto (cómo se ve) siguen siendo manuales; solo se verifican geometría y lógica.

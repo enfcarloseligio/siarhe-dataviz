@@ -50,12 +50,8 @@ class Siarhe_Shortcodes {
         global $wpdb;
         $table_assets = $wpdb->prefix . 'siarhe_static_assets';
         
-        // 1. Buscar GeoJSON activo (y sus metadatos)
-        $geojson = $wpdb->get_row( $wpdb->prepare( 
-            "SELECT ruta_archivo, anio_reporte, fecha_corte, referencia_bibliografica 
-             FROM $table_assets WHERE entidad_slug = %s AND tipo_archivo = 'geojson' AND es_activo = 1", 
-            $slug 
-        ));
+        // 1. Geometrias de la entidad por marco geoestadistico (mapa base y capa detallada)
+        $geos = Siarhe_Geo::archivos( $slug );
 
         // 2. Buscar CSV Estático activo (y sus metadatos)
         $csv = $wpdb->get_row( $wpdb->prepare( 
@@ -65,6 +61,11 @@ class Siarhe_Shortcodes {
             $slug 
         ));
 
+        // El mapa abre con el marco que corresponde al año de la base mas reciente
+        $anio_datos  = $csv ? (int) $csv->anio_reporte : (int) gmdate( 'Y' );
+        $marco_base  = Siarhe_Geo::marco_para( $anio_datos, array_keys( $geos['base'] ) );
+        $geojson     = $marco_base ? $geos['base'][ $marco_base ] : null;
+
         // Construir URLs completas
         $geojson_url = $geojson ? SIARHE_UPLOAD_URL . $geojson->ruta_archivo : '';
         $csv_url     = $csv ? SIARHE_UPLOAD_URL . $csv->ruta_archivo : '';
@@ -72,7 +73,7 @@ class Siarhe_Shortcodes {
         if ( $csv && ! empty( $csv->ruta_json ) && file_exists( SIARHE_UPLOAD_DIR . ltrim( $csv->ruta_json, '/' ) ) ) {
             $csv_url = SIARHE_UPLOAD_URL . $csv->ruta_json;
         }
-        $anio        = $geojson ? $geojson->anio_reporte : date('Y');
+        $anio        = $anio_datos;
 
         // Preparar Referencias y Fechas para la vista
         $geo_ref     = $geojson ? $geojson->referencia_bibliografica : 'SIARHE';
@@ -85,8 +86,8 @@ class Siarhe_Shortcodes {
         if ( empty($geojson_url) && strpos($mode, 'M') !== false ) {
             return "<div style='background:#fff5f5; border:1px solid #fc8181; padding:20px; color:#c53030; border-radius:4px; margin:20px 0;'>
                         <strong>⚠️ Configuración Incompleta (Mapa):</strong><br>
-                        No se encontró un archivo GeoJSON activo para <em>" . esc_html( $nombre_entidad . ' (' . $slug . ')' ) . "</em>.<br>
-                        <small>Ve al Admin > SIARHE > Carga de Datos y sube el mapa correspondiente.</small>
+                        No se encontró un mapa cargado para <em>" . esc_html( $nombre_entidad . ' (' . $slug . ')' ) . "</em>.<br>
+                        <small>Ve al Admin > SIARHE > Carga de Datos > Geolocalización y sube el mapa correspondiente.</small>
                    </div>";
         }
         
@@ -132,7 +133,14 @@ class Siarhe_Shortcodes {
         // Respaldo local: siarhe-core.js lo carga solo si el CDN falla o no trae las funciones de D3 que se usan
         wp_add_inline_script(
             'd3-js',
-            'window.SiarheDataVizConfig = ' . wp_json_encode( array( 'd3Fallback' => SIARHE_URL . 'public/js/libs/d3.v7.min.js?ver=7.9.0' ) ) . ';',
+            'window.SiarheDataVizConfig = ' . wp_json_encode( array(
+                'd3Fallback' => SIARHE_URL . 'public/js/libs/d3.v7.min.js?ver=7.9.0',
+                // Lectura de TopoJSON: se cargan solo cuando la geometria es una topologia (pagina y worker)
+                'topojson'   => SIARHE_URL . 'public/js/libs/topojson-client.min.js?ver=3.1.0',
+                'topoHelper' => SIARHE_URL . 'public/js/siarhe-topo.js?ver=' . SIARHE_VERSION,
+                // Lectura de las capas de marcadores en JSON dentro del worker
+                'capas'      => SIARHE_URL . 'public/js/siarhe-capas.js?ver=' . SIARHE_VERSION,
+            ) ) . ';',
             'before'
         );
 

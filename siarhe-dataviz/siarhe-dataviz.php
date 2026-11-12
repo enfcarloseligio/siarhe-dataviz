@@ -15,7 +15,7 @@
  * Plugin Name:       SIARHE Data Visualization Engine
  * Plugin URI:        https://github.com/enfcarloseligio/siarhe-dataviz
  * Description:       Mapas coropléticos (D3.js) y tablas interactivas de recursos humanos de enfermería de México (SIARHE), con carga y validación de GeoJSON y CSV, copias de seguridad y panel de administración.
- * Version:           0.1.6.0
+ * Version:           0.1.7.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Juan Carlos De La Cruz Eligio | @enfcarloseligio
@@ -52,7 +52,7 @@ if ( ! siarhe_requisitos_cumplidos() ) {
 }
 
 // 1. Definición de Constantes Básicas
-define( 'SIARHE_VERSION', '0.1.6.0' );
+define( 'SIARHE_VERSION', '0.1.7.0' );
 define( 'SIARHE_PATH', plugin_dir_path( __FILE__ ) );
 define( 'SIARHE_URL', plugin_dir_url( __FILE__ ) );
 
@@ -69,6 +69,8 @@ require_once SIARHE_PATH . 'includes/class-siarhe-versions.php';
 require_once SIARHE_PATH . 'includes/class-siarhe-columns.php';
 require_once SIARHE_PATH . 'includes/class-siarhe-xlsx.php';
 require_once SIARHE_PATH . 'includes/class-siarhe-static-json.php';
+require_once SIARHE_PATH . 'includes/class-siarhe-geo.php';
+require_once SIARHE_PATH . 'includes/class-siarhe-marker-json.php';
 require_once SIARHE_PATH . 'includes/db/class-db-installer.php';
 
 // --- NUEVO: Cargar la clase de Shortcodes ---
@@ -101,7 +103,7 @@ function siarhe_activate_plugin() {
 
     // Crear carpetas físicas si no existen
     // Agregué '/static-min' que usamos para los CSV
-    $folders = [ '', '/geojson', '/raw', '/processed', '/static-min' ]; 
+    $folders = [ '', '/geojson', '/localidades', '/raw', '/processed', '/static-min', '/markers' ]; 
     foreach ( $folders as $folder ) {
         $path = SIARHE_UPLOAD_DIR . $folder;
         if ( ! file_exists( $path ) ) {

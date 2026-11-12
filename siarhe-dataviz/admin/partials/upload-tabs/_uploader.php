@@ -1,8 +1,8 @@
 <?php // /admin/partials/upload-tabs/_uploader.php
 /**
- * Plantilla unica de carga para Geolocalizacion, Localidades y Bases Estaticas.
- * Cada pestana (tab-geojson.php, tab-localidades.php, tab-static.php) solo declara
- * $siarhe_up (textos, nonces, acciones y tipo_archivo) y la incluye.
+ * Plantilla de carga de geometrias: Geolocalizacion (mapa base) y Localidades (capa detallada).
+ * Cada pestaña (tab-geojson.php, tab-localidades.php) solo declara $siarhe_up (textos, nonces, acciones y tipo_archivo)
+ * y la incluye. Hay un archivo por entidad y marco geoestadistico quinquenal (Siarhe_Geo::marcos()).
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -12,18 +12,24 @@ $k = $u['key'];
 // 1. Obtener Entidades (Helper Centralizado)
 $entidades_data = siarhe_get_entities();
 
-// 2. Obtener los archivos activos de este tipo desde la base de datos
+// 2. Obtener los archivos activos de este tipo desde la base de datos (del marco mas reciente al mas antiguo)
 global $wpdb;
 $table_assets = $wpdb->prefix . 'siarhe_static_assets';
-$existing_files = $wpdb->get_results( 
-    $wpdb->prepare( "SELECT * FROM $table_assets WHERE tipo_archivo = %s AND es_activo = 1", $u['tipo'] )
+$existing_files = $wpdb->get_results(
+    $wpdb->prepare( "SELECT * FROM $table_assets WHERE tipo_archivo = %s AND es_activo = 1 ORDER BY anio_reporte DESC, id DESC", $u['tipo'] )
 );
 
-// 3. Indexar resultados por slug para acceso rápido
+// 3. Indexar resultados por entidad y marco (un archivo por combinacion)
 $files_by_slug = [];
+$marcos_cargados = [];
 foreach ($existing_files as $file) {
-    $files_by_slug[$file->entidad_slug] = $file;
+    $marco_file = (int) $file->anio_reporte;
+    if ( isset( $files_by_slug[$file->entidad_slug][$marco_file] ) ) continue;
+    $files_by_slug[$file->entidad_slug][$marco_file] = $file;
+    $marcos_cargados[$marco_file] = true;
 }
+krsort( $marcos_cargados );
+$marcos_disponibles = Siarhe_Geo::marcos();
 
 // 4. Directorio base para comprobaciones de integridad física
 $upload_base_dir = defined('SIARHE_UPLOAD_DIR') ? SIARHE_UPLOAD_DIR : wp_upload_dir()['basedir'] . '/siarhe-data/';
@@ -43,7 +49,7 @@ if ( isset($_GET['status']) ) {
     <h2><?php echo esc_html( $u['title'] ); ?><?php Siarhe_Admin::help( $u['title_help'] ); ?></h2>
     
     <div class="notice notice-info inline">
-        <p><strong>Política de Archivos Únicos:</strong></p>
+        <p><strong>Cómo funcionan los archivos:</strong></p>
         <ul>
             <?php foreach ( $u['info'] as $item ) : ?>
                 <li><?php echo wp_kses( $item, array( 'strong' => array(), 'code' => array() ) ); ?></li>
@@ -77,15 +83,19 @@ if ( isset($_GET['status']) ) {
                 </td>
             </tr>
             <tr>
-                <th scope="row"><label for="anio_reporte">Año de los Datos</label><?php Siarhe_Admin::help('Anio al que corresponden los datos. Se muestra en las referencias del mapa.'); ?></th>
+                <th scope="row"><label for="anio_reporte">Marco Geoestadístico</label><?php Siarhe_Admin::help('Quinquenio del Marco Geoestadístico del INEGI. Cada marco sirve a los cinco años que empiezan en el suyo (2025 dibuja los datos de 2025 a 2029). Un marco publicado entre dos quinquenios, como el de 2016, se carga en el anterior (2015) y su fecha real se anota en la fecha de corte.'); ?></th>
                 <td>
-                    <input type="number" name="anio_reporte" placeholder="Ej: 2026" class="small-text" required min="2000" max="2100">
+                    <select name="anio_reporte" id="anio_reporte" required>
+                        <?php foreach ( $marcos_disponibles as $i_marco => $marco_op ) : ?>
+                            <option value="<?php echo (int) $marco_op; ?>"<?php selected( $i_marco, 0 ); ?>><?php echo (int) $marco_op; ?> (datos de <?php echo (int) $marco_op; ?> a <?php echo (int) $marco_op + 4; ?>)</option>
+                        <?php endforeach; ?>
+                    </select>
                 </td>
             </tr>
             <tr>
-                <th scope="row"><label for="fecha_corte">Fecha de Corte</label><?php Siarhe_Admin::help('Fecha hasta la cual el archivo contiene informacion. Se muestra al usuario como vigencia de los datos.'); ?></th>
+                <th scope="row"><label for="fecha_corte">Fecha de Corte</label><?php Siarhe_Admin::help('Fecha de corte o de publicación del marco geoestadístico. Se muestra al usuario como vigencia de los datos espaciales.'); ?></th>
                 <td>
-                    <input type="date" name="fecha_corte" required>
+                    <input type="date" name="fecha_corte" id="fecha_corte" required>
                 </td>
             </tr>
             <tr>
@@ -122,6 +132,13 @@ if ( isset($_GET['status']) ) {
                 </select> 
                 registros
             </label>
+            <label>
+                Marco
+                <select id="siarhe-filter-marco" class="siarhe-select-sm">
+                    <option value="">Todos</option>
+                    <?php foreach ( array_keys( $marcos_cargados ) as $marco_op ) : ?><option value="<?php echo (int) $marco_op; ?>"><?php echo (int) $marco_op; ?></option><?php endforeach; ?>
+                </select>
+            </label>
         </div>
 
         <div class="siarhe-pagination siarhe-pagination--bare">
@@ -137,10 +154,11 @@ if ( isset($_GET['status']) ) {
     <table id="siarhe-<?php echo esc_attr( $k ); ?>-table" class="siarhe-table">
         <thead>
             <tr>
-                <th style="width: 20%;" data-sort="text">Entidad</th>
+                <th style="width: 18%;" data-sort="text">Entidad</th>
                 <th style="width: 5%;" data-sort="num">CVE</th>
+                <th style="width: 7%;" data-sort="num">Marco</th>
                 <th style="width: 10%;" data-sort="text">Estado</th>
-                <th style="width: 20%;" data-sort="text">Archivo del Sistema</th>
+                <th style="width: 15%;" data-sort="text">Archivo del Sistema</th>
                 <th style="width: 10%;" data-sort="num">Fecha de Corte</th>
                 <th style="width: 15%;" data-sort="num">Auditoría</th>
                 <th style="width: 5%;" data-sort="num">Tamaño</th>
@@ -152,28 +170,32 @@ if ( isset($_GET['status']) ) {
             $rows = [];
             $upload_base = defined('SIARHE_UPLOAD_DIR') ? SIARHE_UPLOAD_DIR : wp_upload_dir()['basedir'] . '/siarhe-data/';
 
+            // Una fila por entidad y marco cargado; las entidades sin archivo conservan una fila para ver lo que falta
             foreach ($entidades_data as $slug => $data) {
                 $nombre = $data['nombre'];
                 $cve_ent = $data['CVE_ENT'];
-                $archivo = isset($files_by_slug[$slug]) ? $files_by_slug[$slug] : null;
-                
-                $ruta_fisica = $archivo ? $upload_base . ltrim($archivo->ruta_archivo, '/') : '';
-                $existe_fisico = $archivo && file_exists($ruta_fisica);
+                $archivos_entidad = isset($files_by_slug[$slug]) ? $files_by_slug[$slug] : [ 0 => null ];
 
                 $sort_key = (int)$cve_ent;
                 if ($slug == 'republica-mexicana') $sort_key = -1;
-                
-                $rows[] = [
-                    'slug' => $slug, 
-                    'nombre' => $nombre, 
-                    'cve_ent' => $cve_ent, 
-                    'archivo' => $archivo, 
-                    'existe_fisico' => $existe_fisico,
-                    'ruta_fisica' => $ruta_fisica,
-                    'sort_key' => $sort_key
-                ];
+
+                foreach ($archivos_entidad as $marco_fila => $archivo) {
+                    $ruta_fisica = $archivo ? $upload_base . ltrim($archivo->ruta_archivo, '/') : '';
+                    $existe_fisico = $archivo && file_exists($ruta_fisica);
+
+                    $rows[] = [
+                        'slug' => $slug,
+                        'nombre' => $nombre,
+                        'cve_ent' => $cve_ent,
+                        'marco' => (int) $marco_fila,
+                        'archivo' => $archivo,
+                        'existe_fisico' => $existe_fisico,
+                        'ruta_fisica' => $ruta_fisica,
+                        'sort_key' => $sort_key
+                    ];
+                }
             }
-            usort($rows, function($a, $b) { return $a['sort_key'] <=> $b['sort_key']; });
+            usort($rows, function($a, $b) { return [ $a['sort_key'], -$a['marco'] ] <=> [ $b['sort_key'], -$b['marco'] ]; });
 
             foreach ($rows as $row) : 
                 $slug = $row['slug']; 
@@ -182,13 +204,17 @@ if ( isset($_GET['status']) ) {
                 $archivo = $row['archivo']; 
                 $exists = $row['existe_fisico'];
             ?>
-            <tr class="siarhe-data-row">
+            <tr class="siarhe-data-row" data-marco="<?php echo $row['marco'] ? (int) $row['marco'] : ''; ?>">
                 <td data-label="Entidad" data-mobile-role="primary">
                     <strong><?php echo esc_html($nombre); ?></strong>
                 </td>
-                
+
                 <td data-label="CVE">
                     <span class="siarhe-badge neutral"><?php echo esc_html($cve_ent); ?></span>
+                </td>
+
+                <td data-label="Marco" data-sort-value="<?php echo (int) $row['marco']; ?>">
+                    <?php echo $row['marco'] ? (int) $row['marco'] : '—'; ?>
                 </td>
                 
                 <td data-label="Estado" data-mobile-role="secondary">
@@ -272,7 +298,7 @@ if ( isset($_GET['status']) ) {
                         <?php if ($archivo) : ?>
                         <button type="button" class="button button-small edit-meta-btn" 
                                 data-id="<?php echo absint( $archivo->id ); ?>" 
-                                data-nombre="<?php echo esc_attr($nombre); ?>" 
+                                data-nombre="<?php echo esc_attr( $nombre . ' · marco ' . $row['marco'] ); ?>"  
                                 data-anio="<?php echo esc_attr($archivo->anio_reporte); ?>" 
                                 data-corte="<?php echo esc_attr($archivo->fecha_corte); ?>" 
                                 data-ref="<?php echo esc_attr($archivo->referencia_bibliografica); ?>" 
@@ -300,7 +326,7 @@ if ( isset($_GET['status']) ) {
             </tr>
             <?php endforeach; ?>
             <tr id="siarhe-<?php echo esc_attr( $k ); ?>-empty" style="display: none;">
-                <td colspan="8" class="siarhe-empty-cell">No se encontraron resultados para su búsqueda.</td>
+                <td colspan="9" class="siarhe-empty-cell">No se encontraron resultados para su búsqueda.</td>
             </tr>
         </tbody>
     </table>
@@ -322,8 +348,8 @@ if ( isset($_GET['status']) ) {
             <?php wp_nonce_field( $u['nonce_meta'], 'siarhe_meta_nonce' ); ?>
 
             <table class="form-table">
-                <tr><th><label>Año de los Datos</label><?php Siarhe_Admin::help('Anio al que corresponden los datos. Se muestra en las referencias del mapa.'); ?></th><td><input type="number" name="anio_reporte" id="modal-anio" class="regular-text" required></td></tr>
-                <tr><th><label>Fecha de Corte</label><?php Siarhe_Admin::help('Fecha hasta la cual el archivo contiene informacion. Se muestra al usuario como vigencia de los datos.'); ?></th><td><input type="date" name="fecha_corte" id="modal-corte" class="regular-text" required></td></tr>
+                <tr><th><label>Marco Geoestadístico</label><?php Siarhe_Admin::help('El marco identifica al archivo: para cambiarlo, súbelo de nuevo en el marco correcto y elimina este.'); ?></th><td><input type="number" id="modal-anio" class="regular-text" readonly></td></tr>
+                <tr><th><label>Fecha de Corte</label><?php Siarhe_Admin::help('Fecha de corte o de publicación del marco geoestadístico. Se muestra al usuario como vigencia de los datos espaciales.'); ?></th><td><input type="date" name="fecha_corte" id="modal-corte" class="regular-text" required></td></tr>
                 <tr><th><label>Fuente / Referencia</label><?php Siarhe_Admin::help('Origen de la informacion (institucion, documento, version). Aparece como referencia bibliografica.'); ?></th><td><textarea name="referencia" id="modal-ref" rows="3" class="large-text"></textarea></td></tr>
                 <tr><th><label>Comentarios Internos</label><?php Siarhe_Admin::help('Notas para el equipo administrador. No se muestran en el sitio publico.'); ?></th><td><textarea name="comentarios" id="modal-notes" rows="3" class="large-text"></textarea></td></tr>
             </table>
@@ -388,6 +414,9 @@ document.addEventListener('DOMContentLoaded', function() {
             rows:    document.querySelectorAll('.siarhe-data-row'),
             search:  document.getElementById('siarhe-search-<?php echo esc_js( $k ); ?>'),
             perPage: document.getElementById('siarhe-items-per-page'),
+            filters: [
+                { el: document.getElementById('siarhe-filter-marco'), match: function(row, v) { return row.dataset.marco === v; } }
+            ],
             pagers:  [document.getElementById('siarhe-pagination-controls-top'), document.getElementById('siarhe-pagination-controls-bottom')],
             table:   document.getElementById('siarhe-<?php echo esc_js( $k ); ?>-table'),
             count:   document.getElementById('siarhe-<?php echo esc_js( $k ); ?>-count'),

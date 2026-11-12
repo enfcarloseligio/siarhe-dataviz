@@ -2,6 +2,25 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.7.0] - 2026-11-12
+
+### Geometrías (mapa base y capa detallada)
+- **TopoJSON por marco geoestadístico:** *Geolocalización* y *Localidades (Geo)* ahora cargan el **TopoJSON que exporta RHEMX** (`.json` o `.topojson`; objeto `datos`, propiedades `c`, `n` y `t`) y un archivo **por entidad y marco quinquenal** (2005, 2010, 2015, 2020, 2025; el de 2030 aparecerá al llegar ese año). Un marco intermedio, como el de 2016, se carga en el quinquenio anterior (2015) con su fecha real en *Fecha de corte*. Los archivos se guardan como `{entidad}-{marco}.json`.
+- **El mapa cambia de marco con el año:** cada año de datos usa el marco de su quinquenio (o el anterior más cercano que esté cargado). Al elegir un año de otro quinquenio el mapa cambia los polígonos sin perder el acercamiento ni los marcadores, y el pie muestra la fuente y la fecha de corte del marco en uso. La capa detallada también va por marco.
+- **Validación al subir:** el plugin comprueba que el archivo sea de la capa correcta (entidades, municipios o localidades, por los dígitos de la clave) y de la entidad elegida, y lo rechaza con un mensaje claro si no lo es (por ejemplo, un archivo de localidades en la pestaña de municipios, o uno de AGEB).
+- **Compatibilidad:** los GeoJSON ya cargados se siguen leyendo y quedaron asignados al marco **2025**; se reemplazan al subir el TopoJSON de ese marco.
+- Se incluye `topojson-client` 3.1.0 (copia local) y `siarhe-topo.js`, que la página y el worker de geometrías comparten.
+
+### Marcadores
+- **Por periodo:** cada tipo de marcador (clínicas de catéteres, de heridas, establecimientos de salud…) admite un archivo **por año** y uno de **Toda la historia** (todas las unidades que han reportado al menos una vez). El mapa usa el del año que se ve; si no existe, el de toda la historia.
+- **CSV o JSON:** se acepta el CSV o la **capa JSON de RHEMX** (`unidades_clues_<año>.json`, `clinicas_cateteres_<año>.json`, `clinicas_cateteres_historico.json`, `clinicas_heridas_historico.json`). Al subir uno se crea el otro y el mapa lee el JSON. En el CSV solo son obligatorias las coordenadas y la clave de la entidad.
+- **Marcadores del sistema:** los establecimientos de salud por nivel de atención llevan los textos de RHEMX (*Primer Nivel*, *Segundo Nivel*, *Tercer Nivel*, *No Aplica*, *No Especificado*), filtran por la columna de nivel de atención y no se pueden modificar; solo su visibilidad.
+- Los nombres de columna de la configuración de un marcador se comparan sin distinguir mayúsculas, acentos ni guion bajo (`nivel_atencion` = `NIVEL ATENCION`).
+
+### Mapa
+- El selector **Indicador Principal** se llama **Indicador** y ya no muestra la nota descriptiva debajo, que descuadraba la fila de controles (la unidad de conteo y el tema ya dicen lo mismo).
+- **Corregido:** el botón no activo del conmutador *Medida* quedaba con texto blanco sobre gris claro al pasar el cursor en sitios cuyo tema da texto blanco a `button:hover`.
+
 ## [0.1.6.0] - 2026-11-12
 
 ### Métricas e indicadores

@@ -242,6 +242,99 @@ function siarhe_get_metricas_config() {
 }
 
 /**
+ * Tipos de archivo de marcadores con que viene el plugin (Carga de Datos > Marcadores). Cada tipo es una familia de archivos,
+ * uno por periodo (año de los datos o "total"), que se guardan como {nombre}-{periodo}.csv y .json.
+ */
+function siarhe_marker_core_types() {
+    return array(
+        'CATETER'          => array( 'label' => 'Clínicas de Catéteres', 'filename' => 'clinicas-cateteres.csv', 'is_core' => true ),
+        'HERIDAS'          => array( 'label' => 'Clínicas de Heridas', 'filename' => 'clinicas-heridas.csv', 'is_core' => true ),
+        'ESTABLECIMIENTOS' => array( 'label' => 'Establecimientos de Salud (Todas)', 'filename' => 'establecimientos-salud.csv', 'is_core' => true ),
+    );
+}
+
+/** Tipos de archivo de marcadores vigentes: los del plugin mas los que agrego el administrador. */
+function siarhe_marker_types() {
+    $tipos = siarhe_decode_json_option( get_option( 'siarhe_archivos_marcadores', '' ) );
+    return ( is_array( $tipos ) && ! empty( $tipos ) ) ? $tipos : siarhe_marker_core_types();
+}
+
+/**
+ * Archivos de marcadores cargados, por nombre de archivo del tipo y periodo: array( 'clinicas-cateteres.csv' =>
+ * array( '2025' => url, 'total' => url ) ). La URL es la del JSON si existe (pesa menos) y, si no, la del CSV. Un archivo
+ * copiado a la carpeta sin registro (por FTP) cuenta como "total".
+ */
+function siarhe_get_marker_file_urls() {
+    global $wpdb;
+    $out   = array();
+    $tipos = siarhe_marker_types();
+    $filas = $wpdb->get_results( "SELECT entidad_slug, ruta_archivo, ruta_json, anio_reporte FROM {$wpdb->prefix}siarhe_static_assets WHERE tipo_archivo = 'marcador' AND es_activo = 1" );
+    foreach ( (array) $filas as $f ) {
+        if ( ! isset( $tipos[ $f->entidad_slug ] ) ) continue;
+        $es_json = ! empty( $f->ruta_json ) && file_exists( SIARHE_UPLOAD_DIR . ltrim( $f->ruta_json, '/' ) );
+        $rel     = ltrim( $es_json ? $f->ruta_json : $f->ruta_archivo, '/' );
+        $ruta    = SIARHE_UPLOAD_DIR . $rel;
+        if ( $rel === '' || ! file_exists( $ruta ) ) continue;
+        $url = SIARHE_UPLOAD_URL . $rel . '?v=' . filemtime( $ruta );
+        if ( ! $es_json ) $url = siarhe_data_read_url( $url );
+        $periodo = ( (int) $f->anio_reporte > 0 ) ? (string) (int) $f->anio_reporte : Siarhe_Marker_Json::PERIODO_TOTAL;
+        $out[ $tipos[ $f->entidad_slug ]['filename'] ][ $periodo ] = $url;
+    }
+    foreach ( $tipos as $info ) {
+        $ruta = SIARHE_UPLOAD_DIR . 'markers/' . $info['filename'];
+        if ( empty( $out[ $info['filename'] ] ) && file_exists( $ruta ) ) {
+            $out[ $info['filename'] ][ Siarhe_Marker_Json::PERIODO_TOTAL ] = siarhe_data_read_url( SIARHE_UPLOAD_URL . 'markers/' . $info['filename'] . '?v=' . filemtime( $ruta ) );
+        }
+    }
+    return $out;
+}
+
+/**
+ * Marcadores con que viene el plugin. Los de establecimientos de salud por nivel de atencion son del sistema ("sistema"):
+ * llevan los mismos textos que RHEMX y filtran el catalogo por su columna de nivel de atencion.
+ */
+function siarhe_get_default_marcadores() {
+    $clinica = array( 'tipo' => 'posicion', 'filtro_col' => '', 'filtro_val' => '', 'visibilidad' => 'publico', 'is_core' => true );
+    $defaults = array(
+        'CATETER' => array_merge( array( 'label' => 'Clínicas de catéteres', 'archivo' => 'clinicas-cateteres.csv' ), $clinica ),
+        'HERIDAS' => array_merge( array( 'label' => 'Clínicas de heridas', 'archivo' => 'clinicas-heridas.csv' ), $clinica ),
+    );
+    $niveles = array( 'ESTAB_1' => 'Primer Nivel', 'ESTAB_2' => 'Segundo Nivel', 'ESTAB_3' => 'Tercer Nivel', 'ESTAB_6' => 'No Aplica', 'ESTAB_NE' => 'No Especificado' );
+    foreach ( $niveles as $clave => $nivel ) {
+        $defaults[ $clave ] = array(
+            'label' => 'Establecimientos de Salud: ' . $nivel, 'tipo' => 'posicion', 'archivo' => 'establecimientos-salud.csv',
+            'filtro_col' => 'nivel_atencion', 'filtro_val' => $nivel, 'visibilidad' => 'publico', 'is_core' => true, 'sistema' => true,
+        );
+    }
+    return $defaults;
+}
+
+/**
+ * Configuracion de marcadores vigente. Los marcadores del sistema siempre existen y salen con su etiqueta, tipo, archivo y
+ * filtro originales: del panel solo se respeta su visibilidad. Los demas se conservan como los dejo el administrador.
+ */
+function siarhe_get_marcadores_config() {
+    $defaults = siarhe_get_default_marcadores();
+    $saved    = siarhe_decode_json_option( get_option( 'siarhe_marcadores_config', '' ) );
+    if ( empty( $saved ) || ! is_array( $saved ) ) return $defaults;
+
+    $out = array();
+    foreach ( $saved as $clave => $m ) {
+        if ( ! is_array( $m ) ) continue;
+        if ( isset( $defaults[ $clave ] ) && ! empty( $defaults[ $clave ]['sistema'] ) ) {
+            $forzado = $defaults[ $clave ];
+            if ( isset( $m['visibilidad'] ) ) $forzado['visibilidad'] = $m['visibilidad'];
+            $m = $forzado;
+        }
+        $out[ $clave ] = $m;
+    }
+    foreach ( $defaults as $clave => $def ) {
+        if ( ! empty( $def['sistema'] ) && ! isset( $out[ $clave ] ) ) $out[ $clave ] = $def;
+    }
+    return $out;
+}
+
+/**
  * Decodifica una opcion guardada como texto JSON. Primero se lee tal cual; solo si no es JSON valido se le quitan las barras que
  * agrega WordPress. (Quitarlas siempre convertia los acentos escapados, ó, en el texto "u00f3".) Tambien repara los
  * textos que ya se guardaron dañados con ese texto.

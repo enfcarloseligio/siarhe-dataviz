@@ -233,7 +233,16 @@ window.SiarheAdmin = {
             return { cols };
         };
         const checks = {
-            'marker-csv': (text, truncated) => {
+            'marker-csv': (text, truncated, form, file) => {
+                if (file && /\.json$/i.test(file.name)) {
+                    if (truncated) return ''; // demasiado grande para revisarlo aqui: valida el servidor
+                    let j;
+                    try { j = JSON.parse(text); } catch (e) { return 'El archivo no es un JSON válido.'; }
+                    if (!j || !Array.isArray(j.fila) || !Array.isArray(j.unidades)) return 'El JSON no es una capa de marcadores: necesita "fila" y "unidades", como los archivos que exporta RHEMX.';
+                    if (!j.fila.includes('latitud') || !j.fila.includes('longitud')) return 'La capa necesita los campos "latitud" y "longitud" en "fila".';
+                    if (j.unidades.length === 0) return 'La capa no tiene filas en "unidades".';
+                    return '';
+                }
                 const b = csvBasics(text, truncated); if (b.error) return b.error;
                 const h = b.cols.map(c => c.toLowerCase());
                 if (!h.some(c => c === 'latitud' || c === 'lat') || !h.some(c => c === 'longitud' || c === 'lon')) {
@@ -263,8 +272,14 @@ window.SiarheAdmin = {
             'geojson': (text) => {
                 let data;
                 try { data = JSON.parse(text); } catch (e) { return 'El archivo no es un JSON válido.'; }
+                // Formato del plugin: TopoJSON (el que exporta RHEMX). Se sigue aceptando un GeoJSON FeatureCollection.
+                if (data && data.type === 'Topology') {
+                    const objetos = data.objects ? Object.keys(data.objects) : [];
+                    if (!objetos.length || !Array.isArray(data.arcs) || !data.arcs.length) return 'El TopoJSON necesita "objects" y "arcs".';
+                    return '';
+                }
                 if (!data || data.type !== 'FeatureCollection' || !Array.isArray(data.features) || data.features.length === 0) {
-                    return 'El GeoJSON debe ser un FeatureCollection con al menos un elemento en "features".';
+                    return 'El archivo debe ser un TopoJSON ("type": "Topology") o un GeoJSON FeatureCollection con al menos un elemento en "features".';
                 }
                 return '';
             }
@@ -288,7 +303,7 @@ window.SiarheAdmin = {
                 const file = input.files && input.files[0];
                 if (!file) return Promise.resolve();
                 const esJson = /\.json$/i.test(file.name);
-                const limit = kind === 'geojson' || (kind === 'static-csv' && esJson) ? MAX_GEOJSON_READ : MAX_CSV_READ;
+                const limit = kind === 'geojson' || esJson ? MAX_GEOJSON_READ : MAX_CSV_READ;
                 if (kind === 'geojson' && file.size > limit) return Promise.resolve(); // demasiado grande: valida el servidor
                 const truncated = file.size > limit;
                 return file.slice(0, limit).text().then(text => {
