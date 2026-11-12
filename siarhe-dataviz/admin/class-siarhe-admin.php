@@ -4,7 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Siarhe_Admin {
 
     // Subir este valor cuando maybe_update_database() deba aplicar nuevas columnas.
-    const DB_VERSION = '1';
+    const DB_VERSION = '2';
 
     public function init() {
         // Hooks Visuales
@@ -190,8 +190,44 @@ class Siarhe_Admin {
             if (!in_array('fecha_modificacion', $cols)) {
                 $wpdb->query("ALTER TABLE `$table` ADD `fecha_modificacion` datetime DEFAULT NULL");
             }
+            // Version 2: las bases estaticas se distinguen por año y unidad (plazas / personas) y pueden tener JSON
+            if (!in_array('unidad', $cols)) {
+                $wpdb->query("ALTER TABLE `$table` ADD `unidad` varchar(10) NOT NULL DEFAULT 'plazas'");
+                // Las bases cargadas antes de existir el selector de año se toman como las del año mas reciente
+                $wpdb->query( $wpdb->prepare( "UPDATE `$table` SET anio_reporte = %d WHERE tipo_archivo = 'static_min'", Siarhe_Static_Json::LATEST_YEAR ) );
+            }
+            if (!in_array('ruta_json', $cols)) {
+                $wpdb->query("ALTER TABLE `$table` ADD `ruta_json` varchar(255) DEFAULT NULL");
+            }
             update_option( 'siarhe_db_version', self::DB_VERSION );
+            $this->build_missing_static_json();
         }
+    }
+
+    /**
+     * Crea el JSON optimizado de las bases estaticas que solo tienen CSV (las cargadas antes de existir el formato JSON).
+     * Si algun CSV no se puede convertir, se queda sin JSON y el mapa sigue leyendo su CSV.
+     */
+    private function build_missing_static_json() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'siarhe_static_assets';
+        $rows = $wpdb->get_results( "SELECT id, ruta_archivo, anio_reporte, unidad FROM `$table` WHERE tipo_archivo = 'static_min' AND ( ruta_json IS NULL OR ruta_json = '' ) AND ruta_archivo <> ''" );
+        foreach ( (array) $rows as $r ) {
+            $ruta = $this->write_static_json_from_csv( SIARHE_UPLOAD_DIR . $r->ruta_archivo, (int) $r->anio_reporte, $r->unidad );
+            if ( $ruta !== '' ) $wpdb->update( $table, array( 'ruta_json' => $ruta ), array( 'id' => (int) $r->id ), array( '%s' ), array( '%d' ) );
+        }
+    }
+
+    /**
+     * Escribe junto a un CSV su JSON optimizado (mismo nombre, extension .json). Devuelve la ruta relativa a siarhe-data o ''.
+     */
+    private function write_static_json_from_csv( $csv_path, $anio, $unidad ) {
+        if ( ! is_readable( $csv_path ) ) return '';
+        $json = Siarhe_Static_Json::from_csv( (string) file_get_contents( $csv_path ), $anio, $unidad );
+        if ( ! $json || Siarhe_Static_Json::validate( $json ) ) return '';
+        $dest = preg_replace( '/\.csv$/i', '.json', $csv_path );
+        if ( $dest === $csv_path || file_put_contents( $dest, Siarhe_Static_Json::encode( $json ) ) === false ) return '';
+        return ltrim( str_replace( '\\', '/', substr( $dest, strlen( SIARHE_UPLOAD_DIR ) ) ), '/' );
     }
 
     // -------------------------------------------------------------------------
@@ -891,58 +927,104 @@ class Siarhe_Admin {
         set_time_limit(0);
         wp_raise_memory_limit('admin');
 
-        if ( isset( $_FILES['siarhe_file'] ) && $_FILES['siarhe_file']['error'] == 0 ) {
-            $entidad_slug = $this->sanitize_slug( isset( $_POST['entidad_slug'] ) ? $_POST['entidad_slug'] : '' );
-            $this->validate_upload( $_FILES['siarhe_file'], array( 'csv' ) );
-            $this->flash_notice( $this->validate_csv_file( $_FILES['siarhe_file']['tmp_name'], 'static', $entidad_slug ) );
-            $anio = intval( $_POST['anio_reporte'] );
-            $fecha_corte = sanitize_text_field( wp_unslash( $_POST['fecha_corte'] ) ); 
-            $referencia = wp_kses_post( wp_unslash( $_POST['referencia'] ) ); 
-            $comentarios = sanitize_textarea_field( wp_unslash( $_POST['comentarios'] ) );
+        if ( ! isset( $_FILES['siarhe_file'] ) || $_FILES['siarhe_file']['error'] != 0 ) $this->upload_fail( 'Error carga PHP.' );
 
-            $current_user = wp_get_current_user();
-            $editor_name = $current_user->display_name ?: $current_user->user_login;
+        $entidad_slug = $this->sanitize_slug( isset( $_POST['entidad_slug'] ) ? $_POST['entidad_slug'] : '' );
+        $anio   = isset( $_POST['anio_reporte'] ) ? intval( $_POST['anio_reporte'] ) : 0;
+        $unidad = ( isset( $_POST['unidad'] ) && $_POST['unidad'] === 'personas' ) ? 'personas' : 'plazas';
+        if ( $anio < Siarhe_Static_Json::YEAR_MIN || $anio > (int) gmdate( 'Y' ) + 1 ) {
+            $this->upload_fail( 'Elige el año de los datos (de ' . Siarhe_Static_Json::YEAR_MIN . ' en adelante).' );
+        }
+        $fecha_corte = sanitize_text_field( wp_unslash( $_POST['fecha_corte'] ) );
+        $referencia = wp_kses_post( wp_unslash( $_POST['referencia'] ) );
+        $comentarios = sanitize_textarea_field( wp_unslash( $_POST['comentarios'] ) );
 
-            $upload_dir = wp_upload_dir();
-            $target_dir = $upload_dir['basedir'] . '/siarhe-data/static-min/';
-            if ( ! file_exists( $target_dir ) ) wp_mkdir_p( $target_dir );
+        $this->validate_upload( $_FILES['siarhe_file'], array( 'csv', 'json' ) );
+        $ext = strtolower( pathinfo( sanitize_file_name( $_FILES['siarhe_file']['name'] ), PATHINFO_EXTENSION ) );
+        $tmp = $_FILES['siarhe_file']['tmp_name'];
 
-            $new_filename = $entidad_slug . '.csv'; 
-            $target_file = $target_dir . $new_filename;
+        // El archivo subido (CSV o JSON) se valida y de el se obtiene su equivalente: asi los dos formatos quedan siempre iguales
+        $json = null;
+        $csv_texto = '';
+        if ( $ext === 'json' ) {
+            $json = json_decode( (string) file_get_contents( $tmp ), true );
+            $errores = Siarhe_Static_Json::validate( $json );
+            if ( $errores ) $this->upload_fail( 'El JSON no es válido: ' . implode( ' ', $errores ) );
+            if ( isset( $json['anio'] ) && (int) $json['anio'] !== $anio ) {
+                $this->upload_fail( 'El JSON es de ' . (int) $json['anio'] . ' y elegiste ' . $anio . ' como año de los datos.' );
+            }
+            if ( isset( $json['unidad'] ) && $json['unidad'] !== $unidad ) {
+                $this->upload_fail( 'El JSON cuenta ' . esc_html( $json['unidad'] ) . ' y elegiste ' . esc_html( $unidad ) . ' como unidad.' );
+            }
+            $json['anio'] = $anio;
+            $json['unidad'] = $unidad;
+            $csv_texto = Siarhe_Static_Json::to_csv( $json );
+            $revision = wp_tempnam( 'siarhe-static' );
+            file_put_contents( $revision, $csv_texto );
+            register_shutdown_function( function () use ( $revision ) { if ( is_file( $revision ) ) @unlink( $revision ); } );
+            $this->flash_notice( $this->validate_csv_file( $revision, 'static', $entidad_slug ) );
+        } else {
+            $this->flash_notice( $this->validate_csv_file( $tmp, 'static', $entidad_slug ) );
+        }
 
-            $this->archive_previous_version( $target_file );
+        $current_user = wp_get_current_user();
+        $editor_name = $current_user->display_name ?: $current_user->user_login;
 
-            if ( move_uploaded_file( $_FILES['siarhe_file']['tmp_name'], $target_file ) ) {
-                $this->ensure_utf8_csv( $target_file );
-                siarhe_build_read_copy( $target_file );
-                global $wpdb;
-                $table_name = $wpdb->prefix . 'siarhe_static_assets';
-                
-                $existe = $wpdb->get_row( $wpdb->prepare("SELECT id FROM $table_name WHERE entidad_slug = %s AND tipo_archivo = 'static_min'", $entidad_slug) );
+        $upload_dir = wp_upload_dir();
+        $target_dir = $upload_dir['basedir'] . '/siarhe-data/static-min/';
+        if ( ! file_exists( $target_dir ) ) wp_mkdir_p( $target_dir );
 
-                if ($existe) {
-                    $datos = array( 
-                        'ruta_archivo' => 'static-min/' . $new_filename, 
-                        'anio_reporte' => $anio, 'fecha_corte' => $fecha_corte, 'referencia_bibliografica' => $referencia,
-                        'comentarios' => $comentarios, 'es_activo' => 1,
-                        'modificado_por' => $editor_name, 'fecha_modificacion' => current_time('mysql')
-                    );
-                    $formato = array( '%s', '%d', '%s', '%s', '%s', '%d', '%s', '%s' );
-                    $wpdb->update( $table_name, $datos, array( 'id' => $existe->id ), $formato, array( '%d' ) ); 
-                } else {
-                    $datos = array( 
-                        'entidad_slug' => $entidad_slug, 'tipo_archivo' => 'static_min', 'ruta_archivo' => 'static-min/' . $new_filename, 
-                        'anio_reporte' => $anio, 'fecha_corte' => $fecha_corte, 'referencia_bibliografica' => $referencia,
-                        'comentarios' => $comentarios, 'es_activo' => 1, 'fecha_subida' => current_time( 'mysql' ),
-                        'subido_por' => $editor_name, 'modificado_por' => $editor_name, 'fecha_modificacion' => current_time('mysql')
-                    );
-                    $formato = array( '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s' );
-                    $wpdb->insert( $table_name, $datos, $formato ); 
-                }
+        $base = $entidad_slug . '-' . $anio . '-' . $unidad;
+        $csv_file  = $target_dir . $base . '.csv';
+        $json_file = $target_dir . $base . '.json';
+        $this->archive_previous_version( $csv_file );
+        $this->archive_previous_version( $json_file );
 
-                wp_redirect( admin_url( 'admin.php?page=siarhe-uploader&tab=static&status=success' ) ); exit;
-            } else { $this->upload_fail( 'Error mover.' ); }
-        } else { $this->upload_fail( 'Error carga PHP.' ); }
+        if ( $ext === 'json' ) {
+            $ok = file_put_contents( $csv_file, $csv_texto ) !== false
+               && file_put_contents( $json_file, Siarhe_Static_Json::encode( $json ) ) !== false;
+        } else {
+            $ok = move_uploaded_file( $tmp, $csv_file );
+            if ( $ok ) {
+                $this->ensure_utf8_csv( $csv_file );
+                $ruta = $this->write_static_json_from_csv( $csv_file, $anio, $unidad );
+                if ( $ruta === '' && is_file( $json_file ) ) @unlink( $json_file ); // un JSON anterior ya no corresponde a este CSV
+            }
+        }
+        if ( ! $ok ) $this->upload_fail( 'Error mover.' );
+
+        siarhe_build_read_copy( $csv_file );
+        $ruta_json = is_file( $json_file ) ? 'static-min/' . $base . '.json' : '';
+
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'siarhe_static_assets';
+        $existe = $wpdb->get_row( $wpdb->prepare(
+            "SELECT id FROM $table_name WHERE entidad_slug = %s AND tipo_archivo = 'static_min' AND anio_reporte = %d AND unidad = %s",
+            $entidad_slug, $anio, $unidad
+        ) );
+
+        if ( $existe ) {
+            $datos = array(
+                'ruta_archivo' => 'static-min/' . $base . '.csv', 'ruta_json' => $ruta_json,
+                'fecha_corte' => $fecha_corte, 'referencia_bibliografica' => $referencia,
+                'comentarios' => $comentarios, 'es_activo' => 1,
+                'modificado_por' => $editor_name, 'fecha_modificacion' => current_time('mysql')
+            );
+            $formato = array( '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' );
+            $wpdb->update( $table_name, $datos, array( 'id' => $existe->id ), $formato, array( '%d' ) );
+        } else {
+            $datos = array(
+                'entidad_slug' => $entidad_slug, 'tipo_archivo' => 'static_min',
+                'ruta_archivo' => 'static-min/' . $base . '.csv', 'ruta_json' => $ruta_json,
+                'anio_reporte' => $anio, 'unidad' => $unidad, 'fecha_corte' => $fecha_corte, 'referencia_bibliografica' => $referencia,
+                'comentarios' => $comentarios, 'es_activo' => 1, 'fecha_subida' => current_time( 'mysql' ),
+                'subido_por' => $editor_name, 'modificado_por' => $editor_name, 'fecha_modificacion' => current_time('mysql')
+            );
+            $formato = array( '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s' );
+            $wpdb->insert( $table_name, $datos, $formato );
+        }
+
+        wp_redirect( admin_url( 'admin.php?page=siarhe-uploader&tab=static&status=success' ) ); exit;
     }
 
     public function handle_static_meta_update() {
@@ -956,13 +1038,12 @@ class Siarhe_Admin {
         $editor_name = $current_user->display_name ?: $current_user->user_login;
 
         if ( $file_id > 0 ) {
-            $wpdb->update( 
-                $table_name, 
-                array( 'anio_reporte' => intval( $_POST['anio_reporte'] ), 'fecha_corte' => sanitize_text_field( wp_unslash( $_POST['fecha_corte'] ) ), 'referencia_bibliografica' => wp_kses_post( wp_unslash( $_POST['referencia'] ) ), 'comentarios' => sanitize_textarea_field( wp_unslash( $_POST['comentarios'] ) ), 'modificado_por' => $editor_name, 'fecha_modificacion' => current_time('mysql') ), 
-                array( 'id' => $file_id )
-            );
-
             $tipo = $wpdb->get_var( $wpdb->prepare( "SELECT tipo_archivo FROM $table_name WHERE id = %d", $file_id ) );
+            $datos = array( 'fecha_corte' => sanitize_text_field( wp_unslash( $_POST['fecha_corte'] ) ), 'referencia_bibliografica' => wp_kses_post( wp_unslash( $_POST['referencia'] ) ), 'comentarios' => sanitize_textarea_field( wp_unslash( $_POST['comentarios'] ) ), 'modificado_por' => $editor_name, 'fecha_modificacion' => current_time('mysql') );
+            // El año de una base estatica es parte de su identidad (entidad + año + unidad): no se cambia desde aqui
+            if ( $tipo !== 'static_min' ) $datos['anio_reporte'] = intval( $_POST['anio_reporte'] );
+            $wpdb->update( $table_name, $datos, array( 'id' => $file_id ) );
+
             $tab_destino = ($tipo === 'marcador') ? 'marcadores' : 'static';
 
             wp_redirect( admin_url( 'admin.php?page=siarhe-uploader&tab=' . $tab_destino . '&status=updated' ) );
@@ -976,13 +1057,17 @@ class Siarhe_Admin {
         if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Sin permisos.' );
         global $wpdb;
         $table_name = $wpdb->prefix . 'siarhe_static_assets';
-        $file = $wpdb->get_row( $wpdb->prepare( "SELECT ruta_archivo, tipo_archivo FROM $table_name WHERE id = %d", $file_id ) );
+        $file = $wpdb->get_row( $wpdb->prepare( "SELECT ruta_archivo, ruta_json, tipo_archivo FROM $table_name WHERE id = %d", $file_id ) );
         $tab_destino = 'static';
         if ( $file ) {
             if ( $file->tipo_archivo === 'marcador' ) $tab_destino = 'marcadores';
             $upload_dir = wp_upload_dir();
             $filepath = $upload_dir['basedir'] . '/siarhe-data/' . $file->ruta_archivo;
             if ( file_exists( $filepath ) ) { unlink( $filepath ); siarhe_delete_data_read_copies( $filepath ); }
+            if ( ! empty( $file->ruta_json ) ) {
+                $json_path = $upload_dir['basedir'] . '/siarhe-data/' . $file->ruta_json;
+                if ( file_exists( $json_path ) ) unlink( $json_path );
+            }
             $wpdb->delete( $table_name, array( 'id' => $file_id ) );
         }
         wp_redirect( admin_url( 'admin.php?page=siarhe-uploader&tab=' . $tab_destino . '&status=deleted' ) ); exit;

@@ -2,6 +2,12 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.2.0] - 2026-11-12
+
+### Bases estáticas
+- **Año y unidad:** cada base estática es ahora una combinación entidad + año + unidad (plazas o recursos humanos estimados). El año se elige en un selector desde 2006 y la tabla de bases cargadas se puede filtrar por año y unidad. Las bases ya cargadas pasan a ser del año 2026 y en plazas (migración del esquema a la versión 2). Mientras el mapa no tenga selector de año, muestra la más reciente en plazas.
+- **CSV o JSON:** se puede subir el CSV o el JSON optimizado de RHEMX (`json/`, `json_personas/`); el plugin crea el otro formato, así que siempre existen los dos y el mapa leerá el JSON, que pesa casi la mitad. Las bases que ya estaban cargadas reciben su JSON al actualizar. Formato en [docs/formatos-de-datos.md](docs/formatos-de-datos.md).
+
 ## [0.1.1.1] - 2026-11-12
 
 ### Marcadores

@@ -28,7 +28,7 @@ siarhe-dataviz/
 ## Datos
 
 - **Archivos:** `wp-content/uploads/siarhe-data/{geojson, localidades, static-min, markers, pivote, formaciones, escuelas, investigacion, carreras}/`. Cada carpeta puede tener `_versions/` con las copias de seguridad y, junto a los archivos grandes, sus copias de lectura (`*.geojson.json`, `*.csv.txt`).
-- **Tabla `{prefix}siarhe_static_assets`:** un registro por archivo cargado (entidad, tipo, ruta, año, fecha de corte, referencia, comentarios, `es_activo`, auditoría). El frontend busca aquí el GeoJSON y el CSV activos de cada entidad.
+- **Tabla `{prefix}siarhe_static_assets`:** un registro por archivo cargado (entidad, tipo, ruta, año, fecha de corte, referencia, comentarios, `es_activo`, auditoría). El frontend busca aquí el GeoJSON y la base estática activos de cada entidad. Las bases estáticas (`static_min`) se distinguen además por `unidad` (`plazas` o `personas`) y guardan en `ruta_json` el JSON optimizado que acompaña al CSV (`ruta_archivo`); la combinación entidad + año + unidad es única. Esquema versión 2 (`Siarhe_Admin::DB_VERSION`).
 - **Opciones de WordPress:** `siarhe_map_options` (colores, botones, tabla), `siarhe_theme_options` (tema del panel), `siarhe_links_map`, `siarhe_metricas_config`, `siarhe_tooltip_config`, `siarhe_marcadores_config`, `siarhe_archivos_marcadores`, `siarhe_versions_*` (copias), `siarhe_read_copies`, `siarhe_db_version`.
 - **Seguridad:** todas las acciones del panel pasan por `admin_post_*` con `current_user_can('manage_options')` y nonce; las descargas de plantillas igual. Los datos que llegan de CSV/GeoJSON se escapan antes de insertarse en HTML.
 

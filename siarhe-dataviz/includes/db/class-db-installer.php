@@ -18,13 +18,16 @@ class Siarhe_DB_Installer {
             tipo_archivo varchar(20) NOT NULL, 
             ruta_archivo varchar(255) NOT NULL,
             anio_reporte year NOT NULL,
+            unidad varchar(10) NOT NULL DEFAULT 'plazas',
+            ruta_json varchar(255) DEFAULT NULL,
             fecha_corte date,
             referencia_bibliografica text,
             comentarios text,
             es_activo boolean DEFAULT 1,
             fecha_subida datetime DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
-            KEY entidad_slug (entidad_slug)
+            KEY entidad_slug (entidad_slug),
+            KEY base_estatica (tipo_archivo, entidad_slug, anio_reporte, unidad)
         ) $charset_collate;";
         
         dbDelta( $sql_assets );

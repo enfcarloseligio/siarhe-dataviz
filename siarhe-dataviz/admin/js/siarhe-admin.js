@@ -241,7 +241,15 @@ window.SiarheAdmin = {
                 }
                 return '';
             },
-            'static-csv': (text, truncated, form) => {
+            'static-csv': (text, truncated, form, file) => {
+                if (file && /\.json$/i.test(file.name)) {
+                    if (truncated) return ''; // demasiado grande para revisarlo aqui: valida el servidor
+                    let j;
+                    try { j = JSON.parse(text); } catch (e) { return 'El archivo no es un JSON válido.'; }
+                    if (!j || j.formato !== 'siarhe-estatico') return 'El JSON no es una base estática del plugin (falta "formato": "siarhe-estatico").';
+                    if (!Array.isArray(j.columnas) || !Array.isArray(j.filas) || j.filas.length === 0) return 'El JSON necesita "columnas" y al menos una fila en "filas".';
+                    return '';
+                }
                 const b = csvBasics(text, truncated); if (b.error) return b.error;
                 const sel = form.querySelector('[name="entidad_slug"]');
                 const national = sel && sel.value === 'republica-mexicana';
@@ -279,11 +287,12 @@ window.SiarheAdmin = {
                 error = ''; note.hidden = true;
                 const file = input.files && input.files[0];
                 if (!file) return Promise.resolve();
-                const limit = kind === 'geojson' ? MAX_GEOJSON_READ : MAX_CSV_READ;
+                const esJson = /\.json$/i.test(file.name);
+                const limit = kind === 'geojson' || (kind === 'static-csv' && esJson) ? MAX_GEOJSON_READ : MAX_CSV_READ;
                 if (kind === 'geojson' && file.size > limit) return Promise.resolve(); // demasiado grande: valida el servidor
                 const truncated = file.size > limit;
                 return file.slice(0, limit).text().then(text => {
-                    error = checks[kind](text, truncated, form);
+                    error = checks[kind](text, truncated, form, file);
                     if (error) {
                         note.textContent = error; note.hidden = false;
                         window.SiarheAdmin.alert(error, 'No se puede subir este archivo');
@@ -530,6 +539,19 @@ window.SiarheAdmin = {
             return frag;
         };
 
+        const previewStaticJson = (text) => {
+            let j;
+            try { j = JSON.parse(text); } catch (e) { return null; }
+            if (!j || !Array.isArray(j.columnas) || !Array.isArray(j.filas)) return null;
+            const tasas = j.tasas ? Object.keys(j.tasas).length : 0;
+            const frag = document.createDocumentFragment();
+            frag.appendChild(el('p', 'siarhe-preview-meta',
+                'Base estática JSON · Año: ' + (j.anio || '—') + ' · Unidad: ' + (j.unidad || '—') + ' · Filas: ' + j.filas.length.toLocaleString('es-MX') +
+                ' · Columnas: ' + j.columnas.length + (tasas ? ' (+ ' + tasas + ' tasas que se calculan)' : '')));
+            frag.appendChild(el('p', 'siarhe-preview-meta', 'Primeras columnas: ' + j.columnas.slice(0, 10).join(', ') + (j.columnas.length > 10 ? ' …' : '')));
+            return frag;
+        };
+
         const previewGeo = (text) => {
             let data;
             try { data = JSON.parse(text); } catch (e) { return null; }
@@ -585,9 +607,11 @@ window.SiarheAdmin = {
                 preview.hidden = false;
                 const isGeo = kind === 'geojson';
                 if (isGeo && file.size > MAX_PREVIEW_GEOJSON) return;
-                file.slice(0, isGeo ? MAX_PREVIEW_GEOJSON : 64 * 1024).text().then(text => {
+                const esJson = /\.json$/i.test(file.name);
+                if (esJson && file.size > MAX_PREVIEW_GEOJSON) return;
+                file.slice(0, isGeo || esJson ? MAX_PREVIEW_GEOJSON : 64 * 1024).text().then(text => {
                     if (input.files[0] !== file) return; // cambio de archivo mientras se leia
-                    const node = isGeo ? previewGeo(text) : previewCsv(text);
+                    const node = isGeo ? previewGeo(text) : (/\.json$/i.test(file.name) ? previewStaticJson(text) : previewCsv(text));
                     if (node) preview.appendChild(node);
                 }).catch(() => {});
             };

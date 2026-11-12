@@ -11,9 +11,33 @@ La fuente de verdad en código es `includes/class-siarhe-columns.php` (alimenta 
 - Datos faltantes: celda vacía o `S/D`.
 - La primera fila es el encabezado; los nombres se escriben exactamente como en la plantilla.
 
-## Base estática (una por entidad)
+## Base estática (una por entidad, año y unidad)
 
-Nombre del archivo en el servidor: `{entidad}.csv` (por ejemplo `oaxaca.csv`, `republica-mexicana.csv`).
+Cada base se identifica por **entidad + año + unidad**. El año se elige en un selector (desde 2006, el primer año con población: el censo de 2005 cubre 2006 a 2009) y la unidad es *plazas* o *recursos humanos estimados (personas)*. Subir otra base de la misma combinación la reemplaza y guarda copia de la anterior. Las bases que ya estaban cargadas cuando se agregó el selector (versión 0.1.2.0) quedaron como del año 2026 y en plazas.
+
+Nombre de los archivos en el servidor: `{entidad}-{año}-{unidad}.csv` y `.json` (por ejemplo `oaxaca-2026-plazas.csv`, `republica-mexicana-2026-personas.json`).
+
+### CSV o JSON: se acepta cualquiera y siempre existen los dos
+
+Se puede subir el CSV o el JSON optimizado que genera RHEMX (`data/processed/mapas/<año>/json/` para plazas y `json_personas/` para personas, con los mismos nombres que los CSV). El plugin valida lo que se sube y crea el otro formato (`Siarhe_Static_Json`), de modo que los dos son siempre equivalentes: el CSV queda para descargarlo o editarlo en Excel y el JSON, que pesa casi la mitad, es el que lee el mapa.
+
+El JSON (`formato: "siarhe-estatico"`, `version: 1`) lleva las mismas columnas que el CSV, pero no repite las tasas que se pueden calcular: cada `tasa_<x>` que es exactamente `enfermeras_<x> / población × 1,000` se declara en `tasas` y el navegador la calcula.
+
+```json
+{
+  "formato": "siarhe-estatico", "version": 1, "anio": 2026, "unidad": "plazas",
+  "columnas": ["id", "CVE_ENT", "estado", "población", "enfermeras_total", "..."],
+  "tasas": { "tasa_total": ["enfermeras_total", 1000] },
+  "sin_poblacion": 0,
+  "filas": [[1, "01", "Aguascalientes", 1534416, 5328, "..."]]
+}
+```
+
+- Las columnas de identificación (`id`, `CVE_ENT`, `CVE_MUN`, `CVE_LOC`, `MAPA`, `estado`, `entidad`, `municipio`, `localidad`) y toda columna con texto se guardan como texto, con sus ceros iniciales; el resto son números, o `null` si la celda está vacía o dice `S/D`.
+- `sin_poblacion` es el valor de las tasas calculadas en las filas sin población (0 en «No Disponible»).
+- Si una tasa no coincide con su fórmula (por ejemplo una columna calculada de otra manera), no se declara en `tasas` y se conserva como columna.
+- Al subir un JSON, `anio` y `unidad` deben coincidir con lo elegido en el formulario; si no, se rechaza. El JSON se convierte a CSV (con las tasas redondeadas a 9 decimales) y ese CSV pasa por las mismas validaciones que cualquier otro.
+- El mismo algoritmo vive en Python (`src/estatico_json.py` de RHEMX) y en PHP (`includes/class-siarhe-static-json.php`); se comprobó con las 792 bases de RHEMX (12 años × 2 unidades × 33 archivos) que el JSON de ambos es equivalente y que JSON → CSV recupera cada celda.
 
 | Columna | Nacional | Municipal | Notas |
 |---|---|---|---|

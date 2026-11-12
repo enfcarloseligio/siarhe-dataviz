@@ -27,7 +27,7 @@ if ( strpos( strtoupper($mode), 'T' ) !== false ) {
 // Año de los metadatos de la Base Estática (CSV)
 global $wpdb;
 $table_assets = $wpdb->prefix . 'siarhe_static_assets';
-$csv_meta = $wpdb->get_row( $wpdb->prepare( "SELECT anio_reporte FROM $table_assets WHERE entidad_slug = %s AND tipo_archivo = 'static_min' AND es_activo = 1", $slug ) );
+$csv_meta = $wpdb->get_row( $wpdb->prepare( "SELECT anio_reporte FROM $table_assets WHERE entidad_slug = %s AND tipo_archivo = 'static_min' AND es_activo = 1 ORDER BY anio_reporte DESC, unidad = 'plazas' DESC LIMIT 1", $slug ) );
 
 if ( $csv_meta && !empty($csv_meta->anio_reporte) ) {
     $anio = $csv_meta->anio_reporte; 
