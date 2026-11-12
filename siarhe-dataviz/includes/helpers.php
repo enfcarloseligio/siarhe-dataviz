@@ -168,52 +168,69 @@ function siarhe_get_default_metricas() {
         'r1_min' => 'Vmin', 'r1_op' => '<', 'r1_max' => 'Q1',   'r1_color' => '',
         'r2_min' => 'Q1',   'r2_op' => '<', 'r2_max' => 'Q2',   'r2_color' => '',
         'r3_min' => 'Q2',   'r3_op' => '<', 'r3_max' => 'Q3',   'r3_color' => '',
-        'r4_min' => 'Q3',   'r4_op' => '<=', 'r4_max' => 'Vmax', 'r4_color' => '' 
+        'r4_min' => 'Q3',   'r4_op' => '<=', 'r4_max' => 'Vmax', 'r4_color' => ''
     ];
 
-    $defaults = [
-        'tasa_total'                 => array_merge(['label' => 'Tasa Total', 'fullLabel' => 'Tasa de enfermeras por cada mil habitantes', 'abrev' => 'Tasa Total', 'tipo' => 'tasa', 'pair' => 'enfermeras_total', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-        'enfermeras_total'           => array_merge(['label' => 'Total Enfermeras', 'fullLabel' => 'Total de profesionales de enfermería', 'abrev' => 'Total Enf.', 'tipo' => 'absoluto', 'pair' => 'enfermeras_total', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-        'tasa_primer'                => array_merge(['label' => 'Tasa Primer Nivel', 'fullLabel' => 'Tasa de enfermeras en establecimientos de primer nivel de atención', 'abrev' => 'Tasa Enf. 1er Nivel', 'tipo' => 'tasa', 'pair' => 'enfermeras_primer', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-        'enfermeras_primer'          => array_merge(['label' => 'Enfermeras Primer Nivel', 'fullLabel' => 'Enfermeras en establecimientos de primer nivel de atención', 'abrev' => 'Enf. 1er Nivel', 'tipo' => 'absoluto', 'pair' => 'enfermeras_primer', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-        'tasa_segundo'               => array_merge(['label' => 'Tasa Segundo Nivel', 'fullLabel' => 'Tasa de enfermeras en establecimientos de segundo nivel de atención', 'abrev' => 'Tasa Enf. 2do Nivel', 'tipo' => 'tasa', 'pair' => 'enfermeras_segundo', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-        'enfermeras_segundo'         => array_merge(['label' => 'Enfermeras Segundo Nivel', 'fullLabel' => 'Enfermeras en establecimientos de segundo nivel de atención', 'abrev' => 'Enf. 2do Nivel', 'tipo' => 'absoluto', 'pair' => 'enfermeras_segundo', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-        'tasa_tercer'                => array_merge(['label' => 'Tasa Tercer Nivel', 'fullLabel' => 'Tasa de enfermeras en establecimientos de tercer nivel de atención', 'abrev' => 'Tasa Enf. 3er Nivel', 'tipo' => 'tasa', 'pair' => 'enfermeras_tercer', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-        'enfermeras_tercer'          => array_merge(['label' => 'Enfermeras Tercer Nivel', 'fullLabel' => 'Enfermeras en establecimientos de tercer nivel de atención', 'abrev' => 'Enf. 3er Nivel', 'tipo' => 'absoluto', 'pair' => 'enfermeras_tercer', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-        'tasa_apoyo'                 => array_merge(['label' => 'Tasa Apoyo', 'fullLabel' => 'Tasa de enfermeras en establecimientos de apoyo', 'abrev' => 'Tasa Enf. Apoyo', 'tipo' => 'tasa', 'pair' => 'enfermeras_apoyo', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-        'enfermeras_apoyo'           => array_merge(['label' => 'Enfermeras Apoyo', 'fullLabel' => 'Enfermeras en establecimientos de apoyo', 'abrev' => 'Enf. Apoyo', 'tipo' => 'absoluto', 'pair' => 'enfermeras_apoyo', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-        'tasa_administrativas'       => array_merge(['label' => 'Tasa Enfermeras Administrativas', 'fullLabel' => 'Tasa de enfermeras en unidades administrativas', 'abrev' => 'Tasa Enf. Admin.', 'tipo' => 'tasa', 'pair' => 'enfermeras_administrativas', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-        'enfermeras_administrativas' => array_merge(['label' => 'Enfermeras Administrativas', 'fullLabel' => 'Enfermeras en unidades administrativas', 'abrev' => 'Enf. Admin.', 'tipo' => 'absoluto', 'pair' => 'enfermeras_administrativas', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-        'tasa_escuelas'              => array_merge(['label' => 'Tasa Enfermeras Escuelas', 'fullLabel' => 'Tasa de enfermeras en establecimientos formadores de recursos humanos en enfermería', 'abrev' => 'Tasa Enf. Escuelas', 'tipo' => 'tasa', 'pair' => 'enfermeras_escuelas', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-        'enfermeras_escuelas'        => array_merge(['label' => 'Enfermeras Escuelas', 'fullLabel' => 'Enfermeras en establecimientos formadores de recursos humanos en enfermería', 'abrev' => 'Enf. Escuelas', 'tipo' => 'absoluto', 'pair' => 'enfermeras_escuelas', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-        'tasa_no_aplica'             => array_merge(['label' => 'Tasa Enfermeras Otros', 'fullLabel' => 'Tasa de enfermeras en otros establecimientos', 'abrev' => 'Tasa Enf. Otros', 'tipo' => 'tasa', 'pair' => 'enfermeras_no_aplica', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-        'enfermeras_no_aplica'       => array_merge(['label' => 'Enfermeras Otros', 'fullLabel' => 'Enfermeras en otros establecimientos', 'abrev' => 'Enf. Otros', 'tipo' => 'absoluto', 'pair' => 'enfermeras_no_aplica', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-        'tasa_no_asignado'           => array_merge(['label' => 'Tasa Enfermeras No Asignado', 'fullLabel' => 'Tasa de enfermeras en establecimientos con tipo de establecimiento no asignado', 'abrev' => 'Tasa Enf. No Asignado', 'tipo' => 'tasa', 'pair' => 'enfermeras_no_asignado', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-        'enfermeras_no_asignado'     => array_merge(['label' => 'Enfermeras No Asignado', 'fullLabel' => 'Enfermeras en establecimientos con tipo de establecimiento no asignado', 'abrev' => 'Enf. No Asignado', 'tipo' => 'absoluto', 'pair' => 'enfermeras_no_asignado', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges),
-        'poblacion'                  => array_merge(['label' => 'Población', 'fullLabel' => 'Población total', 'abrev' => 'Población', 'tipo' => 'absoluto', 'pair' => 'poblacion', 'is_core' => true, 'visibilidad' => 'publico'], $base_ranges)
+    // Cada variable da dos columnas: enfermeras_<clave> (frecuencia) y tasa_<clave> (tasa por mil habitantes). La descripcion usa
+    // {unidad} / {Unidad}, que el mapa sustituye por "plazas" o "personas" segun la base que se este viendo.
+    // [clave, nombre corto, tema, etiqueta de la tasa, abreviatura de la tasa, etiqueta de la frecuencia, abreviatura de la frecuencia, descripcion, opcional]
+    $variables = [
+        ['total',           'Total',           'general',        'Tasa Total',                     'Tasa Total',            'Total Enfermeras',           'Total Enf.',       '{Unidad} de enfermería en total', false],
+        ['primer',          'Primer nivel',    'nivel_atencion', 'Tasa Primer Nivel',              'Tasa Enf. 1er Nivel',   'Enfermeras Primer Nivel',    'Enf. 1er Nivel',   '{Unidad} en establecimientos de primer nivel de atención', false],
+        ['segundo',         'Segundo nivel',   'nivel_atencion', 'Tasa Segundo Nivel',             'Tasa Enf. 2do Nivel',   'Enfermeras Segundo Nivel',   'Enf. 2do Nivel',   '{Unidad} en establecimientos de segundo nivel de atención', false],
+        ['tercer',          'Tercer nivel',    'nivel_atencion', 'Tasa Tercer Nivel',              'Tasa Enf. 3er Nivel',   'Enfermeras Tercer Nivel',    'Enf. 3er Nivel',   '{Unidad} en establecimientos de tercer nivel de atención', false],
+        ['apoyo',           'Apoyo',           'nivel_atencion', 'Tasa Apoyo',                     'Tasa Enf. Apoyo',       'Enfermeras Apoyo',           'Enf. Apoyo',       '{Unidad} en establecimientos de apoyo', false],
+        ['administrativas', 'Administrativas', 'nivel_atencion', 'Tasa Enfermeras Administrativas', 'Tasa Enf. Admin.',     'Enfermeras Administrativas', 'Enf. Admin.',      '{Unidad} en unidades administrativas', false],
+        ['escuelas',        'Escuelas',        'nivel_atencion', 'Tasa Enfermeras Escuelas',       'Tasa Enf. Escuelas',    'Enfermeras Escuelas',        'Enf. Escuelas',    '{Unidad} en establecimientos formadores de recursos humanos en enfermería', false],
+        ['no_aplica',       'Otros',           'nivel_atencion', 'Tasa Enfermeras Otros',          'Tasa Enf. Otros',       'Enfermeras Otros',           'Enf. Otros',       '{Unidad} en otros establecimientos', false],
+        ['no_asignado',     'No asignado',     'nivel_atencion', 'Tasa Enfermeras No Asignado',    'Tasa Enf. No Asignado', 'Enfermeras No Asignado',     'Enf. No Asignado', '{Unidad} en establecimientos con tipo de establecimiento no asignado', false],
     ];
 
     // Estudios (con LEO) y areas de especializacion de RHEMX: opcionales, solo se muestran si la base trae la columna
     $extra = include SIARHE_PATH . 'includes/metricas-rhemx.php';
     foreach ( $extra as $v ) {
         list( $clave, $grupo, $nombre, $desc ) = $v;
-        $comun = array( 'grupo' => $grupo, 'tema' => ( $grupo === 'Estudios' ? 'estudios' : 'especializacion' ), 'is_core' => true, 'opcional' => true, 'visibilidad' => 'publico' );
-        $defaults[ 'tasa_' . $clave ] = array_merge( array( 'label' => 'Tasa ' . $nombre, 'fullLabel' => 'Tasa de enfermeras (' . $grupo . '): ' . $nombre, 'abrev' => 'Tasa ' . $nombre, 'tipo' => 'tasa', 'pair' => 'enfermeras_' . $clave, 'descripcion' => $desc ), $comun, $base_ranges );
-        $defaults[ 'enfermeras_' . $clave ] = array_merge( array( 'label' => 'Enfermeras ' . $nombre, 'fullLabel' => $desc, 'abrev' => $nombre, 'tipo' => 'absoluto', 'pair' => 'enfermeras_' . $clave ), $comun, $base_ranges );
+        $variables[] = [ $clave, $nombre, ( $grupo === 'Estudios' ? 'estudios' : 'especializacion' ), 'Tasa ' . $nombre, 'Tasa ' . $nombre,
+            'Núm. ' . $nombre, $nombre, preg_replace( '/^Plazas\b/', '{Unidad}', $desc ), true ];
     }
+
+    $defaults = [];
+    foreach ( $variables as $v ) {
+        list( $clave, $nombre, $tema, $l_tasa, $a_tasa, $l_abs, $a_abs, $desc, $opcional ) = $v;
+        $comun = [ 'nombre' => $nombre, 'tema' => $tema, 'descripcion' => $desc, 'is_core' => true, 'visibilidad' => 'publico' ];
+        if ( $opcional ) $comun['opcional'] = true;
+        $defaults[ 'tasa_' . $clave ] = array_merge( [ 'label' => $l_tasa, 'fullLabel' => 'Tasa por mil habitantes: ' . $nombre, 'abrev' => $a_tasa, 'tipo' => 'tasa', 'pair' => 'enfermeras_' . $clave ], $comun, $base_ranges );
+        $defaults[ 'enfermeras_' . $clave ] = array_merge( [ 'label' => $l_abs, 'fullLabel' => 'Frecuencia: ' . $nombre, 'abrev' => $a_abs, 'tipo' => 'absoluto', 'pair' => 'enfermeras_' . $clave ], $comun, $base_ranges );
+    }
+    $defaults['tasa_total']['fullLabel'] = 'Tasa de enfermeras por cada mil habitantes';
+    $defaults['enfermeras_total']['fullLabel'] = 'Total de profesionales de enfermería';
+    $defaults['poblacion'] = array_merge( [ 'label' => 'Población', 'fullLabel' => 'Población total', 'abrev' => 'Población', 'tipo' => 'absoluto', 'pair' => 'poblacion',
+        'nombre' => 'Población', 'tema' => 'general', 'descripcion' => 'Población total', 'is_core' => true, 'visibilidad' => 'publico' ], $base_ranges );
     return $defaults;
 }
 
 /**
- * Configuracion de metricas vigente: la guardada en el panel mas las metricas nativas que se agregaron despues de guardarla
- * (las nativas no se pueden borrar, asi que completar las que faltan no pisa ninguna decision del administrador).
- * Devuelve un arreglo; vacio si no hay nada guardado (quien llama usa entonces sus valores por defecto).
+ * Configuracion de metricas vigente. Las metricas del sistema (is_core) siempre salen con sus textos, tipo, par y tema originales:
+ * del panel solo se respetan su visibilidad y su escala/colores. Las que un administrador agrego se conservan tal cual.
  */
 function siarhe_get_metricas_config() {
+    $defaults = siarhe_get_default_metricas();
     $saved = siarhe_decode_json_option( get_option( 'siarhe_metricas_config', '' ) );
-    if ( empty( $saved ) || ! is_array( $saved ) ) return array();
-    foreach ( siarhe_get_default_metricas() as $key => $def ) {
-        if ( ! isset( $saved[ $key ] ) ) $saved[ $key ] = $def;
+    if ( empty( $saved ) || ! is_array( $saved ) ) return $defaults;
+
+    $conserva = array( 'visibilidad', 'scale_type', 'custom_ranges', 'custom_colors',
+        'r1_min', 'r1_op', 'r1_max', 'r1_color', 'r2_min', 'r2_op', 'r2_max', 'r2_color',
+        'r3_min', 'r3_op', 'r3_max', 'r3_color', 'r4_min', 'r4_op', 'r4_max', 'r4_color' );
+    foreach ( $defaults as $key => $def ) {
+        if ( isset( $saved[ $key ] ) && is_array( $saved[ $key ] ) ) {
+            $forzada = $def;
+            foreach ( $conserva as $campo ) {
+                if ( array_key_exists( $campo, $saved[ $key ] ) ) $forzada[ $campo ] = $saved[ $key ][ $campo ];
+            }
+            $saved[ $key ] = $forzada;
+        } else {
+            $saved[ $key ] = $def;
+        }
     }
     // Toda metrica pertenece a un tema; las que no tienen (o tienen uno que ya no existe) quedan en "general"
     $temas = siarhe_get_temas();
@@ -247,24 +264,27 @@ function siarhe_decode_json_option( $raw ) {
 }
 
 /**
- * Temas con que se agrupan las metricas (el selector "Tema" del mapa). Siempre existe "general", donde caen las metricas sin tema.
- * Se guardan en la opcion siarhe_temas_config como { clave: { label } } y se administran en Configuracion > Metricas.
- * @return array clave => array( 'label' => ... )
+ * Temas con que se agrupan las metricas (el selector "Tema" del mapa). Los del sistema (General, Nivel de atencion, Estudios y
+ * Especializacion) siempre existen y no se editan ni se borran; "general" es donde caen las metricas sin tema. Los que crea el
+ * administrador se guardan en la opcion siarhe_temas_config como { clave: { label } } (Configuracion > Metricas).
+ * @return array clave => array( 'label' => ..., 'sistema' => true|false )
  */
 function siarhe_get_temas() {
-    $defaults = array(
-        'general'         => array( 'label' => 'General' ),
-        'estudios'        => array( 'label' => 'Estudios' ),
-        'especializacion' => array( 'label' => 'Especialización' ),
+    $temas = array(
+        'general'         => array( 'label' => 'General',           'sistema' => true ),
+        'nivel_atencion'  => array( 'label' => 'Nivel de atención', 'sistema' => true ),
+        'estudios'        => array( 'label' => 'Estudios',          'sistema' => true ),
+        'especializacion' => array( 'label' => 'Especialización',   'sistema' => true ),
     );
     $saved = siarhe_decode_json_option( get_option( 'siarhe_temas_config', '' ) );
-    if ( ! is_array( $saved ) || ! $saved ) return $defaults;
-    $temas = array();
-    foreach ( $saved as $k => $t ) {
-        $label = is_array( $t ) && isset( $t['label'] ) ? trim( (string) $t['label'] ) : '';
-        if ( $label !== '' ) $temas[ sanitize_key( $k ) ] = array( 'label' => $label );
+    if ( is_array( $saved ) ) {
+        foreach ( $saved as $k => $t ) {
+            $k = sanitize_key( $k );
+            if ( isset( $temas[ $k ] ) ) continue;
+            $label = is_array( $t ) && isset( $t['label'] ) ? trim( (string) $t['label'] ) : '';
+            if ( $label !== '' ) $temas[ $k ] = array( 'label' => $label, 'sistema' => false );
+        }
     }
-    if ( ! isset( $temas['general'] ) ) $temas = array( 'general' => $defaults['general'] ) + $temas;
     return $temas;
 }
 

@@ -309,7 +309,7 @@ class Siarhe_Admin {
         register_setting( 'siarhe_map_group', 'siarhe_map_options', $arr );
         register_setting( 'siarhe_metricas_group', 'siarhe_metricas_config', $json );
         register_setting( 'siarhe_metricas_group', 'siarhe_temas_config', $json );
-        register_setting( 'siarhe_tooltip_group', 'siarhe_tooltip_config', $arr );
+        register_setting( 'siarhe_tooltip_group', 'siarhe_tooltip_config', $json );
         register_setting( 'siarhe_marcadores_group', 'siarhe_marcadores_config', $json );
         register_setting( 'siarhe_versions_group', Siarhe_Versions::OPT_KEEP, array(
             'sanitize_callback' => array( 'Siarhe_Versions', 'sanitize_keep' ),
@@ -1087,7 +1087,7 @@ class Siarhe_Admin {
     }
 
     private function marker_types() {
-        $tipos = json_decode( wp_unslash( get_option( 'siarhe_archivos_marcadores', '' ) ), true );
+        $tipos = siarhe_decode_json_option( get_option( 'siarhe_archivos_marcadores', '' ) );
         return ( is_array( $tipos ) && ! empty( $tipos ) ) ? $tipos : self::marker_core_types();
     }
 
@@ -1167,7 +1167,7 @@ class Siarhe_Admin {
         check_admin_referer( 'siarhe_upload_marker_nonce', 'marker_nonce' );
 
         $archivos_json = get_option( 'siarhe_archivos_marcadores', '' );
-        $tipos_marcadores = json_decode( wp_unslash( $archivos_json ), true );
+        $tipos_marcadores = siarhe_decode_json_option( $archivos_json );
 
         if (empty($tipos_marcadores)) {
             $tipos_marcadores = [

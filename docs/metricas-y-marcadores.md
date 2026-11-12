@@ -14,7 +14,9 @@ Una métrica es una **columna numérica de la base estática** (el CSV de cada e
 
 | Dónde se ve | Qué campo usa |
 |---|---|
-| Selector **Indicador Principal** (mapa y tabla) | *Etiqueta larga* |
+| Selector **Indicador Principal** (mapa y tabla) | *Nombre del indicador* (si no hay, la etiqueta corta); la tasa y la frecuencia comparten nombre y el conmutador **Medida** elige entre ellas |
+| Texto bajo el selector | *Descripción* (con `{unidad}` → plazas / personas según la base) |
+| Selector **Tema** | *Tema* |
 | Título de la leyenda del mapa | *Etiqueta abreviada* (si no hay, la corta) |
 | Encabezados y etiquetas de los tooltips | *Etiqueta corta* |
 | Pantallas muy pequeñas (móvil) | *Etiqueta abreviada* |
@@ -23,9 +25,13 @@ Una métrica es una **columna numérica de la base estática** (el CSV de cada e
 | Quién la puede elegir | *Visibilidad* |
 | Columnas **Enfermeras** y **Tasa** de la tabla | El **par** (absoluto + tasa) de la métrica elegida |
 
+## Métricas y temas del sistema
+
+Las 143 métricas de fábrica (total, población, **nivel de atención**, **estudios** y **especialización**) son **del sistema**: su nombre, descripción, tipo, par y tema se fuerzan siempre (`siarhe_get_metricas_config()`), aunque se hubieran editado; solo se respetan su visibilidad y su escala/colores. Lo mismo con los temas **General**, **Nivel de atención**, **Estudios** y **Especialización** (no se editan ni se eliminan). Solo las métricas y temas que agregues tú son editables.
+
 ## Tabla de métricas (lista)
 
-Muestra clave, etiquetas, tipo y escala, auditoría (quién la creó y quién la editó por última vez) y acciones: un **indicador de visibilidad** (ojo azul = público, usuarios naranja = privado, ojo tachado = oculto; solo informa, se cambia al editar), el botón de **editar** y el de **eliminar**. Las **nativas** llevan una insignia *Nativa* y un **candado** en lugar del botón de eliminar. Tiene buscador, paginación y orden por columna.
+Muestra clave, etiquetas, tipo y escala, auditoría (quién la creó y quién la editó por última vez) y acciones: un **indicador de visibilidad** (ojo azul = público, usuarios naranja = privado, ojo tachado = oculto; solo informa, se cambia al editar), el botón de **editar** y el de **eliminar**. Las **del sistema** llevan una insignia *Sistema* y un **candado** en lugar del botón de eliminar. Tiene buscador, paginación y orden por columna.
 
 Botones de la parte superior:
 
@@ -40,7 +46,10 @@ Botones de la parte superior:
 | **Etiqueta larga** | Nombre completo: aparece en el selector, en descripciones y en el título del PNG. |
 | **Etiqueta corta** | Nombre breve para encabezados de tabla, leyenda y tooltips. |
 | **Etiqueta abreviada** | Versión mínima para pantallas muy pequeñas. |
-| **Tipo de valor** | **Tasa** (decimal, por ejemplo por mil habitantes) o **Absoluto** (conteo entero). Cambia el formato con el que se muestra. En las nativas está bloqueado. |
+| **Nombre del indicador** | Nombre corto del selector (*Auxiliar*). Pon el mismo en la tasa y en la frecuencia de un indicador. |
+| **Descripción** | Texto bajo el selector; `{unidad}` / `{Unidad}` se sustituyen por *plazas* / *personas*. |
+| **Tipo de valor** | **Tasa** (decimal, por mil habitantes) o **Frecuencia** (número de recursos humanos: plazas o personas, entero). Considera como tasa las tasas y como frecuencia los recursos humanos. En las del sistema está bloqueado. |
+| **Tema** | Grupo del selector Tema. Elige uno existente o **Crear tema nuevo…** al final de la lista. |
 | **Visibilidad** | **Público** (cualquier visitante), **Privado** (solo usuarios con sesión iniciada) u **Oculto** (no aparece en el sitio). Para `tasa_total`, `enfermeras_total` y `poblacion` está **bloqueada en Público**: sin ellas el mapa no funciona. |
 | **Clave relacionada (par)** | Ver la sección siguiente. |
 | **Escala de mapa por defecto** | Cómo se colorea el mapa al elegir esta métrica: **Degradado por colores** (cuartiles calculados con los datos), **Rangos** (4 rangos) o **Escala monocromática** (un solo color en degradado). El visitante puede cambiarla después con *Estilo de Mapa*. |

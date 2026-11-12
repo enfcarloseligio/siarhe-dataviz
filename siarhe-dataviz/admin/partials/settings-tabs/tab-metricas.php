@@ -10,10 +10,10 @@ $current_time = current_time('mysql');
 
 $defaults = siarhe_get_default_metricas();
 
-$defaults_json = wp_json_encode($defaults);
+$defaults_json = wp_json_encode( $defaults, JSON_UNESCAPED_UNICODE );
 
 $metricas_guardadas = siarhe_get_metricas_config();
-$metricas_json = $metricas_guardadas ? wp_json_encode( $metricas_guardadas ) : $defaults_json;
+$metricas_json = $metricas_guardadas ? wp_json_encode( $metricas_guardadas, JSON_UNESCAPED_UNICODE ) : $defaults_json;
 $temas_json = wp_json_encode( siarhe_get_temas(), JSON_UNESCAPED_UNICODE );
 ?>
 
@@ -22,7 +22,7 @@ $temas_json = wp_json_encode( siarhe_get_temas(), JSON_UNESCAPED_UNICODE );
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <div>
             <h2 class="siarhe-mt-0">📊 Gestor de Métricas e Indicadores (CSV)<?php Siarhe_Admin::help('Define que columnas del CSV son indicadores, como se llaman y como se colorean en el mapa. No modifica los archivos CSV.'); ?></h2>
-            <p class="siarhe-mb-0">Configura los indicadores que se mostrarán en el mapa y la tabla. Las variables <strong>nativas</strong> están protegidas, pero puedes editar sus descripciones o añadir nuevas variables siempre y cuando existan en tu archivo CSV.</p>
+            <p class="siarhe-mb-0">Configura los indicadores que se mostrarán en el mapa y la tabla. Las variables <strong>del sistema</strong> (nativas) vienen con su nombre, tipo y tema definidos y no se editan: solo puedes cambiar su visibilidad y su escala de colores. Puedes añadir nuevas variables siempre y cuando existan en tu archivo CSV.</p>
         </div>
         <div class="siarhe-flex-gap">
             <button type="button" class="siarhe-btn-icon button button-secondary" id="btn-add-metrica">
@@ -42,7 +42,7 @@ $temas_json = wp_json_encode( siarhe_get_temas(), JSON_UNESCAPED_UNICODE );
 </div>
 
 <div class="siarhe-card">
-    <h2 class="siarhe-mt-0">🗂️ Temas<?php Siarhe_Admin::help( 'Los temas agrupan los indicadores en el selector "Tema" del mapa y la tabla, como en RHEMX. "General" siempre existe y es donde caen las métricas sin tema; al eliminar un tema, sus métricas pasan a General.' ); ?></h2>
+    <h2 class="siarhe-mt-0">🗂️ Temas<?php Siarhe_Admin::help( 'Los temas agrupan los indicadores en el selector "Tema" del mapa y la tabla, como en RHEMX. Los temas del sistema (con candado) no se editan ni se eliminan; "General" es donde caen las métricas sin tema. Al eliminar un tema propio, sus métricas pasan a General.' ); ?></h2>
     <p class="siarhe-mb-0">Crea los temas con que se agrupan los indicadores y asigna cada métrica a uno al editarla.</p>
     <table class="siarhe-table" id="siarhe-temas-table" style="margin-top:10px;">
         <thead><tr><th style="width:25%;">Clave</th><th>Nombre</th><th style="width:15%;">Métricas</th><th style="width:15%;">Acciones</th></tr></thead>
@@ -73,19 +73,20 @@ $temas_json = wp_json_encode( siarhe_get_temas(), JSON_UNESCAPED_UNICODE );
 
         <div class="siarhe-search-box">
             <span class="dashicons dashicons-search"></span>
-            <input type="text" id="siarhe-search-metricas" placeholder="Buscar por clave, etiqueta o tipo...">
+            <input type="text" id="siarhe-search-metricas" placeholder="Buscar por clave, etiqueta, tema o tipo...">
         </div>
     </div>
 
     <table id="siarhe-metricas-table" class="siarhe-table">
         <thead>
             <tr>
-                <th style="width: 15%;" data-sort-key="key" data-sort="text">Clave (CSV)</th>
-                <th style="width: 25%;" data-sort-key="fullLabel" data-sort="text">Etiqueta Larga</th>
-                <th style="width: 15%;" data-sort-key="label" data-sort="text">Etiqueta Corta</th>
-                <th style="width: 10%;" data-sort-key="abrev" data-sort="text">Abrev.</th>
+                <th style="width: 14%;" data-sort-key="key" data-sort="text">Clave (CSV)</th>
+                <th style="width: 20%;" data-sort-key="fullLabel" data-sort="text">Etiqueta Larga</th>
+                <th style="width: 13%;" data-sort-key="label" data-sort="text">Etiqueta Corta</th>
+                <th style="width: 8%;" data-sort-key="abrev" data-sort="text">Abrev.</th>
+                <th style="width: 11%;" data-sort-key="tema" data-sort="text">Tema</th>
                 <th style="width: 10%;" data-sort-key="tipo" data-sort="text">Tipo / Escala</th>
-                <th style="width: 15%;" data-sort-key="audit" data-sort="num">Auditoría</th>
+                <th style="width: 14%;" data-sort-key="audit" data-sort="num">Auditoría</th>
                 <th style="width: 10%;">Acciones</th>
             </tr>
         </thead>
@@ -106,7 +107,7 @@ $temas_json = wp_json_encode( siarhe_get_temas(), JSON_UNESCAPED_UNICODE );
         </h2>
         
         <div class="notice notice-info inline" id="modal-core-notice" style="display:none; margin-bottom:15px;">
-            <p>🔒 Esta es una métrica <strong>nativa</strong> del sistema. La clave, el tipo de valor y su par no pueden modificarse para preservar la integridad del mapa principal.</p>
+            <p>🔒 Esta es una métrica <strong>del sistema</strong>: su nombre, tipo, par y tema no se modifican para preservar la integridad del mapa. Solo puedes cambiar su visibilidad y su escala de colores.</p>
         </div>
 
         <input type="hidden" id="modal-metric-original-key">
@@ -120,6 +121,13 @@ $temas_json = wp_json_encode( siarhe_get_temas(), JSON_UNESCAPED_UNICODE );
                 <td>
                     <input type="text" id="modal-metric-key" class="regular-text" required placeholder="ej. tasa_quirurgicas">
                     <p class="description">Debe coincidir de forma exacta con la cabecera en el archivo origen.</p>
+                </td>
+            </tr>
+            <tr>
+                <th><label>Nombre del indicador</label><?php Siarhe_Admin::help('Nombre corto que aparece en el selector Indicador del mapa (por ejemplo "Auxiliar"). La tasa y la frecuencia de un mismo indicador comparten el nombre, y el conmutador Medida elige entre ellas.'); ?></th>
+                <td>
+                    <input type="text" id="modal-metric-nombre" class="regular-text" placeholder="ej. Quirúrgicas">
+                    <p class="description">Si lo dejas vacío se usa la etiqueta corta. Pon el mismo nombre en la tasa y en la frecuencia del indicador.</p>
                 </td>
             </tr>
             <tr>
@@ -144,17 +152,26 @@ $temas_json = wp_json_encode( siarhe_get_temas(), JSON_UNESCAPED_UNICODE );
                 </td>
             </tr>
             <tr>
-                <th><label>Tipo de Valor</label><?php Siarhe_Admin::help('Tasa: numero decimal (por ejemplo por 1,000 habitantes). Absoluto: conteo entero. Cambia el formato con que se muestra.'); ?></th>
+                <th><label>Descripción</label><?php Siarhe_Admin::help('Texto breve que se muestra debajo del selector Indicador. Escribe {unidad} donde deba ir "plazas" o "personas" según la base que se esté viendo ({Unidad} con mayúscula inicial).'); ?></th>
                 <td>
-                    <select id="modal-metric-tipo">
-                        <option value="tasa">Tasa (Decimal)</option>
-                        <option value="absoluto">Absoluto (Entero)</option>
-                    </select>
+                    <input type="text" id="modal-metric-descripcion" class="siarhe-w-full regular-text" placeholder="ej. {Unidad} en áreas quirúrgicas">
+                    <p class="description">Opcional. <code>{unidad}</code> se sustituye por <em>plazas</em> o <em>personas</em> según la unidad elegida.</p>
                 </td>
             </tr>
             <tr>
-                <th><label>Tema</label><?php Siarhe_Admin::help('Grupo en que aparece esta métrica en el selector "Tema" del mapa y la tabla. Los temas se crean en la tarjeta Temas.'); ?></th>
-                <td><select id="modal-metric-tema"></select></td>
+                <th><label>Tipo de Valor</label><?php Siarhe_Admin::help('Tasa: tasa por mil habitantes (decimal). Frecuencia: número de recursos humanos (plazas o personas), un entero. El conmutador Medida del mapa alterna entre la tasa y la frecuencia de un mismo indicador.'); ?></th>
+                <td>
+                    <select id="modal-metric-tipo">
+                        <option value="tasa">Tasa (por mil habitantes)</option>
+                        <option value="absoluto">Frecuencia (número de plazas o personas)</option>
+                    </select>
+                    <p class="description">Considera como <strong>tasa</strong> las tasas por mil habitantes y como <strong>frecuencia</strong> los recursos humanos (el número de plazas o de personas). Cada indicador puede tener una tasa y una frecuencia; se enlazan con la clave relacionada.</p>
+                </td>
+            </tr>
+            <tr>
+                <th><label>Tema</label><?php Siarhe_Admin::help('Grupo en que aparece esta métrica en el selector "Tema" del mapa y la tabla. Elige uno existente o crea uno nuevo si ninguno aplica.'); ?></th>
+                <td><select id="modal-metric-tema"></select>
+                    <p class="description">¿No aplica ninguno? Elige «Crear tema nuevo…» al final de la lista.</p></td>
             </tr>
             <tr>
                 <th><label>Visibilidad</label><?php Siarhe_Admin::help('Publico: lo ve cualquier visitante. Privado: solo usuarios con sesion iniciada. Oculto: no aparece en el sitio.'); ?></th>
@@ -168,7 +185,7 @@ $temas_json = wp_json_encode( siarhe_get_temas(), JSON_UNESCAPED_UNICODE );
                 </td>
             </tr>
             <tr>
-                <th><label>Clave Relacionada (Par)</label><?php Siarhe_Admin::help('Clave de la metrica complementaria (la tasa si esta es el absoluto, o al reves). Permite alternar entre ambas en el selector.'); ?></th>
+                <th><label>Clave Relacionada (Par)</label><?php Siarhe_Admin::help('Clave de la métrica complementaria: la de la frecuencia si esta es la tasa, o al revés. Comparten el mismo valor en este campo y por eso el conmutador Medida alterna entre ambas.'); ?></th>
                 <td>
                     <input type="text" id="modal-metric-pair" class="regular-text" required placeholder="ej. enfermeras_quirurgicas">
                 </td>
@@ -333,20 +350,38 @@ document.addEventListener('DOMContentLoaded', function() {
         updateHiddenInput();
         window.SiarheAdmin.submitSettingsForm();
     }
+    const NUEVO_TEMA = '__nuevo__';
+    let temaPrevio = 'general';
     function llenaTemaSelect(valor) {
-        temaSelect.innerHTML = Object.keys(temasObj).map(k => `<option value="${esc(k)}">${esc(temasObj[k].label)}</option>`).join('');
+        temaSelect.innerHTML = Object.keys(temasObj).map(k => `<option value="${esc(k)}">${esc(temasObj[k].label)}</option>`).join('')
+            + `<option value="${NUEVO_TEMA}">➕ Crear tema nuevo…</option>`;
         temaSelect.value = temasObj[valor] ? valor : 'general';
+        temaPrevio = temaSelect.value;
     }
+    // Crear un tema desde el modal: queda disponible en el acto y se guarda junto con la métrica (no recarga la página)
+    temaSelect.addEventListener('change', function() {
+        if (this.value !== NUEVO_TEMA) { temaPrevio = this.value; return; }
+        const nombre = (window.prompt('Nombre del nuevo tema:') || '').trim();
+        if (!nombre) { this.value = temaPrevio; return; }
+        let clave = nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'tema';
+        const base = clave; let n = 2;
+        while (temasObj[clave]) clave = base + '_' + (n++);
+        temasObj[clave] = { label: nombre };
+        temasInput.value = JSON.stringify(temasObj);
+        llenaTemaSelect(clave);
+    });
     function renderTemas() {
         const cuenta = {};
         Object.values(metricasObj).forEach(m => { const t = temaDe(m); cuenta[t] = (cuenta[t] || 0) + 1; });
-        temasTbody.innerHTML = Object.keys(temasObj).map(k => `
+        temasTbody.innerHTML = Object.keys(temasObj).map(k => {
+            const sistema = temasObj[k].sistema === true || k === 'general';
+            return `
             <tr>
                 <td><code>${esc(k)}</code></td>
-                <td><input type="text" class="regular-text tema-nombre" data-key="${esc(k)}" value="${esc(temasObj[k].label)}"></td>
+                <td>${sistema ? `<strong>${esc(temasObj[k].label)}</strong> <span class="siarhe-badge brand">Sistema</span>` : `<input type="text" class="regular-text tema-nombre" data-key="${esc(k)}" value="${esc(temasObj[k].label)}">`}</td>
                 <td>${cuenta[k] || 0}</td>
-                <td>${k === 'general' ? '<span class="dashicons dashicons-lock" title="El tema General no se puede eliminar"></span>' : `<button type="button" class="button button-small button-danger tema-borrar" data-key="${esc(k)}" title="Eliminar tema"><span class="dashicons dashicons-trash"></span></button>`}</td>
-            </tr>`).join('');
+                <td>${sistema ? '<span class="dashicons dashicons-lock" title="Tema del sistema: no se edita ni se elimina"></span>' : `<button type="button" class="button button-small button-danger tema-borrar" data-key="${esc(k)}" title="Eliminar tema"><span class="dashicons dashicons-trash"></span></button>`}</td>
+            </tr>`; }).join('');
         temasTbody.querySelectorAll('.tema-nombre').forEach(inp => inp.addEventListener('change', function() {
             const v = this.value.trim();
             if (!v) { this.value = temasObj[this.dataset.key].label; return; }
@@ -386,7 +421,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         filteredKeys = allKeys.filter(key => {
             const item = metricasObj[key];
-            const searchableText = `${key} ${item.label} ${item.fullLabel} ${item.abrev} ${item.tipo} ${item.pair || ''}`
+            const searchableText = `${key} ${item.label} ${item.fullLabel} ${item.nombre || ''} ${item.abrev} ${item.tipo === 'tasa' ? 'tasa' : 'frecuencia'} ${(temasObj[temaDe(item)] || {}).label || ''} ${item.pair || ''}`
                 .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             return searchableText.includes(term);
         });
@@ -394,6 +429,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (col === 'key') return k;
             const it = metricasObj[k];
             if (col === 'audit') { if (it.is_core) return 0; const t = Date.parse(String(it.last_edited_at || it.created_at || '').replace(' ', 'T')); return isNaN(t) ? 0 : t; }
+            if (col === 'tema') return ((temasObj[temaDe(it)] || {}).label) || '';
             return it[col] || '';
         });
 
@@ -426,7 +462,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (keysToRender.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" class="siarhe-empty-cell">No se encontraron métricas con los criterios de búsqueda especificados.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" class="siarhe-empty-cell">No se encontraron métricas con los criterios de búsqueda especificados.</td></tr>`;
         } else {
             keysToRender.forEach(key => {
                 const item = metricasObj[key];
@@ -436,8 +472,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const vis = item.visibilidad || 'publico'; 
                 
                 const badgeType = item.tipo === 'tasa' ? 'success' : 'neutral';
-                const badgeLabel = item.tipo === 'tasa' ? 'Tasa' : 'Absoluto';
-                const coreBadge = isCore ? '<span class="siarhe-ml-1 siarhe-badge brand"><span class="dashicons dashicons-lock" style="font-size:12px;width:12px;height:12px;margin-top:2px;"></span> Nativa</span>' : '';
+                const badgeLabel = item.tipo === 'tasa' ? 'Tasa' : 'Frecuencia';
+                const coreBadge = isCore ? '<span class="siarhe-ml-1 siarhe-badge brand"><span class="dashicons dashicons-lock" style="font-size:12px;width:12px;height:12px;margin-top:2px;"></span> Sistema</span>' : '';
                 
                 let scaleBadge = '';
                 if (item.scale_type === 'rangos') scaleBadge = '<br><span style="font-size:10px; color:#b45309;">(Rangos)</span>';
@@ -466,7 +502,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 const btnDelete = isCore 
-                    ? `<span class="dashicons dashicons-lock siarhe-action-icon siarhe-action-icon--lock" tabindex="0" data-help="Variable nativa del sistema: no se puede eliminar. Si puedes editar sus etiquetas y parametros."></span>` 
+                    ? `<span class="dashicons dashicons-lock siarhe-action-icon siarhe-action-icon--lock" tabindex="0" data-help="Variable del sistema: no se puede eliminar ni editar sus textos. Puedes cambiar su visibilidad y su escala de colores."></span>` 
                     : `<button type="button" class="button button-small button-danger btn-delete-metrica" data-key="${key}" title="Eliminar métrica"><span class="dashicons dashicons-trash"></span></button>`;
                     
                 let eyeIcon = 'dashicons-visibility';
@@ -490,6 +526,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     </td>
                     <td data-label="Abrev.">
                         <span style="background:#f0f0f1; padding:2px 5px; border-radius:3px; font-size:11px;">${abrev}</span>
+                    </td>
+                    <td data-label="Tema">
+                        ${esc((temasObj[temaDe(item)] || {}).label || 'General')}
                     </td>
                     <td data-label="Tipo / Escala">
                         <span class="siarhe-badge ${badgeType}">${badgeLabel}</span>
@@ -634,6 +673,7 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         const item = isNew ? baseItem : Object.assign({}, baseItem, metricasObj[key]);
+        const textoLibre = ['modal-metric-nombre', 'modal-metric-full', 'modal-metric-label', 'modal-metric-abrev', 'modal-metric-descripcion'];
 
         document.getElementById('modal-metric-title').textContent = isNew ? 'Añadir Nueva Métrica' : 'Editar Propiedades';
         document.getElementById('modal-metric-original-key').value = isNew ? '' : key;
@@ -653,6 +693,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('modal-metric-label').value = item.label || '';
         document.getElementById('modal-metric-full').value = item.fullLabel || '';
         document.getElementById('modal-metric-abrev').value = item.abrev || '';
+        document.getElementById('modal-metric-nombre').value = item.nombre || '';
+        document.getElementById('modal-metric-descripcion').value = item.descripcion || '';
         typeInput.value = item.tipo;
         pairInput.value = item.pair;
         visInput.value = item.visibilidad || 'publico';
@@ -679,17 +721,11 @@ document.addEventListener('DOMContentLoaded', function() {
             jQuery('#modal-r4-color').wpColorPicker('color', c4);
         }
 
-        if (item.is_core) {
-            keyInput.readOnly = true; keyInput.style.background = '#f0f0f1';
-            pairInput.readOnly = true; pairInput.style.background = '#f0f0f1';
-            typeInput.disabled = true; typeInput.style.background = '#f0f0f1';
-            notice.style.display = 'block';
-        } else {
-            keyInput.readOnly = false; keyInput.style.background = '#fff';
-            pairInput.readOnly = false; pairInput.style.background = '#fff';
-            typeInput.disabled = false; typeInput.style.background = '#fff';
-            notice.style.display = 'none';
-        }
+        // Las metricas del sistema solo permiten cambiar visibilidad y escala/colores: lo demas se fuerza al guardar y al leer
+        const bloquea = !!item.is_core;
+        [keyInput, pairInput].concat(textoLibre.map(id => document.getElementById(id))).forEach(el => { el.readOnly = bloquea; el.style.background = bloquea ? '#f0f0f1' : '#fff'; });
+        [typeInput, temaSelect].forEach(el => { el.disabled = bloquea; el.style.background = bloquea ? '#f0f0f1' : '#fff'; });
+        notice.style.display = bloquea ? 'block' : 'none';
 
         if (!isNew && lockedVisibilityKeys.includes(key)) {
             visInput.value = 'publico'; visInput.disabled = true; visInput.style.background = '#f0f0f1';
@@ -757,10 +793,12 @@ document.addEventListener('DOMContentLoaded', function() {
             label: document.getElementById('modal-metric-label').value.trim(),
             fullLabel: document.getElementById('modal-metric-full').value.trim(),
             abrev: document.getElementById('modal-metric-abrev').value.trim(), 
+            nombre: document.getElementById('modal-metric-nombre').value.trim(),
+            descripcion: document.getElementById('modal-metric-descripcion').value.trim(),
             tipo: newTipo,
             pair: newPair,
             visibilidad: finalVis, 
-            tema: temaSelect.value || 'general',
+            tema: (temaSelect.value && temaSelect.value !== NUEVO_TEMA) ? temaSelect.value : 'general',
             is_core: isCore,
             created_by: originalCreator,
             created_at: originalCreatedAt,
@@ -775,6 +813,7 @@ document.addEventListener('DOMContentLoaded', function() {
             r4_color: document.getElementById('modal-r4-color').value.trim(), r4_min: document.getElementById('modal-r4-min').value.trim(), r4_op: document.getElementById('modal-r4-op').value, r4_max: v_r4_max
         };
 
+        temasInput.value = JSON.stringify(temasObj); // incluye un tema nuevo creado desde el modal
         updateHiddenInput();
         applySearchFilter(); 
         

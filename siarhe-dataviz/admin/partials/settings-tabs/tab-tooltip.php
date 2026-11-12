@@ -2,8 +2,8 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // Obtener configuración o crear valores por defecto (todo encendido)
-$tooltip_json = get_option( 'siarhe_tooltip_config', '' );
-if ( empty($tooltip_json) ) {
+$tooltip_guardado = siarhe_decode_json_option( get_option( 'siarhe_tooltip_config', '' ) );
+if ( empty( $tooltip_guardado ) || ! is_array( $tooltip_guardado ) ) {
     $defaults = [
         // Mapa
         'geo_pob' => true, 'geo_abs' => true, 'geo_rate' => true,
@@ -27,9 +27,9 @@ if ( empty($tooltip_json) ) {
         'mk_highlight_var' => 'none',
         'mk_highlight_color' => '#06b6d4'
     ];
-    $tooltip_json = wp_json_encode($defaults);
+    $tooltip_json = wp_json_encode( $defaults, JSON_UNESCAPED_UNICODE );
 } else {
-    $tooltip_json = wp_unslash($tooltip_json);
+    $tooltip_json = wp_json_encode( $tooltip_guardado, JSON_UNESCAPED_UNICODE );
 }
 
 // Extraer el objeto para pintar el HTML correctamente en la primera carga

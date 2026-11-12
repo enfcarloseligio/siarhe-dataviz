@@ -32,12 +32,11 @@ $defaults = [
 
 $defaults_json = wp_json_encode($defaults);
 
-$marcadores_json = get_option( 'siarhe_marcadores_config', '' );
-if ( empty($marcadores_json) ) {
-    $marcadores_json = $defaults_json;
-} else {
-    $marcadores_json = wp_unslash($marcadores_json);
-}
+// Se decodifica con el mismo ayudante que el resto: no quita barras a un JSON valido (eso volvia "ó" en "u00f3") y repara lo ya dañado
+$marcadores_guardados = siarhe_decode_json_option( get_option( 'siarhe_marcadores_config', '' ) );
+$marcadores_json = ( is_array( $marcadores_guardados ) && $marcadores_guardados )
+    ? wp_json_encode( $marcadores_guardados, JSON_UNESCAPED_UNICODE )
+    : wp_json_encode( $defaults, JSON_UNESCAPED_UNICODE );
 ?>
 
 <style>

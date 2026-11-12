@@ -3,7 +3,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 // 1. Gestor dinámico del diccionario de archivos
 $archivos_json = get_option( 'siarhe_archivos_marcadores', '' );
-$tipos_marcadores = json_decode( wp_unslash( $archivos_json ), true );
+$tipos_marcadores = siarhe_decode_json_option( $archivos_json );
 
 // Auto-corrector de seguridad por corrupción de codificación ("u00ed")
 if ( empty($tipos_marcadores) || !is_array($tipos_marcadores) || (isset($tipos_marcadores['CATETER']['label']) && strpos($tipos_marcadores['CATETER']['label'], 'u00ed') !== false) ) {

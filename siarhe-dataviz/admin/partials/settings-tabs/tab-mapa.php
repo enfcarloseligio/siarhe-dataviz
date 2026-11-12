@@ -7,7 +7,7 @@ $opts     = siarhe_get_map_options();
 
 // 3. Obtener marcadores dinámicos desde la BD
 $marcadores_json = get_option( 'siarhe_marcadores_config', '' );
-$marcadores = json_decode( wp_unslash( $marcadores_json ), true );
+$marcadores = siarhe_decode_json_option( $marcadores_json );
 
 // Fallback por si la BD está vacía al cargar esta pestaña
 if (empty($marcadores)) {

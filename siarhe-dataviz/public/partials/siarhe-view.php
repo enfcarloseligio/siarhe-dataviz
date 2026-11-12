@@ -54,7 +54,7 @@ $upload_base_url_front = defined('SIARHE_UPLOAD_URL') ? SIARHE_UPLOAD_URL : wp_u
 
 // 2. MOTOR DINÁMICO DE MARCADORES
 $marcadores_json = get_option( 'siarhe_marcadores_config', '' );
-$marcadores_array = json_decode( wp_unslash( $marcadores_json ), true );
+$marcadores_array = siarhe_decode_json_option( $marcadores_json );
 
 if (empty($marcadores_array)) {
     $marcadores_array = [
@@ -125,8 +125,8 @@ $temas_json = wp_json_encode( siarhe_get_temas() );
 
 
 // LECTURA DE CONFIGURACIÓN DE TOOLTIPS
-$tooltip_json = get_option( 'siarhe_tooltip_config', '' );
-if ( empty($tooltip_json) ) {
+$tooltip_guardado = siarhe_decode_json_option( get_option( 'siarhe_tooltip_config', '' ) );
+if ( empty( $tooltip_guardado ) || ! is_array( $tooltip_guardado ) ) {
     $defaults_tt = [
         'geo_pob' => true, 'geo_abs' => true, 'geo_rate' => true,
         'geo_order' => ['pob', 'abs', 'rate'],
@@ -138,9 +138,9 @@ if ( empty($tooltip_json) ) {
         'mk_bg_color' => '#0f172a', 'mk_bg_opacity' => '90', 'mk_text_color' => '#f8fafc',
         'mk_highlight_var' => 'none', 'mk_highlight_color' => '#06b6d4'
     ];
-    $tooltip_json = wp_json_encode($defaults_tt);
+    $tooltip_json = wp_json_encode( $defaults_tt, JSON_UNESCAPED_UNICODE );
 } else {
-    $tooltip_json = wp_unslash($tooltip_json);
+    $tooltip_json = wp_json_encode( $tooltip_guardado, JSON_UNESCAPED_UNICODE );
 }
 
 // PROCESAMIENTO DE ENLACES DE NAVEGACIÓN

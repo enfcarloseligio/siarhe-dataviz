@@ -2,6 +2,19 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.6.0] - 2026-11-12
+
+### Métricas e indicadores
+- **Indicador por nombre corto y conmutador Medida:** el selector de indicadores lista cada indicador una sola vez, con su nombre corto (*Auxiliar*, *Técnico*, *Primer nivel*…), y el nuevo conmutador **Medida** (*Tasa* / *Frecuencia*) cambia entre su tasa por mil habitantes y su frecuencia (número de plazas o de personas). Antes cada indicador aparecía dos veces con textos largos (*Tasa de enfermeras (estudios): Auxiliar*). Cada botón se desactiva si el indicador no tiene esa medida (por ejemplo, la población solo tiene frecuencia).
+- **Descripción según la unidad:** bajo el selector se muestra la descripción del indicador y `{unidad}` se sustituye por *plazas* o *personas* según la unidad elegida. El selector de **unidad** ahora siempre se ve (deshabilitado si la entidad solo tiene una).
+- **Nivel de atención es un tema propio** (primer, segundo, tercer nivel, apoyo, administrativas, escuelas, otros y no asignado). **General** queda con el total y la población.
+- **Métricas y temas del sistema:** las 143 métricas de fábrica son del sistema; sus nombres, descripciones, tipo, par y tema se **fuerzan** al leer la configuración (aunque se hubieran editado o guardado dañadas) y el panel las muestra bloqueadas; solo se respetan su visibilidad y su escala/colores. Los temas General, Nivel de atención, Estudios y Especialización tampoco se editan ni se eliminan.
+- **Panel de métricas:** campos nuevos *Nombre del indicador* y *Descripción*; el tipo de valor se llama **Tasa** / **Frecuencia** con una nota de ayuda; la tabla tiene columna **Tema**; al editar una métrica se puede **crear un tema nuevo** desde la misma lista de temas.
+
+### Corregido
+- Acentos en **marcadores de posición, densidad** y demás textos guardados (también en *Mapa y colores*, la carga de marcadores y los tooltips): se leían quitando barras a un JSON válido (`Clu00ednicas`). Ahora todo pasa por `siarhe_decode_json_option`, que además repara lo ya dañado.
+- **Tooltips:** la configuración se descartaba al guardar desde la versión 0.0.5.45 (se registraba como arreglo y se recibe como JSON); ahora se conserva.
+
 ## [0.1.5.1] - 2026-11-12
 
 ### Mapa

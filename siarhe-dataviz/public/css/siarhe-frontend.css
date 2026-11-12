@@ -1100,3 +1100,14 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     -webkit-mask: var(--ico) center / contain no-repeat;
     mask: var(--ico) center / contain no-repeat;
 }
+
+/* Conmutador Medida (Tasa / Frecuencia) y texto descriptivo del indicador */
+.siarhe-viz-wrapper .siarhe-seg { display: flex; width: 100%; height: 38px; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; background: #fff; box-sizing: border-box; }
+.siarhe-viz-wrapper .siarhe-seg__btn { flex: 1; border: 0; background: transparent; color: #334155; font: inherit; font-size: 14px; cursor: pointer; padding: 0 10px; transition: background-color 0.2s, color 0.2s; }
+.siarhe-viz-wrapper .siarhe-seg__btn + .siarhe-seg__btn { border-left: 1px solid #cbd5e1; }
+.siarhe-viz-wrapper .siarhe-seg__btn:hover:not(:disabled):not(.is-active) { background: #f1f5f9; }
+.siarhe-viz-wrapper .siarhe-seg__btn.is-active { background: var(--s-btn-bg, #0A66C2); color: var(--s-btn-text, #F8FAFC); }
+.siarhe-viz-wrapper .siarhe-seg__btn:disabled { color: #94a3b8; cursor: not-allowed; }
+.siarhe-viz-wrapper .siarhe-seg__btn:focus-visible { outline: 2px solid #06B6D4; outline-offset: -2px; }
+.siarhe-viz-wrapper .siarhe-ind-desc { margin: 4px 0 0; font-size: 12px; line-height: 1.35; color: #64748b; }
+.siarhe-viz-wrapper .siarhe-metric-select:disabled { background: #f8fafc; color: #64748b; cursor: default; }

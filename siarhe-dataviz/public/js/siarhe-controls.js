@@ -30,6 +30,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     <div class="siarhe-controls-row">
                         <div class="siarhe-control-group" id="c-tema"><label>Tema</label></div>
                         <div class="siarhe-control-group" id="c-indicador"><label>Indicador de la Tabla</label></div>
+                        <div class="siarhe-control-group" id="c-medida"><label>Medida</label></div>
                     </div>
                 `;
             } else {
@@ -53,6 +54,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     <div class="siarhe-controls-row">
                         <div class="siarhe-control-group" id="c-tema"><label>Tema</label></div>
                         <div class="siarhe-control-group" id="c-indicador"><label>Indicador Principal</label></div>
+                        <div class="siarhe-control-group" id="c-medida"><label>Medida</label></div>
                         <div class="siarhe-control-group" id="c-posicion"><label>Marcadores (Posición)</label></div>
                         <div class="siarhe-control-group" id="c-espectro"><label>Marcadores (Densidad)</label></div>
                     </div>
@@ -168,10 +170,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 
                 if (key === state.currentMetric) {
                     opt.classList.add('selected');
-                    triggerInd.innerHTML = `<span>${app.utils.esc(info.label || info.fullLabel)}</span>`;
+                    triggerInd.innerHTML = `<span>${app.utils.esc(app.controls.indicatorName(info))}</span>`;
                 }
                 
-                opt.textContent = info.fullLabel;
+                opt.textContent = app.controls.indicatorName(info);
                 
                 opt.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -184,10 +186,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const selectEscala = container.querySelector('#siarhe-escala-select');
                     if (selectEscala) selectEscala.value = state.colorMode;
                     
-                    triggerInd.innerHTML = `<span>${app.utils.esc(info.label || info.fullLabel)}</span>`;
+                    triggerInd.innerHTML = `<span>${app.utils.esc(app.controls.indicatorName(info))}</span>`;
                     optionsContainerInd.querySelectorAll('.siarhe-cs-option').forEach(o => o.classList.remove('selected'));
                     opt.classList.add('selected');
                     menuInd.classList.remove('open');
+                    app.controls.updateIndicatorDesc(container, state);
+                    if (state.refreshMeasure) state.refreshMeasure();
                     
                     onUpdate(); 
                     checkSpectrumLink(key);
@@ -386,8 +390,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             ph.appendChild(wrapper);
             app.controls.buildBaseSelectors(container, state, wrapper, onUpdate);
             app.controls.buildThemeSelector(container, state, wrapper);
+            app.controls.buildMeasureSwitch(container, state, wrapper);
             app.controls.addControlIcons(container, wrapper);
             app.controls.syncIndicatorOptions(container, state);
+            app.controls.updateIndicatorDesc(container, state);
             app.controls.enhanceDropdowns(container, wrapper);
             app.controls.updateMarkerDropdownText(state);
         },
@@ -868,10 +874,14 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             app.sortConfig = { key: 'tasa', direction: 'desc' };
 
             const trigger = container.querySelector('#c-indicador .siarhe-cs-trigger');
-            if (trigger) trigger.innerHTML = `<span>${app.utils.esc(info.label || info.fullLabel)}</span>`;
+            if (trigger) trigger.innerHTML = `<span>${app.utils.esc(app.controls.indicatorName(info))}</span>`;
             container.querySelectorAll('#c-indicador .siarhe-cs-option').forEach(o => {
                 o.classList.toggle('selected', o.dataset.key === state.currentMetric);
             });
+            state.medida = info.tipo === 'tasa' ? 'tasa' : (info.tipo ? 'absoluto' : state.medida);
+            if (state.refreshThemes) state.refreshThemes(); else app.controls.syncIndicatorOptions(container, state);
+            app.controls.updateIndicatorDesc(container, state);
+            if (state.refreshMeasure) state.refreshMeasure();
             const selEscala = container.querySelector('#siarhe-escala-select');
             if (selEscala) selEscala.value = (state.colorMode === 'degradado' || state.colorMode === 'quartiles') ? 'cuartiles' : (state.colorMode === 'mono' ? 'monocromatico' : state.colorMode);
 
@@ -1030,24 +1040,113 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             });
         },
 
+        /** Nombre corto con que un indicador aparece en el selector (la tasa y la frecuencia de un indicador comparten el nombre). */
+        indicatorName: function(info) {
+            info = info || {};
+            return info.nombre || info.label || info.fullLabel || '';
+        },
+
         /**
-         * Oculta del selector de indicadores las metricas opcionales cuya columna no trae la base cargada (p. ej. las areas de
-         * especializacion en una base antigua). Si el indicador activo deja de existir, regresa a la tasa total.
+         * Claves de la familia de una metrica (su tasa y su frecuencia), unidas por el campo pair. Solo cuentan las columnas que la
+         * base cargada trae, para las metricas opcionales. Devuelve { tasa: clave|null, absoluto: clave|null }.
+         */
+        metricFamily: function(state, key) {
+            const info = state.metricas[key] || {};
+            const par = info.pair || key;
+            const fam = { tasa: null, absoluto: null };
+            Object.keys(state.metricas).forEach(function(k) {
+                const m = state.metricas[k];
+                if ((m.pair || k) !== par) return;
+                if (m.opcional && state.columnas && !state.columnas.has(k)) return;
+                const t = m.tipo === 'tasa' ? 'tasa' : 'absoluto';
+                if (!fam[t]) fam[t] = k;
+            });
+            return fam;
+        },
+
+        /**
+         * Oculta del selector de indicadores las metricas que no corresponden: opcionales cuya columna no trae la base cargada (p. ej.
+         * las areas de especializacion en una base antigua), de otro tema o de otra medida (tasa / frecuencia). Una familia que no tiene
+         * la medida elegida se muestra con la que si tiene. Si el indicador activo deja de estar disponible, pasa al primero visible.
          */
         syncIndicatorOptions: function(container, state, reselect) {
             if (!state.columnas) return;
             const tema = state.temaActual;
+            const medida = state.medida || 'tasa';
             const visible = function(key) {
                 const info = state.metricas[key] || {};
                 if (info.opcional && !state.columnas.has(key)) return false;
-                return !tema || (info.tema || 'general') === tema;
+                if (tema && (info.tema || 'general') !== tema) return false;
+                const fam = app.controls.metricFamily(state, key);
+                const propia = info.tipo === 'tasa' ? 'tasa' : 'absoluto';
+                return propia === medida || !fam[medida];
             };
             container.querySelectorAll('.siarhe-cs-option[data-key]').forEach(function(o) { o.hidden = !visible(o.dataset.key); });
             if (reselect && !visible(state.currentMetric)) {
-                // El indicador activo ya no esta disponible (otro tema o una base sin esa columna): pasa al primero del tema
                 const prim = container.querySelector('.siarhe-cs-option[data-key]:not([hidden])');
                 if (prim) prim.click();
             }
+        },
+
+        /** Texto del indicador activo bajo el selector; {unidad} / {Unidad} se sustituyen por la unidad de la base que se ve. */
+        updateIndicatorDesc: function(container, state) {
+            const host = container.querySelector('#c-indicador');
+            if (!host) return;
+            let p = host.querySelector('.siarhe-ind-desc');
+            if (!p) { p = document.createElement('p'); p.className = 'siarhe-ind-desc'; host.appendChild(p); }
+            const info = state.metricas[state.currentMetric] || {};
+            const palabra = (state.base && state.base.unidad === 'personas') ? 'personas' : 'plazas';
+            const txt = String(info.descripcion || '')
+                .replace(/\{Unidad\}/g, palabra.charAt(0).toUpperCase() + palabra.slice(1))
+                .replace(/\{unidad\}/g, palabra);
+            p.textContent = txt;
+            p.hidden = !txt;
+        },
+
+        /**
+         * Conmutador Medida (Tasa / Frecuencia): alterna el indicador entre su tasa por mil habitantes y su frecuencia (numero de
+         * plazas o personas). Cada boton se desactiva si el indicador no tiene esa medida.
+         */
+        buildMeasureSwitch: function(container, state, wrapper) {
+            const host = wrapper.querySelector('#c-medida');
+            if (!host) return;
+            const info0 = state.metricas[state.currentMetric] || {};
+            state.medida = info0.tipo === 'tasa' || !info0.tipo ? 'tasa' : 'absoluto';
+            const grupo = document.createElement('div');
+            grupo.className = 'siarhe-seg'; grupo.setAttribute('role', 'group'); grupo.setAttribute('aria-label', 'Medida del indicador');
+            const defs = [['tasa', 'Tasa', 'Tasa por mil habitantes'], ['absoluto', 'Frecuencia', 'Número de plazas o de personas']];
+            const botones = {};
+            defs.forEach(function(d) {
+                const b = document.createElement('button');
+                b.type = 'button'; b.className = 'siarhe-seg__btn'; b.textContent = d[1]; b.title = d[2]; b.dataset.medida = d[0];
+                b.addEventListener('click', function() {
+                    if (b.disabled) return;
+                    state.medida = d[0];
+                    const fam = app.controls.metricFamily(state, state.currentMetric);
+                    const destino = fam[d[0]];
+                    if (destino && destino !== state.currentMetric) {
+                        const opt = container.querySelector('.siarhe-cs-option[data-key="' + destino + '"]');
+                        if (opt) opt.click(); // mismo camino que elegirlo en la lista: escala, tabla, mapa y aviso de marcadores
+                    }
+                    app.controls.syncIndicatorOptions(container, state);
+                    state.refreshMeasure();
+                });
+                botones[d[0]] = b;
+                grupo.appendChild(b);
+            });
+            host.appendChild(grupo);
+            state.refreshMeasure = function() {
+                const fam = app.controls.metricFamily(state, state.currentMetric);
+                const actual = (state.metricas[state.currentMetric] || {}).tipo === 'tasa' ? 'tasa' : 'absoluto';
+                defs.forEach(function(d) {
+                    const b = botones[d[0]];
+                    b.disabled = !fam[d[0]];
+                    const activo = d[0] === actual && !!fam[d[0]];
+                    b.classList.toggle('is-active', activo);
+                    b.setAttribute('aria-pressed', activo ? 'true' : 'false');
+                });
+            };
+            state.refreshMeasure();
         },
 
         /**
@@ -1126,7 +1225,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 u.forEach(function(k) { const o = document.createElement('option'); o.value = k; o.textContent = etiquetaUnidad[k] || k; selUnidad.appendChild(o); });
                 if (u.indexOf(state.base.unidad) === -1) state.base.unidad = u[0];
                 selUnidad.value = state.base.unidad;
-                gUnidad.hidden = u.length < 2 && !Object.keys(bases).some(function(a) { return unidadesDe(a).length > 1; });
+                selUnidad.disabled = u.length < 2; // con una sola unidad se muestra cual es, sin opcion de cambiarla
             };
             selAnio.value = state.base.anio;
             llenaUnidades();
@@ -1139,6 +1238,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (loading) loading.style.display = 'flex';
                 app.data.loadBase(info.url).then(function(rows) {
                     app.data.setBase(container, state, rows, state.base.anio);
+                    app.controls.updateIndicatorDesc(container, state);
                     if (state.refreshThemes) state.refreshThemes(); else app.controls.syncIndicatorOptions(container, state, true);
                     if (loading) loading.style.display = 'none';
                     onUpdate();
