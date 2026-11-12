@@ -2,6 +2,11 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.2.1] - 2026-11-12
+
+### Mapa
+- **El mapa lee el JSON optimizado** de la base estática (si existe; si no, el CSV): `app.data.jsonToRows` lo convierte en las mismas filas que el CSV y calcula las tasas declaradas en `tasas`. Comprobado contra los CSV de RHEMX (Oaxaca y nacional, sin diferencias).
+
 ## [0.1.2.0] - 2026-11-12
 
 ### Bases estáticas

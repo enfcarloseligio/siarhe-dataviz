@@ -394,6 +394,26 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     // 4. CAPA DE DATOS (Data Layer)
     // ==========================================
     app.data = {
+        // Base estatica en JSON optimizado (formato "siarhe-estatico"): devuelve filas con las mismas llaves que d3.csv,
+        // calculando las tasas que el archivo declara en "tasas" (conteo / poblacion x por) para que processCSV no cambie.
+        jsonToRows: function(j) {
+            if (!j || j.formato !== 'siarhe-estatico' || !Array.isArray(j.columnas) || !Array.isArray(j.filas)) return [];
+            const cols = j.columnas;
+            const pobIdx = cols.findIndex(c => c.toLowerCase().startsWith('pob'));
+            const tasas = Object.entries(j.tasas || {});
+            const sinPob = (j.sin_poblacion === undefined) ? null : j.sin_poblacion;
+            return j.filas.map(f => {
+                const d = {};
+                for (let i = 0; i < cols.length; i++) d[cols[i]] = (f[i] === null || f[i] === undefined) ? '' : f[i];
+                const pob = pobIdx >= 0 ? f[pobIdx] : null;
+                tasas.forEach(([t, def]) => {
+                    const c = d[def[0]];
+                    d[t] = (pob > 0 && typeof c === 'number') ? c / pob * def[1] : (sinPob === null ? '' : sinPob);
+                });
+                return d;
+            });
+        },
+
         processCSV: function(data, metricasConfig) {
             return data.map(d => {
                 const row = {};
@@ -539,7 +559,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         // Descarga paralela de archivos (Solo trae lo necesario)
         Promise.all([
             geojsonUrl && mode.includes('M') ? d3.json(geojsonUrl) : Promise.resolve(null),
-            csvUrl ? d3.csv(csvUrl) : Promise.resolve(null)
+            csvUrl ? (/\.json(\?|$)/i.test(csvUrl) ? d3.json(csvUrl).then(app.data.jsonToRows) : d3.csv(csvUrl)) : Promise.resolve(null)
         ])
         .then(([geo, csv]) => {
             state.geoData = geo;

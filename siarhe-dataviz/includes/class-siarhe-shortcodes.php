@@ -59,7 +59,7 @@ class Siarhe_Shortcodes {
 
         // 2. Buscar CSV Estático activo (y sus metadatos)
         $csv = $wpdb->get_row( $wpdb->prepare( 
-            "SELECT ruta_archivo, anio_reporte, fecha_corte, referencia_bibliografica 
+            "SELECT ruta_archivo, ruta_json, anio_reporte, fecha_corte, referencia_bibliografica 
              FROM $table_assets WHERE entidad_slug = %s AND tipo_archivo = 'static_min' AND es_activo = 1
              ORDER BY anio_reporte DESC, unidad = 'plazas' DESC LIMIT 1", 
             $slug 
@@ -68,6 +68,10 @@ class Siarhe_Shortcodes {
         // Construir URLs completas
         $geojson_url = $geojson ? SIARHE_UPLOAD_URL . $geojson->ruta_archivo : '';
         $csv_url     = $csv ? SIARHE_UPLOAD_URL . $csv->ruta_archivo : '';
+        // El JSON optimizado (mas ligero) es el que lee el mapa; si no existe, se usa el CSV
+        if ( $csv && ! empty( $csv->ruta_json ) && file_exists( SIARHE_UPLOAD_DIR . ltrim( $csv->ruta_json, '/' ) ) ) {
+            $csv_url = SIARHE_UPLOAD_URL . $csv->ruta_json;
+        }
         $anio        = $geojson ? $geojson->anio_reporte : date('Y');
 
         // Preparar Referencias y Fechas para la vista
