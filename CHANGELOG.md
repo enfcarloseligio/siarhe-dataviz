@@ -2,6 +2,12 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.5.0] - 2026-11-12
+
+### Métricas
+- **Temas:** las métricas se agrupan en temas, como en RHEMX. Nuevo selector **Tema** antes del indicador en el mapa y la tabla (solo muestra los temas con indicadores en la base cargada y se oculta si queda uno). Los temas se crean, renombran y eliminan en *Configuración › Métricas* (tarjeta **Temas**) y cada métrica se asigna a uno al editarla. Existen de fábrica **General** (donde caen todas las métricas actuales y las que no tengan tema; no se puede eliminar), **Estudios** y **Especialización** (las 62 variables de RHEMX). Al eliminar un tema sus métricas pasan a General.
+- **Corregido:** los textos con acentos de las métricas guardadas aparecían como `atenciu00f3n`. La configuración se leía quitando barras dos veces; ahora se lee tal cual y solo se quitan si no es JSON válido (`siarhe_decode_json_option`), y los textos que ya se hubieran guardado dañados se reparan al leerlos.
+
 ## [0.1.4.0] - 2026-11-12
 
 ### Métricas

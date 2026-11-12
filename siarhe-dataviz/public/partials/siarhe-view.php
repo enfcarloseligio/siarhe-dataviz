@@ -121,6 +121,7 @@ foreach ($metricas_array as $key => $metrica) {
     $metricas_filtradas[$key] = $metrica;
 }
 $metricas_clean_json = wp_json_encode($metricas_filtradas);
+$temas_json = wp_json_encode( siarhe_get_temas() );
 
 
 // LECTURA DE CONFIGURACIÓN DE TOOLTIPS
@@ -235,6 +236,7 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
      data-mode="<?php echo esc_attr($mode); ?>"
      data-geojson="<?php echo esc_url($geojson_url); ?>"
      data-csv="<?php echo esc_url($csv_url); ?>"
+     data-temas='<?php echo esc_attr( $temas_json ); ?>'
      data-bases='<?php echo esc_attr( wp_json_encode( $bases_mapa ) ); ?>'
      data-anio="<?php echo esc_attr( $anio ); ?>"
      data-unidad="<?php echo esc_attr( ( $csv_meta && ! empty( $csv_meta->unidad ) ) ? $csv_meta->unidad : 'plazas' ); ?>"

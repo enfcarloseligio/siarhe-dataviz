@@ -308,6 +308,7 @@ class Siarhe_Admin {
         register_setting( 'siarhe_theme_group', 'siarhe_theme_options', $arr );
         register_setting( 'siarhe_map_group', 'siarhe_map_options', $arr );
         register_setting( 'siarhe_metricas_group', 'siarhe_metricas_config', $json );
+        register_setting( 'siarhe_metricas_group', 'siarhe_temas_config', $json );
         register_setting( 'siarhe_tooltip_group', 'siarhe_tooltip_config', $arr );
         register_setting( 'siarhe_marcadores_group', 'siarhe_marcadores_config', $json );
         register_setting( 'siarhe_versions_group', Siarhe_Versions::OPT_KEEP, array(

@@ -14,6 +14,7 @@ $defaults_json = wp_json_encode($defaults);
 
 $metricas_guardadas = siarhe_get_metricas_config();
 $metricas_json = $metricas_guardadas ? wp_json_encode( $metricas_guardadas ) : $defaults_json;
+$temas_json = wp_json_encode( siarhe_get_temas(), JSON_UNESCAPED_UNICODE );
 ?>
 
 
@@ -34,9 +35,20 @@ $metricas_json = $metricas_guardadas ? wp_json_encode( $metricas_guardadas ) : $
     </div>
 
     <input type="hidden" name="siarhe_metricas_config" id="siarhe_metricas_config" value="<?php echo esc_attr($metricas_json); ?>">
+    <input type="hidden" name="siarhe_temas_config" id="siarhe_temas_config" value="<?php echo esc_attr( $temas_json ); ?>">
     <input type="hidden" id="siarhe_default_metricas" value="<?php echo esc_attr($defaults_json); ?>">
     <input type="hidden" id="siarhe_current_user" value="<?php echo esc_attr($editor_name); ?>">
     <input type="hidden" id="siarhe_current_time" value="<?php echo esc_attr($current_time); ?>">
+</div>
+
+<div class="siarhe-card">
+    <h2 class="siarhe-mt-0">🗂️ Temas<?php Siarhe_Admin::help( 'Los temas agrupan los indicadores en el selector "Tema" del mapa y la tabla, como en RHEMX. "General" siempre existe y es donde caen las métricas sin tema; al eliminar un tema, sus métricas pasan a General.' ); ?></h2>
+    <p class="siarhe-mb-0">Crea los temas con que se agrupan los indicadores y asigna cada métrica a uno al editarla.</p>
+    <table class="siarhe-table" id="siarhe-temas-table" style="margin-top:10px;">
+        <thead><tr><th style="width:25%;">Clave</th><th>Nombre</th><th style="width:15%;">Métricas</th><th style="width:15%;">Acciones</th></tr></thead>
+        <tbody id="siarhe-temas-tbody"></tbody>
+    </table>
+    <p><button type="button" class="button button-secondary" id="btn-add-tema"><span class="dashicons dashicons-plus-alt2"></span> Añadir tema</button></p>
 </div>
 
 <div class="siarhe-card siarhe-card--flush">
@@ -139,6 +151,10 @@ $metricas_json = $metricas_guardadas ? wp_json_encode( $metricas_guardadas ) : $
                         <option value="absoluto">Absoluto (Entero)</option>
                     </select>
                 </td>
+            </tr>
+            <tr>
+                <th><label>Tema</label><?php Siarhe_Admin::help('Grupo en que aparece esta métrica en el selector "Tema" del mapa y la tabla. Los temas se crean en la tarjeta Temas.'); ?></th>
+                <td><select id="modal-metric-tema"></select></td>
             </tr>
             <tr>
                 <th><label>Visibilidad</label><?php Siarhe_Admin::help('Publico: lo ve cualquier visitante. Privado: solo usuarios con sesion iniciada. Oculto: no aparece en el sitio.'); ?></th>
@@ -301,6 +317,62 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let metricasObj = {};
     try { metricasObj = JSON.parse(inputJson.value); } catch (e) {}
+
+    // ---- Temas ----
+    const temasInput = document.getElementById('siarhe_temas_config');
+    let temasObj = {};
+    try { temasObj = JSON.parse(temasInput.value) || {}; } catch (e) {}
+    if (!temasObj.general) temasObj = Object.assign({ general: { label: 'General' } }, temasObj);
+    const temasTbody = document.getElementById('siarhe-temas-tbody');
+    const temaSelect = document.getElementById('modal-metric-tema');
+    const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const temaDe = (m) => (m && m.tema && temasObj[m.tema]) ? m.tema : 'general';
+
+    function guardaTemas() {
+        temasInput.value = JSON.stringify(temasObj);
+        updateHiddenInput();
+        window.SiarheAdmin.submitSettingsForm();
+    }
+    function llenaTemaSelect(valor) {
+        temaSelect.innerHTML = Object.keys(temasObj).map(k => `<option value="${esc(k)}">${esc(temasObj[k].label)}</option>`).join('');
+        temaSelect.value = temasObj[valor] ? valor : 'general';
+    }
+    function renderTemas() {
+        const cuenta = {};
+        Object.values(metricasObj).forEach(m => { const t = temaDe(m); cuenta[t] = (cuenta[t] || 0) + 1; });
+        temasTbody.innerHTML = Object.keys(temasObj).map(k => `
+            <tr>
+                <td><code>${esc(k)}</code></td>
+                <td><input type="text" class="regular-text tema-nombre" data-key="${esc(k)}" value="${esc(temasObj[k].label)}"></td>
+                <td>${cuenta[k] || 0}</td>
+                <td>${k === 'general' ? '<span class="dashicons dashicons-lock" title="El tema General no se puede eliminar"></span>' : `<button type="button" class="button button-small button-danger tema-borrar" data-key="${esc(k)}" title="Eliminar tema"><span class="dashicons dashicons-trash"></span></button>`}</td>
+            </tr>`).join('');
+        temasTbody.querySelectorAll('.tema-nombre').forEach(inp => inp.addEventListener('change', function() {
+            const v = this.value.trim();
+            if (!v) { this.value = temasObj[this.dataset.key].label; return; }
+            temasObj[this.dataset.key].label = v;
+            guardaTemas();
+        }));
+        temasTbody.querySelectorAll('.tema-borrar').forEach(btn => btn.addEventListener('click', function() {
+            const k = this.dataset.key;
+            window.SiarheAdmin.confirm('¿Eliminar el tema "' + temasObj[k].label + '"? Sus métricas pasarán al tema General.', { okText: 'Eliminar' }).then(ok => {
+                if (!ok) return;
+                Object.values(metricasObj).forEach(m => { if (m.tema === k) m.tema = 'general'; });
+                delete temasObj[k];
+                guardaTemas();
+            });
+        }));
+    }
+    document.getElementById('btn-add-tema').addEventListener('click', function() {
+        const nombre = (window.prompt('Nombre del nuevo tema:') || '').trim();
+        if (!nombre) return;
+        let clave = nombre.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'tema';
+        let base = clave, n = 2;
+        while (temasObj[clave]) clave = base + '_' + (n++);
+        temasObj[clave] = { label: nombre };
+        guardaTemas();
+    });
+    renderTemas();
 
     let currentPage = 1;
     let itemsPerPage = 25;
@@ -584,6 +656,7 @@ document.addEventListener('DOMContentLoaded', function() {
         typeInput.value = item.tipo;
         pairInput.value = item.pair;
         visInput.value = item.visibilidad || 'publico';
+        llenaTemaSelect(item.tema || 'general');
 
         scaleSelect.value = item.scale_type || 'cuartiles';
 
@@ -687,6 +760,7 @@ document.addEventListener('DOMContentLoaded', function() {
             tipo: newTipo,
             pair: newPair,
             visibilidad: finalVis, 
+            tema: temaSelect.value || 'general',
             is_core: isCore,
             created_by: originalCreator,
             created_at: originalCreatedAt,

@@ -197,7 +197,7 @@ function siarhe_get_default_metricas() {
     $extra = include SIARHE_PATH . 'includes/metricas-rhemx.php';
     foreach ( $extra as $v ) {
         list( $clave, $grupo, $nombre, $desc ) = $v;
-        $comun = array( 'grupo' => $grupo, 'is_core' => true, 'opcional' => true, 'visibilidad' => 'publico' );
+        $comun = array( 'grupo' => $grupo, 'tema' => ( $grupo === 'Estudios' ? 'estudios' : 'especializacion' ), 'is_core' => true, 'opcional' => true, 'visibilidad' => 'publico' );
         $defaults[ 'tasa_' . $clave ] = array_merge( array( 'label' => 'Tasa ' . $nombre, 'fullLabel' => 'Tasa de enfermeras (' . $grupo . '): ' . $nombre, 'abrev' => 'Tasa ' . $nombre, 'tipo' => 'tasa', 'pair' => 'enfermeras_' . $clave, 'descripcion' => $desc ), $comun, $base_ranges );
         $defaults[ 'enfermeras_' . $clave ] = array_merge( array( 'label' => 'Enfermeras ' . $nombre, 'fullLabel' => $desc, 'abrev' => $nombre, 'tipo' => 'absoluto', 'pair' => 'enfermeras_' . $clave ), $comun, $base_ranges );
     }
@@ -210,12 +210,62 @@ function siarhe_get_default_metricas() {
  * Devuelve un arreglo; vacio si no hay nada guardado (quien llama usa entonces sus valores por defecto).
  */
 function siarhe_get_metricas_config() {
-    $saved = json_decode( wp_unslash( (string) get_option( 'siarhe_metricas_config', '' ) ), true );
+    $saved = siarhe_decode_json_option( get_option( 'siarhe_metricas_config', '' ) );
     if ( empty( $saved ) || ! is_array( $saved ) ) return array();
     foreach ( siarhe_get_default_metricas() as $key => $def ) {
         if ( ! isset( $saved[ $key ] ) ) $saved[ $key ] = $def;
     }
+    // Toda metrica pertenece a un tema; las que no tienen (o tienen uno que ya no existe) quedan en "general"
+    $temas = siarhe_get_temas();
+    foreach ( $saved as $key => $m ) {
+        if ( ! is_array( $m ) ) continue;
+        if ( empty( $m['tema'] ) || ! isset( $temas[ $m['tema'] ] ) ) $saved[ $key ]['tema'] = 'general';
+    }
     return $saved;
+}
+
+/**
+ * Decodifica una opcion guardada como texto JSON. Primero se lee tal cual; solo si no es JSON valido se le quitan las barras que
+ * agrega WordPress. (Quitarlas siempre convertia los acentos escapados, ó, en el texto "u00f3".) Tambien repara los
+ * textos que ya se guardaron dañados con ese texto.
+ */
+function siarhe_decode_json_option( $raw ) {
+    $raw = (string) $raw;
+    if ( $raw === '' ) return null;
+    $data = json_decode( $raw, true );
+    if ( $data === null ) $data = json_decode( wp_unslash( $raw ), true );
+    if ( ! is_array( $data ) ) return $data;
+    array_walk_recursive( $data, function ( &$v ) {
+        if ( is_string( $v ) && strpos( $v, 'u00' ) !== false ) {
+            $v = preg_replace_callback( '/u00([a-f0-9]{2})/i', function ( $m ) {
+                $c = hexdec( $m[1] );
+                return ( $c >= 0xA0 ) ? html_entity_decode( '&#' . $c . ';', ENT_QUOTES, 'UTF-8' ) : $m[0];
+            }, $v );
+        }
+    } );
+    return $data;
+}
+
+/**
+ * Temas con que se agrupan las metricas (el selector "Tema" del mapa). Siempre existe "general", donde caen las metricas sin tema.
+ * Se guardan en la opcion siarhe_temas_config como { clave: { label } } y se administran en Configuracion > Metricas.
+ * @return array clave => array( 'label' => ... )
+ */
+function siarhe_get_temas() {
+    $defaults = array(
+        'general'         => array( 'label' => 'General' ),
+        'estudios'        => array( 'label' => 'Estudios' ),
+        'especializacion' => array( 'label' => 'Especialización' ),
+    );
+    $saved = siarhe_decode_json_option( get_option( 'siarhe_temas_config', '' ) );
+    if ( ! is_array( $saved ) || ! $saved ) return $defaults;
+    $temas = array();
+    foreach ( $saved as $k => $t ) {
+        $label = is_array( $t ) && isset( $t['label'] ) ? trim( (string) $t['label'] ) : '';
+        if ( $label !== '' ) $temas[ sanitize_key( $k ) ] = array( 'label' => $label );
+    }
+    if ( ! isset( $temas['general'] ) ) $temas = array( 'general' => $defaults['general'] ) + $temas;
+    return $temas;
 }
 
 /**

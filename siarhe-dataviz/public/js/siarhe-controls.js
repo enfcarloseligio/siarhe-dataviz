@@ -28,6 +28,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (isTableOnly) {
                 wrapper.innerHTML = `
                     <div class="siarhe-controls-row">
+                        <div class="siarhe-control-group" id="c-tema"><label>Tema</label></div>
                         <div class="siarhe-control-group" id="c-indicador"><label>Indicador de la Tabla</label></div>
                     </div>
                 `;
@@ -50,6 +51,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         </div>
                     </div>
                     <div class="siarhe-controls-row">
+                        <div class="siarhe-control-group" id="c-tema"><label>Tema</label></div>
                         <div class="siarhe-control-group" id="c-indicador"><label>Indicador Principal</label></div>
                         <div class="siarhe-control-group" id="c-posicion"><label>Marcadores (Posición)</label></div>
                         <div class="siarhe-control-group" id="c-espectro"><label>Marcadores (Densidad)</label></div>
@@ -383,6 +385,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             ph.appendChild(wrapper);
             app.controls.buildBaseSelectors(container, state, wrapper, onUpdate);
+            app.controls.buildThemeSelector(container, state, wrapper);
             app.controls.syncIndicatorOptions(container, state);
             app.controls.enhanceDropdowns(container, wrapper);
             app.controls.updateMarkerDropdownText(state);
@@ -1013,17 +1016,55 @@ window.SiarheDataViz = window.SiarheDataViz || {};
          */
         syncIndicatorOptions: function(container, state, reselect) {
             if (!state.columnas) return;
-            container.querySelectorAll('.siarhe-cs-option[data-key]').forEach(function(o) {
-                const info = state.metricas[o.dataset.key] || {};
-                o.hidden = !!info.opcional && !state.columnas.has(o.dataset.key);
-            });
-            if (reselect) {
-                const actual = state.metricas[state.currentMetric] || {};
-                if (actual.opcional && !state.columnas.has(state.currentMetric)) {
-                    const base = container.querySelector('.siarhe-cs-option[data-key="tasa_total"]');
-                    if (base) base.click();
-                }
+            const tema = state.temaActual;
+            const visible = function(key) {
+                const info = state.metricas[key] || {};
+                if (info.opcional && !state.columnas.has(key)) return false;
+                return !tema || (info.tema || 'general') === tema;
+            };
+            container.querySelectorAll('.siarhe-cs-option[data-key]').forEach(function(o) { o.hidden = !visible(o.dataset.key); });
+            if (reselect && !visible(state.currentMetric)) {
+                // El indicador activo ya no esta disponible (otro tema o una base sin esa columna): pasa al primero del tema
+                const prim = container.querySelector('.siarhe-cs-option[data-key]:not([hidden])');
+                if (prim) prim.click();
             }
+        },
+
+        /**
+         * Selector de tema (data-temas): agrupa los indicadores como en RHEMX. Muestra solo los temas que tienen algun indicador
+         * disponible en la base cargada y se oculta si queda uno solo. Al cambiar de tema, el indicador pasa al primero del tema.
+         */
+        buildThemeSelector: function(container, state, wrapper) {
+            let temas = {};
+            try { temas = JSON.parse(container.dataset.temas || '{}') || {}; } catch (e) { temas = {}; }
+            const host = wrapper.querySelector('#c-tema');
+            if (!host) return;
+            const disponibles = function() {
+                return Object.keys(temas).filter(function(t) {
+                    return Object.keys(state.metricas).some(function(k) {
+                        const m = state.metricas[k];
+                        return (m.tema || 'general') === t && !(m.opcional && state.columnas && !state.columnas.has(k));
+                    });
+                });
+            };
+            const sel = document.createElement('select');
+            sel.className = 'siarhe-metric-select'; sel.id = 'siarhe-tema-select';
+            host.appendChild(sel);
+            const llena = function() {
+                const lista = disponibles();
+                sel.innerHTML = '';
+                lista.forEach(function(t) { const o = document.createElement('option'); o.value = t; o.textContent = temas[t].label; sel.appendChild(o); });
+                const actual = (state.metricas[state.currentMetric] || {}).tema || 'general';
+                state.temaActual = lista.indexOf(actual) !== -1 ? actual : (lista[0] || null);
+                sel.value = state.temaActual;
+                host.hidden = lista.length < 2;
+            };
+            llena();
+            state.refreshThemes = function() { llena(); app.controls.syncIndicatorOptions(container, state, true); };
+            sel.addEventListener('change', function() {
+                state.temaActual = sel.value;
+                app.controls.syncIndicatorOptions(container, state, true);
+            });
         },
 
         /**
@@ -1078,7 +1119,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (loading) loading.style.display = 'flex';
                 app.data.loadBase(info.url).then(function(rows) {
                     app.data.setBase(container, state, rows, state.base.anio);
-                    app.controls.syncIndicatorOptions(container, state, true);
+                    if (state.refreshThemes) state.refreshThemes(); else app.controls.syncIndicatorOptions(container, state, true);
                     if (loading) loading.style.display = 'none';
                     onUpdate();
                 }).catch(function(err) {
