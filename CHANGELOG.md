@@ -2,6 +2,11 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.5.1] - 2026-11-12
+
+### Mapa
+- **Iconos en los controles:** año, unidad, tema, indicador, estilo, vista y marcadores llevan el icono de línea de RHEMX antes de su título (`public/img/`, se pintan con el color del texto).
+
 ## [0.1.5.0] - 2026-11-12
 
 ### Métricas

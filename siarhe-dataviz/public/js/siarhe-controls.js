@@ -386,6 +386,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             ph.appendChild(wrapper);
             app.controls.buildBaseSelectors(container, state, wrapper, onUpdate);
             app.controls.buildThemeSelector(container, state, wrapper);
+            app.controls.addControlIcons(container, wrapper);
             app.controls.syncIndicatorOptions(container, state);
             app.controls.enhanceDropdowns(container, wrapper);
             app.controls.updateMarkerDropdownText(state);
@@ -1008,6 +1009,25 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             upd(state.posTrigger, 'posicion');
             upd(state.specTrigger, 'espectro');
+        },
+
+        /** Icono de linea (los mismos de RHEMX) antes del titulo de cada control; se pinta con el color del texto. */
+        addControlIcons: function(container, wrapper) {
+            const base = container.dataset.img;
+            if (!base) return;
+            const iconos = {
+                'c-anio': 'icon-calendario', 'c-unidad': 'icon-institucion', 'c-tema': 'icon-nivel', 'c-indicador': 'icon-grafico-pastel',
+                'c-escala': 'icon-paleta', 'c-vista': 'icon-entidad', 'c-posicion': 'icon-marcadores', 'c-espectro': 'icon-marcadores'
+            };
+            Object.keys(iconos).forEach(function(id) {
+                const label = wrapper.querySelector('#' + id + ' > label');
+                if (!label || label.querySelector('.siarhe-ctl-icon')) return;
+                const i = document.createElement('span');
+                i.className = 'siarhe-ctl-icon';
+                i.setAttribute('aria-hidden', 'true');
+                i.style.setProperty('--ico', 'url("' + base + iconos[id] + '.svg")');
+                label.insertBefore(i, label.firstChild);
+            });
         },
 
         /**

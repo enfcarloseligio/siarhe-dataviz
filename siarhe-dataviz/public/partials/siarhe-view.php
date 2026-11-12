@@ -236,6 +236,7 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
      data-mode="<?php echo esc_attr($mode); ?>"
      data-geojson="<?php echo esc_url($geojson_url); ?>"
      data-csv="<?php echo esc_url($csv_url); ?>"
+     data-img="<?php echo esc_url( SIARHE_URL . 'public/img/' ); ?>"
      data-temas='<?php echo esc_attr( $temas_json ); ?>'
      data-bases='<?php echo esc_attr( wp_json_encode( $bases_mapa ) ); ?>'
      data-anio="<?php echo esc_attr( $anio ); ?>"
