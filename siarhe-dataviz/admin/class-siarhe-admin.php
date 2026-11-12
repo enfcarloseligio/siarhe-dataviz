@@ -932,8 +932,8 @@ class Siarhe_Admin {
         $entidad_slug = $this->sanitize_slug( isset( $_POST['entidad_slug'] ) ? $_POST['entidad_slug'] : '' );
         $anio   = isset( $_POST['anio_reporte'] ) ? intval( $_POST['anio_reporte'] ) : 0;
         $unidad = ( isset( $_POST['unidad'] ) && $_POST['unidad'] === 'personas' ) ? 'personas' : 'plazas';
-        if ( $anio < Siarhe_Static_Json::YEAR_MIN || $anio > (int) gmdate( 'Y' ) + 1 ) {
-            $this->upload_fail( 'Elige el año de los datos (de ' . Siarhe_Static_Json::YEAR_MIN . ' en adelante).' );
+        if ( $anio < Siarhe_Static_Json::YEAR_MIN || $anio > max( Siarhe_Static_Json::LATEST_YEAR, (int) gmdate( 'Y' ) ) ) {
+            $this->upload_fail( 'Elige el año de los datos (de ' . Siarhe_Static_Json::YEAR_MIN . ' al año en curso).' );
         }
         $fecha_corte = sanitize_text_field( wp_unslash( $_POST['fecha_corte'] ) );
         $referencia = wp_kses_post( wp_unslash( $_POST['referencia'] ) );

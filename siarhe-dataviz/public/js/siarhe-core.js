@@ -288,7 +288,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     // 3b. ESTADO COMPARTIBLE POR URL (hash)
     // ==========================================
     // Formato: #siarhe-<CVE_ENT>=<querystring codificada>  (varias instancias se separan con ';')
-    //   m = metrica, e = escala de color, v = vista (detalle), k = marcadores activos (separados por coma)
+    //   a = año de los datos, u = unidad (plazas | personas), m = metrica, e = escala de color, v = vista (detalle), k = marcadores activos (separados por coma)
     // Solo se escribe lo que difiere del estado inicial, asi la URL limpia sigue limpia.
     app.urlState = {
         _timer: null,
@@ -372,6 +372,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const defMode = app.urlState._norm((state.metricas[state.currentMetric] || {}).scale_type);
             if (state.colorMode && app.urlState._norm(state.colorMode) !== defMode) qs.set('e', app.urlState._norm(state.colorMode));
 
+            if (state.base && state._baseInicial) {
+                if (String(state.base.anio) !== String(state._baseInicial.anio)) qs.set('a', state.base.anio);
+                if (state.base.unidad !== state._baseInicial.unidad) qs.set('u', state.base.unidad);
+            }
             if (state.isGeoLocMode) qs.set('v', 'detalle');
             if (state.activeMarkers && state.activeMarkers.size > 0) qs.set('k', Array.from(state.activeMarkers).join(','));
 
@@ -412,6 +416,25 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 });
                 return d;
             });
+        },
+
+        // Descarga una base estatica (JSON optimizado o CSV) y devuelve sus filas con las llaves del CSV
+        loadBase: function(url) {
+            return /\.json(\?|$)/i.test(url) ? d3.json(url).then(app.data.jsonToRows) : d3.csv(url);
+        },
+
+        // Pone las filas como la base vigente: reconstruye el mapa de datos y actualiza totales y el año que muestra la pagina
+        setBase: function(container, state, rows, anio) {
+            state.csvData = app.data.processCSV(rows, state.metricas);
+            state.dataMap.clear();
+            state.csvData.forEach(row => {
+                let targetKey = state.isNacional ? row.CVE_ENT : row.CVE_MUN;
+                if (!state.isNacional && !targetKey) targetKey = row.CVE_ENT;
+                if (targetKey) state.dataMap.set(targetKey, row);
+            });
+            app.data.calcularSumaExactaEnfermeras(container, state);
+            app.data.calcularTotalHeader(container, state);
+            if (anio) container.querySelectorAll('.siarhe-dynamic-year').forEach(n => { n.textContent = anio; });
         },
 
         processCSV: function(data, metricasConfig) {
@@ -508,7 +531,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     app.initVisualization = function(container) {
         const cveEnt = container.dataset.cveEnt;
         const geojsonUrl = container.dataset.geojson;
-        const csvUrl = container.dataset.csv;
+        let csvUrl = container.dataset.csv;
         const mode = (container.dataset.mode || '').trim();
         const isNacional = (cveEnt === '33' || container.dataset.slug === 'republica-mexicana');
         const loading = container.querySelector('.siarhe-loading-overlay');
@@ -556,10 +579,23 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
         if (!geojsonUrl && mode.includes('M')) return;
 
+        // Año y unidad iniciales: los de la base mas reciente, o los que traiga la URL (a = año, u = unidad) si existen
+        state._baseInicial = { anio: container.dataset.anio || '', unidad: container.dataset.unidad || 'plazas' };
+        try {
+            const bases = JSON.parse(container.dataset.bases || '{}') || {};
+            const qs = app.urlState._parse(container);
+            const a = qs && qs.get('a'), u = (qs && qs.get('u')) || state._baseInicial.unidad;
+            if (a && bases[a] && bases[a][u]) {
+                csvUrl = bases[a][u].url;
+                container.dataset.anio = a; container.dataset.unidad = u;
+                container.querySelectorAll('.siarhe-dynamic-year').forEach(n => { n.textContent = a; });
+            }
+        } catch (e) { /* sin bases o URL invalida: se usa la base inicial */ }
+
         // Descarga paralela de archivos (Solo trae lo necesario)
         Promise.all([
             geojsonUrl && mode.includes('M') ? d3.json(geojsonUrl) : Promise.resolve(null),
-            csvUrl ? (/\.json(\?|$)/i.test(csvUrl) ? d3.json(csvUrl).then(app.data.jsonToRows) : d3.csv(csvUrl)) : Promise.resolve(null)
+            csvUrl ? app.data.loadBase(csvUrl) : Promise.resolve(null)
         ])
         .then(([geo, csv]) => {
             state.geoData = geo;

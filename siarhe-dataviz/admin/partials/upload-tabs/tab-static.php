@@ -12,7 +12,8 @@ $table_assets = $wpdb->prefix . 'siarhe_static_assets';
 $bases = $wpdb->get_results( "SELECT * FROM $table_assets WHERE tipo_archivo = 'static_min' AND es_activo = 1 ORDER BY anio_reporte DESC" );
 $upload_base = defined( 'SIARHE_UPLOAD_DIR' ) ? SIARHE_UPLOAD_DIR : wp_upload_dir()['basedir'] . '/siarhe-data/';
 
-$anio_max = max( Siarhe_Static_Json::LATEST_YEAR, (int) gmdate( 'Y' ) + 1 );
+// El selector llega hasta el año en curso: no tiene caso ofrecer años que aun no ocurren
+$anio_max = max( Siarhe_Static_Json::LATEST_YEAR, (int) gmdate( 'Y' ) );
 $unidades = array( 'plazas' => 'Plazas de enfermería', 'personas' => 'Recursos humanos estimados (personas)' );
 
 $u_msg = array(
@@ -84,7 +85,7 @@ krsort( $anios );
                 <td>
                     <select name="anio_reporte" id="anio_reporte" required>
                         <?php for ( $y = $anio_max; $y >= Siarhe_Static_Json::YEAR_MIN; $y-- ) : ?>
-                            <option value="<?php echo (int) $y; ?>"<?php selected( $y, Siarhe_Static_Json::LATEST_YEAR ); ?>><?php echo (int) $y; ?></option>
+                            <option value="<?php echo (int) $y; ?>"<?php selected( $y, $anio_max ); ?>><?php echo (int) $y; ?></option>
                         <?php endfor; ?>
                     </select>
                 </td>

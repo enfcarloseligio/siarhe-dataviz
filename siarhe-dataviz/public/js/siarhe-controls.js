@@ -382,6 +382,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (!isTableOnly) app.controls.initPalette(container, state, wrapper, onUpdate);
 
             ph.appendChild(wrapper);
+            app.controls.buildBaseSelectors(container, state, wrapper, onUpdate);
             app.controls.enhanceDropdowns(container, wrapper);
             app.controls.updateMarkerDropdownText(state);
         },
@@ -1003,6 +1004,72 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             upd(state.posTrigger, 'posicion');
             upd(state.specTrigger, 'espectro');
+        },
+
+        /**
+         * Selectores de año y unidad (plazas / recursos humanos) de las bases estáticas cargadas para la entidad
+         * (atributo data-bases). Al cambiar, se descarga esa base y se redibuja todo con onUpdate. Solo aparecen si hay
+         * más de una opción.
+         */
+        buildBaseSelectors: function(container, state, wrapper, onUpdate) {
+            let bases = {};
+            try { bases = JSON.parse(container.dataset.bases || '{}') || {}; } catch (e) { bases = {}; }
+            const anios = Object.keys(bases).sort(function(a, b) { return b - a; });
+            if (!anios.length) return;
+            state.base = { bases: bases, anio: container.dataset.anio || anios[0], unidad: container.dataset.unidad || 'plazas' };
+            if (!bases[state.base.anio]) state.base.anio = anios[0];
+
+            const etiquetaUnidad = { plazas: 'Plazas de enfermería', personas: 'Recursos humanos estimados' };
+            const unidadesDe = function(anio) { return Object.keys(bases[anio] || {}); };
+            const row = wrapper.querySelector('.siarhe-controls-row');
+            if (!row) return;
+
+            const grupo = function(id, titulo) {
+                const g = document.createElement('div');
+                g.className = 'siarhe-control-group'; g.id = id;
+                const l = document.createElement('label'); l.textContent = titulo; g.appendChild(l);
+                return g;
+            };
+            const gAnio = grupo('c-anio', 'Año de los datos');
+            const selAnio = document.createElement('select'); selAnio.className = 'siarhe-metric-select'; selAnio.id = 'siarhe-anio-select';
+            anios.forEach(function(a) { const o = document.createElement('option'); o.value = a; o.textContent = a; selAnio.appendChild(o); });
+            gAnio.appendChild(selAnio);
+
+            const gUnidad = grupo('c-unidad', 'Unidad de conteo');
+            const selUnidad = document.createElement('select'); selUnidad.className = 'siarhe-metric-select'; selUnidad.id = 'siarhe-unidad-select';
+            gUnidad.appendChild(selUnidad);
+
+            const llenaUnidades = function() {
+                const u = unidadesDe(state.base.anio);
+                selUnidad.innerHTML = '';
+                u.forEach(function(k) { const o = document.createElement('option'); o.value = k; o.textContent = etiquetaUnidad[k] || k; selUnidad.appendChild(o); });
+                if (u.indexOf(state.base.unidad) === -1) state.base.unidad = u[0];
+                selUnidad.value = state.base.unidad;
+                gUnidad.hidden = u.length < 2 && !Object.keys(bases).some(function(a) { return unidadesDe(a).length > 1; });
+            };
+            selAnio.value = state.base.anio;
+            llenaUnidades();
+            gAnio.hidden = anios.length < 2;
+
+            const cambia = function() {
+                const info = (bases[state.base.anio] || {})[state.base.unidad];
+                if (!info) return;
+                const loading = container.querySelector('.siarhe-loading-overlay');
+                if (loading) loading.style.display = 'flex';
+                app.data.loadBase(info.url).then(function(rows) {
+                    app.data.setBase(container, state, rows, state.base.anio);
+                    if (loading) loading.style.display = 'none';
+                    onUpdate();
+                }).catch(function(err) {
+                    console.error('[SIARHE Controls] No se pudo cargar la base', err);
+                    if (loading) loading.style.display = 'none';
+                });
+            };
+            selAnio.addEventListener('change', function() { state.base.anio = selAnio.value; llenaUnidades(); cambia(); });
+            selUnidad.addEventListener('change', function() { state.base.unidad = selUnidad.value; cambia(); });
+
+            row.insertBefore(gUnidad, row.firstChild);
+            row.insertBefore(gAnio, row.firstChild);
         },
 
         setupActionButtons: function(container, state) {

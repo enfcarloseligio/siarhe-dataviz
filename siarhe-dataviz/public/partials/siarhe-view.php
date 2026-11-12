@@ -27,7 +27,7 @@ if ( strpos( strtoupper($mode), 'T' ) !== false ) {
 // Año de los metadatos de la Base Estática (CSV)
 global $wpdb;
 $table_assets = $wpdb->prefix . 'siarhe_static_assets';
-$csv_meta = $wpdb->get_row( $wpdb->prepare( "SELECT anio_reporte FROM $table_assets WHERE entidad_slug = %s AND tipo_archivo = 'static_min' AND es_activo = 1 ORDER BY anio_reporte DESC, unidad = 'plazas' DESC LIMIT 1", $slug ) );
+$csv_meta = $wpdb->get_row( $wpdb->prepare( "SELECT anio_reporte, unidad FROM $table_assets WHERE entidad_slug = %s AND tipo_archivo = 'static_min' AND es_activo = 1 ORDER BY anio_reporte DESC, unidad = 'plazas' DESC LIMIT 1", $slug ) );
 
 if ( $csv_meta && !empty($csv_meta->anio_reporte) ) {
     $anio = $csv_meta->anio_reporte; 
@@ -202,6 +202,22 @@ if (!empty($csv_url) && strpos($csv_url, '?v=') === false) {
 }
 $csv_url = siarhe_data_read_url( $csv_url );
 
+// Todas las bases estaticas de la entidad (año y unidad) para los selectores del mapa: { "2026": { "plazas": {url, fecha}, ... } }
+$bases_mapa = array();
+$bases_rows = $wpdb->get_results( $wpdb->prepare(
+    "SELECT ruta_archivo, ruta_json, anio_reporte, unidad, fecha_corte FROM $table_assets WHERE entidad_slug = %s AND tipo_archivo = 'static_min' AND es_activo = 1 ORDER BY anio_reporte DESC", $slug ) );
+foreach ( (array) $bases_rows as $br ) {
+    $rel = ( ! empty( $br->ruta_json ) && file_exists( $upload_base_dir_front . ltrim( $br->ruta_json, '/' ) ) ) ? $br->ruta_json : $br->ruta_archivo;
+    $phys = $upload_base_dir_front . ltrim( $rel, '/' );
+    if ( empty( $rel ) || ! file_exists( $phys ) ) continue;
+    $url_base = $upload_base_url_front . ltrim( $rel, '/' ) . '?v=' . filemtime( $phys );
+    if ( substr( $rel, -4 ) !== '.json' ) $url_base = siarhe_data_read_url( $url_base );
+    $bases_mapa[ (string) $br->anio_reporte ][ $br->unidad ] = array(
+        'url'   => $url_base,
+        'fecha' => $br->fecha_corte ? date_i18n( 'd/M/Y', strtotime( $br->fecha_corte ) ) : '',
+    );
+}
+
 if (!empty($geojson_url) && strpos($geojson_url, '?v=') === false) {
     $rel_path = str_replace($upload_base_url_front, '', $geojson_url);
     $phys_path = $upload_base_dir_front . ltrim($rel_path, '/');
@@ -220,6 +236,9 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
      data-mode="<?php echo esc_attr($mode); ?>"
      data-geojson="<?php echo esc_url($geojson_url); ?>"
      data-csv="<?php echo esc_url($csv_url); ?>"
+     data-bases='<?php echo esc_attr( wp_json_encode( $bases_mapa ) ); ?>'
+     data-anio="<?php echo esc_attr( $anio ); ?>"
+     data-unidad="<?php echo esc_attr( ( $csv_meta && ! empty( $csv_meta->unidad ) ) ? $csv_meta->unidad : 'plazas' ); ?>"
      data-geojson-loc="<?php echo esc_url($geojson_loc_url); ?>"
      data-worker="<?php echo esc_url( SIARHE_URL . 'public/js/siarhe-worker.js?v=' . $siarhe_js_ver('siarhe-worker.js') ); ?>"
      data-geo-worker="<?php echo esc_url( SIARHE_URL . 'public/js/siarhe-geo-worker.js?v=' . $siarhe_js_ver('siarhe-geo-worker.js') ); ?>"

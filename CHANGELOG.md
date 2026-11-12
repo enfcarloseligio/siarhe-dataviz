@@ -2,6 +2,14 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.3.0] - 2026-11-12
+
+### Mapa y tabla
+- **Selector de año y de unidad:** el mapa y la tabla ofrecen el año de los datos y la unidad (plazas / recursos humanos estimados) entre las bases cargadas de la entidad (`data-bases`). Al cambiar se descarga esa base y se redibujan el mapa, los totales, la tabla y el año de los títulos y de las descargas. Aparecen solo si hay más de una opción. El año y la unidad viajan en la URL (`a`, `u`).
+
+### Carga de datos
+- El selector de año llega hasta el año en curso (antes ofrecía el siguiente) y el servidor rechaza años posteriores.
+
 ## [0.1.2.1] - 2026-11-12
 
 ### Mapa
