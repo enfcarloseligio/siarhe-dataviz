@@ -128,6 +128,22 @@ function siarhe_get_map_defaults() {
         'tr_even'      => '#f9f9f9', 'tr_even_txt'  => '#555555',
         'tr_total_bg'  => '#e8f4fd', 'tr_total_txt' => '#000000',
         'border_color' => '#dddddd', 'border_width' => '1',
+
+        // Disposición de la página del mapa: 'contenedor' (centrado, máximo 1140 px) o 'canvas' (ancho completo) y su margen lateral (%)
+        'layout' => 'contenedor', 'canvas_margin' => '2.5',
+    );
+}
+
+/**
+ * Disposición de la página del mapa: array( 'modo' => 'contenedor' | 'canvas', 'margen' => porcentaje lateral del canvas ).
+ * El margen se mantiene entre 2.5 % y 5 %, el rango de la regla de diseño.
+ */
+function siarhe_get_layout() {
+    $opts   = siarhe_get_map_options();
+    $margen = (float) str_replace( ',', '.', (string) $opts['canvas_margin'] );
+    return array(
+        'modo'   => ( $opts['layout'] === 'canvas' ) ? 'canvas' : 'contenedor',
+        'margen' => min( 5, max( 2.5, $margen ) ),
     );
 }
 
@@ -271,7 +287,8 @@ function siarhe_marker_core_types() {
 
 /**
  * Tipos de archivo de marcadores vigentes: primero los del plugin, siempre con sus textos originales, y después los que agregó
- * el administrador (opción siarhe_archivos_marcadores), que admiten «Todas» y años.
+ * el administrador (opción siarhe_archivos_marcadores), que al crearlos declara si tienen serie completa («Todas» y años)
+ * o si solo se cargan por año.
  */
 function siarhe_marker_types() {
     $tipos     = siarhe_marker_core_types();
@@ -283,7 +300,7 @@ function siarhe_marker_types() {
                 'label'    => ( isset( $info['label'] ) && $info['label'] !== '' ) ? (string) $info['label'] : (string) $clave,
                 'filename' => (string) $info['filename'],
                 'is_core'  => false,
-                'periodos' => 'total_anios',
+                'periodos' => ( isset( $info['periodos'] ) && $info['periodos'] === 'anios' ) ? 'anios' : 'total_anios',
             );
         }
     }
@@ -333,24 +350,6 @@ function siarhe_get_marker_file_urls( $cve_ent = '' ) {
         }
     }
     return $out;
-}
-
-/**
- * Crea las versiones por entidad de las capas de marcadores que no la tienen o la tienen anterior al archivo completo (las
- * cargadas antes de existir esta división). Devuelve cuántas capas se dividieron.
- */
-function siarhe_split_all_markers() {
-    global $wpdb;
-    $n = 0;
-    $filas = $wpdb->get_results( "SELECT ruta_json FROM {$wpdb->prefix}siarhe_static_assets WHERE tipo_archivo = 'marcador' AND es_activo = 1 AND ruta_json IS NOT NULL AND ruta_json <> ''" );
-    foreach ( (array) $filas as $f ) {
-        $ruta = SIARHE_UPLOAD_DIR . ltrim( $f->ruta_json, '/' );
-        if ( ! is_file( $ruta ) ) continue;
-        $muestra = Siarhe_Marker_Json::ruta_entidad( $ruta, '01' );
-        if ( is_file( $muestra ) && filemtime( $muestra ) >= filemtime( $ruta ) ) continue;
-        if ( Siarhe_Marker_Json::divide_por_entidad( $ruta ) > 0 ) $n++;
-    }
-    return $n;
 }
 
 /**

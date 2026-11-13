@@ -13,7 +13,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     'use strict';
 
     app.map = {
-        
+
         hexToRgba: function(hex, alpha) {
             let c;
             if(/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)){
@@ -25,7 +25,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 return 'rgba('+[(c>>16)&255, (c>>8)&255, c&255].join(',')+','+alpha+')';
             }
             if(hex.startsWith('rgba') || hex.startsWith('rgb')) return hex;
-            return `rgba(15, 23, 42, ${alpha})`; 
+            return `rgba(15, 23, 42, ${alpha})`;
         },
 
         /**
@@ -109,22 +109,22 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .style("cursor", "pointer")
                 .on("mouseover", (e, d) => {
                     if(app.tooltips) app.tooltips.showGeoTooltip(e, d, state, mapDiv);
-                }) 
+                })
                 .on("mousemove", (e) => {
                     const [mx, my] = d3.pointer(e, mapDiv);
                     if (app.tooltips) app.tooltips.position(state, mapDiv, mx, my);
                 })
-                .on("mouseout", () => { 
+                .on("mouseout", () => {
                     let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
-                    state.gPaths.selectAll("path.siarhe-feature").attr("stroke", "#fff").attr("stroke-width", 0.5 / k); 
-                    if (state.tooltip) state.tooltip.style("opacity", 0).style("display", "none"); 
+                    state.gPaths.selectAll("path.siarhe-feature").attr("stroke", "#fff").attr("stroke-width", 0.5 / k);
+                    if (state.tooltip) state.tooltip.style("opacity", 0).style("display", "none");
                 })
                 .on("click", (e, d) => {
                     const ahora = Date.now();
-                    if (ahora - (state.lastClickTime || 0) < 400) { 
-                        app.map.handleMapClick(d, state); 
-                    } else { 
-                        if(app.tooltips) app.tooltips.showGeoTooltip(e, d, state, mapDiv); 
+                    if (ahora - (state.lastClickTime || 0) < 400) {
+                        app.map.handleMapClick(d, state);
+                    } else {
+                        if(app.tooltips) app.tooltips.showGeoTooltip(e, d, state, mapDiv);
                     }
                     state.lastClickTime = ahora;
                 });
@@ -157,25 +157,25 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (emptyDiv) emptyDiv.textContent = 'No hay datos geográficos disponibles para esta vista.';
                 return;
             }
-            
-            // CSS 
+
+            // CSS
 
             const mapDiv = container.querySelector('.siarhe-map-container');
             if (!mapDiv) return;
             mapDiv.innerHTML = '';
             state._cv = null; // el canvas de marcadores se vuelve a crear con el nuevo contenedor
 
-            const width = 1600; 
-            const height = 900; 
+            const width = 1600;
+            const height = 900;
 
             const svg = d3.select(mapDiv).append("svg")
                 .attr("viewBox", `0 0 ${width} ${height}`)
                 .attr("preserveAspectRatio", "xMidYMid meet")
                 .style("width", "100%")
                 .style("height", "100%")
-                .style("background-color", "#e6f0f8") 
-                .style("font-family", "'Roboto', Arial, sans-serif"); 
-            
+                .style("background-color", "#e6f0f8")
+                .style("font-family", "'Roboto', Arial, sans-serif");
+
             state.svg = svg;
 
             const defs = svg.append("defs");
@@ -185,15 +185,15 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .attr("x1", "0%").attr("y1", "100%")
                 .attr("x2", "0%").attr("y2", "0%");
 
-            const gMain = svg.append("g").attr("class", "map-layer"); 
+            const gMain = svg.append("g").attr("class", "map-layer");
             state.gMain = gMain;
-            
+
             state.gPaths = gMain.append("g").attr("class", "paths-layer");
             state.gLocPaths = gMain.append("g").attr("class", "loc-paths-layer");
-            
+
             state.gLabels = gMain.append("g").attr("class", "labels-layer").style("display", "none").style("pointer-events", "none");
             state.gMarkers = gMain.append("g").attr("class", "markers-layer");
-            
+
             // Capa superior (leyendas y medicion), con el mismo viewBox y ajuste que el SVG principal.
             // Va por encima del canvas de marcadores (si lo hay) para que las leyendas y la medicion no queden tapadas.
             const ovl = d3.select(mapDiv).append("svg")
@@ -205,33 +205,33 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             state.gMeasureHost = ovl.append("g").attr("class", "siarhe-overlay-main"); // sigue el zoom del mapa
 
             // Grupos SVG con posición inicial segura (el ResizeObserver lo moverá de inmediato)
-            state.gLegend = ovl.append("g").attr("class", "siarhe-legend-group").attr("transform", "translate(20, 20)"); 
+            state.gLegend = ovl.append("g").attr("class", "siarhe-legend-group").attr("transform", "translate(20, 20)");
             state.gMarkerLegend = ovl.append("g").attr("class", "siarhe-marker-legend-group").attr("transform", `translate(20, ${height - 20})`);
 
-            const projection = d3.geoMercator().fitSize([width, height], state.geoData); 
+            const projection = d3.geoMercator().fitSize([width, height], state.geoData);
             state.projection = projection;
-            const path = d3.geoPath().projection(projection); 
+            const path = d3.geoPath().projection(projection);
             // Menos decimales por coordenada = cadenas 'd' mucho mas cortas (miles de poligonos)
             if (typeof path.digits === 'function') path.digits(2);
-            state.path = path; 
+            state.path = path;
 
             let initialTransform = d3.zoomIdentity;
             if (cveEnt === '06' || cveEnt === '31') {
                 let lons = [], lats = [];
                 state.geoData.features.forEach(f => {
                     let center = d3.geoCentroid(f);
-                    if (!isNaN(center[0]) && !isNaN(center[1])) { 
-                        lons.push(center[0]); 
-                        lats.push(center[1]); 
+                    if (!isNaN(center[0]) && !isNaN(center[1])) {
+                        lons.push(center[0]);
+                        lats.push(center[1]);
                     }
                 });
-                lons.sort(d3.ascending); 
+                lons.sort(d3.ascending);
                 lats.sort(d3.ascending);
-                
+
                 if (lons.length > 0 && lats.length > 0) {
                     let medianLon = lons[Math.floor(lons.length / 2)];
                     let medianLat = lats[Math.floor(lats.length / 2)];
-                    let targetK = cveEnt === '06' ? 5.5 : 1.6; 
+                    let targetK = cveEnt === '06' ? 5.5 : 1.6;
                     let [x, y] = projection([medianLon, medianLat]);
                     let tx = width / 2 - x * targetK;
                     let ty = height / 2 - y * targetK;
@@ -254,7 +254,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             app.map.enableKeyboard(container, state, mapDiv);
             app.map.stackBind(state);
 
-            let maxZoom = state.initialTransform.k * 25; 
+            let maxZoom = state.initialTransform.k * 25;
             if (maxZoom < 50) maxZoom = 50;
             // Mapa nacional: 50x deja ~84 m por pixel en PC y ~223 m en movil, poco para separar establecimientos de una
             // ciudad. Se amplia hasta ~30 m por pixel (tope 400x); los mapas estatales ya parten de un acercamiento mayor.
@@ -268,7 +268,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (isFinite(byResolution)) maxZoom = Math.max(maxZoom, Math.min(400, byResolution));
             } catch (err) {}
             const zoom = d3.zoom()
-                .scaleExtent([1, maxZoom]) 
+                .scaleExtent([1, maxZoom])
                 .on("zoom", (e) => {
                     gMain.attr("transform", e.transform);
                     if (state.gMeasureHost) state.gMeasureHost.attr("transform", e.transform);
@@ -278,11 +278,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     // Con el puntero o el dedo (sourceEvent) se agrupa en un solo dibujo por cuadro.
                     if (e.sourceEvent) app.map._cvSchedule(state); else app.map._cvDraw(state);
                     const k = e.transform.k;
-                    
+
                     state.gLabels.selectAll("text.siarhe-label")
                         .style("font-size", `${14 / k}px`)
                         .attr("stroke-width", 2.5 / k);
-                    
+
                     state.gPaths.selectAll("path.siarhe-feature").attr("stroke-width", 0.5 / k);
                     if (state.isGeoLocMode && state._locBuilt) {
                         app.map._locApplyLod(state, k);
@@ -297,12 +297,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
                     if (state.measure && state.measure.points.length > 0) app.map.renderMeasure(state, k);
                 });
-            
-            svg.call(zoom).on("dblclick.zoom", null); 
+
+            svg.call(zoom).on("dblclick.zoom", null);
             state.zoom = zoom;
             svg.call(zoom.transform, state.initialTransform);
-            
-            app.map.renderZoomButtons(container, mapDiv, svg, zoom, state); 
+
+            app.map.renderZoomButtons(container, mapDiv, svg, zoom, state);
             app.map.updateVisuals(container, state);
 
             // 🌟 Inicializamos el observador responsivo
@@ -472,16 +472,16 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
         updateVisuals: function(container, state) {
             const metric = state.currentMetric;
-            
+
             const metricConfig = state.metricas[metric] || {};
-            const mode = state.colorMode || metricConfig.scale_type || 'cuartiles'; 
+            const mode = state.colorMode || metricConfig.scale_type || 'cuartiles';
             const pal = app.palette(state);
-            
+
             const values = state.csvData
                 .filter(d => !d.isTotal && !d.isSpecial && d[metric] !== null && d[metric] > 0)
                 .map(d => d[metric])
                 .sort(d3.ascending);
-            
+
             if (values.length === 0) {
                 state.gPaths.selectAll("path.siarhe-feature").transition().duration(app.utils.motionMs(500))
                     .style("fill", d => {
@@ -496,32 +496,32 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 let colorScale;
                 let stats = {};
 
-                const min = d3.min(values); 
+                const min = d3.min(values);
                 const max = d3.max(values);
 
-                let q1 = d3.quantile(values, 0.25); 
-                let q2 = d3.quantile(values, 0.50); 
+                let q1 = d3.quantile(values, 0.25);
+                let q2 = d3.quantile(values, 0.50);
                 let q3 = d3.quantile(values, 0.75);
                 let domain = [min, q1, q2, q3, max];
-                
+
                 if (min === max) {
                     domain = [min * 0.2, min * 0.4, min * 0.6, min * 0.8, max];
                 } else {
                     for (let i = 1; i < domain.length; i++) {
-                        if (domain[i] <= domain[i-1]) domain[i] = domain[i-1] + 0.000001; 
+                        if (domain[i] <= domain[i-1]) domain[i] = domain[i-1] + 0.000001;
                     }
                 }
-                
+
                 stats = { min, q1, q2, q3, max, Vmin: min, Q1: q1, Q2: q2, Q3: q3, Vmax: max };
 
                 if (mode === 'rangos') {
                     const colorEvaluator = app.math.createRangeEvaluator(metricConfig, stats, pal);
-                    
+
                     state.gPaths.selectAll("path.siarhe-feature").transition().duration(app.utils.motionMs(500))
                         .style("fill", d => {
                             let cve = app.utils.getGeoKey(d.properties, state.isNacional);
                             const row = state.dataMap.get(cve);
-                            if (!row || row[metric] === null || row[metric] === undefined) return pal.NULL; 
+                            if (!row || row[metric] === null || row[metric] === undefined) return pal.NULL;
                             return colorEvaluator(row[metric]);
                         });
                 } else {
@@ -540,10 +540,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         .style("fill", d => {
                             let cve = app.utils.getGeoKey(d.properties, state.isNacional);
                             const row = state.dataMap.get(cve);
-                            
-                            if (!row || row[metric] === null || row[metric] === undefined) return pal.NULL; 
-                            if (row[metric] === 0) return pal.ZERO; 
-                            
+
+                            if (!row || row[metric] === null || row[metric] === undefined) return pal.NULL;
+                            if (row[metric] === 0) return pal.ZERO;
+
                             return colorScale(row[metric]);
                         });
                 }
@@ -1635,7 +1635,16 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             return { path: symbol.size(metrics.symbolSize)(), fill: styleCfg.fill, stroke: styleCfg.stroke, strokeW: 1.5 };
         },
 
+        // Referencias del pie que dependen de los marcadores: la de cada tipo de clínica se ve mientras alguno de sus marcadores está activo
+        syncReferencias: function(state) {
+            if (!state.containerEl) return;
+            const activos = new Set();
+            state.activeMarkers.forEach(k => { const m = (state.markerLabels || {})[k]; if (m && m.archivo) activos.add(m.archivo); });
+            state.containerEl.querySelectorAll('.siarhe-ref-clinica').forEach(col => { col.hidden = !activos.has(col.getAttribute('data-ref-archivo')); });
+        },
+
         updateMarkers: function(state) {
+            app.map.syncReferencias(state);
             if (!state.gMarkers) return Promise.resolve();
 
             let allPoints = [];
@@ -2330,17 +2339,17 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         },
 
         renderZoomButtons: function(container, mapDiv, svg, zoom, state) {
-            const ctrlDiv = document.createElement('div'); 
-            ctrlDiv.className = 'zoom-controles'; 
+            const ctrlDiv = document.createElement('div');
+            ctrlDiv.className = 'zoom-controles';
             mapDiv.appendChild(ctrlDiv);
-            
-            const createBtn = (l, t, cb) => { 
-                const b = document.createElement('button'); 
-                b.className = 'boton'; b.innerHTML = l; b.title = t; b.setAttribute('aria-label', t); b.onclick = cb; 
-                ctrlDiv.appendChild(b); 
+
+            const createBtn = (l, t, cb) => {
+                const b = document.createElement('button');
+                b.className = 'boton'; b.innerHTML = l; b.title = t; b.setAttribute('aria-label', t); b.onclick = cb;
+                ctrlDiv.appendChild(b);
                 return b;
             };
-            
+
             createBtn('+', 'Acercar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 1.5); });
             createBtn('–', 'Alejar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 0.6); });
             createBtn('⟳', 'Reset', (e) => { e.preventDefault(); svg.transition().duration(750).call(zoom.transform, state.initialTransform); });
@@ -2357,16 +2366,16 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 app.map.initMeasure(container, state, mapDiv, btnMeasure);
                 app.map.updateMeasureAvailability(state);
             }
-            
+
             const btnFullscreen = document.createElement('button');
-            btnFullscreen.className = 'boton'; 
-            btnFullscreen.innerHTML = '⤢'; 
+            btnFullscreen.className = 'boton';
+            btnFullscreen.innerHTML = '⤢';
             btnFullscreen.title = 'Pantalla Completa';
-            const mapContainer = mapDiv; 
-            
+            const mapContainer = mapDiv;
+
             const btnShowControls = document.createElement('button');
-            btnShowControls.className = 'boton btn-show-controls'; 
-            btnShowControls.innerHTML = '🎛️'; 
+            btnShowControls.className = 'boton btn-show-controls';
+            btnShowControls.innerHTML = '🎛️';
             btnShowControls.title = 'Mostrar Controles';
 
             btnShowControls.onclick = (e) => {
@@ -2378,32 +2387,32 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             btnFullscreen.onclick = (e) => {
                 e.preventDefault();
-                
+
                 const controlsEl = container.querySelector('.siarhe-controls-layout');
 
                 if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                    if (mapContainer.requestFullscreen) { mapContainer.requestFullscreen(); } 
-                    else if (mapContainer.webkitRequestFullscreen) { mapContainer.webkitRequestFullscreen(); } 
+                    if (mapContainer.requestFullscreen) { mapContainer.requestFullscreen(); }
+                    else if (mapContainer.webkitRequestFullscreen) { mapContainer.webkitRequestFullscreen(); }
                     else if (mapContainer.msRequestFullscreen) { mapContainer.msRequestFullscreen(); }
-                    
-                    btnFullscreen.innerHTML = '⤡'; 
+
+                    btnFullscreen.innerHTML = '⤡';
                     mapContainer.classList.add('is-fullscreen');
-                    
-                    mapContainer.classList.remove('controls-are-hidden'); 
+
+                    mapContainer.classList.remove('controls-are-hidden');
                     if (controlsEl) {
                         mapContainer.appendChild(controlsEl);
                         controlsEl.classList.add('is-fullscreen-mode');
                         controlsEl.classList.remove('is-hidden');
                     }
                 } else {
-                    if (document.exitFullscreen) { document.exitFullscreen(); } 
+                    if (document.exitFullscreen) { document.exitFullscreen(); }
                     else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); }
                     else if (document.msExitFullscreen) { document.msExitFullscreen(); }
-                    
-                    btnFullscreen.innerHTML = '⤢'; 
+
+                    btnFullscreen.innerHTML = '⤢';
                     mapContainer.classList.remove('is-fullscreen');
                     mapContainer.classList.remove('controls-are-hidden');
-                    
+
                     if (controlsEl) {
                         const controlsPlaceholder = container.querySelector('.siarhe-controls-placeholder');
                         if(controlsPlaceholder) controlsPlaceholder.appendChild(controlsEl);
@@ -2415,10 +2424,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             document.addEventListener('fullscreenchange', () => {
                 if (!document.fullscreenElement) {
-                    btnFullscreen.innerHTML = '⤢'; 
+                    btnFullscreen.innerHTML = '⤢';
                     mapContainer.classList.remove('is-fullscreen');
                     mapContainer.classList.remove('controls-are-hidden');
-                    
+
                     const controlsEl = mapContainer.querySelector('.siarhe-controls-layout');
                     if (controlsEl) {
                         const controlsPlaceholder = container.querySelector('.siarhe-controls-placeholder');
@@ -2428,7 +2437,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     }
                 }
             });
-            
+
             ctrlDiv.appendChild(btnFullscreen);
 
             if (!state.isNacional && state.homeUrl) {
@@ -2485,30 +2494,30 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
                 const svgData = new XMLSerializer().serializeToString(clone);
                 const canvas = document.createElement("canvas");
-                canvas.width = 1920; 
-                canvas.height = 1080; 
-                const ctx = canvas.getContext("2d"); 
+                canvas.width = 1920;
+                canvas.height = 1080;
+                const ctx = canvas.getContext("2d");
 
                 const img = new Image();
                 img.onload = function() {
-                    ctx.fillStyle = "#e6f0f8"; ctx.fillRect(0, 0, 1920, 1080); 
-                    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, 1920, 120); 
-                    ctx.fillRect(0, 940, 1920, 140); 
-                    
-                    ctx.drawImage(img, 0, 120, 1920, 820); 
-                    
+                    ctx.fillStyle = "#e6f0f8"; ctx.fillRect(0, 0, 1920, 1080);
+                    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, 1920, 120);
+                    ctx.fillRect(0, 940, 1920, 140);
+
+                    ctx.drawImage(img, 0, 120, 1920, 820);
+
                     const metricInfo = state.metricas[state.currentMetric];
-                    const anioNode = document.querySelector('.siarhe-dynamic-year'); 
+                    const anioNode = document.querySelector('.siarhe-dynamic-year');
                     const anio = anioNode ? anioNode.innerText : new Date().getFullYear();
-                    const titleNode = container.querySelector('h2.siarhe-title'); 
+                    const titleNode = container.querySelector('h2.siarhe-title');
                     const entidadNombre = titleNode ? titleNode.innerText.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '').trim() : "México";
-                    
+
                     const titleText = `${metricInfo.fullLabel} en ${entidadNombre} (${anio})`;
-                    ctx.fillStyle = "#0A66C2"; 
-                    ctx.font = "bold 38px 'IBM Plex Sans', Arial, sans-serif"; 
-                    ctx.textAlign = "center"; 
+                    ctx.fillStyle = "#0A66C2";
+                    ctx.font = "bold 38px 'IBM Plex Sans', Arial, sans-serif";
+                    ctx.textAlign = "center";
                     ctx.fillText(titleText, 1920 / 2, 75);
-                    
+
                     let refText = "Fuente de Datos: SIARHE.";
                     const refNodes = container.querySelectorAll('.siarhe-ref-col');
                     refNodes.forEach(node => {
@@ -2518,25 +2527,25 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         }
                     });
 
-                    ctx.fillStyle = "#475569"; 
-                    ctx.font = "20px 'Roboto', sans-serif"; 
+                    ctx.fillStyle = "#475569";
+                    ctx.font = "20px 'Roboto', sans-serif";
                     ctx.textAlign = "center";
-                    
+
                     let words = refText.split(' '), line = '', y = 1000;
                     for(let n = 0; n < words.length; n++) {
-                      let testLine = line + words[n] + ' '; 
-                      let metrics = ctx.measureText(testLine); 
+                      let testLine = line + words[n] + ' ';
+                      let metrics = ctx.measureText(testLine);
                       let testWidth = metrics.width;
-                      if (testWidth > 1800 && n > 0) { 
+                      if (testWidth > 1800 && n > 0) {
                           ctx.fillText(line, 1920 / 2, y); line = words[n] + ' '; y += 28;
                       } else { line = testLine; }
                     }
                     ctx.fillText(line, 1920 / 2, y);
-                    
+
                     const labelClean = (metricInfo.label || metricInfo.fullLabel).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\./g, "").replace(/\s+/g, '_');
                     const entidadClean = entidadNombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_');
                     const nombreArchivo = `${labelClean}_${entidadClean}_${anio}${withLabels ? '_Etiquetas' : ''}.png`;
-                    
+
                     const a = document.createElement("a"); a.download = nombreArchivo; a.href = canvas.toDataURL("image/png"); a.click();
                     if (withLabels) state.gLabels.style("display", "none");
                 };

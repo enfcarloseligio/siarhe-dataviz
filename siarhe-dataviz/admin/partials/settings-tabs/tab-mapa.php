@@ -11,11 +11,11 @@ $marcadores = siarhe_get_marcadores_config();
 // Fallback por si la BD está vacía al cargar esta pestaña
 if (empty($marcadores)) {
     $marcadores = [
-        'CATETER' => ['label' => 'Clínicas de catéteres', 'tipo' => 'posicion'], 
+        'CATETER' => ['label' => 'Clínicas de catéteres', 'tipo' => 'posicion'],
         'HERIDAS' => ['label' => 'Clínicas de heridas', 'tipo' => 'posicion'],
-        'ESTAB_1' => ['label' => 'Establecimientos (1er Nivel)', 'tipo' => 'posicion'], 
+        'ESTAB_1' => ['label' => 'Establecimientos (1er Nivel)', 'tipo' => 'posicion'],
         'ESTAB_2' => ['label' => 'Establecimientos (2do Nivel)', 'tipo' => 'posicion'],
-        'ESTAB_3' => ['label' => 'Establecimientos (3er Nivel)', 'tipo' => 'posicion'], 
+        'ESTAB_3' => ['label' => 'Establecimientos (3er Nivel)', 'tipo' => 'posicion'],
         'ESTAB_6' => ['label' => 'Establecimientos (No Aplica)', 'tipo' => 'posicion']
     ];
 }
@@ -27,13 +27,13 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
 
 <style>
     .siarhe-flex-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end; }
-    
+
     .siarhe-marker-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; border-bottom: 1px dashed #eee; padding-bottom: 15px; margin-bottom: 15px; }
     .siarhe-marker-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 
     .siarhe-grad-row { display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
     .siarhe-color-box { min-width: 60px; text-align: center; }
-    
+
     .siarhe-preview-box {
         background: #f0f6fc; border: 1px dashed #c3c4c7; border-radius: 6px; padding: 10px;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -63,13 +63,13 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
         opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .15s; z-index: 100;
     }
     span.siarhe-help:hover::after, span.siarhe-help:focus::after { opacity: 1; visibility: visible; }
-    
+
     @media (max-width: 782px) {
         .siarhe-card .form-table th { display: block; width: 100%; padding-bottom: 5px; }
         .siarhe-card .form-table td { display: block; width: 100%; padding-bottom: 20px; padding-left: 0; }
         .siarhe-flex-row, .siarhe-marker-row { flex-direction: column; align-items: flex-start; gap: 10px; width: 100%; }
-        
-        .siarhe-preview-box { 
+
+        .siarhe-preview-box {
             width: 100%; flex-direction: row; justify-content: flex-start;
             gap: 15px; height: auto; padding: 10px 15px;
         }
@@ -82,7 +82,7 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
     <p>Define los colores que verán los usuarios en los mapas y tablas del sitio web.</p>
 
     <h3 class="siarhe-section-spaced siarhe-section-spaced--first siarhe-section-title">Mapa de Calor (Escala de Colores)<?php Siarhe_Admin::help('Colores generales del mapa. Cada metrica puede usar estos o los suyos propios.'); ?></h3>
-    
+
     <table class="form-table" role="presentation">
         <tr>
             <th scope="row">Gradiente Cuartiles (Distribución Matemática)<?php Siarhe_Admin::help('Colorea las regiones segun el cuartil en que cae su valor: minimo, Q1, mediana, Q3 y maximo.'); ?></th>
@@ -158,6 +158,24 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
         </tr>
     </table>
 
+    <h3 class="siarhe-section-spaced siarhe-section-title">Ancho de la Página del Mapa<?php Siarhe_Admin::help('Contenedor: el mapa, los controles y la tabla van centrados con un ancho máximo de 1140 px. Canvas: ocupan todo el ancho de la ventana, fuera del contenedor del tema, con un margen de seguridad a cada lado.'); ?></h3>
+    <table class="form-table">
+        <tr>
+            <th scope="row"><label for="siarhe-layout">Disposición</label></th>
+            <td>
+                <?php $siarhe_layout_actual = siarhe_get_layout(); ?>
+                <select name="siarhe_map_options[layout]" id="siarhe-layout">
+                    <option value="contenedor"<?php selected( $siarhe_layout_actual['modo'], 'contenedor' ); ?>>Contenedor (máximo 1140 px)</option>
+                    <option value="canvas"<?php selected( $siarhe_layout_actual['modo'], 'canvas' ); ?>>Canvas (ancho completo)</option>
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <th scope="row"><label for="siarhe-canvas-margin">Margen lateral del canvas (%)</label><?php Siarhe_Admin::help('Espacio de seguridad a cada lado en la disposición canvas, como porcentaje del ancho de la ventana: de 2.5 a 5.'); ?></th>
+            <td><input type="number" name="siarhe_map_options[canvas_margin]" id="siarhe-canvas-margin" min="2.5" max="5" step="0.5" value="<?php echo esc_attr( $siarhe_layout_actual['margen'] ); ?>" class="small-text"> %</td>
+        </tr>
+    </table>
+
     <h3 class="siarhe-section-spaced siarhe-section-title">Botones del Mapa y la Tabla<?php Siarhe_Admin::help('Estilo unico de todos los botones del sitio publico (Personalizar, Restablecer, Mapa PNG, Etiquetas, Copiar enlace, Descargar Excel). El color del texto tambien pinta los iconos del boton.'); ?></h3>
     <p class="description">Todos los botones comparten este estilo. El color de texto también se aplica a sus íconos.</p>
 
@@ -177,7 +195,7 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
     </table>
 
     <h3 class="siarhe-section-spaced siarhe-section-title">Estilos de Tabla de Datos<?php Siarhe_Admin::help('Apariencia de la tabla de datos que se muestra en el sitio publico.'); ?></h3>
-    
+
     <table class="form-table">
         <tr>
             <th scope="row">Encabezados (Header)<?php Siarhe_Admin::help('Colores de fondo y texto de la fila de encabezados de la tabla publica.'); ?></th>
@@ -203,9 +221,9 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
 
     <h3 class="siarhe-section-spaced siarhe-section-title">📍 Estilos Dinámicos de Marcadores<?php Siarhe_Admin::help('Forma, relleno y borde de cada marcador. Se generan a partir de los marcadores definidos en Configuracion > Marcadores.'); ?></h3>
     <p class="description">Aquí aparecerán automáticamente todos los marcadores que registres en la pestaña "Marcadores (CSV)".</p>
-    
+
     <table class="form-table">
-        <?php foreach ($marcadores as $key => $mk): 
+        <?php foreach ($marcadores as $key => $mk):
             $s_key = strtolower($key);
             $tipo = isset($mk['tipo']) ? $mk['tipo'] : 'posicion';
             $is_espectro = ($tipo === 'espectro');
@@ -213,7 +231,7 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
 
             // Lógica para asignar forma por defecto (El espectro SIEMPRE es círculo)
             $shape_val = isset($opts["m_{$s_key}_shape"]) ? $opts["m_{$s_key}_shape"] : (isset($legacy_shapes[$s_key]) ? $legacy_shapes[$s_key] : 'circle');
-            if ($is_espectro || $is_spike) $shape_val = 'circle'; 
+            if ($is_espectro || $is_spike) $shape_val = 'circle';
 
             // Si es un Espectro nuevo, le damos un color rojo semi-transparente (rgba) por defecto
             $default_fill = $is_espectro ? 'rgba(214, 54, 56, 0.6)' : ($is_spike ? '#D63638' : '#0A66C2');
@@ -225,7 +243,7 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
             <th scope="row">
                 <strong style="font-size: 14px;"><?php echo esc_html($mk['label']); ?></strong><br>
                 <small style="color:#8c8f94; font-family:monospace;"><?php echo esc_html($key); ?></small>
-                
+
                 <div style="margin-top: 6px;">
                     <?php if ($is_espectro): ?>
                         <span class="siarhe-badge espectro">🔴 Espectro (Burbuja)</span>
@@ -242,7 +260,7 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
                         <label>Vista Previa</label>
                         <svg id="preview-<?php echo esc_attr($s_key); ?>" width="<?php echo ($is_espectro || $is_spike) ? '36' : '30'; ?>" height="<?php echo ($is_espectro || $is_spike) ? '36' : '30'; ?>" viewBox="0 0 30 30"></svg>
                     </div>
-                    
+
                     <div>
                         <label>Forma:</label><br>
                         <?php if ($is_espectro || $is_spike): ?>
@@ -261,7 +279,7 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
                             </select>
                         <?php endif; ?>
                     </div>
-                    
+
                     <div>
                         <label><?php echo $is_spike ? 'Color del pico más alto:' : 'Relleno:'; ?><?php if ($is_spike): ?> <span class="siarhe-help" tabindex="0" role="note" data-tip="Es el color del pico con el valor más alto del marcador. Los valores menores se degradan hacia el color más bajo." aria-label="Ayuda: color del pico más alto">?</span><?php endif; ?></label><br>
                         <input type="text" name="siarhe_map_options[m_<?php echo esc_attr($s_key); ?>_fill]" id="m_<?php echo esc_attr($s_key); ?>_fill" value="<?php echo esc_attr($fill_val); ?>" class="siarhe-color-field" <?php if($is_espectro || $is_spike) echo 'data-alpha="true"'; ?>>

@@ -41,6 +41,23 @@ $mk_ref  = ($mk_meta && !empty($mk_meta->referencia_bibliografica)) ? $mk_meta->
 $mk_date = ($mk_meta && !empty($mk_meta->fecha_corte)) ? date_i18n('d/M/Y', strtotime($mk_meta->fecha_corte)) : '—';
 
 
+// Referencias de las clínicas: una por tipo de marcador con archivo cargado; el pie las muestra al activar sus marcadores
+$refs_clinicas = array();
+$tipos_marcador = siarhe_marker_types();
+foreach ( array( 'CATETER' => 'Datos de Clínicas de Catéteres', 'HERIDAS' => 'Datos de Clínicas de Heridas' ) as $tipo_clinica => $titulo_clinica ) {
+    $meta = $wpdb->get_row( $wpdb->prepare( "SELECT referencia_bibliografica, fecha_corte FROM $table_assets WHERE entidad_slug = %s AND tipo_archivo = 'marcador' AND es_activo = 1 ORDER BY anio_reporte DESC LIMIT 1", $tipo_clinica ) );
+    if ( ! $meta || ! isset( $tipos_marcador[ $tipo_clinica ] ) ) continue;
+    $refs_clinicas[] = array(
+        'archivo' => $tipos_marcador[ $tipo_clinica ]['filename'],
+        'titulo'  => $titulo_clinica,
+        'ref'     => $meta->referencia_bibliografica ? wp_strip_all_tags( (string) $meta->referencia_bibliografica ) : $tipos_marcador[ $tipo_clinica ]['label'],
+        'fecha'   => $meta->fecha_corte ? date_i18n( 'd/M/Y', strtotime( $meta->fecha_corte ) ) : '—',
+    );
+}
+
+// Disposición de la página: contenedor centrado (máximo 1140 px) o canvas a ancho completo con margen lateral en porcentaje
+$siarhe_layout  = siarhe_get_layout();
+
 // Catálogo de Entidades Federativas (INEGI)
 $catalogo_oficial = siarhe_get_entity_catalog();
 
@@ -234,7 +251,8 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
 
 <div id="content" tabindex="-1" style="outline: none;"></div>
 
-<div class="siarhe-viz-wrapper" 
+<div class="siarhe-viz-wrapper<?php echo $siarhe_layout['modo'] === 'canvas' ? ' siarhe-layout-canvas' : ''; ?>"
+     style="--s-canvas-margin: <?php echo esc_attr( $siarhe_layout['margen'] ); ?>%;"
      role="main" aria-label="Visualización de Datos y Mapa SIARHE"
      id="siarhe-viz-<?php echo esc_attr($cve_ent); ?>"
      data-cve-ent="<?php echo esc_attr($cve_ent); ?>"
@@ -349,7 +367,10 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
             
             <div class="siarhe-table-wrapper">
                 <div class="siarhe-table-container">
-                    <p>Cargando tabla...</p>
+                    <div class="siarhe-esqueleto-tabla" role="status">
+                        <span class="siarhe-sr-only">Cargando tabla...</span>
+                        <?php for ( $i_esq = 0; $i_esq < 8; $i_esq++ ) : ?><div class="siarhe-esqueleto-fila" aria-hidden="true"></div><?php endfor; ?>
+                    </div>
                 </div>
             </div>
 
@@ -364,22 +385,6 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
 
     <footer class="siarhe-footer">
         <div class="siarhe-footer-grid">
-            
-            <div class="siarhe-ref-col">
-                <strong><span class="dashicons dashicons-admin-site"></span> Datos Espaciales</strong>
-                <p class="siarhe-break-text">
-                    <strong>Fuente:</strong> <span class="siarhe-geo-ref"><?php echo esc_html($geo_ref); ?></span><br>
-                    <strong>Fecha de corte:</strong> <span class="siarhe-geo-date"><?php echo esc_html($geo_date); ?></span>
-                </p>
-            </div>
-
-            <div class="siarhe-ref-col">
-                <strong><span class="dashicons dashicons-location"></span> Datos de Establecimientos</strong>
-                <p class="siarhe-break-text">
-                    <strong>Fuente:</strong> <?php echo esc_html($mk_ref); ?><br>
-                    <strong>Fecha de corte:</strong> <?php echo esc_html($mk_date); ?>
-                </p>
-            </div>
 
             <div class="siarhe-ref-col">
                 <strong><span class="dashicons dashicons-groups"></span> Datos de Enfermería</strong>
@@ -389,14 +394,40 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
                 </p>
             </div>
 
+            <div class="siarhe-ref-col">
+                <strong><span class="dashicons dashicons-location"></span> Datos de Establecimientos de Salud</strong>
+                <p class="siarhe-break-text">
+                    <strong>Fuente:</strong> <?php echo esc_html($mk_ref); ?><br>
+                    <strong>Fecha de corte:</strong> <?php echo esc_html($mk_date); ?>
+                </p>
+            </div>
+
+            <div class="siarhe-ref-col">
+                <strong><span class="dashicons dashicons-admin-site"></span> Datos Espaciales</strong>
+                <p class="siarhe-break-text">
+                    <strong>Fuente:</strong> <span class="siarhe-geo-ref"><?php echo esc_html($geo_ref); ?></span><br>
+                    <strong>Fecha de corte:</strong> <span class="siarhe-geo-date"><?php echo esc_html($geo_date); ?></span>
+                </p>
+            </div>
+
+            <?php foreach ( $refs_clinicas as $ref_clinica ) : ?>
+            <div class="siarhe-ref-col siarhe-ref-clinica" data-ref-archivo="<?php echo esc_attr( $ref_clinica['archivo'] ); ?>" hidden>
+                <strong><span class="dashicons dashicons-plus-alt"></span> <?php echo esc_html( $ref_clinica['titulo'] ); ?></strong>
+                <p class="siarhe-break-text">
+                    <strong>Fuente:</strong> <?php echo esc_html( $ref_clinica['ref'] ); ?><br>
+                    <strong>Fecha de corte:</strong> <?php echo esc_html( $ref_clinica['fecha'] ); ?>
+                </p>
+            </div>
+            <?php endforeach; ?>
+
         </div>
-        
+
         <p class="siarhe-disclaimer siarhe-break-text">
-            * El total <?php echo $es_nacional ? 'nacional' : 'estatal'; ?> se calcula sumando <?php echo $es_nacional ? 'las 32 entidades federativas más los registros clasificados como "No Disponible" o "Extranjero"' : 'los <span class="siarhe-dynamic-mun-count">...</span> municipios más los registros clasificados como "No Disponible"'; ?>.
+            * El total <?php echo $es_nacional ? 'nacional' : 'estatal'; ?> se calcula sumando <?php echo $es_nacional ? 'las 32 entidades federativas más los registros clasificados como "No Disponible". El personal que labora en el extranjero no se incluye en el total' : 'los <span class="siarhe-dynamic-mun-count">...</span> municipios más los registros clasificados como "No Disponible"'; ?>.
         </p>
 
         <p class="siarhe-legal-disclaimer siarhe-break-text">
-            Toda la información fue obtenida de fuentes oficiales a través de sus portales de datos abiertos; sin embargo, este análisis no representa una postura oficial de dichas instituciones. Recomendamos revisar nuestros <a href="<?php echo esc_url($url_terminos); ?>" target="_blank">Términos y Condiciones</a> y el <a href="<?php echo esc_url($url_aviso); ?>" target="_blank">Aviso Legal</a> para más detalles.
+            Toda la información fue obtenida de fuentes oficiales, a través de sus portales de datos abiertos o por medio de las solicitudes de transparencia correspondientes. El análisis sigue un proceso de depuración, por lo que los resultados pueden diferir de las cifras oficiales, y no representa una postura oficial de dichas instituciones. Recomendamos revisar nuestros <a href="<?php echo esc_url($url_terminos); ?>" target="_blank">Términos y Condiciones</a> y el <a href="<?php echo esc_url($url_aviso); ?>" target="_blank">Aviso Legal</a> para más detalles.
         </p>
     </footer>
 

@@ -21,7 +21,9 @@ Cada base se identifica por **entidad + año + tema + unidad**. El año se elige
 | *Clínicas de catéteres* (`clinicas_cateteres`) y *Clínicas de heridas* (`clinicas_heridas`) | *tasa* o *frecuencia* | Identificador y nombre |
 | Temas propios (los crea el administrador) | Las que se elijan al crearlo: frecuencia, tasa, plazas, recursos humanos | Identificador y nombre |
 
-El mapa público muestra las bases de Enfermería (`siarhe_base_tema_mapa()`).
+El mapa público muestra las bases de Enfermería (`siarhe_base_tema_mapa()`). Para los temas propios y Clínicas hay una **plantilla mínima** (nacional y municipal) con la clave, el nombre y dos columnas de valor de ejemplo (`Siarhe_Columns::static_min_columns`); la de marcadores trae `LATITUD`, `LONGITUD`, `CVE_ENT` y `NOMBRE DE LA UNIDAD`.
+
+**Extranjero.** En la base nacional, la fila de clave 34 no entra en la suma del total ni en la tabla del sitio: ese personal tiene su propio apartado.
 
 **La entidad se comprueba.** Al subir, el plugin lee la `CVE_ENT` de las filas (sin las de totales, 8888 y 9999) y rechaza el archivo si es de otra entidad, si es estatal y se eligió República Mexicana o si es nacional y se eligió una entidad (`Siarhe_Validador::revisa_base`). En Extranjero no se comprueba. Subir otra base de la misma combinación la reemplaza y guarda copia de la anterior. Las bases que ya estaban cargadas cuando se agregó el selector (versión 0.1.2.0) quedaron como del año 2026 y en plazas.
 
@@ -70,7 +72,7 @@ Cada tipo de marcador es una familia de archivos, **uno por periodo**: un año d
 | *Establecimientos de Salud* | Por año |
 | *Clínicas de Catéteres*, *Clínicas de Heridas* | «Todas» y por año |
 | *Pasantes de Enfermería* | Por año |
-| Variables que agrega el administrador | «Todas» y por año |
+| Variables que agrega el administrador | Según su respuesta a «¿Tiene serie completa?»: «Todas» y por año, o solo por año |
 
 **Versión por entidad.** Se carga un solo archivo con todo el país. Al guardarlo, el plugin crea una capa por entidad (`markers/entidades/{nombre}-{periodo}-entNN.json`, mismo formato, con las listas de textos reducidas a los que usa esa entidad) y el mapa de cada estado descarga solo la suya; el mapa nacional lee la capa completa (`Siarhe_Marker_Json::divide_por_entidad`). Los puntos sin clave de entidad solo quedan en la capa completa. El mapa usa el archivo del año que el visitante ve; si no existe, el de toda la historia; si tampoco, el del año anterior más cercano. Se guardan en `markers/` como `{nombre del tipo}-{periodo}.csv` y `.json` (`clinicas-cateteres-2025.json`, `clinicas-heridas-total.json`).
 

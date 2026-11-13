@@ -28,7 +28,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         RANGE: [ getVar('--s-map-c1', '#eff3ff'), getVar('--s-map-c2', '#bdd7e7'), getVar('--s-map-c3', '#9ecae1'), getVar('--s-map-c4', '#6baed6'), getVar('--s-map-c5', '#08519c') ],
         // ☀️ NUEVOS COLORES GLOBALES PARA RANGOS PERSONALIZADOS AÑADIDOS
         CUSTOM_RANGE: [ getVar('--s-map-range-1', '#ffedd5'), getVar('--s-map-range-2', '#fdba74'), getVar('--s-map-range-3', '#f59e0b'), getVar('--s-map-range-4', '#b45309') ],
-        MONO: [ getVar('--s-map-mono-min', '#f0f9ff'), getVar('--s-map-mono-max', '#0369a1') ], 
+        MONO: [ getVar('--s-map-mono-min', '#f0f9ff'), getVar('--s-map-mono-max', '#0369a1') ],
         ZERO: getVar('--s-map-zero', '#d9d9d9'),
         NULL: getVar('--s-map-null', '#000000')
     };
@@ -117,17 +117,17 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             console.log('[SIARHE perf] ' + label + ': ' + (performance.now() - startMs).toFixed(1) + ' ms' + (extra ? ' (' + extra + ')' : ''));
         },
 
-        cleanKey: function(val) { 
-            return (val === undefined || val === null) ? "" : val.toString().trim(); 
+        cleanKey: function(val) {
+            return (val === undefined || val === null) ? "" : val.toString().trim();
         },
-        
-        getGeoKey: function(props, isNacional) { 
+
+        getGeoKey: function(props, isNacional) {
             if (!isNacional) {
                 return app.utils.cleanKey(props.CVE_MUN || props.cve_mun || props.ID || props.id);
             }
-            return app.utils.cleanKey(props.CVE_ENT || props.cve_ent || props.ID || props.id); 
+            return app.utils.cleanKey(props.CVE_ENT || props.cve_ent || props.ID || props.id);
         },
-        
+
         /**
          * Parsea valores numéricos. Asigna null de forma estricta a celdas vacías o con "S/D"
          * para garantizar que el mapa y tabla no asuman ceros por error en datos inexistentes.
@@ -139,18 +139,18 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const n = parseFloat(val.toString().replace(/,/g, '').replace(/\s/g, ''));
             return isNaN(n) ? null : n;
         },
-        
+
         getD3Shape: function(shapeName) {
             if (typeof d3 === 'undefined') return null;
             const shapes = { 'circle': d3.symbolCircle, 'square': d3.symbolSquare, 'triangle': d3.symbolTriangle, 'diamond': d3.symbolDiamond, 'star': d3.symbolStar, 'cross': d3.symbolCross };
             return shapes[shapeName] || d3.symbolCircle;
         },
-        
+
         getMarkerStyle: function(type, state) {
             if (state.markerStyles[type]) return state.markerStyles[type];
-            return { shape: 'circle', fill: '#000000', fill2: '', stroke: '#ffffff' }; 
+            return { shape: 'circle', fill: '#000000', fill2: '', stroke: '#ffffff' };
         },
-        
+
         // Tipos de marcador que codifican un valor numerico (burbuja o pico)
         isDensity: function(tipo) {
             return tipo === 'espectro' || tipo === 'spike';
@@ -174,7 +174,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         // 🌟 CORRECCIÓN ARQUITECTÓNICA: Helper Inteligente para Tasas
         // Busca en el diccionario qué columna CSV REAL tiene tipo="tasa" y pertenece al gafete(pairGroup)
         findRateKeyForAbsolute: function(pairGroup, metricasConfig) {
-            const foundRate = Object.keys(metricasConfig).find(k => 
+            const foundRate = Object.keys(metricasConfig).find(k =>
                 (metricasConfig[k].pair || k) === pairGroup && metricasConfig[k].tipo === 'tasa'
             );
             return foundRate || null;
@@ -182,7 +182,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
         // 🌟 NUEVO HELPER INTELIGENTE: Busca la columna absoluta real basada en el gafete
         findAbsoluteKeyForPair: function(pairGroup, metricasConfig) {
-            const foundAbs = Object.keys(metricasConfig).find(k => 
+            const foundAbs = Object.keys(metricasConfig).find(k =>
                 (metricasConfig[k].pair || k) === pairGroup && metricasConfig[k].tipo === 'absoluto'
             );
             return foundAbs || null;
@@ -504,29 +504,31 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             return data.map(d => {
                 const row = {};
                 row.CVE_ENT = app.utils.cleanKey(d.CVE_ENT || d.cve_ent || d.mapa || d.id);
-                row.CVE_MUN = app.utils.cleanKey(d.CVE_MUN || d.cve_mun); 
-                
+                row.CVE_MUN = app.utils.cleanKey(d.CVE_MUN || d.cve_mun);
+
                 row.id_legacy = (d.id || "").toString().trim();
                 row.estado = (d.estado || d.Entidad || d.municipio || "").trim();
-                
+
                 const keyPob = Object.keys(d).find(k => k.toLowerCase().startsWith('pob'));
                 row.poblacion = app.utils.parseNum(d[keyPob]);
-                
-                Object.keys(metricasConfig).forEach(k => { 
-                    if (k !== 'poblacion') row[k] = app.utils.parseNum(d[k]); 
+
+                Object.keys(metricasConfig).forEach(k => {
+                    if (k !== 'poblacion') row[k] = app.utils.parseNum(d[k]);
                 });
-                
+
                 row.isTotal = (row.id_legacy === '9999' || row.CVE_ENT === '9999' || row.CVE_ENT === '33' || row.estado.toLowerCase().includes('total'));
                 row.isSpecial = (row.id_legacy === '8888' || row.CVE_ENT === '8888' || row.CVE_ENT === '34' || row.CVE_ENT === '88' || row.CVE_MUN === '8888');
-                
+                // El personal que labora en el extranjero (clave 34) tiene su propio apartado: no entra en el total ni en la tabla
+                row.isExtranjero = (row.CVE_ENT === '34');
+
                 return row;
             });
         },
 
         calcularSumaExactaEnfermeras: function(container, state) {
             const sumNode = container.querySelector('.siarhe-dynamic-nurses-sum');
-            const countNodes = container.querySelectorAll('.siarhe-dynamic-mun-count'); 
-            
+            const countNodes = container.querySelectorAll('.siarhe-dynamic-mun-count');
+
             let sumaTotal = 0;
             let munCount = 0;
 
@@ -536,7 +538,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (state.isNacional) {
                     const cveNum = parseInt(row.CVE_ENT, 10);
                     const isEstado = (cveNum >= 1 && cveNum <= 32);
-                    if (isEstado || row.isSpecial) {
+                    if (isEstado || (row.isSpecial && !row.isExtranjero)) {
                         sumaTotal += (row.enfermeras_total || 0);
                     }
                 } else {
@@ -554,7 +556,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         calcularTotalHeader: function(container, state) {
             const headerDiv = container.querySelector('.siarhe-dynamic-total');
             if (!headerDiv) return;
-            
+
             const info = state.metricas[state.currentMetric];
             if(!info) return;
 
@@ -564,25 +566,25 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const absCsvKey = app.utils.findAbsoluteKeyForPair(pairGroup, state.metricas);
 
             let totalAbs = 0, valorMuestra = null;
-            
+
             const rowTotal = state.csvData.find(r => r.isTotal);
-            if (rowTotal) { 
-                totalAbs = absCsvKey ? (rowTotal[absCsvKey] || 0) : 0; 
-                valorMuestra = rowTotal[state.currentMetric]; 
+            if (rowTotal) {
+                totalAbs = absCsvKey ? (rowTotal[absCsvKey] || 0) : 0;
+                valorMuestra = rowTotal[state.currentMetric];
             } else {
-                state.csvData.forEach(row => { 
+                state.csvData.forEach(row => {
                     // Sumamos usando absCsvKey (el nombre real de la columna), no el gafete
                     if (!row.isTotal && !row.isSpecial && absCsvKey && state.metricas[absCsvKey] && state.metricas[absCsvKey].tipo === 'absoluto') {
-                        totalAbs += (row[absCsvKey] || 0); 
+                        totalAbs += (row[absCsvKey] || 0);
                     }
                 });
                 valorMuestra = (info.tipo === 'tasa') ? null : totalAbs;
             }
-            
+
             const absFmt = totalAbs.toLocaleString('es-MX');
             const valFmt = (valorMuestra === null || valorMuestra === undefined) ? '—' : valorMuestra.toLocaleString('es-MX', { maximumFractionDigits: 2 });
-            
-            headerDiv.innerHTML = info.tipo === 'tasa' 
+
+            headerDiv.innerHTML = info.tipo === 'tasa'
                 ? `<span style="margin-right:15px;">${app.utils.esc(info.fullLabel)}: <strong style="color:#0A66C2; font-size:1.2em;">${valFmt}</strong></span><span>Enfermeras: <strong style="color:#0A66C2; font-size:1.2em;">${absFmt}</strong></span>`
                 : `<span>${app.utils.esc(info.fullLabel)}: <strong style="color:#0A66C2; font-size:1.2em;">${valFmt}</strong></span>`;
         }
@@ -599,21 +601,21 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         const isNacional = (cveEnt === '33' || container.dataset.slug === 'republica-mexicana');
         const loading = container.querySelector('.siarhe-loading-overlay');
 
-        if (typeof d3 === 'undefined') { 
-            console.error("[SIARHE Core] D3.js es requerido pero no está cargado."); 
+        if (typeof d3 === 'undefined') {
+            console.error("[SIARHE Core] D3.js es requerido pero no está cargado.");
             if(loading) loading.innerHTML = "❌ Error: D3.js no se ha cargado.";
-            return; 
+            return;
         }
 
         // Parseo seguro de Data Atributos
         const safeParseJSON = (data, fallback) => { try { return JSON.parse(data || '{}'); } catch(e) { return fallback; } };
-        
+
         let MARCADOR_ESTILOS = safeParseJSON(container.dataset.markerConfig, {});
         let MARCADOR_URLS = safeParseJSON(container.dataset.markerUrls, {});
         let MARCADOR_LABELS = safeParseJSON(container.dataset.markerLabels, {});
         let ENTITY_URLS = safeParseJSON(container.dataset.entityUrls, {});
         let METRICAS_CONFIG = safeParseJSON(container.dataset.metricas, {});
-        
+
         let TOOLTIP_CONFIG = safeParseJSON(container.dataset.tooltips, {
             geo_pob: true, geo_abs: true, geo_rate: true,
             geo_order: ['pob', 'abs', 'rate'],
@@ -625,19 +627,19 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         let state = {
             geoData: null, csvData: [], dataMap: new Map(),
             metricas: METRICAS_CONFIG,
-            tooltipConfig: TOOLTIP_CONFIG, 
+            tooltipConfig: TOOLTIP_CONFIG,
             currentMetric: 'tasa_total',
             colorMode: null,
             zoom: null, gLegend: null, gMarkerLegend: null, gradientId: null,
-            svg: null, gMain: null, gPaths: null, gLabels: null, gMarkers: null, 
-            activeMarkers: new Set(), markersData: {}, 
+            svg: null, gMain: null, gPaths: null, gLabels: null, gMarkers: null,
+            activeMarkers: new Set(), markersData: {},
             markerStyles: MARCADOR_ESTILOS, markerUrls: MARCADOR_URLS,
-            markerLabels: MARCADOR_LABELS, 
-            entityUrls: ENTITY_URLS, homeUrl: container.dataset.homeUrl || '', 
-            isNacional: isNacional, 
+            markerLabels: MARCADOR_LABELS,
+            entityUrls: ENTITY_URLS, homeUrl: container.dataset.homeUrl || '',
+            isNacional: isNacional,
             tooltip: null, markerTrigger: null, lastClickTime: 0,
             rawCSVDataCache: {},
-            initialTransform: d3.zoomIdentity 
+            initialTransform: d3.zoomIdentity
         };
 
         if (!geojsonUrl && mode.includes('M')) return;
@@ -673,14 +675,14 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             // Metrica, escala, vista y marcadores iniciales pueden venir en el hash de la URL
             if (app.urlState) app.urlState.apply(container, state);
-            
+
             if (csv) {
                 state.columnas = new Set(Object.keys(csv[0] || {}));
                 state.csvData = app.data.processCSV(csv, state.metricas);
-                state.csvData.forEach(row => { 
+                state.csvData.forEach(row => {
                     let targetKey = state.isNacional ? row.CVE_ENT : row.CVE_MUN;
-                    if (!state.isNacional && !targetKey) targetKey = row.CVE_ENT; 
-                    if (targetKey) state.dataMap.set(targetKey, row); 
+                    if (!state.isNacional && !targetKey) targetKey = row.CVE_ENT;
+                    if (targetKey) state.dataMap.set(targetKey, row);
                 });
                 app.data.calcularSumaExactaEnfermeras(container, state);
                 app.data.calcularTotalHeader(container, state);
@@ -706,7 +708,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     app.controls.renderMain(container, state, onMetricUpdate, { targetSelector: '.siarhe-table-controls-placeholder', showMarkers: false });
                 }
             }
-            
+
             if (mode.includes('T') && csv && app.table) {
                 app.table.init(container, state);
                 if (app.controls) app.controls.setupExcelExport(container, state);
@@ -714,13 +716,15 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             // El overlay se oculta hasta que todo se haya construido (antes se ocultaba antes de renderizar)
             if (loading) loading.style.display = 'none';
+            container.classList.add('siarhe-cargado'); // termina el esqueleto de carga
 
             // Vista detalle y marcadores guardados en la URL (necesitan los controles ya renderizados)
             if (app.urlState) app.urlState.applyDeferred(container, state);
         })
-        .catch(err => { 
-            console.error("[SIARHE Core] Falla en la red o parseo:", err); 
-            if(loading) loading.innerHTML = "❌ Error en la red o lectura de datos."; 
+        .catch(err => {
+            console.error("[SIARHE Core] Falla en la red o parseo:", err);
+            if(loading) loading.innerHTML = "❌ Error en la red o lectura de datos.";
+            container.classList.add('siarhe-cargado'); // el aviso de error sustituye al esqueleto
         });
     };
 
@@ -731,15 +735,23 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 // ==========================================
 document.addEventListener('DOMContentLoaded', function() {
     console.log("%c 🚀 SIARHE Core V50: Multi-Pass Logic <= ", "background: #1e40af; color: #ffffff; padding: 2px 6px; border-radius: 4px;");
-    
+
     const app = window.SiarheDataViz;
     const wrappers = document.querySelectorAll('.siarhe-viz-wrapper');
+
+    // Ancho útil de la ventana (sin la barra de desplazamiento) para la disposición «canvas», que sale del contenedor del tema
+    const fijaAnchoVentana = () => document.documentElement.style.setProperty('--siarhe-vw', document.documentElement.clientWidth + 'px');
+    if (document.querySelector('.siarhe-layout-canvas')) {
+        fijaAnchoVentana();
+        window.addEventListener('resize', fijaAnchoVentana);
+    }
     app.ensureD3(
         function() { wrappers.forEach(container => { app.initVisualization(container); }); },
         function() {
             wrappers.forEach(container => {
                 const loading = container.querySelector('.siarhe-loading-overlay');
                 if (loading) loading.innerHTML = '❌ Error: no se pudo cargar la librería de gráficos (D3.js).';
+                container.classList.add('siarhe-cargado');
             });
         }
     );

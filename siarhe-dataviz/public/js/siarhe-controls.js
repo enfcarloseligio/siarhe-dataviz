@@ -2,7 +2,7 @@
  * SIARHE DataViz - Módulo de Controles (Controls)
  * ------------------------------------------------------------------
  * Gestiona la interfaz de usuario (UI), como los selectores desplegables
- * de indicadores (ahora con buscador), la lógica de activación de marcadores 
+ * de indicadores (ahora con buscador), la lógica de activación de marcadores
  * en memoria RAM y las funciones de exportación de datos (Excel y PNG).
  */
 
@@ -12,19 +12,19 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     'use strict';
 
     app.controls = {
-        
+
         renderMain: function(container, state, onUpdate, opts = { targetSelector: '.siarhe-controls-placeholder', showMarkers: true }) {
-            
+
             const isTableOnly = (opts.targetSelector === '.siarhe-table-controls-placeholder');
 
 
             const ph = container.querySelector(opts.targetSelector);
-            if (!ph) return; 
+            if (!ph) return;
             ph.innerHTML = '';
-            
-            const wrapper = document.createElement('div'); 
-            wrapper.className = 'siarhe-controls-layout'; 
-            
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'siarhe-controls-layout';
+
             if (isTableOnly) {
                 wrapper.innerHTML = `
                     <div class="siarhe-controls-row">
@@ -65,7 +65,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 closeBtn.innerHTML = '✖';
                 closeBtn.title = 'Ocultar panel';
                 wrapper.appendChild(closeBtn);
-                
+
                 closeBtn.addEventListener('click', (e) => {
                     e.preventDefault();
                     wrapper.classList.add('is-hidden');
@@ -102,7 +102,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     </div>
                     <button class="siarhe-toast-btn">📍 Mostrar en mapa</button>
                 `;
-                
+
                 toastBox.querySelector('.siarhe-toast-close').onclick = () => toastBox.classList.remove('show');
                 toastBox.querySelector('.siarhe-toast-btn').onclick = () => {
                     toastBox.classList.remove('show');
@@ -121,7 +121,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             };
 
             const checkSpectrumLink = (metricKey) => {
-                if (!opts.showMarkers || isTableOnly || !toastBox) return; 
+                if (!opts.showMarkers || isTableOnly || !toastBox) return;
                 const linkedMarkerKey = Object.keys(state.markerLabels).find(k => {
                     const mk = state.markerLabels[k];
                     return app.utils.isDensity(mk.tipo) && mk.espectro_pair === metricKey;
@@ -131,7 +131,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const mkLabel = state.markerLabels[linkedMarkerKey].label || linkedMarkerKey;
                     showSmartToast(linkedMarkerKey, mkLabel);
                 } else {
-                    toastBox.classList.remove('show'); 
+                    toastBox.classList.remove('show');
                 }
             };
 
@@ -147,7 +147,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             const searchBoxInd = document.createElement('div');
             searchBoxInd.className = 'siarhe-cs-search';
-            searchBoxInd.addEventListener('click', e => e.stopPropagation()); 
+            searchBoxInd.addEventListener('click', e => e.stopPropagation());
             const searchInputInd = document.createElement('input');
             searchInputInd.type = 'text';
             searchInputInd.placeholder = '🔍 Buscar indicador...';
@@ -167,32 +167,32 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const opt = document.createElement('div');
                 opt.className = 'siarhe-cs-option';
                 opt.dataset.key = key;
-                
+
                 if (key === state.currentMetric) {
                     opt.classList.add('selected');
                     triggerInd.innerHTML = `<span>${app.utils.esc(app.controls.indicatorName(info))}</span>`;
                 }
-                
+
                 opt.textContent = app.controls.indicatorName(info);
-                
+
                 opt.addEventListener('click', (e) => {
                     e.stopPropagation();
                     state.currentMetric = key;
                     app.sortConfig = { key: 'tasa', direction: 'desc' };
-                    
+
                     // ☀️ ACTUALIZAR LA ESCALA SEGÚN LA NUEVA MÉTRICA SELECCIONADA
                     const newInfo = state.metricas[key] || {};
                     state.colorMode = newInfo.scale_type || 'cuartiles';
                     const selectEscala = container.querySelector('#siarhe-escala-select');
                     if (selectEscala) selectEscala.value = state.colorMode;
-                    
+
                     triggerInd.innerHTML = `<span>${app.utils.esc(app.controls.indicatorName(info))}</span>`;
                     optionsContainerInd.querySelectorAll('.siarhe-cs-option').forEach(o => o.classList.remove('selected'));
                     opt.classList.add('selected');
                     menuInd.classList.remove('open');
                     if (state.refreshMeasure) state.refreshMeasure();
-                    
-                    onUpdate(); 
+
+                    onUpdate();
                     checkSpectrumLink(key);
                 });
                 optionsContainerInd.appendChild(opt);
@@ -203,7 +203,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             cInd.appendChild(customSelectInd);
 
             searchInputInd.addEventListener('keyup', (e) => {
-                const val = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); 
+                const val = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                 optionsContainerInd.querySelectorAll('.siarhe-cs-option').forEach(o => {
                     const text = o.textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                     o.style.display = text.includes(val) ? '' : 'none';
@@ -214,12 +214,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 e.stopPropagation();
                 const isOpen = menuInd.classList.contains('open');
                 container.querySelectorAll('.siarhe-cs-menu, .mc-menu').forEach(m => m.classList.remove('open'));
-                
+
                 if (!isOpen) {
                     menuInd.classList.add('open');
                     searchInputInd.value = '';
                     optionsContainerInd.querySelectorAll('.siarhe-cs-option').forEach(o => o.style.display = '');
-                    setTimeout(() => searchInputInd.focus(), 50); 
+                    setTimeout(() => searchInputInd.focus(), 50);
                 }
             });
 
@@ -227,29 +227,29 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const buildMarkerDropdown = (targetId, typeFilter, placeholderTitle) => {
                     const containerDiv = wrapper.querySelector('#' + targetId);
                     const validMarkers = Object.keys(state.markerUrls).filter(k => app.controls.markerUrl(state, k) && app.utils.markerGroup((state.markerLabels[k] || {}).tipo) === typeFilter);
-                    
+
                     if (validMarkers.length === 0) {
                         containerDiv.innerHTML += `<div class="mc-trigger is-placeholder" style="cursor:not-allowed; background:#f1f5f9;"><span>No disponibles</span></div>`;
                         return;
                     }
 
                     const field = document.createElement('div'); field.className = 'mc-field';
-                    const triggerMc = document.createElement('div'); triggerMc.className = `mc-trigger is-placeholder trigger-${typeFilter}`; 
+                    const triggerMc = document.createElement('div'); triggerMc.className = `mc-trigger is-placeholder trigger-${typeFilter}`;
                     triggerMc.innerHTML = `<span>${app.utils.esc(placeholderTitle)}</span>`;
-                    
+
                     if(typeFilter === 'posicion') state.posTrigger = triggerMc;
                     if(typeFilter === 'espectro') state.specTrigger = triggerMc;
-                    
+
                     const menuMc = document.createElement('div'); menuMc.className = 'mc-menu';
                     const searchBoxMc = document.createElement('div'); searchBoxMc.className = 'siarhe-cs-search';
                     searchBoxMc.addEventListener('click', e => e.stopPropagation());
                     const searchInputMc = document.createElement('input'); searchInputMc.type = 'text'; searchInputMc.placeholder = '🔍 Filtrar...';
-                    
+
                     const btnClearMc = document.createElement('button'); btnClearMc.type = 'button'; btnClearMc.innerHTML = '✖ Limpiar';
                     btnClearMc.addEventListener('click', (e) => {
                         e.stopPropagation();
-                        Array.from(state.activeMarkers).forEach(k => { 
-                            if(app.utils.markerGroup((state.markerLabels[k] || {}).tipo) === typeFilter) state.activeMarkers.delete(k); 
+                        Array.from(state.activeMarkers).forEach(k => {
+                            if(app.utils.markerGroup((state.markerLabels[k] || {}).tipo) === typeFilter) state.activeMarkers.delete(k);
                         });
                         optionsContainerMc.querySelectorAll('.mc-check').forEach(chk => chk.checked = false);
                         if (app.map) { app.map.updateMarkers(state); app.map.renderMarkerLegend(state); }
@@ -264,21 +264,21 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         const label = mkData.label || key;
                         const opt = document.createElement('div'); opt.className = 'mc-option';
                         opt.innerHTML = `<input type="checkbox" class="mc-check" value="${app.utils.esc(key)}"> <span>${app.utils.esc(label)}</span>`;
-                        
+
                         opt.addEventListener('click', (e) => {
                             if (e.target.tagName !== 'INPUT') {
-                                const chk = opt.querySelector('input'); chk.checked = !chk.checked; 
+                                const chk = opt.querySelector('input'); chk.checked = !chk.checked;
                                 app.controls.toggleMarker(key, state, container);
                             }
                         });
-                        opt.querySelector('input').addEventListener('click', (e) => { 
-                            e.stopPropagation(); app.controls.toggleMarker(key, state, container); 
+                        opt.querySelector('input').addEventListener('click', (e) => {
+                            e.stopPropagation(); app.controls.toggleMarker(key, state, container);
                         });
                         optionsContainerMc.appendChild(opt);
                     });
-                    
+
                     menuMc.appendChild(optionsContainerMc);
-                    
+
                     searchInputMc.addEventListener('keyup', (e) => {
                         const val = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                         optionsContainerMc.querySelectorAll('.mc-option').forEach(o => {
@@ -308,8 +308,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
                 // ☀️ RENDERIZAR OPCIONES DE ESCALA CONECTADAS AL ESTADO
                 const cEscala = wrapper.querySelector('#c-escala');
-                const currScale = state.colorMode || 'cuartiles'; 
-                
+                const currScale = state.colorMode || 'cuartiles';
+
                 cEscala.innerHTML += `
                     <select class="siarhe-metric-select" id="siarhe-escala-select">
                         <option value="cuartiles" ${currScale === 'cuartiles' || currScale === 'degradado' ? 'selected' : ''}>Degradado por Colores</option>
@@ -318,8 +318,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     </select>
                 `;
                 cEscala.querySelector('select').addEventListener('change', (e) => {
-                    state.colorMode = e.target.value; 
-                    state.realStyleMode = e.target.value; 
+                    state.colorMode = e.target.value;
+                    state.realStyleMode = e.target.value;
                     if (app.map) app.map.updateVisuals(container, state);
                 });
 
@@ -336,7 +336,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         ${hayDetalle ? `<option value="detalle"${state.geoLocUrl ? '' : ' disabled'}>${labelNivel2}</option>` : ''}
                     </select>
                 `;
-                
+
                 cVista.querySelector('select').addEventListener('change', (e) => {
                     const val = e.target.value;
                     const loading = container.querySelector('.siarhe-loading-overlay');
@@ -1050,18 +1050,18 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const upd = (trigger, typeFilter) => {
                 if (!trigger) return;
                 const sel = Array.from(state.activeMarkers).filter(k => app.utils.markerGroup((state.markerLabels[k] || {}).tipo) === typeFilter);
-                
+
                 const clearBtn = trigger.parentElement.querySelector('.siarhe-cs-search button');
                 if (clearBtn) {
                     clearBtn.style.display = sel.length > 0 ? 'block' : 'none';
                 }
 
-                if (sel.length === 0) { 
-                    trigger.innerHTML = `<span>Seleccionar...</span>`; 
-                    trigger.classList.add('is-placeholder'); 
+                if (sel.length === 0) {
+                    trigger.innerHTML = `<span>Seleccionar...</span>`;
+                    trigger.classList.add('is-placeholder');
                 } else {
                     const labels = sel.map(k => (state.markerLabels[k] || {}).label || k);
-                    trigger.innerHTML = `<span>${app.utils.esc(labels.join(', '))}</span>`; 
+                    trigger.innerHTML = `<span>${app.utils.esc(labels.join(', '))}</span>`;
                     trigger.classList.remove('is-placeholder');
                 }
             };
@@ -1336,7 +1336,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         setupActionButtons: function(container, state) {
             const btnLabels = container.querySelector('.siarhe-btn-toggle-labels');
             const btnPng = container.querySelector('.siarhe-btn-download-png');
-            
+
             const btnShare = container.querySelector('.siarhe-btn-share');
             if (btnShare) {
                 btnShare.addEventListener('click', async (e) => {
@@ -1355,15 +1355,15 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
 
             if (btnPng) {
-                btnPng.addEventListener('click', (e) => { 
-                    e.preventDefault(); 
-                    if (app.map) app.map.downloadMapAsPNG(container, state, false); 
+                btnPng.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    if (app.map) app.map.downloadMapAsPNG(container, state, false);
                 });
             }
             if (btnLabels) {
-                btnLabels.addEventListener('click', (e) => { 
-                    e.preventDefault(); 
-                    if (app.map) app.map.downloadMapAsPNG(container, state, true); 
+                btnLabels.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    if (app.map) app.map.downloadMapAsPNG(container, state, true);
                 });
             }
         },
@@ -1377,18 +1377,18 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 let csvContent = '\uFEFF';
                 const colEntidad = state.isNacional ? 'Entidad Federativa' : 'Municipio';
                 csvContent += `${colEntidad},Población,Enfermeras,Tasa\n`;
-                
+
                 const metricInfo = state.metricas[state.currentMetric];
-                const mKey = state.currentMetric; 
-                
+                const mKey = state.currentMetric;
+
                 // 🌟 CORRECCIÓN ARQUITECTÓNICA AL EXPORTAR
                 // Extraemos el gafete (pairGroup) y buscamos los nombres REALES de las columnas
-                const pairGroup = metricInfo.pair || mKey; 
+                const pairGroup = metricInfo.pair || mKey;
                 const isPob = (mKey === 'poblacion');
-                
-                const enfDataKey = isPob ? null : app.utils.findAbsoluteKeyForPair(pairGroup, state.metricas); 
+
+                const enfDataKey = isPob ? null : app.utils.findAbsoluteKeyForPair(pairGroup, state.metricas);
                 const tasaDataKey = isPob ? null : ((metricInfo.tipo === 'tasa') ? mKey : app.utils.findRateKeyForAbsolute(pairGroup, state.metricas));
-                
+
                 const getVal = (r, colId) => {
                     if (colId === 'estado') return r.estado;
                     if (colId === 'poblacion') return r.poblacion;
@@ -1398,54 +1398,54 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 };
 
                 const rows = state.csvData.filter(r => !r.isTotal && !r.isSpecial).sort((a,b) => {
-                    const va = getVal(a, app.sortConfig.key); 
+                    const va = getVal(a, app.sortConfig.key);
                     const vb = getVal(b, app.sortConfig.key);
-                    if (va === null && vb !== null) return 1; 
+                    if (va === null && vb !== null) return 1;
                     if (vb === null && va !== null) return -1;
                     if (va === null && vb === null) return 0;
                     if (va < vb) return app.sortConfig.direction === 'asc' ? -1 : 1;
                     if (va > vb) return app.sortConfig.direction === 'asc' ? 1 : -1;
                     return 0;
                 });
-                
-                const fixed = state.csvData.filter(r => r.isTotal || r.isSpecial);
-                
+
+                const fixed = state.csvData.filter(r => (r.isTotal || r.isSpecial) && !r.isExtranjero);
+
                 [...rows, ...fixed].forEach(r => {
-                    const estado = `"${r.estado}"`; 
+                    const estado = `"${r.estado}"`;
                     const pob = r.poblacion || 0;
-                    
+
                     let enfStr = '-';
                     if (!isPob && enfDataKey && r[enfDataKey] !== null && r[enfDataKey] !== undefined) {
                         enfStr = r[enfDataKey];
                     }
-                    
+
                     let tasaStr = '-';
                     if (!isPob && tasaDataKey && r[tasaDataKey] !== null && r[tasaDataKey] !== undefined) {
                         tasaStr = r[tasaDataKey].toFixed(2);
                     }
-                    
+
                     csvContent += `${estado},${pob},${enfStr},${tasaStr}\n`;
                 });
-                
+
                 const anioNode = document.querySelector('.siarhe-dynamic-year');
                 const anio = anioNode ? anioNode.innerText : new Date().getFullYear();
-                
-                const titleNode = container.querySelector('h2.siarhe-title'); 
+
+                const titleNode = container.querySelector('h2.siarhe-title');
                 const entidadNombreRaw = titleNode ? titleNode.innerText.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '').trim() : "Mexico";
                 const entidadClean = entidadNombreRaw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_');
-                
+
                 const labelRaw = metricInfo.label || metricInfo.fullLabel || 'Datos';
                 const labelClean = labelRaw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\./g, "").replace(/\s+/g, '_');
-                
+
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
-                
-                a.download = `${labelClean}_${entidadClean}_${anio}.csv`; 
-                a.href = url; 
-                a.style.display = "none"; 
-                document.body.appendChild(a); 
-                a.click(); 
+
+                a.download = `${labelClean}_${entidadClean}_${anio}.csv`;
+                a.href = url;
+                a.style.display = "none";
+                document.body.appendChild(a);
+                a.click();
                 document.body.removeChild(a);
             });
         }

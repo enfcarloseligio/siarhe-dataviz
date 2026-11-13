@@ -390,6 +390,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Los demás selectores del formulario y de la barra de la tabla también se pueden escribir
+    if (window.SiarheAdmin && window.SiarheAdmin.initSelects) window.SiarheAdmin.initSelects();
+
     // Formateo de fechas vía JS global
     if (window.SiarheAdmin && window.SiarheAdmin.formatDate) {
         document.querySelectorAll('.siarhe-date-formatter').forEach(el => {

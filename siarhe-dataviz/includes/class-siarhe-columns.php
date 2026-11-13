@@ -54,6 +54,35 @@ class Siarhe_Columns {
         return $cols;
     }
 
+    /**
+     * Columnas minimas de una base estatica de un tema propio (o de Clinicas): el identificador, el nombre y una columna de
+     * valor de ejemplo. Es lo menos que acepta la carga; las columnas de valor llevan el nombre que se les quiera dar.
+     */
+    public static function static_min_columns( $variante = 'nacional' ) {
+        $cols = array();
+        if ( $variante === 'municipal' ) {
+            $cols[] = self::col( 'CVE_ENT', self::OBLIGATORIA, 'Fija', 'Texto', 'Clave de la entidad con 2 dígitos. Con ella el plugin comprueba que el archivo sea de la entidad elegida.', '20' );
+            $cols[] = self::col( 'CVE_MUN', self::OBLIGATORIA, 'Fija', 'Texto', 'Clave del municipio con 3 dígitos. Une cada fila con su polígono del mapa.', '001' );
+            $cols[] = self::col( 'municipio', self::OBLIGATORIA, 'Fija', 'Texto', 'Nombre del municipio.', 'Abejones' );
+        } else {
+            $cols[] = self::col( 'CVE_ENT', self::OBLIGATORIA, 'Fija', 'Texto', 'Clave de la entidad con 2 dígitos (01 a 32).', '01' );
+            $cols[] = self::col( 'estado', self::OBLIGATORIA, 'Fija', 'Texto', 'Nombre de la entidad federativa.', 'Aguascalientes' );
+        }
+        $cols[] = self::col( 'valor_1', self::OPCIONAL, 'Tema propio', 'Número', 'Dato del tema. Cámbiale el nombre al de tu variable y agrega las columnas que necesites.', '125' );
+        $cols[] = self::col( 'valor_2', self::OPCIONAL, 'Tema propio', 'Número', 'Otro dato del tema.', '3.657' );
+        return $cols;
+    }
+
+    /** Columnas minimas de un CSV de marcadores: las coordenadas, la clave de la entidad y el nombre del punto. */
+    public static function marker_min_columns() {
+        return array(
+            self::col( 'LATITUD', self::OBLIGATORIA, 'Fija', 'Decimal', 'Latitud en grados decimales (WGS84).', '21.85606' ),
+            self::col( 'LONGITUD', self::OBLIGATORIA, 'Fija', 'Decimal', 'Longitud en grados decimales (WGS84), negativa para México.', '-102.25563' ),
+            self::col( 'CVE_ENT', self::OBLIGATORIA, 'Fija', 'Texto', 'Clave de la entidad con 2 dígitos. Con ella el plugin crea la versión de cada entidad.', '01' ),
+            self::col( 'NOMBRE DE LA UNIDAD', self::RECOMENDADA, 'Fija', 'Texto', 'Nombre del punto, que se muestra en su ficha.', 'Unidad de ejemplo' ),
+        );
+    }
+
     /** Columnas de un CSV de marcadores: solo lo que necesita el mapa. */
     public static function marker_columns() {
         return array(

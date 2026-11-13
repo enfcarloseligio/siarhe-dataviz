@@ -21,7 +21,7 @@ require SIARHE_PATH . 'includes/class-siarhe-marker-json.php';
 require SIARHE_PATH . 'includes/class-siarhe-validador.php';
 
 $rhemx = rtrim( $argv[2], '/\\' );
-$out   = rtrim( $argv[3], '/\\' ) . '/';
+$out   = rtrim( $argv[3], '/\\' ) . '/division/'; // carpeta propia: no pisa los archivos de las otras pruebas
 @mkdir( $out, 0777, true );
 
 $fallos = 0;

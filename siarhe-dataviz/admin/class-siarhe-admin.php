@@ -52,7 +52,6 @@ class Siarhe_Admin {
 
         // --- PLANTILLAS Y DICCIONARIO DE VARIABLES (descargas) ---
         add_action( 'admin_post_siarhe_download_columns', array( $this, 'handle_download_columns' ) );
-        add_action( 'admin_post_siarhe_generate_copies', array( $this, 'handle_generate_copies' ) );
         add_action( 'add_option_' . Siarhe_Versions::OPT_KEEP, array( 'Siarhe_Versions', 'on_keep_changed' ) );
         add_action( 'update_option_' . Siarhe_Versions::OPT_KEEP, array( 'Siarhe_Versions', 'on_keep_changed' ) );
         add_action( 'add_option_siarhe_read_copies', 'siarhe_on_read_copies_changed', 10, 2 );
@@ -82,25 +81,17 @@ class Siarhe_Admin {
             echo '<a class="button" href="' . esc_url( self::columns_url( 'static', 'plantilla', array( 'variante' => 'nacional' ) ) ) . '"><span class="dashicons dashicons-download"></span> Plantilla nacional (CSV)</a>';
             echo '<a class="button" href="' . esc_url( self::columns_url( 'static', 'plantilla', array( 'variante' => 'municipal' ) ) ) . '"><span class="dashicons dashicons-download"></span> Plantilla municipal (CSV)</a>';
             echo '<a class="button" href="' . esc_url( self::columns_url( 'static', 'diccionario' ) ) . '"><span class="dashicons dashicons-media-spreadsheet"></span> Diccionario de variables (' . esc_html( $dict_ext ) . ')</a>';
+            echo '</div><div class="siarhe-downloads"><span class="siarhe-downloads__label">Plantillas mínimas (temas propios y Clínicas)';
+            self::help( 'CSV con lo menos que necesita una base de un tema que no es Enfermería: la clave, el nombre y columnas de valor a las que pones el nombre de tus variables. Súbelo como CSV: el plugin crea su JSON y es el que se lee.' );
+            echo '</span>';
+            echo '<a class="button" href="' . esc_url( self::columns_url( 'static', 'plantilla', array( 'variante' => 'nacional', 'minima' => 1 ) ) ) . '"><span class="dashicons dashicons-download"></span> Mínima nacional (CSV)</a>';
+            echo '<a class="button" href="' . esc_url( self::columns_url( 'static', 'plantilla', array( 'variante' => 'municipal', 'minima' => 1 ) ) ) . '"><span class="dashicons dashicons-download"></span> Mínima municipal (CSV)</a>';
         } else {
+            echo '<a class="button" href="' . esc_url( self::columns_url( 'marker', 'plantilla', array( 'minima' => 1 ) ) ) . '" title="Coordenadas, clave de la entidad y nombre: lo menos con que funciona una variable nueva"><span class="dashicons dashicons-download"></span> Plantilla mínima (CSV)</a>';
             echo '<a class="button" href="' . esc_url( self::columns_url( 'marker', 'plantilla' ) ) . '"><span class="dashicons dashicons-download"></span> Plantilla de marcadores (CSV)</a>';
             echo '<a class="button" href="' . esc_url( self::columns_url( 'marker', 'diccionario' ) ) . '"><span class="dashicons dashicons-media-spreadsheet"></span> Diccionario de variables (' . esc_html( $dict_ext ) . ')</a>';
         }
         echo '</div>';
-    }
-
-    /** Crea las copias de lectura (.json/.txt) de todos los archivos grandes que ya estan cargados. */
-    public function handle_generate_copies() {
-        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'No tienes permisos.' );
-        check_admin_referer( 'siarhe_generate_copies' );
-        if ( ! siarhe_read_copies_enabled() ) { wp_safe_redirect( admin_url( 'admin.php?page=siarhe-dataviz' ) ); exit; }
-        set_time_limit( 0 );
-        wp_raise_memory_limit( 'admin' );
-        $resultado = siarhe_generate_all_read_copies();
-        $resultado['marcadores'] = siarhe_split_all_markers(); // capas de marcadores sin su versión por entidad
-        set_transient( 'siarhe_copies_result_' . get_current_user_id(), $resultado, 5 * MINUTE_IN_SECONDS );
-        wp_safe_redirect( admin_url( 'admin.php?page=siarhe-dataviz&copies=1' ) );
-        exit;
     }
 
     public function handle_download_columns() {
@@ -113,6 +104,11 @@ class Siarhe_Admin {
 
         if ( $kind === 'static' ) {
             $variante = ( isset( $_GET['variante'] ) && $_GET['variante'] === 'municipal' ) ? 'municipal' : 'nacional';
+            // Plantilla minima: para las bases de un tema propio o de Clinicas (identificador, nombre y columnas de valor)
+            if ( $what === 'plantilla' && ! empty( $_GET['minima'] ) ) {
+                $cols = Siarhe_Columns::static_min_columns( $variante );
+                Siarhe_Columns::send_csv( 'plantilla-minima-base-' . $variante . '.csv', array( wp_list_pluck( $cols, 'name' ), Siarhe_Columns::example_row( $cols ) ) );
+            }
             if ( $what === 'plantilla' ) {
                 $cols = Siarhe_Columns::static_columns( $variante );
                 Siarhe_Columns::send_csv( 'plantilla-base-estatica-' . $variante . '.csv', array( wp_list_pluck( $cols, 'name' ), Siarhe_Columns::example_row( $cols ) ) );
@@ -125,6 +121,11 @@ class Siarhe_Admin {
             $csv_name = 'diccionario-base-estatica.csv';
             $csv_rows = array_merge( array( array( 'NACIONAL' ) ), $sheets['Nacional'], array( array(), array( 'MUNICIPAL' ) ), $sheets['Municipal'], array( array() ), $sheets['Notas'] );
         } else {
+            // Plantilla minima: coordenadas, clave de la entidad y nombre (lo menos con que funciona un marcador nuevo)
+            if ( $what === 'plantilla' && ! empty( $_GET['minima'] ) ) {
+                $cols = Siarhe_Columns::marker_min_columns();
+                Siarhe_Columns::send_csv( 'plantilla-minima-marcadores.csv', array( wp_list_pluck( $cols, 'name' ), Siarhe_Columns::example_row( $cols ) ) );
+            }
             $cols = Siarhe_Columns::marker_columns();
             if ( $what === 'plantilla' ) {
                 Siarhe_Columns::send_csv( 'plantilla-marcadores.csv', array( wp_list_pluck( $cols, 'name' ), Siarhe_Columns::example_row( $cols ) ) );
@@ -1266,7 +1267,9 @@ class Siarhe_Admin {
         if ( $key === '' || $file === '' ) $this->marker_redirect( 'var_invalid' );
         if ( isset( $tipos[ $key ] ) ) $this->marker_redirect( 'var_exists' );
 
-        $tipos[ $key ] = array( 'label' => $label, 'filename' => $file, 'is_core' => false );
+        // Serie completa: ademas de un archivo por año admite «Todas» (las unidades de toda la historia)
+        $serie = ! isset( $_POST['new_file_serie'] ) || $_POST['new_file_serie'] !== '0';
+        $tipos[ $key ] = array( 'label' => $label, 'filename' => $file, 'is_core' => false, 'periodos' => $serie ? 'total_anios' : 'anios' );
         $this->save_marker_types( $tipos );
         $this->marker_redirect( 'var_added' );
     }

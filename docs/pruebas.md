@@ -32,6 +32,8 @@ La carpeta [`tests/`](../tests/LEEME.md) guarda las pruebas de la lectura de geo
 
 En la 0.1.8.0 se agregó `prueba_validador.php` (entidad de las bases estáticas y marcadores por entidad) y pasaron las cinco con PHP 8.4 y Node; además se revisó la sintaxis de todos los `.php` cambiados con `php -l`.
 
+La 0.1.9.0 (selectores con búsqueda, esqueleto de carga, contenedor o canvas, referencias, total sin extranjero) se revisó con `php -l`, `node --check` y las cinco pruebas; tampoco se ha visto en WordPress. `prueba_validador.php` escribe en `builds\pruebas\division\` para no pisar los archivos de las demás.
+
 > [!IMPORTANT]
 > La 0.1.8.0 tampoco se ha probado en un WordPress real: faltan las pantallas de carga con sus filtros, la migración del esquema (versión 4: columna `tema`), la carga de bases de clínicas y de temas propios, el botón *Validar archivos cargados* y la versión por entidad de los marcadores en el mapa de un estado.
 

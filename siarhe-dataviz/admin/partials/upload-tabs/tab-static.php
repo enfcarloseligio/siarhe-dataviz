@@ -474,6 +474,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof jQuery !== 'undefined') {
         jQuery('.siarhe-searchable-select').select2({ placeholder: "-- Escribe para buscar entidad --", allowClear: true, width: '100%' });
     }
+    // Los demás selectores del formulario y de la barra de la tabla también se pueden escribir
+    if (window.SiarheAdmin && window.SiarheAdmin.initSelects) window.SiarheAdmin.initSelects();
     if (window.SiarheAdmin && window.SiarheAdmin.formatDate) {
         document.querySelectorAll('.siarhe-date-formatter').forEach(function(el) {
             var rawDate = el.getAttribute('data-date');
@@ -502,6 +504,7 @@ document.addEventListener('DOMContentLoaded', function() {
             op.textContent = unidades[clave];
             selUnidad.appendChild(op);
         });
+        if (window.SiarheAdmin && window.SiarheAdmin.refreshSelect) window.SiarheAdmin.refreshSelect(selUnidad);
         // La comprobación previa del archivo depende del tema (solo Enfermería exige la población)
         campoTema.dispatchEvent(new Event('change'));
     }

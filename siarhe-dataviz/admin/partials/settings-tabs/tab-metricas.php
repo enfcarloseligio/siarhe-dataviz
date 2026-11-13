@@ -65,6 +65,10 @@ $temas_json = wp_json_encode( siarhe_get_temas(), JSON_UNESCAPED_UNICODE );
                 </select> 
                 registros
             </label>
+            <label>
+                Tema
+                <select id="siarhe-filter-tema-metricas" class="siarhe-select-sm"></select>
+            </label>
         </div>
 
         <div class="siarhe-pagination--bare siarhe-pagination">
@@ -342,6 +346,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!temasObj.general) temasObj = Object.assign({ general: { label: 'General' } }, temasObj);
     const temasTbody = document.getElementById('siarhe-temas-tbody');
     const temaSelect = document.getElementById('modal-metric-tema');
+    // Filtro de la tabla por tema: se vuelve a llenar cada vez que cambian los temas y conserva lo elegido
+    const temaFiltro = document.getElementById('siarhe-filter-tema-metricas');
+    function llenaFiltroTema() {
+        const elegido = temaFiltro.value;
+        temaFiltro.innerHTML = '<option value="">Todos</option>' + Object.keys(temasObj).map(k => `<option value="${esc(k)}">${esc(temasObj[k].label)}</option>`).join('');
+        temaFiltro.value = temasObj[elegido] ? elegido : '';
+    }
     const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const temaDe = (m) => (m && m.tema && temasObj[m.tema]) ? m.tema : 'general';
 
@@ -371,6 +382,7 @@ document.addEventListener('DOMContentLoaded', function() {
         llenaTemaSelect(clave);
     });
     function renderTemas() {
+        llenaFiltroTema();
         const cuenta = {};
         Object.values(metricasObj).forEach(m => { const t = temaDe(m); cuenta[t] = (cuenta[t] || 0) + 1; });
         temasTbody.innerHTML = Object.keys(temasObj).map(k => {
@@ -423,6 +435,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const item = metricasObj[key];
             const searchableText = `${key} ${item.label} ${item.fullLabel} ${item.nombre || ''} ${item.abrev} ${item.tipo === 'tasa' ? 'tasa' : 'frecuencia'} ${(temasObj[temaDe(item)] || {}).label || ''} ${item.pair || ''}`
                 .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            if (temaFiltro.value && temaDe(item) !== temaFiltro.value) return false;
             return searchableText.includes(term);
         });
         filteredKeys = sorter.apply(filteredKeys, (k, col) => {
@@ -438,6 +451,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     searchInput.addEventListener('input', applySearchFilter);
+    temaFiltro.addEventListener('change', applySearchFilter);
     
     itemsPerPageSelect.addEventListener('change', (e) => {
         itemsPerPage = e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10);

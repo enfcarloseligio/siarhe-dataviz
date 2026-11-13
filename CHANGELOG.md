@@ -2,6 +2,22 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.9.0] - 2026-11-13
+
+### Panel
+- **Selectores con búsqueda como regla general de Carga de Datos:** todos los selectores de los formularios (marco, año, tema, clínica, unidad, tipo de marcador, periodo) y de las barras de las tablas (registros, marco, año, tema, unidad) se pueden desplegar o escribir, igual que el de entidad.
+- **Marcadores:** *Incorporar Nueva Variable* pasa al final de la pantalla, como en Bases Estáticas, y pregunta **¿Tiene serie completa?** (Sí: «Todas» y un archivo por año, como las clínicas; No: solo por año, como los establecimientos).
+- **Plantillas mínimas:** en Bases Estáticas, *Mínima nacional* y *Mínima municipal* (clave, nombre y columnas de valor) para los temas propios y Clínicas; en Marcadores, *Plantilla mínima* (latitud, longitud, clave de la entidad y nombre). Se suben como CSV y el plugin crea el JSON que lee el mapa.
+- **Métricas:** la tabla tiene un filtro por tema.
+- **Dashboard:** se retira el botón *Generar copias de lectura ahora*; con las cargas en JSON ya no hace falta (las copias de los CSV se siguen creando solas al subirlos).
+
+### Mapa y tabla
+- **Esqueleto de carga:** mientras llegan los datos, el mapa, los controles y la tabla muestran bloques grises con brillo en lugar del recuadro giratorio (sin animación con `prefers-reduced-motion`).
+- **Ancho de la página:** el contenido va en un **contenedor centrado de 1140 px** como máximo. En *Personalizar › Mapa y Colores* se puede cambiar a **canvas**: ancho completo de la ventana con un margen lateral de 2.5 % a 5 %.
+- **Referencias del pie en el orden acordado:** datos de enfermería, de establecimientos de salud y espaciales; las de las clínicas de catéteres y de heridas aparecen al activar sus marcadores.
+- **El extranjero ya no cuenta en el total nacional:** la fila «Extranjero» (clave 34) no entra en la suma ni en la tabla, como en RHEMX; la nota del total lo dice.
+- **Aviso legal:** ahora indica que la información se obtuvo de portales de datos abiertos o por solicitudes de transparencia, que el análisis sigue un proceso de depuración por el que los resultados pueden diferir de las cifras oficiales y que no representa una postura oficial.
+
 ## [0.1.8.0] - 2026-11-13
 
 ### Carga de datos

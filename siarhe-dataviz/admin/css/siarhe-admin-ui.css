@@ -339,3 +339,10 @@ button#btn-floating-save.siarhe-scroll-top:active .dashicons { color: #fff; }
 .siarhe-check-inline { display: inline-flex; align-items: center; gap: var(--s-sp-1); margin-right: var(--s-sp-4); }
 .siarhe-temas-propios { margin-top: var(--s-sp-3); }
 .siarhe-temas-propios form { margin: 0; }
+
+/* Selectores con búsqueda (Select2) en los formularios de carga y en las barras de las tablas */
+.siarhe-upload-card .form-table td > .select2-container { max-width: 400px; }
+.siarhe-toolbar .select2-container { min-width: 84px; margin: 0 5px; vertical-align: middle; text-align: left; }
+.siarhe-toolbar .select2-container .select2-selection--single { height: 28px; border-color: #8c8f94; }
+.siarhe-toolbar .select2-container .select2-selection--single .select2-selection__rendered { line-height: 26px; font-size: 13px; padding-right: 24px; }
+.siarhe-toolbar .select2-container .select2-selection--single .select2-selection__arrow { height: 26px; }

@@ -16,24 +16,24 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         // ==========================================
         // 1. CONSTRUCCIÓN DE LA ESTRUCTURA BASE
         // ==========================================
-        
+
         init: function(container, state) {
             const div = container.querySelector('.siarhe-table-container');
             if (!div) return;
             div.innerHTML = '';
-            
-            const table = document.createElement('table'); 
+
+            const table = document.createElement('table');
             table.className = 'siarhe-data-table';
-            
+
             // Guardamos las referencias en el estado para no buscar en el DOM a cada rato
-            state.tableElements = { 
-                table: table, 
-                thead: table.createTHead(), 
-                tbody: table.createTBody() 
+            state.tableElements = {
+                table: table,
+                thead: table.createTHead(),
+                tbody: table.createTBody()
             };
-            
+
             div.appendChild(table);
-            
+
             // Primer renderizado
             app.table.update(container, state);
         },
@@ -45,20 +45,20 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         update: function(container, state) {
             if (!state.csvData || state.csvData.length === 0) return;
             const { thead, tbody } = state.tableElements;
-            
+
             const mKey = state.currentMetric;
-            
+
             // Verificación de seguridad por si la métrica fue eliminada
             if (!state.metricas[mKey]) return;
 
-            // 🌟 CORRECCIÓN ARQUITECTÓNICA: 
+            // 🌟 CORRECCIÓN ARQUITECTÓNICA:
             // La Clave Par solo es un GAFETE (grupo), no el nombre de la columna.
             const pairGroup = state.metricas[mKey].pair || mKey;
             const isPob = (mKey === 'poblacion');
-            
+
             // 🌟 EXTRAEMOS LOS NOMBRES REALES DE LAS COLUMNAS USANDO LOS HELPERS DEL CORE
-            const enfDataKey = isPob ? null : app.utils.findAbsoluteKeyForPair(pairGroup, state.metricas); 
-            
+            const enfDataKey = isPob ? null : app.utils.findAbsoluteKeyForPair(pairGroup, state.metricas);
+
             let tasaDataKey = null;
             if (!isPob) {
                 tasaDataKey = (state.metricas[mKey].tipo === 'tasa') ? mKey : app.utils.findRateKeyForAbsolute(pairGroup, state.metricas);
@@ -74,19 +74,19 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             ];
 
             // Renderizado de las Cabeceras (Th)
-            thead.innerHTML = ''; 
+            thead.innerHTML = '';
             const tr = document.createElement('tr');
             cols.forEach(c => {
                 const th = document.createElement('th');
                 th.style.textAlign = c.align;
-                
+
                 let arrow = '↕';
                 if (app.sortConfig.key === c.id) {
                     arrow = app.sortConfig.direction === 'asc' ? '▲' : '▼';
                 }
-                
+
                 th.innerHTML = `${app.utils.esc(c.label)} <small>${arrow}</small>`;
-                
+
                 // Accesibilidad: encabezado ordenable con teclado y estado de orden anunciado
                 th.dataset.col = c.id;
                 th.setAttribute('tabindex', '0');
@@ -101,9 +101,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     app._tableFocusCol = c.id;
                     if (app.sortConfig.key === c.id) {
                         app.sortConfig.direction = app.sortConfig.direction === 'asc' ? 'desc' : 'asc';
-                    } else { 
-                        app.sortConfig.key = c.id; 
-                        app.sortConfig.direction = c.isNum ? 'desc' : 'asc'; 
+                    } else {
+                        app.sortConfig.key = c.id;
+                        app.sortConfig.direction = c.isNum ? 'desc' : 'asc';
                     }
                     app.table.update(container, state);
                 };
@@ -129,41 +129,41 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             // Filtrado y Ordenamiento
             const rows = state.csvData.filter(r => !r.isTotal && !r.isSpecial).sort((a,b) => {
-                const va = getVal(a, app.sortConfig.key); 
+                const va = getVal(a, app.sortConfig.key);
                 const vb = getVal(b, app.sortConfig.key);
-                
+
                 // Tratamiento de los Nulos para evitar que rompan el ordenamiento (siempre van al final)
-                if (va === null && vb !== null) return 1; 
+                if (va === null && vb !== null) return 1;
                 if (vb === null && va !== null) return -1;
                 if (va === null && vb === null) return 0;
-                
+
                 if (va < vb) return app.sortConfig.direction === 'asc' ? -1 : 1;
                 if (va > vb) return app.sortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
             });
-            
+
             // Elementos fijos que siempre van al final (Totales / No Disponibles)
-            const fixed = state.csvData.filter(r => r.isTotal || r.isSpecial);
+            const fixed = state.csvData.filter(r => (r.isTotal || r.isSpecial) && !r.isExtranjero);
 
             // Renderizado del Cuerpo (Tbody)
             tbody.innerHTML = '';
             [...rows, ...fixed].forEach(r => {
                 const row = document.createElement('tr');
                 if(r.isTotal) row.className = 'siarhe-row-total';
-                
+
                 cols.forEach(c => {
                     const td = document.createElement('td');
-                    td.style.textAlign = c.align; 
-                    
-                    if (c.id === 'estado') { 
-                        td.innerHTML = !r.isTotal ? `<strong>${app.utils.esc(r.estado)}</strong>` : app.utils.esc(r.estado); 
-                    } 
-                    else if (c.dash) { 
-                        td.textContent = '—'; 
-                    } 
+                    td.style.textAlign = c.align;
+
+                    if (c.id === 'estado') {
+                        td.innerHTML = !r.isTotal ? `<strong>${app.utils.esc(r.estado)}</strong>` : app.utils.esc(r.estado);
+                    }
+                    else if (c.dash) {
+                        td.textContent = '—';
+                    }
                     else {
                         const v = (c.id === 'poblacion') ? r.poblacion : r[c.dataKey];
-                        
+
                         // 🌟 Si el valor es null (celda vacía), pintar el guion elegante
                         if (v === null || v === undefined || isNaN(v)) {
                             td.textContent = '—';

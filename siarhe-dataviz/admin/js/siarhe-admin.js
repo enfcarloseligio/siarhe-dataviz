@@ -205,6 +205,34 @@ window.SiarheAdmin = {
     },
 
     /**
+     * Selectores con búsqueda: todo selector de los formularios de carga y de las barras de las tablas se puede
+     * desplegar o escribir (Select2). Select2 avisa de los cambios con eventos de jQuery; aquí se repite el cambio
+     * como evento nativo para que los filtros de las tablas y las comprobaciones lo reciban igual.
+     */
+    initSelects: function(root) {
+        if (!window.jQuery || !jQuery.fn.select2) return;
+        (root || document).querySelectorAll('.siarhe-upload-card select, .siarhe-toolbar select').forEach(sel => {
+            const $s = jQuery(sel);
+            if (!sel.classList.contains('select2-hidden-accessible')) {
+                const enBarra = !!sel.closest('.siarhe-toolbar');
+                $s.select2({
+                    width: enBarra ? 'auto' : '100%',
+                    dropdownAutoWidth: enBarra,
+                    language: { noResults: () => 'Sin resultados' }
+                });
+            }
+            if (sel.dataset.siarheCambio) return;
+            sel.dataset.siarheCambio = '1';
+            $s.on('select2:select select2:clear', () => sel.dispatchEvent(new Event('change', { bubbles: true })));
+        });
+    },
+
+    /** Actualiza lo que muestra un selector con búsqueda después de cambiar sus opciones o su valor desde el código. */
+    refreshSelect: function(sel) {
+        if (sel && window.jQuery && jQuery.fn.select2 && sel.classList.contains('select2-hidden-accessible')) jQuery(sel).trigger('change.select2');
+    },
+
+    /**
      * Comprobacion previa de archivos antes de subirlos. Los inputs file con
      * data-check ("marker-csv", "static-csv", "geojson") se validan al elegir el
      * archivo; si no cumple, se avisa con un popup y el formulario no se envia.

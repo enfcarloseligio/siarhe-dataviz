@@ -6,7 +6,7 @@ Menú **SIARHE** de WordPress. Todas las pantallas requieren permiso `manage_opt
 
 - **Estadísticas:** cuántas entidades tienen mapa + base, GeoJSON, base estática y localidades.
 - **Validar archivos cargados:** revisa todo lo que ya está en el servidor (mapas, localidades, bases estáticas y marcadores) y lista lo que no corresponde: archivos que faltan, de otra entidad, de otra capa, de otro año o de otra unidad, con el apartado donde están (`Siarhe_Validador::revisar`). Cada pestaña de *Carga de Datos* tiene el mismo botón para lo suyo.
-- **Salud del sistema:** carpeta de datos escribible, tabla instalada, límites de subida, memoria de PHP, compresión de copias (zlib), copias de seguridad (cantidad y espacio), **compresión de los datos del mapa** (consulta los encabezados reales que entrega el servidor), versión del plugin y respuesta del CDN de D3. Incluye el botón *Generar copias de lectura ahora*, que también crea la versión por entidad de las capas de marcadores que no la tengan.
+- **Salud del sistema:** carpeta de datos escribible, tabla instalada, límites de subida, memoria de PHP, compresión de copias (zlib), copias de seguridad (cantidad y espacio), **compresión de los datos del mapa** (consulta los encabezados reales que entrega el servidor), versión del plugin y respuesta del CDN de D3.
 - **Entidades y shortcodes:** matriz de las 34 entidades (Extranjero, República Mexicana y las 32 entidades por su clave) con qué archivos tiene cada una, fecha de última actualización y botones para copiar el shortcode (*Completo*, *Mapa*, *Tabla*). Con buscador, filtro por estado y columnas ordenables.
 
 ## Carga de Datos (`siarhe-uploader`)
@@ -30,23 +30,25 @@ Reglas comunes de las cuatro pestañas:
 | Lo que falta | En cada periodo se listan todas las entidades, con archivo o sin él |
 | Validación al subir | La capa y la entidad en las geometrías; la entidad, el año y la unidad en las bases; el periodo que admite el tipo en los marcadores |
 | Validar lo cargado | Botón *Validar archivos cargados* de la barra de cada tabla |
+| Selectores con búsqueda | Todo selector de los formularios y de las barras de las tablas se puede desplegar o escribir (`SiarheAdmin.initSelects`, Select2) |
+| Plantillas mínimas | En Bases Estáticas, *Mínima nacional* y *Mínima municipal* para los temas propios y Clínicas; en Marcadores, *Plantilla mínima*. Se suben como CSV y el plugin crea el JSON |
 
 **Bases Estáticas** agrega el **tema**: *Enfermería* (plazas y recursos humanos de enfermería), *Clínicas* (de catéteres o de heridas; tasa y frecuencia) y los **temas propios** que el administrador crea en la misma pantalla con su nombre, clave y unidades (`siarhe_base_temas()`, opción `siarhe_bases_temas`). La tabla filtra por año, tema y unidad.
 
-**Marcadores** ofrece, en este orden, *Establecimientos de Salud*, *Clínicas de Catéteres*, *Clínicas de Heridas*, *Pasantes de Enfermería* y las variables que se agreguen (`siarhe_marker_types()`). Los establecimientos y los pasantes se cargan por año; las clínicas y las variables nuevas admiten además **Todas**. La tabla filtra por año y por tema.
+**Marcadores** ofrece, en este orden, *Establecimientos de Salud*, *Clínicas de Catéteres*, *Clínicas de Heridas*, *Pasantes de Enfermería* y las variables que se agreguen (`siarhe_marker_types()`). Los establecimientos y los pasantes se cargan por año; las clínicas admiten además **Todas**. Al crear una variable (*Incorporar Nueva Variable*, al final de la pantalla) se responde **¿Tiene serie completa?**: Sí admite «Todas» y años; No, solo años. La tabla filtra por año y por tema.
 
 Reemplazar un archivo **guarda una copia del anterior** (ver *Versiones y Copias*). Eliminar un archivo lo borra del servidor sin guardar copia (a propósito: una copia sin su registro en la base no se podría restaurar).
 
 ## Personalizar (`siarhe-customize`)
 
 - **Tema Admin:** colores de las tablas del propio panel, con vista previa.
-- **Mapa & Colores:** colores del mapa (cuartiles, monocromático, rangos, valor 0 y sin dato), **botones del sitio** (fondo, borde y texto en estado normal, al pasar el cursor y al presionar; el texto también pinta los íconos), estilos de la tabla pública y estilo de cada marcador.
+- **Mapa & Colores:** colores del mapa (cuartiles, monocromático, rangos, valor 0 y sin dato), **botones del sitio** (fondo, borde y texto en estado normal, al pasar el cursor y al presionar; el texto también pinta los íconos), estilos de la tabla pública, estilo de cada marcador y **ancho de la página del mapa**: *contenedor* (centrado, máximo 1140 px) o *canvas* (ancho completo de la ventana con un margen lateral de 2.5 % a 5 %).
 
 ## Configuración (`siarhe-settings`)
 
 - **Enlaces y Rutas:** a qué página lleva el doble clic de cada entidad y los documentos legales.
 - **Tooltips:** contenido, orden y colores de las tarjetas del mapa y de los marcadores.
-- **Métricas (CSV):** indicadores (columnas del CSV). Las **nativas** están protegidas; se pueden agregar propias con tipo (tasa o absoluto), escala y colores.
+- **Métricas (CSV):** indicadores (columnas del CSV). Las **nativas** están protegidas; se pueden agregar propias con tipo (tasa o absoluto), escala y colores. La tabla filtra por tema.
 - **Marcadores (CSV):** variables de marcador (posición, espectro o *spike*), su CSV de origen, filtros, agrupación y reglas del tooltip.
 
 > La guía detallada, campo por campo, de **métricas** y **marcadores** (y los pasos para agregar uno nuevo) está en [metricas-y-marcadores.md](metricas-y-marcadores.md).

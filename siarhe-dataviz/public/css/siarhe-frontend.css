@@ -3,22 +3,22 @@
    ========================================= */
 :root {
     /* Estos valores son sobreescritos por PHP si hay configuración guardada */
-    
+
     /* Mapa */
     --s-map-null: #d9d9d9;
-    
+
     /* Tabla - Fondos */
-    --s-th-bg: #F8FAFC; 
+    --s-th-bg: #F8FAFC;
     --s-tr-odd: #ffffff;
     --s-tr-even: #f9f9f9;
     --s-total-bg: #e8f4fd;
-    
+
     /* Tabla - Textos */
-    --s-th-text: #0F172A; 
-    --s-tr-odd-txt: #475569; 
+    --s-th-text: #0F172A;
+    --s-tr-odd-txt: #475569;
     --s-tr-even-txt: #475569;
     --s-total-txt: #0F172A;
-    
+
     /* Bordes */
     --s-border: 1px solid #ddd;
 }
@@ -26,10 +26,23 @@
 /* =========================================
    2. ESTRUCTURA DE PÁGINA (Layout)
    ========================================= */
+/* Contenedor: centrado y con un máximo de 1140 px (o el ancho que le deje el tema, si es menor) */
 .siarhe-viz-wrapper {
-    margin: 20px 0;
+    margin: 20px auto;
     position: relative;
-    max-width: 100%;
+    width: 100%;
+    max-width: var(--s-container, 1140px);
+    box-sizing: border-box;
+}
+
+/* Canvas: ancho completo de la ventana, fuera del contenedor del tema, con margen de seguridad lateral en porcentaje */
+.siarhe-viz-wrapper.siarhe-layout-canvas {
+    width: var(--siarhe-vw, 100vw);
+    max-width: none;
+    margin-left: calc(50% - var(--siarhe-vw, 100vw) / 2);
+    margin-right: calc(50% - var(--siarhe-vw, 100vw) / 2);
+    padding-left: var(--s-canvas-margin, 2.5%);
+    padding-right: var(--s-canvas-margin, 2.5%);
 }
 
 .siarhe-header {
@@ -39,7 +52,7 @@
 }
 
 .siarhe-title {
-    color: #0A66C2; 
+    color: #0A66C2;
     margin: 0 0 10px 0;
     display: flex;
     align-items: center;
@@ -68,9 +81,9 @@
 .siarhe-map-container {
     position: relative;
     width: 100%;
-    padding-bottom: 56.25%; 
+    padding-bottom: 56.25%;
     height: 0;
-    background-color: #F8FAFC; 
+    background-color: #F8FAFC;
     border: 1px solid #ccc;
     border-radius: 4px;
     overflow: hidden;
@@ -88,7 +101,7 @@
 
 /* Estados / Polígonos */
 path.siarhe-feature {
-    fill: var(--s-map-null); 
+    fill: var(--s-map-null);
     stroke: #ffffff;
     transition: fill 0.4s ease, stroke 0.2s ease;
     cursor: pointer;
@@ -96,7 +109,7 @@ path.siarhe-feature {
 }
 
 path.siarhe-feature:hover {
-    stroke: #0F172A; 
+    stroke: #0F172A;
     filter: brightness(0.95);
     z-index: 10;
 }
@@ -112,18 +125,18 @@ path.siarhe-feature:hover {
    ========================================= */
 .siarhe-tooltip {
     position: absolute;
-    padding: 10px 14px; 
-    background: #0F172A; 
-    color: #F8FAFC; 
+    padding: 10px 14px;
+    background: #0F172A;
+    color: #F8FAFC;
     border-radius: 6px;
-    pointer-events: none; 
+    pointer-events: none;
     z-index: 10000;
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     display: none;
     min-width: 200px;
     max-width: 300px;
-    font-family: 'Roboto', sans-serif; 
-    font-size: 13px; 
+    font-family: 'Roboto', sans-serif;
+    font-size: 13px;
     line-height: 1.4;
     white-space: normal;
 }
@@ -227,7 +240,7 @@ path.siarhe-feature:hover {
    ========================================= */
 .siarhe-table-container {
     margin-top: 20px;
-    overflow-x: auto; 
+    overflow-x: auto;
     border-radius: 5px;
     border: var(--s-border);
 }
@@ -246,10 +259,10 @@ table.siarhe-data-table th {
     padding: 12px 10px;
     text-align: left;
     font-weight: 700;
-    font-family: 'IBM Plex Sans', sans-serif; 
+    font-family: 'IBM Plex Sans', sans-serif;
     border-bottom: var(--s-border);
     white-space: nowrap;
-    cursor: pointer; 
+    cursor: pointer;
     user-select: none;
     transition: background-color 0.2s ease;
 }
@@ -276,7 +289,7 @@ table.siarhe-data-table tr:nth-child(even) {
 table.siarhe-data-table tr:nth-child(even) td { color: var(--s-tr-even-txt); }
 
 table.siarhe-data-table tr:not(.siarhe-row-total):hover td {
-    background-color: rgba(6, 182, 212, 0.05); 
+    background-color: rgba(6, 182, 212, 0.05);
     cursor: default;
 }
 
@@ -295,7 +308,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     position: absolute;
     top: 50%; left: 50%;
     transform: translate(-50%, -50%);
-    background: rgba(248, 250, 252, 0.95); 
+    background: rgba(248, 250, 252, 0.95);
     padding: 20px 30px;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
@@ -313,7 +326,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     width: 30px;
     height: 30px;
     border: 4px solid #F8FAFC;
-    border-top: 4px solid #0A66C2; 
+    border-top: 4px solid #0A66C2;
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -337,7 +350,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 .siarhe-map-actions {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center; 
+    justify-content: center;
     gap: 15px;
     margin-top: 20px;
 }
@@ -392,7 +405,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 
 .siarhe-footer-grid {
     display: grid;
-    grid-template-columns: 1fr; 
+    grid-template-columns: 1fr;
     gap: 20px;
 }
 
@@ -417,9 +430,9 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 
 .siarhe-viz-wrapper .siarhe-legal-disclaimer a,
 .siarhe-viz-wrapper .siarhe-footer a {
-    font-family: inherit; 
+    font-family: inherit;
     font-size: inherit;
-    color: #0A66C2; 
+    color: #0A66C2;
     text-decoration: underline;
     font-weight: 400;
     transition: color 0.2s ease;
@@ -427,7 +440,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 
 .siarhe-viz-wrapper .siarhe-legal-disclaimer a:hover,
 .siarhe-viz-wrapper .siarhe-footer a:hover {
-    color: #063A73; 
+    color: #063A73;
 }
 
 /* =========================================
@@ -435,7 +448,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
    ========================================= */
 @media (min-width: 768px) {
     .siarhe-footer-grid {
-        grid-template-columns: 1fr 1fr; 
+        grid-template-columns: 1fr 1fr;
     }
     .siarhe-map-actions button {
         width: auto;
@@ -443,7 +456,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 }
 
 @media (max-width: 767px) {
-    .siarhe-title { font-size: 20px; } 
+    .siarhe-title { font-size: 20px; }
     .siarhe-map-actions { flex-direction: column; align-items: stretch; }
     .siarhe-map-actions button { width: 100%; }
 }
@@ -798,7 +811,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
    14. CONTENEDOR Y PIE (antes en un <style> en linea repetido por cada shortcode)
    ========================================= */
 .siarhe-viz-wrapper {
-    width: 100%; max-width: 100%; box-sizing: border-box; position: relative; z-index: 1;
+    box-sizing: border-box; position: relative; z-index: 1;
 }
 .siarhe-viz-wrapper * { box-sizing: inherit; }
 .siarhe-break-text { overflow-wrap: break-word; word-wrap: break-word; word-break: break-word; hyphens: auto; }
@@ -808,16 +821,16 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 .siarhe-viz-wrapper .siarhe-legal-disclaimer a:hover,
 .siarhe-viz-wrapper .siarhe-legal-disclaimer a:active,
 .siarhe-viz-wrapper .siarhe-legal-disclaimer a:focus {
-    font-size: 1em; 
+    font-size: 1em;
     font-family: inherit;
-    font-weight: normal; 
+    font-weight: normal;
     line-height: inherit;
     letter-spacing: normal;
-    transform: none; 
+    transform: none;
     display: inline;
     margin: 0;
     padding: 0;
-    transition: none; 
+    transition: none;
     text-decoration: underline;
 }
 
@@ -831,14 +844,14 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 @media (min-width: 768px) and (max-width: 1023px) {
     /* Tablet (768px - 1023px): 2 Columnas. El tercer elemento queda en su propia celda abajo a la izq. */
     .siarhe-viz-wrapper .siarhe-footer-grid {
-        grid-template-columns: 1fr 1fr; 
+        grid-template-columns: 1fr 1fr;
     }
 }
 
 @media (min-width: 1024px) {
     /* PC Desktop (>= 1024px): 3 Columnas simétricas */
     .siarhe-viz-wrapper .siarhe-footer-grid {
-        grid-template-columns: repeat(3, 1fr); 
+        grid-template-columns: repeat(3, 1fr);
     }
 }
 
@@ -1117,3 +1130,39 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 .siarhe-viz-wrapper .siarhe-seg__btn:disabled:focus { background: transparent; color: #94a3b8; cursor: not-allowed; }
 .siarhe-viz-wrapper .siarhe-seg__btn:focus-visible { outline: 2px solid #06B6D4; outline-offset: -2px; }
 .siarhe-viz-wrapper .siarhe-metric-select:disabled { background: #f8fafc; color: #64748b; cursor: default; }
+
+/* =========================================
+   ESQUELETO DE CARGA
+   Mientras llegan los datos, el mapa, los controles y la tabla muestran bloques grises con un brillo que se desplaza.
+   El contenedor recibe la clase siarhe-cargado cuando termina (o falla) la primera carga.
+   ========================================= */
+@keyframes siarhe-brillo {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+}
+.siarhe-viz-wrapper:not(.siarhe-cargado) .siarhe-map-container,
+.siarhe-viz-wrapper .siarhe-controls-placeholder:empty,
+.siarhe-viz-wrapper .siarhe-table-controls-placeholder:empty,
+.siarhe-viz-wrapper .siarhe-esqueleto-fila {
+    background-color: #e9edf2;
+    background-image: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.65) 50%, rgba(255, 255, 255, 0) 100%);
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    animation: siarhe-brillo 1.4s ease-in-out infinite;
+}
+/* El recuadro con el indicador giratorio no se muestra durante la primera carga: lo sustituye el esqueleto */
+.siarhe-viz-wrapper:not(.siarhe-cargado) .siarhe-loading-overlay { display: none; }
+.siarhe-viz-wrapper .siarhe-controls-placeholder:empty { min-height: 120px; border-radius: 6px; margin-bottom: 15px; }
+.siarhe-viz-wrapper .siarhe-table-controls-placeholder:empty { min-height: 48px; border-radius: 6px; }
+.siarhe-viz-wrapper .siarhe-esqueleto-tabla { display: grid; gap: 8px; padding: 4px 0; }
+.siarhe-viz-wrapper .siarhe-esqueleto-fila { height: 34px; border-radius: 4px; }
+.siarhe-viz-wrapper .siarhe-esqueleto-fila:first-of-type { height: 42px; }
+@media (prefers-reduced-motion: reduce) {
+    .siarhe-viz-wrapper:not(.siarhe-cargado) .siarhe-map-container,
+    .siarhe-viz-wrapper .siarhe-controls-placeholder:empty,
+    .siarhe-viz-wrapper .siarhe-table-controls-placeholder:empty,
+    .siarhe-viz-wrapper .siarhe-esqueleto-fila { animation: none; }
+}
+
+/* Referencias del pie que solo se ven con sus marcadores activos */
+.siarhe-viz-wrapper .siarhe-ref-col[hidden] { display: none; }

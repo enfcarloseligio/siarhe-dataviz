@@ -142,19 +142,6 @@ $icons = array( 'ok' => 'yes-alt', 'warn' => 'warning', 'fail' => 'dismiss', 'pe
 ?>
 
 <div class="wrap" data-siarhe-scrolltop>
-    <?php
-    if ( isset( $_GET['copies'] ) ) {
-        $copies = get_transient( 'siarhe_copies_result_' . get_current_user_id() );
-        if ( is_array( $copies ) ) {
-            delete_transient( 'siarhe_copies_result_' . get_current_user_id() );
-            $msg = sprintf( 'Copias de lectura: %d creada(s) (%s), %d ya estaban al día, %d archivo(s) pequeños sin copia.',
-                (int) $copies['creada'], size_format( (int) $copies['bytes'] ) ?: '0 B', (int) $copies['vigente'], (int) $copies['pequena'] );
-            if ( ! empty( $copies['marcadores'] ) ) $msg .= ' Se creó la versión por entidad de ' . (int) $copies['marcadores'] . ' capa(s) de marcadores.';
-            if ( ! empty( $copies['fallo'] ) ) $msg .= ' No se pudieron crear ' . (int) $copies['fallo'] . ' (revisa los permisos de la carpeta de datos).';
-            echo '<div class="notice ' . ( empty( $copies['fallo'] ) ? 'notice-success' : 'notice-warning' ) . ' is-dismissible"><p>' . esc_html( $msg ) . '</p></div>';
-        }
-    }
-    ?>
     <?php Siarhe_Admin::render_validation_result(); ?>
     <div class="siarhe-page-header">
         <div>
@@ -201,21 +188,9 @@ $icons = array( 'ok' => 'yes-alt', 'warn' => 'warning', 'fail' => 'dismiss', 'pe
                 </li>
             <?php endforeach; ?>
         </ul>
-        <div class="siarhe-health__footer siarhe-health__footer--validar">
+        <div class="siarhe-health__footer">
             <p class="description">Comprueba que cada archivo cargado esté en su lugar: que exista en el servidor y que sea de la entidad, la capa, el año y la unidad donde se subió. Si alguno no corresponde, se lista con el apartado donde está para reemplazarlo.</p>
             <?php Siarhe_Admin::render_validate_button(); ?>
-        </div>
-        <div class="siarhe-health__footer">
-            <?php if ( $copies_on ) : ?>
-            <p class="description">Los archivos de datos de 100 KB o más se leen desde una copia (<code>.json</code> o <code>.txt</code>) que el servidor sí comprime. Se crean solas al subir un archivo y al abrir su mapa; este botón las crea de una vez para todo lo que ya está cargado, junto con la versión por entidad de las capas de marcadores que no la tengan.</p>
-            <?php else : ?>
-            <p class="description">Las copias de lectura están <strong>desactivadas</strong>: los mapas leen los archivos originales. Puedes activarlas en <a href="<?php echo esc_url( admin_url( 'admin.php?page=siarhe-settings&tab=versiones' ) ); ?>">Configuración › Versiones y Copias</a>.</p>
-            <?php endif; ?>
-            <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-                <input type="hidden" name="action" value="siarhe_generate_copies">
-                <?php wp_nonce_field( 'siarhe_generate_copies' ); ?>
-                <button type="submit" class="button" <?php disabled( ! $copies_on ); ?>><span class="dashicons dashicons-update"></span> Generar copias de lectura ahora</button>
-            </form>
         </div>
     </div>
 

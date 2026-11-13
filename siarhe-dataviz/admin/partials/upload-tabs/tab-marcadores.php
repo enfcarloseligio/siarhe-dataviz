@@ -7,8 +7,8 @@
  *
  *   1. Datos de la pantalla
  *   2. Formulario de carga
- *   3. Alta de variables
- *   4. Tabla de archivos
+ *   3. Tabla de archivos
+ *   4. Alta de variables
  *   5. Edición de metadatos
  *   6. Comportamiento
  */
@@ -61,7 +61,7 @@ $m_msg = array(
     'success'     => array( 'notice-success', 'Marcador procesado y actualizado correctamente.' ),
     'updated'     => array( 'notice-success', 'Metadatos sincronizados exitosamente.' ),
     'deleted'     => array( 'notice-warning', 'Archivos (CSV y JSON) y registro eliminados.' ),
-    'var_added'   => array( 'notice-success', 'Variable registrada. Ya puedes cargar sus archivos: «Todas» y uno por año.' ),
+    'var_added'   => array( 'notice-success', 'Variable registrada. Ya puedes elegirla en el formulario y cargar sus archivos.' ),
     'var_deleted' => array( 'notice-warning', 'Variable y archivos asociados eliminados permanentemente.' ),
     'var_reset'   => array( 'notice-warning', 'Se restauraron las variables iniciales; los archivos personalizados fueron eliminados.' ),
     'var_exists'  => array( 'notice-error', 'Ya existe una variable con esa clave.' ),
@@ -89,7 +89,7 @@ if ( isset( $_GET['status'] ) && isset( $m_msg[ $_GET['status'] ] ) ) {
     <div class="notice notice-info inline">
         <p><strong>Cómo funcionan los archivos:</strong></p>
         <ul>
-            <li><strong>Un archivo por tipo de marcador y periodo.</strong> Los <em>establecimientos de salud</em> y los <em>pasantes de enfermería</em> se cargan por año. Las <em>clínicas</em> (y las variables que agregues) admiten además <strong>Todas</strong>: las unidades de toda la historia, que han existido o reportado al menos una vez. El mapa usa el archivo del año que el visitante está viendo y, si no existe, el de «Todas». Subir otro para la misma combinación lo reemplaza.</li>
+            <li><strong>Un archivo por tipo de marcador y periodo.</strong> Los <em>establecimientos de salud</em> y los <em>pasantes de enfermería</em> se cargan por año. Las <em>clínicas</em> (y las variables que agregues con serie completa) admiten además <strong>Todas</strong>: las unidades de toda la historia, que han existido o reportado al menos una vez. El mapa usa el archivo del año que el visitante está viendo y, si no existe, el de «Todas». Subir otro para la misma combinación lo reemplaza.</li>
             <li><strong>Formatos admitidos:</strong> <code>.csv</code> (separado por comas) o <code>.json</code> con la capa de puntos que exporta RHEMX (<code>unidades_clues_&lt;año&gt;.json</code>, <code>clinicas_cateteres_&lt;año&gt;.json</code>, <code>clinicas_cateteres_historico.json</code>, <code>clinicas_heridas_historico.json</code>; están en <code>data/processed/marcadores/</code>). Al subir uno, el plugin crea el otro; el mapa lee el JSON, que pesa menos.</li>
             <li><strong>Un solo archivo para todo el país.</strong> No hace falta separarlo por entidad: al cargarlo, el plugin crea una versión por entidad y el mapa de cada estado descarga solo sus puntos.</li>
             <li><strong>Estructura del CSV:</strong> <code>LATITUD</code>, <code>LONGITUD</code> y la clave de la entidad (<code>CVE_ENT</code> o <code>CLAVE DE LA ENTIDAD</code>) son obligatorias; se aceptan los encabezados del catálogo CLUES (<code>clues_&lt;año&gt;.csv</code> de RHEMX).</li>
@@ -105,7 +105,7 @@ if ( isset( $_GET['status'] ) && isset( $m_msg[ $_GET['status'] ] ) ) {
 
         <table class="form-table">
             <tr>
-                <th scope="row"><label for="marker_type">Tipo de Marcador</label><?php Siarhe_Admin::help( 'Variable de marcador a la que corresponde el archivo. Las variables se crean con «Incorporar Nueva Variable», más abajo.' ); ?></th>
+                <th scope="row"><label for="marker_type">Tipo de Marcador</label><?php Siarhe_Admin::help( 'Variable de marcador a la que corresponde el archivo. Las variables se crean con «Incorporar Nueva Variable», al final de la pantalla.' ); ?></th>
                 <td class="siarhe-field-narrow">
                     <select name="marker_type" id="marker_type" class="siarhe-searchable-select" required>
                         <option value="">-- Selecciona el tipo --</option>
@@ -160,49 +160,7 @@ if ( isset( $_GET['status'] ) && isset( $m_msg[ $_GET['status'] ] ) ) {
 
 <?php
 // =========================================================================
-// 3. ALTA DE VARIABLES
-// =========================================================================
-?>
-<div class="siarhe-card siarhe-upload-card">
-    <div class="siarhe-card-head">
-        <h3 class="siarhe-m-0">➕ Incorporar Nueva Variable<?php Siarhe_Admin::help( 'Registra una nueva variable de marcador antes de subir sus archivos. Admite «Todas» y un archivo por año.' ); ?></h3>
-
-        <form id="form-reset-variables" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-confirm="PRECAUCIÓN: se borrarán permanentemente TODAS las variables personalizadas y sus archivos del servidor. ¿Deseas continuar?" data-confirm-ok="Restaurar">
-            <input type="hidden" name="action" value="siarhe_marker_var_reset">
-            <?php wp_nonce_field( 'reset_variables_nonce', 'reset_nonce' ); ?>
-            <button type="submit" class="siarhe-btn-danger-outline siarhe-btn-icon button button-link-delete">
-                <span class="dashicons dashicons-undo"></span> Restaurar Iniciales
-            </button>
-        </form>
-    </div>
-    <p class="description">Agrega una nueva ranura de archivos para cargar marcadores adicionales (ej. Casos Epidemiológicos, Unidades Móviles). Las variables nuevas admiten «Todas» y años.</p>
-
-    <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-        <input type="hidden" name="action" value="siarhe_marker_var_add">
-        <?php wp_nonce_field( 'siarhe_add_variable_nonce', 'add_nonce' ); ?>
-        <table class="form-table" role="presentation">
-            <tr>
-                <th scope="row"><label for="new_file_key">Clave Interna (Sin espacios):</label><?php Siarhe_Admin::help( 'Identificador único de la variable. Solo letras, números y guion bajo. No se puede cambiar después sin recrear la variable.' ); ?></th>
-                <td><input type="text" name="new_file_key" id="new_file_key" placeholder="Ej: CASOS_DENGUE" required class="regular-text"></td>
-            </tr>
-            <tr>
-                <th scope="row"><label for="new_file_label">Etiqueta Pública:</label><?php Siarhe_Admin::help( 'Nombre que verán los visitantes en selectores y leyendas.' ); ?></th>
-                <td><input type="text" name="new_file_label" id="new_file_label" placeholder="Ej: Casos de Dengue" required class="regular-text"></td>
-            </tr>
-            <tr>
-                <th scope="row"><label for="new_file_name">Nombre del Archivo (con .csv):</label><?php Siarhe_Admin::help( 'Nombre base con que se guardarán los archivos en la carpeta de marcadores, con la extensión .csv; a cada archivo se le agrega su periodo.' ); ?></th>
-                <td><input type="text" name="new_file_name" id="new_file_name" placeholder="ej: casos-dengue.csv" required class="regular-text"></td>
-            </tr>
-        </table>
-        <p class="submit">
-            <button type="submit" class="button button-secondary">Agregar Variable</button>
-        </p>
-    </form>
-</div>
-
-<?php
-// =========================================================================
-// 4. TABLA DE ARCHIVOS
+// 3. TABLA DE ARCHIVOS
 // =========================================================================
 ?>
 <div class="siarhe-card siarhe-card--flush">
@@ -408,6 +366,57 @@ if ( isset( $_GET['status'] ) && isset( $m_msg[ $_GET['status'] ] ) ) {
 
 <?php
 // =========================================================================
+// 4. ALTA DE VARIABLES
+// =========================================================================
+?>
+<div class="siarhe-card siarhe-upload-card">
+    <div class="siarhe-card-head">
+        <h3 class="siarhe-m-0">➕ Incorporar Nueva Variable<?php Siarhe_Admin::help( 'Registra una nueva variable de marcador antes de subir sus archivos. Tú decides si tiene serie completa («Todas») o si solo va por años.' ); ?></h3>
+
+        <form id="form-reset-variables" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-confirm="PRECAUCIÓN: se borrarán permanentemente TODAS las variables personalizadas y sus archivos del servidor. ¿Deseas continuar?" data-confirm-ok="Restaurar">
+            <input type="hidden" name="action" value="siarhe_marker_var_reset">
+            <?php wp_nonce_field( 'reset_variables_nonce', 'reset_nonce' ); ?>
+            <button type="submit" class="siarhe-btn-danger-outline siarhe-btn-icon button button-link-delete">
+                <span class="dashicons dashicons-undo"></span> Restaurar Iniciales
+            </button>
+        </form>
+    </div>
+    <p class="description">Agrega una nueva ranura de archivos para cargar marcadores adicionales (ej. Casos Epidemiológicos, Unidades Móviles). Al crearla eliges si tiene serie completa («Todas» y años) o si solo se carga por año.</p>
+
+    <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+        <input type="hidden" name="action" value="siarhe_marker_var_add">
+        <?php wp_nonce_field( 'siarhe_add_variable_nonce', 'add_nonce' ); ?>
+        <table class="form-table" role="presentation">
+            <tr>
+                <th scope="row"><label for="new_file_key">Clave Interna (Sin espacios):</label><?php Siarhe_Admin::help( 'Identificador único de la variable. Solo letras, números y guion bajo. No se puede cambiar después sin recrear la variable.' ); ?></th>
+                <td><input type="text" name="new_file_key" id="new_file_key" placeholder="Ej: CASOS_DENGUE" required class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="new_file_label">Etiqueta Pública:</label><?php Siarhe_Admin::help( 'Nombre que verán los visitantes en selectores y leyendas.' ); ?></th>
+                <td><input type="text" name="new_file_label" id="new_file_label" placeholder="Ej: Casos de Dengue" required class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="new_file_serie">¿Tiene serie completa?</label><?php Siarhe_Admin::help( 'Sí: además de un archivo por año admite «Todas», la capa con las unidades de toda la historia (como las clínicas). No: solo se carga por año (como los establecimientos de salud).' ); ?></th>
+                <td>
+                    <select name="new_file_serie" id="new_file_serie">
+                        <option value="1">Sí: «Todas» y un archivo por año</option>
+                        <option value="0">No: solo un archivo por año</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="new_file_name">Nombre del Archivo (con .csv):</label><?php Siarhe_Admin::help( 'Nombre base con que se guardarán los archivos en la carpeta de marcadores, con la extensión .csv; a cada archivo se le agrega su periodo.' ); ?></th>
+                <td><input type="text" name="new_file_name" id="new_file_name" placeholder="ej: casos-dengue.csv" required class="regular-text"></td>
+            </tr>
+        </table>
+        <p class="submit">
+            <button type="submit" class="button button-secondary">Agregar Variable</button>
+        </p>
+    </form>
+</div>
+
+<?php
+// =========================================================================
 // 5. EDICIÓN DE METADATOS
 // =========================================================================
 ?>
@@ -454,17 +463,21 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Los demás selectores del formulario y de la barra de la tabla también se pueden escribir
+    if (window.SiarheAdmin && window.SiarheAdmin.initSelects) window.SiarheAdmin.initSelects();
+
     // Periodos que admite el tipo elegido: los tipos por año no ofrecen «Todas»; en los demás es la opción inicial
     var selTipo = document.getElementById('marker_type');
     var selPeriodo = document.getElementById('periodo');
+    var opcionTotal = selPeriodo ? selPeriodo.querySelector('option[value="total"]') : null;
     function aplicaPeriodos() {
         var op = selTipo.options[selTipo.selectedIndex];
         var admiteTotal = !op || op.getAttribute('data-total') !== '0';
         var total = selPeriodo.querySelector('option[value="total"]');
-        total.hidden = !admiteTotal;
-        total.disabled = !admiteTotal;
-        if (!selTipo.value) return;
-        selPeriodo.value = admiteTotal ? 'total' : String(<?php echo (int) $periodo_anio_max; ?>);
+        if (admiteTotal && !total) selPeriodo.insertBefore(opcionTotal, selPeriodo.firstChild);
+        if (!admiteTotal && total) selPeriodo.removeChild(total);
+        if (selTipo.value) selPeriodo.value = admiteTotal ? 'total' : String(<?php echo (int) $periodo_anio_max; ?>);
+        if (window.SiarheAdmin && window.SiarheAdmin.refreshSelect) window.SiarheAdmin.refreshSelect(selPeriodo);
     }
     if (selTipo && selPeriodo) {
         selTipo.addEventListener('change', aplicaPeriodos);
