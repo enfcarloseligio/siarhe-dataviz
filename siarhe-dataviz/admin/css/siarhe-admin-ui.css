@@ -322,3 +322,20 @@ button#btn-floating-save.siarhe-scroll-top:active .dashicons { color: #fff; }
 .siarhe-health__footer .description { margin: 0; flex: 1 1 320px; max-width: 70ch; }
 .siarhe-health__footer .button { display: inline-flex; align-items: center; gap: var(--s-sp-1); }
 .siarhe-health__footer .button .dashicons { width: 18px; height: 18px; font-size: 18px; }
+
+/* Validación de los archivos cargados: botón en las barras de las tablas y tabla de resultados */
+.siarhe-validate-form { display: inline-flex; align-items: center; gap: var(--s-sp-1); margin: 0; }
+.siarhe-validate-form .button { display: inline-flex; align-items: center; gap: var(--s-sp-1); }
+.siarhe-validate-form .button .dashicons { width: 18px; height: 18px; font-size: 18px; }
+.siarhe-validacion { padding-bottom: var(--s-sp-3); }
+.siarhe-validacion__tabla { margin: var(--s-sp-2) 0 var(--s-sp-1); }
+.siarhe-validacion__tabla td { vertical-align: top; }
+.siarhe-health__footer--validar { border-bottom: 1px solid var(--s-border); border-top: 0; }
+
+/* Cabecera de tarjeta con una acción a la derecha */
+.siarhe-card-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--s-sp-4); border-bottom: 1px solid var(--s-border); padding-bottom: var(--s-sp-3); margin-bottom: var(--s-sp-4); }
+
+/* Casillas en línea (unidades de un tema) y lista de temas propios de las bases estáticas */
+.siarhe-check-inline { display: inline-flex; align-items: center; gap: var(--s-sp-1); margin-right: var(--s-sp-4); }
+.siarhe-temas-propios { margin-top: var(--s-sp-3); }
+.siarhe-temas-propios form { margin: 0; }

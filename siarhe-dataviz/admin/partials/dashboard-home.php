@@ -4,7 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 global $wpdb;
 $table_assets = $wpdb->prefix . 'siarhe_static_assets';
 $upload_base  = defined( 'SIARHE_UPLOAD_DIR' ) ? SIARHE_UPLOAD_DIR : trailingslashit( wp_upload_dir()['basedir'] ) . 'siarhe-data/';
-$entities     = siarhe_get_entities();
+$entities     = siarhe_get_entities_ordered();
 
 // 1. Archivos activos, indexados por entidad y tipo
 $tabla_existe = ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table_assets ) ) === $table_assets );
@@ -15,6 +15,8 @@ $markers_n    = 0;
 $last_update  = array();   // [slug] => fecha mas reciente
 foreach ( $rows as $r ) {
     if ( $r->tipo_archivo === 'marcador' ) { $markers_n++; continue; }
+    // El mapa publico usa las bases de Enfermeria; las de otros temas no cuentan para el estado de la entidad
+    if ( $r->tipo_archivo === 'static_min' && isset( $r->tema ) && $r->tema !== siarhe_base_tema_mapa() ) continue;
     $by_entity[ $r->entidad_slug ][ $r->tipo_archivo ] = $r;
     $fecha = ! empty( $r->fecha_modificacion ) ? $r->fecha_modificacion : $r->fecha_subida;
     if ( $fecha && ( ! isset( $last_update[ $r->entidad_slug ] ) || $fecha > $last_update[ $r->entidad_slug ] ) ) {
@@ -28,10 +30,9 @@ $has = function ( $slug, $tipo ) use ( $by_entity, $upload_base ) {
     return file_exists( $upload_base . ltrim( $by_entity[ $slug ][ $tipo ]->ruta_archivo, '/' ) );
 };
 
-// 2. Matriz de entidades (orden por CVE; nacional primero)
+// 2. Matriz de entidades, en el orden del panel: Extranjero, Republica Mexicana y las entidades por su clave
 $matrix = array();
 foreach ( $entities as $slug => $data ) {
-    if ( (int) $data['CVE_ENT'] > 34 ) continue; // capas especiales (98/99) no llevan shortcode de mapa
     $matrix[] = array(
         'slug'   => $slug,
         'nombre' => $data['nombre'],
@@ -42,12 +43,6 @@ foreach ( $entities as $slug => $data ) {
         'upd'    => isset( $last_update[ $slug ] ) ? $last_update[ $slug ] : '',
     );
 }
-usort( $matrix, function ( $a, $b ) {
-    $ka = $a['cve'] === '33' ? -1 : (int) $a['cve'];
-    $kb = $b['cve'] === '33' ? -1 : (int) $b['cve'];
-    return $ka <=> $kb;
-} );
-
 $total   = count( $matrix );
 $n_geo   = count( array_filter( $matrix, function ( $m ) { return $m['geo']; } ) );
 $n_csv   = count( array_filter( $matrix, function ( $m ) { return $m['csv']; } ) );
@@ -154,11 +149,13 @@ $icons = array( 'ok' => 'yes-alt', 'warn' => 'warning', 'fail' => 'dismiss', 'pe
             delete_transient( 'siarhe_copies_result_' . get_current_user_id() );
             $msg = sprintf( 'Copias de lectura: %d creada(s) (%s), %d ya estaban al día, %d archivo(s) pequeños sin copia.',
                 (int) $copies['creada'], size_format( (int) $copies['bytes'] ) ?: '0 B', (int) $copies['vigente'], (int) $copies['pequena'] );
+            if ( ! empty( $copies['marcadores'] ) ) $msg .= ' Se creó la versión por entidad de ' . (int) $copies['marcadores'] . ' capa(s) de marcadores.';
             if ( ! empty( $copies['fallo'] ) ) $msg .= ' No se pudieron crear ' . (int) $copies['fallo'] . ' (revisa los permisos de la carpeta de datos).';
             echo '<div class="notice ' . ( empty( $copies['fallo'] ) ? 'notice-success' : 'notice-warning' ) . ' is-dismissible"><p>' . esc_html( $msg ) . '</p></div>';
         }
     }
     ?>
+    <?php Siarhe_Admin::render_validation_result(); ?>
     <div class="siarhe-page-header">
         <div>
             <h1>Dashboard SIARHE</h1>
@@ -204,9 +201,13 @@ $icons = array( 'ok' => 'yes-alt', 'warn' => 'warning', 'fail' => 'dismiss', 'pe
                 </li>
             <?php endforeach; ?>
         </ul>
+        <div class="siarhe-health__footer siarhe-health__footer--validar">
+            <p class="description">Comprueba que cada archivo cargado esté en su lugar: que exista en el servidor y que sea de la entidad, la capa, el año y la unidad donde se subió. Si alguno no corresponde, se lista con el apartado donde está para reemplazarlo.</p>
+            <?php Siarhe_Admin::render_validate_button(); ?>
+        </div>
         <div class="siarhe-health__footer">
             <?php if ( $copies_on ) : ?>
-            <p class="description">Los archivos de datos de 100 KB o más se leen desde una copia (<code>.json</code> o <code>.txt</code>) que el servidor sí comprime. Se crean solas al subir un archivo y al abrir su mapa; este botón las crea de una vez para todo lo que ya está cargado.</p>
+            <p class="description">Los archivos de datos de 100 KB o más se leen desde una copia (<code>.json</code> o <code>.txt</code>) que el servidor sí comprime. Se crean solas al subir un archivo y al abrir su mapa; este botón las crea de una vez para todo lo que ya está cargado, junto con la versión por entidad de las capas de marcadores que no la tengan.</p>
             <?php else : ?>
             <p class="description">Las copias de lectura están <strong>desactivadas</strong>: los mapas leen los archivos originales. Puedes activarlas en <a href="<?php echo esc_url( admin_url( 'admin.php?page=siarhe-settings&tab=versiones' ) ); ?>">Configuración › Versiones y Copias</a>.</p>
             <?php endif; ?>
@@ -219,7 +220,7 @@ $icons = array( 'ok' => 'yes-alt', 'warn' => 'warning', 'fail' => 'dismiss', 'pe
     </div>
 
     <div class="siarhe-card siarhe-card--flush">
-        <h2 class="siarhe-card__title"><span class="dashicons dashicons-grid-view"></span> Entidades y shortcodes<?php Siarhe_Admin::help( 'Las 34 entidades y qué archivos tiene cada una (GeoJSON, base CSV y localidades). Usa los botones Completo, Mapa o Tabla para copiar el shortcode y pegarlo en una página. Puedes buscar, filtrar por estado y ordenar las columnas.' ); ?></h2>
+        <h2 class="siarhe-card__title"><span class="dashicons dashicons-grid-view"></span> Entidades y shortcodes<?php Siarhe_Admin::help( 'Extranjero, República Mexicana y las 32 entidades, y qué archivos tiene cada una (GeoJSON, base CSV y localidades). Usa los botones Completo, Mapa o Tabla para copiar el shortcode y pegarlo en una página. Puedes buscar, filtrar por estado y ordenar las columnas.' ); ?></h2>
         <div class="siarhe-toolbar">
             <div class="siarhe-table-controls">
                 <label>

@@ -29,7 +29,7 @@ if ( strpos( strtoupper($mode), 'T' ) !== false ) {
 // Año de los metadatos de la Base Estática (CSV)
 global $wpdb;
 $table_assets = $wpdb->prefix . 'siarhe_static_assets';
-$csv_meta = $wpdb->get_row( $wpdb->prepare( "SELECT anio_reporte, unidad FROM $table_assets WHERE entidad_slug = %s AND tipo_archivo = 'static_min' AND es_activo = 1 ORDER BY anio_reporte DESC, unidad = 'plazas' DESC LIMIT 1", $slug ) );
+$csv_meta = $wpdb->get_row( $wpdb->prepare( "SELECT anio_reporte, unidad FROM $table_assets WHERE entidad_slug = %s AND tipo_archivo = 'static_min' AND tema = %s AND es_activo = 1 ORDER BY anio_reporte DESC, unidad = 'plazas' DESC LIMIT 1", $slug, siarhe_base_tema_mapa() ) );
 
 if ( $csv_meta && !empty($csv_meta->anio_reporte) ) {
     $anio = $csv_meta->anio_reporte; 
@@ -58,7 +58,8 @@ $upload_base_url_front = defined('SIARHE_UPLOAD_URL') ? SIARHE_UPLOAD_URL : wp_u
 // Cada marcador lee un tipo de archivo, que puede estar cargado para varios periodos (años y "total"): el mapa recibe
 // todos y usa el del año que se ve. Los marcadores cuyo archivo no esta cargado no se ofrecen.
 $marcadores_array = siarhe_get_marcadores_config();
-$marcadores_archivos = siarhe_get_marker_file_urls();
+// El mapa de una entidad recibe la version de cada capa que solo trae sus puntos; el nacional, la capa completa
+$marcadores_archivos = siarhe_get_marker_file_urls( ( $slug === 'republica-mexicana' || $cve_ent === '33' ) ? '' : $cve_ent );
 
 $marker_config = [];
 $marker_urls = [];
@@ -207,10 +208,10 @@ if (!empty($csv_url) && strpos($csv_url, '?v=') === false) {
 }
 $csv_url = siarhe_data_read_url( $csv_url );
 
-// Todas las bases estaticas de la entidad (año y unidad) para los selectores del mapa: { "2026": { "plazas": {url, fecha}, ... } }
+// Las bases estaticas de Enfermeria de la entidad (año y unidad) para los selectores del mapa: { "2026": { "plazas": {url, fecha}, ... } }
 $bases_mapa = array();
 $bases_rows = $wpdb->get_results( $wpdb->prepare(
-    "SELECT ruta_archivo, ruta_json, anio_reporte, unidad, fecha_corte FROM $table_assets WHERE entidad_slug = %s AND tipo_archivo = 'static_min' AND es_activo = 1 ORDER BY anio_reporte DESC", $slug ) );
+    "SELECT ruta_archivo, ruta_json, anio_reporte, unidad, fecha_corte FROM $table_assets WHERE entidad_slug = %s AND tipo_archivo = 'static_min' AND tema = %s AND es_activo = 1 ORDER BY anio_reporte DESC", $slug, siarhe_base_tema_mapa() ) );
 foreach ( (array) $bases_rows as $br ) {
     $rel = ( ! empty( $br->ruta_json ) && file_exists( $upload_base_dir_front . ltrim( $br->ruta_json, '/' ) ) ) ? $br->ruta_json : $br->ruta_archivo;
     $phys = $upload_base_dir_front . ltrim( $rel, '/' );

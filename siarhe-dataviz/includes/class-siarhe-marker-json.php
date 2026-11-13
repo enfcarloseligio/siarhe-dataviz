@@ -27,12 +27,14 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  *   2. Validacion
  *   3. JSON a CSV
  *   4. CSV a JSON
+ *   5. Versiones por entidad
  */
 class Siarhe_Marker_Json {
 
     const FORMATO = 'siarhe-marcadores';
     const VERSION = 1;
     const PERIODO_TOTAL = 'total'; // capa con todas las unidades de la historia (clinicas que reportaron al menos una vez)
+    const DIR_ENTIDADES = 'entidades'; // subcarpeta de markers/ con las versiones por entidad de cada capa
 
     // -------------------------------------------------------------------------
     // 1. Catalogo de campos
@@ -301,5 +303,86 @@ class Siarhe_Marker_Json {
 
         if ( $escritas === 0 ) { @unlink( $ruta_json ); return 'El CSV solo tiene encabezado: no hay filas de datos.'; }
         return $escritas;
+    }
+
+    // -------------------------------------------------------------------------
+    // 5. Versiones por entidad
+    // El mapa de una entidad solo dibuja sus puntos: en lugar de descargar la capa completa (el catálogo nacional pesa varios
+    // MB) lee una capa con el mismo formato que solo trae los de su entidad. Se guardan en markers/entidades/ como
+    // {nombre de la capa}-ent{NN}.json y se crean las 32 cada vez, aunque una entidad no tenga puntos.
+    // -------------------------------------------------------------------------
+
+    /** Ruta de la versión de una entidad (clave de dos dígitos, 01 a 32) de una capa JSON; '' si la clave no es de una entidad. */
+    public static function ruta_entidad( $ruta_json, $cve_ent ) {
+        $n = (int) $cve_ent;
+        if ( $n < 1 || $n > 32 ) return '';
+        return dirname( $ruta_json ) . '/' . self::DIR_ENTIDADES . '/' . basename( $ruta_json, '.json' ) . '-ent' . str_pad( (string) $n, 2, '0', STR_PAD_LEFT ) . '.json';
+    }
+
+    /**
+     * Divide una capa en una por entidad. Cada versión conserva "fila", "columnas" y los datos generales de la capa, y sus
+     * listas de textos solo llevan los que usan sus puntos. Los puntos sin clave de entidad solo quedan en la capa completa.
+     * Devuelve el número de archivos escritos (0 si la capa no se pudo leer o no tiene el campo "entidad").
+     */
+    public static function divide_por_entidad( $ruta_json ) {
+        $json = is_readable( $ruta_json ) ? json_decode( (string) file_get_contents( $ruta_json ), true ) : null;
+        if ( ! self::es_capa( $json ) ) return 0;
+        $fila  = array_map( 'strval', $json['fila'] );
+        $i_ent = array_search( 'entidad', $fila, true );
+        if ( $i_ent === false ) return 0;
+
+        // Posición de cada campo indexado dentro de la fila
+        $indexados = array();
+        foreach ( self::listas() as $campo => $lista ) {
+            $i = array_search( $campo, $fila, true );
+            if ( $i !== false && isset( $json[ $lista ] ) && is_array( $json[ $lista ] ) ) $indexados[ $i ] = $lista;
+        }
+
+        $por_entidad = array();
+        foreach ( $json['unidades'] as $u ) {
+            if ( ! is_array( $u ) || ! isset( $u[ $i_ent ] ) ) continue;
+            $e = (int) $u[ $i_ent ];
+            if ( $e >= 1 && $e <= 32 ) $por_entidad[ $e ][] = $u;
+        }
+
+        $general = $json;
+        unset( $general['unidades'] );
+        foreach ( $indexados as $lista ) unset( $general[ $lista ] );
+
+        $carpeta = dirname( $ruta_json ) . '/' . self::DIR_ENTIDADES . '/';
+        if ( ! is_dir( $carpeta ) && ! @mkdir( $carpeta, 0755, true ) ) return 0;
+        $escritos = 0;
+        for ( $e = 1; $e <= 32; $e++ ) {
+            $unidades = isset( $por_entidad[ $e ] ) ? $por_entidad[ $e ] : array();
+            $capa = $general;
+            $capa['entidad'] = str_pad( (string) $e, 2, '0', STR_PAD_LEFT );
+            // Cada lista se rehace con los textos que aparecen en esta entidad, en el orden en que aparecen
+            $nuevas = array(); $mapas = array();
+            foreach ( $indexados as $i => $lista ) { $nuevas[ $lista ] = array(); $mapas[ $i ] = array(); }
+            foreach ( $unidades as $k => $u ) {
+                foreach ( $indexados as $i => $lista ) {
+                    if ( ! isset( $u[ $i ] ) || ! is_int( $u[ $i ] ) || $u[ $i ] < 0 || ! isset( $json[ $lista ][ $u[ $i ] ] ) ) continue;
+                    $original = $u[ $i ];
+                    if ( ! isset( $mapas[ $i ][ $original ] ) ) {
+                        $mapas[ $i ][ $original ] = count( $nuevas[ $lista ] );
+                        $nuevas[ $lista ][] = $json[ $lista ][ $original ];
+                    }
+                    $unidades[ $k ][ $i ] = $mapas[ $i ][ $original ];
+                }
+            }
+            foreach ( $nuevas as $lista => $textos ) $capa[ $lista ] = $textos;
+            $capa['unidades'] = $unidades;
+            $destino = self::ruta_entidad( $ruta_json, $e );
+            if ( @file_put_contents( $destino, wp_json_encode( $capa, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) ) !== false ) $escritos++;
+        }
+        return $escritos;
+    }
+
+    /** Borra las versiones por entidad de una capa (al eliminar o reemplazar el archivo completo). */
+    public static function borra_entidades( $ruta_json ) {
+        for ( $e = 1; $e <= 32; $e++ ) {
+            $ruta = self::ruta_entidad( $ruta_json, $e );
+            if ( is_file( $ruta ) ) @unlink( $ruta );
+        }
     }
 }

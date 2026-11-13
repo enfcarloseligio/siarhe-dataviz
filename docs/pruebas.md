@@ -30,6 +30,11 @@ Scripts de Node (con `jsdom` instalado fuera del proyecto) que cargan los archiv
 
 La carpeta [`tests/`](../tests/LEEME.md) guarda las pruebas de la lectura de geometrías (TopoJSON por marco) y de marcadores (CSV y JSON por periodo), que se ejecutan con Node y PHP contra los archivos reales de RHEMX. En la 0.1.7.0 pasaron las cuatro; lo que cubren y cómo ejecutarlas está en su `LEEME.md`.
 
+En la 0.1.8.0 se agregó `prueba_validador.php` (entidad de las bases estáticas y marcadores por entidad) y pasaron las cinco con PHP 8.4 y Node; además se revisó la sintaxis de todos los `.php` cambiados con `php -l`.
+
+> [!IMPORTANT]
+> La 0.1.8.0 tampoco se ha probado en un WordPress real: faltan las pantallas de carga con sus filtros, la migración del esquema (versión 4: columna `tema`), la carga de bases de clínicas y de temas propios, el botón *Validar archivos cargados* y la versión por entidad de los marcadores en el mapa de un estado.
+
 > [!IMPORTANT]
 > La 0.1.7.0 **no se ha probado en un WordPress real**: faltan la carga de archivos desde el panel (geometrías por marco y marcadores por periodo), la migración del esquema (versión 3) y el cambio de marco al cambiar de año en el mapa.
 

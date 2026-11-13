@@ -56,9 +56,9 @@ class Siarhe_Shortcodes {
         // 2. Buscar CSV Estático activo (y sus metadatos)
         $csv = $wpdb->get_row( $wpdb->prepare( 
             "SELECT ruta_archivo, ruta_json, anio_reporte, fecha_corte, referencia_bibliografica 
-             FROM $table_assets WHERE entidad_slug = %s AND tipo_archivo = 'static_min' AND es_activo = 1
+             FROM $table_assets WHERE entidad_slug = %s AND tipo_archivo = 'static_min' AND tema = %s AND es_activo = 1
              ORDER BY anio_reporte DESC, unidad = 'plazas' DESC LIMIT 1", 
-            $slug 
+            $slug, siarhe_base_tema_mapa()
         ));
 
         // El mapa abre con el marco que corresponde al año de la base mas reciente

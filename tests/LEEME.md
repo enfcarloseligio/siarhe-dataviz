@@ -33,6 +33,12 @@ Paso 4 — Marcadores en el navegador: el worker debe dar los mismos puntos con 
 node tests\prueba_worker.js siarhe-dataviz\public\js ..\rhemx builds\pruebas
 ```
 
+Paso 5 — Validador y marcadores por entidad: el orden de las entidades, los tipos de marcador y los temas; que cada base estática se acepte en su entidad y se rechace en otra; y que la capa de marcadores dividida por entidad dé las mismas filas que la completa.
+
+```powershell
+php tests\prueba_validador.php siarhe-dataviz ..\rhemx builds\pruebas
+```
+
 Cada script termina con `RESULTADO: todo correcto` o con la lista de fallas.
 
 ## 🗂️ Qué cubre cada una
@@ -43,5 +49,6 @@ Cada script termina con `RESULTADO: todo correcto` o con la lista de fallas.
 | `prueba_geo.php` | Lista de marcos quinquenales; aceptación de cada archivo en su pestaña y rechazo por capa equivocada, entidad equivocada o AGEB |
 | `prueba_marcadores.php` | Periodos válidos; ida y vuelta JSON → CSV → JSON de las capas de RHEMX; ida y vuelta CSV → JSON → CSV del catálogo CLUES (celda por celda) |
 | `prueba_worker.js` | Mismos puntos desde el JSON y desde el CSV; filtros por nivel de atención; puntos de una sola entidad; capas de clínicas |
+| `prueba_validador.php` | Orden Extranjero, República Mexicana y entidades; tipos de marcador y sus periodos; temas de las bases; las 33 bases de un año aceptadas en su lugar y rechazadas en otro (CSV y JSON); una base de clínicas; división de `unidades_clues`, catéteres y heridas en 32 capas con las mismas filas que la completa |
 
 Lo que **no** cubren: las pantallas del panel, la carga real de archivos y el aspecto del mapa. Eso se prueba en un WordPress (ver [docs/pruebas.md](../docs/pruebas.md)).

@@ -11,11 +11,21 @@ La fuente de verdad en código es `includes/class-siarhe-columns.php` (alimenta 
 - Datos faltantes: celda vacía o `S/D`.
 - La primera fila es el encabezado; los nombres se escriben exactamente como en la plantilla.
 
-## Base estática (una por entidad, año y unidad)
+## Base estática (una por entidad, año, tema y unidad)
 
-Cada base se identifica por **entidad + año + unidad**. El año se elige en un selector (desde 2006, el primer año con población: el censo de 2005 cubre 2006 a 2009) y la unidad es *plazas* o *recursos humanos estimados (personas)*. Subir otra base de la misma combinación la reemplaza y guarda copia de la anterior. Las bases que ya estaban cargadas cuando se agregó el selector (versión 0.1.2.0) quedaron como del año 2026 y en plazas.
+Cada base se identifica por **entidad + año + tema + unidad**. El año se elige en un selector (desde 2006, el primer año con población: el censo de 2005 cubre 2006 a 2009). El tema y sus unidades:
 
-Nombre de los archivos en el servidor: `{entidad}-{año}-{unidad}.csv` y `.json` (por ejemplo `oaxaca-2026-plazas.csv`, `republica-mexicana-2026-personas.json`).
+| Tema | Unidades de conteo | Qué exige el archivo |
+|---|---|---|
+| *Enfermería* (`enfermeria`) | *plazas* de enfermería o *recursos humanos de enfermería* (`personas`) | Identificador, nombre, población, `enfermeras_total` y `tasa_total` |
+| *Clínicas de catéteres* (`clinicas_cateteres`) y *Clínicas de heridas* (`clinicas_heridas`) | *tasa* o *frecuencia* | Identificador y nombre |
+| Temas propios (los crea el administrador) | Las que se elijan al crearlo: frecuencia, tasa, plazas, recursos humanos | Identificador y nombre |
+
+El mapa público muestra las bases de Enfermería (`siarhe_base_tema_mapa()`).
+
+**La entidad se comprueba.** Al subir, el plugin lee la `CVE_ENT` de las filas (sin las de totales, 8888 y 9999) y rechaza el archivo si es de otra entidad, si es estatal y se eligió República Mexicana o si es nacional y se eligió una entidad (`Siarhe_Validador::revisa_base`). En Extranjero no se comprueba. Subir otra base de la misma combinación la reemplaza y guarda copia de la anterior. Las bases que ya estaban cargadas cuando se agregó el selector (versión 0.1.2.0) quedaron como del año 2026 y en plazas.
+
+Nombre de los archivos en el servidor: `{entidad}-{año}-{unidad}.csv` y `.json` en Enfermería (por ejemplo `oaxaca-2026-plazas.csv`, `republica-mexicana-2026-personas.json`) y `{entidad}-{año}-{tema}-{unidad}` en los demás temas (`oaxaca-2025-clinicas-cateteres-tasa.csv`).
 
 ### CSV o JSON: se acepta cualquiera y siempre existen los dos
 
@@ -36,7 +46,7 @@ El JSON (`formato: "siarhe-estatico"`, `version: 1`) lleva las mismas columnas q
 - Las columnas de identificación (`id`, `CVE_ENT`, `CVE_MUN`, `CVE_LOC`, `MAPA`, `estado`, `entidad`, `municipio`, `localidad`) y toda columna con texto se guardan como texto, con sus ceros iniciales; el resto son números, o `null` si la celda está vacía o dice `S/D`.
 - `sin_poblacion` es el valor de las tasas calculadas en las filas sin población (0 en «No Disponible»).
 - Si una tasa no coincide con su fórmula (por ejemplo una columna calculada de otra manera), no se declara en `tasas` y se conserva como columna.
-- Al subir un JSON, `anio` y `unidad` deben coincidir con lo elegido en el formulario; si no, se rechaza. El JSON se convierte a CSV (con las tasas redondeadas a 9 decimales) y ese CSV pasa por las mismas validaciones que cualquier otro.
+- Al subir un JSON, `anio` y, en Enfermería, `unidad` deben coincidir con lo elegido en el formulario; si no, se rechaza. El JSON se convierte a CSV (con las tasas redondeadas a 9 decimales) y ese CSV pasa por las mismas validaciones que cualquier otro.
 - El mismo algoritmo vive en Python (`src/estatico_json.py` de RHEMX) y en PHP (`includes/class-siarhe-static-json.php`); se comprobó con las 792 bases de RHEMX (12 años × 2 unidades × 33 archivos) que el JSON de ambos es equivalente y que JSON → CSV recupera cada celda.
 
 | Columna | Nacional | Municipal | Notas |
@@ -53,7 +63,16 @@ Métricas nativas (pares absoluto/tasa): total, primer, segundo y tercer nivel d
 
 ## Marcadores (un archivo por tipo y periodo)
 
-Cada tipo de marcador (clínicas de catéteres, de heridas, establecimientos de salud o los que se agreguen) es una familia de archivos, **uno por periodo**: un año de datos o **Toda la historia** (`total`: todas las unidades que han existido o reportado al menos una vez). El mapa usa el archivo del año que el visitante ve; si no existe, el de toda la historia; si tampoco, el del año anterior más cercano. Se guardan en `markers/` como `{nombre del tipo}-{periodo}.csv` y `.json` (`clinicas-cateteres-2025.json`, `clinicas-heridas-total.json`).
+Cada tipo de marcador es una familia de archivos, **uno por periodo**: un año de datos o **Todas** (`total`: las unidades de toda la historia, que han existido o reportado al menos una vez).
+
+| Tipo (en este orden) | Periodos |
+|---|---|
+| *Establecimientos de Salud* | Por año |
+| *Clínicas de Catéteres*, *Clínicas de Heridas* | «Todas» y por año |
+| *Pasantes de Enfermería* | Por año |
+| Variables que agrega el administrador | «Todas» y por año |
+
+**Versión por entidad.** Se carga un solo archivo con todo el país. Al guardarlo, el plugin crea una capa por entidad (`markers/entidades/{nombre}-{periodo}-entNN.json`, mismo formato, con las listas de textos reducidas a los que usa esa entidad) y el mapa de cada estado descarga solo la suya; el mapa nacional lee la capa completa (`Siarhe_Marker_Json::divide_por_entidad`). Los puntos sin clave de entidad solo quedan en la capa completa. El mapa usa el archivo del año que el visitante ve; si no existe, el de toda la historia; si tampoco, el del año anterior más cercano. Se guardan en `markers/` como `{nombre del tipo}-{periodo}.csv` y `.json` (`clinicas-cateteres-2025.json`, `clinicas-heridas-total.json`).
 
 ### CSV o JSON: se acepta cualquiera y siempre existen los dos
 

@@ -48,11 +48,25 @@ function siarhe_get_entities() {
         'veracruz'            => [ 'nombre' => 'Veracruz de Ignacio de la Llave', 'CVE_ENT' => '30' ],
         'yucatan'             => [ 'nombre' => 'Yucatán',                         'CVE_ENT' => '31' ],
         'zacatecas'           => [ 'nombre' => 'Zacatecas',                       'CVE_ENT' => '32' ],
-
-        // CAPAS ESPECIALES (Usamos claves altas para evitar conflictos con futuros estados)
-        'clinicas-heridas'    => [ 'nombre' => 'Clínicas de Heridas',   'CVE_ENT' => '98' ],
-        'clinicas-cateteres'  => [ 'nombre' => 'Clínicas de Catéteres', 'CVE_ENT' => '99' ]
     ];
+}
+
+/**
+ * Posición de una entidad en los selectores y las tablas del panel: primero Extranjero, después República Mexicana
+ * y después las entidades por su clave (01 a 32).
+ */
+function siarhe_entity_order( $slug ) {
+    if ( $slug === 'extranjero' ) return -2;
+    if ( $slug === 'republica-mexicana' ) return -1;
+    $entities = siarhe_get_entities();
+    return isset( $entities[ $slug ] ) ? (int) $entities[ $slug ]['CVE_ENT'] : 999;
+}
+
+/** Entidades en el orden del panel (ver siarhe_entity_order). */
+function siarhe_get_entities_ordered() {
+    $entities = siarhe_get_entities();
+    uksort( $entities, function ( $a, $b ) { return siarhe_entity_order( $a ) <=> siarhe_entity_order( $b ); } );
+    return $entities;
 }
 
 /**
@@ -242,29 +256,53 @@ function siarhe_get_metricas_config() {
 }
 
 /**
- * Tipos de archivo de marcadores con que viene el plugin (Carga de Datos > Marcadores). Cada tipo es una familia de archivos,
- * uno por periodo (año de los datos o "total"), que se guardan como {nombre}-{periodo}.csv y .json.
+ * Tipos de archivo de marcadores con que viene el plugin (Carga de Datos > Marcadores), en el orden en que se ofrecen. Cada
+ * tipo es una familia de archivos, uno por periodo, que se guardan como {nombre}-{periodo}.csv y .json. "periodos" dice qué
+ * periodos admite: "anios" (un archivo por año) o "total_anios" (además, «Todas»: las unidades de toda la historia).
  */
 function siarhe_marker_core_types() {
     return array(
-        'CATETER'          => array( 'label' => 'Clínicas de Catéteres', 'filename' => 'clinicas-cateteres.csv', 'is_core' => true ),
-        'HERIDAS'          => array( 'label' => 'Clínicas de Heridas', 'filename' => 'clinicas-heridas.csv', 'is_core' => true ),
-        'ESTABLECIMIENTOS' => array( 'label' => 'Establecimientos de Salud (Todas)', 'filename' => 'establecimientos-salud.csv', 'is_core' => true ),
+        'ESTABLECIMIENTOS' => array( 'label' => 'Establecimientos de Salud', 'filename' => 'establecimientos-salud.csv', 'is_core' => true, 'periodos' => 'anios' ),
+        'CATETER'          => array( 'label' => 'Clínicas de Catéteres', 'filename' => 'clinicas-cateteres.csv', 'is_core' => true, 'periodos' => 'total_anios' ),
+        'HERIDAS'          => array( 'label' => 'Clínicas de Heridas', 'filename' => 'clinicas-heridas.csv', 'is_core' => true, 'periodos' => 'total_anios' ),
+        'PASANTES'         => array( 'label' => 'Pasantes de Enfermería', 'filename' => 'pasantes-enfermeria.csv', 'is_core' => true, 'periodos' => 'anios' ),
     );
 }
 
-/** Tipos de archivo de marcadores vigentes: los del plugin mas los que agrego el administrador. */
+/**
+ * Tipos de archivo de marcadores vigentes: primero los del plugin, siempre con sus textos originales, y después los que agregó
+ * el administrador (opción siarhe_archivos_marcadores), que admiten «Todas» y años.
+ */
 function siarhe_marker_types() {
-    $tipos = siarhe_decode_json_option( get_option( 'siarhe_archivos_marcadores', '' ) );
-    return ( is_array( $tipos ) && ! empty( $tipos ) ) ? $tipos : siarhe_marker_core_types();
+    $tipos     = siarhe_marker_core_types();
+    $guardados = siarhe_decode_json_option( get_option( 'siarhe_archivos_marcadores', '' ) );
+    if ( is_array( $guardados ) ) {
+        foreach ( $guardados as $clave => $info ) {
+            if ( isset( $tipos[ $clave ] ) || ! is_array( $info ) || empty( $info['filename'] ) ) continue;
+            $tipos[ $clave ] = array(
+                'label'    => ( isset( $info['label'] ) && $info['label'] !== '' ) ? (string) $info['label'] : (string) $clave,
+                'filename' => (string) $info['filename'],
+                'is_core'  => false,
+                'periodos' => 'total_anios',
+            );
+        }
+    }
+    return $tipos;
+}
+
+/** Indica si un tipo de marcador admite el periodo «Todas» (toda la historia) además de los años. */
+function siarhe_marker_type_has_total( $info ) {
+    return ! isset( $info['periodos'] ) || $info['periodos'] !== 'anios';
 }
 
 /**
  * Archivos de marcadores cargados, por nombre de archivo del tipo y periodo: array( 'clinicas-cateteres.csv' =>
  * array( '2025' => url, 'total' => url ) ). La URL es la del JSON si existe (pesa menos) y, si no, la del CSV. Un archivo
  * copiado a la carpeta sin registro (por FTP) cuenta como "total".
+ * Con $cve_ent de una entidad (01 a 32) se entrega la versión de esa entidad (solo sus puntos), que el plugin crea al cargar
+ * el archivo completo; si no existe o es anterior al archivo completo se entrega este y el mapa filtra los puntos.
  */
-function siarhe_get_marker_file_urls() {
+function siarhe_get_marker_file_urls( $cve_ent = '' ) {
     global $wpdb;
     $out   = array();
     $tipos = siarhe_marker_types();
@@ -275,9 +313,17 @@ function siarhe_get_marker_file_urls() {
         $rel     = ltrim( $es_json ? $f->ruta_json : $f->ruta_archivo, '/' );
         $ruta    = SIARHE_UPLOAD_DIR . $rel;
         if ( $rel === '' || ! file_exists( $ruta ) ) continue;
+        $periodo = ( (int) $f->anio_reporte > 0 ) ? (string) (int) $f->anio_reporte : Siarhe_Marker_Json::PERIODO_TOTAL;
+
+        if ( $es_json && $cve_ent !== '' ) {
+            $parte = Siarhe_Marker_Json::ruta_entidad( $ruta, $cve_ent );
+            if ( $parte !== '' && is_file( $parte ) && filemtime( $parte ) >= filemtime( $ruta ) ) {
+                $out[ $tipos[ $f->entidad_slug ]['filename'] ][ $periodo ] = SIARHE_UPLOAD_URL . 'markers/' . Siarhe_Marker_Json::DIR_ENTIDADES . '/' . basename( $parte ) . '?v=' . filemtime( $parte );
+                continue;
+            }
+        }
         $url = SIARHE_UPLOAD_URL . $rel . '?v=' . filemtime( $ruta );
         if ( ! $es_json ) $url = siarhe_data_read_url( $url );
-        $periodo = ( (int) $f->anio_reporte > 0 ) ? (string) (int) $f->anio_reporte : Siarhe_Marker_Json::PERIODO_TOTAL;
         $out[ $tipos[ $f->entidad_slug ]['filename'] ][ $periodo ] = $url;
     }
     foreach ( $tipos as $info ) {
@@ -290,6 +336,69 @@ function siarhe_get_marker_file_urls() {
 }
 
 /**
+ * Crea las versiones por entidad de las capas de marcadores que no la tienen o la tienen anterior al archivo completo (las
+ * cargadas antes de existir esta división). Devuelve cuántas capas se dividieron.
+ */
+function siarhe_split_all_markers() {
+    global $wpdb;
+    $n = 0;
+    $filas = $wpdb->get_results( "SELECT ruta_json FROM {$wpdb->prefix}siarhe_static_assets WHERE tipo_archivo = 'marcador' AND es_activo = 1 AND ruta_json IS NOT NULL AND ruta_json <> ''" );
+    foreach ( (array) $filas as $f ) {
+        $ruta = SIARHE_UPLOAD_DIR . ltrim( $f->ruta_json, '/' );
+        if ( ! is_file( $ruta ) ) continue;
+        $muestra = Siarhe_Marker_Json::ruta_entidad( $ruta, '01' );
+        if ( is_file( $muestra ) && filemtime( $muestra ) >= filemtime( $ruta ) ) continue;
+        if ( Siarhe_Marker_Json::divide_por_entidad( $ruta ) > 0 ) $n++;
+    }
+    return $n;
+}
+
+/**
+ * Temas de las bases estáticas (Carga de Datos > Bases Estáticas). Un tema agrupa las bases de un mismo asunto y define sus
+ * unidades de conteo; cada base es entidad + año + tema + unidad. Los del sistema son Enfermería (plazas y recursos humanos)
+ * y las clínicas de catéteres y de heridas (grupo «Clínicas», tasa y frecuencia); el administrador puede crear los suyos,
+ * que se guardan en la opción siarhe_bases_temas como { clave: { label, unidades: [..] } }.
+ * @return array clave => array( 'label', 'grupo' ('' o 'clinicas'), 'unidades' => array( clave => etiqueta ), 'sistema' )
+ */
+function siarhe_base_temas() {
+    $temas = array(
+        'enfermeria' => array( 'label' => 'Enfermería', 'grupo' => '', 'sistema' => true,
+            'unidades' => array( 'plazas' => 'Plazas de enfermería', 'personas' => 'Recursos humanos de enfermería' ) ),
+        'clinicas_cateteres' => array( 'label' => 'Clínicas de catéteres', 'grupo' => 'clinicas', 'sistema' => true,
+            'unidades' => array( 'tasa' => 'Tasa', 'frecuencia' => 'Frecuencia' ) ),
+        'clinicas_heridas' => array( 'label' => 'Clínicas de heridas', 'grupo' => 'clinicas', 'sistema' => true,
+            'unidades' => array( 'tasa' => 'Tasa', 'frecuencia' => 'Frecuencia' ) ),
+    );
+    $catalogo  = siarhe_base_unidades();
+    $guardados = siarhe_decode_json_option( get_option( 'siarhe_bases_temas', '' ) );
+    if ( is_array( $guardados ) ) {
+        foreach ( $guardados as $clave => $t ) {
+            $clave = sanitize_key( $clave );
+            if ( $clave === '' || isset( $temas[ $clave ] ) || ! is_array( $t ) ) continue;
+            $label = isset( $t['label'] ) ? trim( (string) $t['label'] ) : '';
+            if ( $label === '' ) continue;
+            $unidades = array();
+            foreach ( (array) ( isset( $t['unidades'] ) ? $t['unidades'] : array() ) as $u ) {
+                if ( isset( $catalogo[ $u ] ) ) $unidades[ $u ] = $catalogo[ $u ];
+            }
+            if ( ! $unidades ) $unidades = array( 'frecuencia' => $catalogo['frecuencia'] );
+            $temas[ $clave ] = array( 'label' => $label, 'grupo' => '', 'sistema' => false, 'unidades' => $unidades );
+        }
+    }
+    return $temas;
+}
+
+/** Unidades de conteo que puede tener un tema de bases estáticas creado por el administrador. */
+function siarhe_base_unidades() {
+    return array( 'frecuencia' => 'Frecuencia', 'tasa' => 'Tasa', 'plazas' => 'Plazas', 'personas' => 'Recursos humanos' );
+}
+
+/** Tema de bases estáticas que alimenta el mapa público. */
+function siarhe_base_tema_mapa() {
+    return 'enfermeria';
+}
+
+/**
  * Marcadores con que viene el plugin. Los de establecimientos de salud por nivel de atencion son del sistema ("sistema"):
  * llevan los mismos textos que RHEMX y filtran el catalogo por su columna de nivel de atencion.
  */
@@ -298,6 +407,7 @@ function siarhe_get_default_marcadores() {
     $defaults = array(
         'CATETER' => array_merge( array( 'label' => 'Clínicas de catéteres', 'archivo' => 'clinicas-cateteres.csv' ), $clinica ),
         'HERIDAS' => array_merge( array( 'label' => 'Clínicas de heridas', 'archivo' => 'clinicas-heridas.csv' ), $clinica ),
+        'PASANTES' => array_merge( array( 'label' => 'Pasantes de enfermería', 'archivo' => 'pasantes-enfermeria.csv' ), $clinica ),
     );
     $niveles = array( 'ESTAB_1' => 'Primer Nivel', 'ESTAB_2' => 'Segundo Nivel', 'ESTAB_3' => 'Tercer Nivel', 'ESTAB_6' => 'No Aplica', 'ESTAB_NE' => 'No Especificado' );
     foreach ( $niveles as $clave => $nivel ) {
@@ -328,8 +438,9 @@ function siarhe_get_marcadores_config() {
         }
         $out[ $clave ] = $m;
     }
+    // Los marcadores con que viene el plugin siempre existen (un marcador sin archivo cargado no se ofrece en el mapa)
     foreach ( $defaults as $clave => $def ) {
-        if ( ! empty( $def['sistema'] ) && ! isset( $out[ $clave ] ) ) $out[ $clave ] = $def;
+        if ( ! isset( $out[ $clave ] ) ) $out[ $clave ] = $def;
     }
     return $out;
 }

@@ -4,7 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Siarhe_Admin {
 
     // Subir este valor cuando maybe_update_database() deba aplicar nuevas columnas.
-    const DB_VERSION = '3';
+    const DB_VERSION = '4';
 
     public function init() {
         // Hooks Visuales
@@ -31,6 +31,11 @@ class Siarhe_Admin {
         add_action( 'admin_post_siarhe_upload_static', array( $this, 'handle_static_upload' ) );
         add_action( 'admin_post_siarhe_update_static_meta', array( $this, 'handle_static_meta_update' ) ); 
         add_action( 'admin_post_siarhe_delete_static', array( $this, 'handle_static_delete' ) );
+        add_action( 'admin_post_siarhe_base_tema_add', array( $this, 'handle_base_tema_add' ) );
+        add_action( 'admin_post_siarhe_base_tema_delete', array( $this, 'handle_base_tema_delete' ) );
+
+        // --- VALIDACION DE LOS ARCHIVOS YA CARGADOS ---
+        add_action( 'admin_post_siarhe_validate_files', array( $this, 'handle_validate_files' ) );
 
         // --- HANDLERS: MARCADORES (Subida Específica) ---
         add_action( 'admin_post_siarhe_upload_marker', array( $this, 'handle_marker_upload' ) );
@@ -91,7 +96,9 @@ class Siarhe_Admin {
         if ( ! siarhe_read_copies_enabled() ) { wp_safe_redirect( admin_url( 'admin.php?page=siarhe-dataviz' ) ); exit; }
         set_time_limit( 0 );
         wp_raise_memory_limit( 'admin' );
-        set_transient( 'siarhe_copies_result_' . get_current_user_id(), siarhe_generate_all_read_copies(), 5 * MINUTE_IN_SECONDS );
+        $resultado = siarhe_generate_all_read_copies();
+        $resultado['marcadores'] = siarhe_split_all_markers(); // capas de marcadores sin su versión por entidad
+        set_transient( 'siarhe_copies_result_' . get_current_user_id(), $resultado, 5 * MINUTE_IN_SECONDS );
         wp_safe_redirect( admin_url( 'admin.php?page=siarhe-dataviz&copies=1' ) );
         exit;
     }
@@ -203,6 +210,23 @@ class Siarhe_Admin {
             // existir el selector se toman como las del marco mas reciente
             if ( (int) get_option( 'siarhe_db_version' ) < 3 ) {
                 $wpdb->query( $wpdb->prepare( "UPDATE `$table` SET anio_reporte = %d WHERE tipo_archivo IN ('geojson','localidades_geojson')", Siarhe_Geo::MARCO_HEREDADO ) );
+            }
+            // Version 4: las bases estaticas llevan tema (las cargadas antes son de Enfermeria) y la unidad admite nombres mas
+            // largos (frecuencia). Los marcadores cargados antes de existir los periodos ({nombre}.csv) toman el suyo: las
+            // clinicas, «Todas»; los tipos que solo se cargan por año, el año mas reciente.
+            if ( ! in_array( 'tema', $cols ) ) {
+                $wpdb->query( "ALTER TABLE `$table` ADD `tema` varchar(40) NOT NULL DEFAULT 'enfermeria'" );
+                $wpdb->query( "ALTER TABLE `$table` MODIFY `unidad` varchar(20) NOT NULL DEFAULT 'plazas'" );
+            }
+            if ( (int) get_option( 'siarhe_db_version' ) < 4 ) {
+                foreach ( siarhe_marker_types() as $clave => $info ) {
+                    $heredado = 'markers/' . $info['filename']; // sin sufijo de periodo
+                    $periodo  = siarhe_marker_type_has_total( $info ) ? 0 : Siarhe_Static_Json::LATEST_YEAR;
+                    $wpdb->query( $wpdb->prepare(
+                        "UPDATE `$table` SET anio_reporte = %d WHERE tipo_archivo = 'marcador' AND entidad_slug = %s AND ruta_archivo = %s",
+                        $periodo, $clave, $heredado
+                    ) );
+                }
             }
             update_option( 'siarhe_db_version', self::DB_VERSION );
             $this->build_missing_static_json();
@@ -560,9 +584,10 @@ class Siarhe_Admin {
     /**
      * Valida un CSV leyendo solo lo necesario (encabezado + filas en streaming).
      * $kind: 'static' (base estatica) o 'marker' (marcadores con coordenadas).
+     * $tema: tema de la base estatica; solo las de Enfermeria exigen poblacion, enfermeras_total y tasa_total.
      * Los problemas graves detienen la carga; los demas se devuelven como avisos.
      */
-    private function validate_csv_file( $tmp_path, $kind, $slug = '' ) {
+    private function validate_csv_file( $tmp_path, $kind, $slug = '', $tema = 'enfermeria' ) {
         $warnings = array();
 
         $fh = ( ! empty( $tmp_path ) && is_readable( $tmp_path ) ) ? fopen( $tmp_path, 'r' ) : false;
@@ -600,13 +625,16 @@ class Siarhe_Admin {
             $missing = array();
             if ( $id_idx === false )                         $missing[] = 'identificador (' . implode( ', ', $id_names ) . ')';
             if ( ! array_intersect( $nom_names, $raw_header ) ) $missing[] = 'nombre (' . implode( ', ', $nom_names ) . ')';
-            $has_pob = false;
-            foreach ( $header as $h ) {
-                if ( strpos( $h, 'pob' ) === 0 ) { $has_pob = true; break; }
-            }
-            if ( ! $has_pob ) $missing[] = 'población (una columna que empiece con "pob")';
-            foreach ( array( 'tasa_total', 'enfermeras_total' ) as $must ) {
-                if ( ! in_array( $must, $raw_header, true ) ) $missing[] = $must . ' (sin ella el mapa no muestra datos)';
+            $de_enfermeria = ( $tema === 'enfermeria' );
+            if ( $de_enfermeria ) {
+                $has_pob = false;
+                foreach ( $header as $h ) {
+                    if ( strpos( $h, 'pob' ) === 0 ) { $has_pob = true; break; }
+                }
+                if ( ! $has_pob ) $missing[] = 'población (una columna que empiece con "pob")';
+                foreach ( array( 'tasa_total', 'enfermeras_total' ) as $must ) {
+                    if ( ! in_array( $must, $raw_header, true ) ) $missing[] = $must . ' (sin ella el mapa no muestra datos)';
+                }
             }
 
             if ( $missing ) {
@@ -617,7 +645,7 @@ class Siarhe_Admin {
             // Metricas configuradas en el admin: cada clave es el nombre de una columna del CSV
             $metric_idx = array();
             $missing_m  = array();
-            $cfg = siarhe_get_metricas_config();
+            $cfg = $de_enfermeria ? siarhe_get_metricas_config() : null; // las metricas del mapa son las de Enfermeria
             if ( is_array( $cfg ) ) {
                 foreach ( $cfg as $k => $m_cfg ) {
                     if ( $k === 'poblacion' || ! empty( $m_cfg['opcional'] ) ) continue; // las opcionales solo se muestran si la base trae la columna
@@ -881,6 +909,10 @@ class Siarhe_Admin {
     // -------------------------------------------------------------------------
     // HANDLERS: BASES ESTÁTICAS (CSV)
     // -------------------------------------------------------------------------
+    /**
+     * Guarda una base estatica. Cada base es entidad + año + tema + unidad de conteo y se acepta como CSV o como JSON
+     * optimizado: el que se sube se valida (columnas, año, unidad y que sea de la entidad elegida) y de el se obtiene el otro.
+     */
     public function handle_static_upload() {
         if ( ! isset( $_POST['siarhe_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['siarhe_nonce'] ) ), 'siarhe_upload_static_nonce' ) ) wp_die( 'Error de seguridad.' );
         if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Sin permisos.' );
@@ -891,8 +923,18 @@ class Siarhe_Admin {
         if ( ! isset( $_FILES['siarhe_file'] ) || $_FILES['siarhe_file']['error'] != 0 ) $this->upload_fail( 'Error carga PHP.' );
 
         $entidad_slug = $this->sanitize_slug( isset( $_POST['entidad_slug'] ) ? $_POST['entidad_slug'] : '' );
-        $anio   = isset( $_POST['anio_reporte'] ) ? intval( $_POST['anio_reporte'] ) : 0;
-        $unidad = ( isset( $_POST['unidad'] ) && $_POST['unidad'] === 'personas' ) ? 'personas' : 'plazas';
+        $entidades    = siarhe_get_entities();
+        if ( ! isset( $entidades[ $entidad_slug ] ) ) $this->upload_fail( 'Entidad no válida.' );
+
+        $temas = siarhe_base_temas();
+        $tema  = isset( $_POST['tema'] ) ? sanitize_key( wp_unslash( $_POST['tema'] ) ) : 'enfermeria';
+        if ( ! isset( $temas[ $tema ] ) ) $this->upload_fail( 'Elige el tema de la base.' );
+        $unidad = isset( $_POST['unidad'] ) ? sanitize_key( wp_unslash( $_POST['unidad'] ) ) : '';
+        if ( ! isset( $temas[ $tema ]['unidades'][ $unidad ] ) ) {
+            $this->upload_fail( 'Elige la unidad de conteo del tema «' . $temas[ $tema ]['label'] . '» (' . implode( ', ', $temas[ $tema ]['unidades'] ) . ').' );
+        }
+
+        $anio = isset( $_POST['anio_reporte'] ) ? intval( $_POST['anio_reporte'] ) : 0;
         if ( $anio < Siarhe_Static_Json::YEAR_MIN || $anio > max( Siarhe_Static_Json::LATEST_YEAR, (int) gmdate( 'Y' ) ) ) {
             $this->upload_fail( 'Elige el año de los datos (de ' . Siarhe_Static_Json::YEAR_MIN . ' al año en curso).' );
         }
@@ -914,18 +956,24 @@ class Siarhe_Admin {
             if ( isset( $json['anio'] ) && (int) $json['anio'] !== $anio ) {
                 $this->upload_fail( 'El JSON es de ' . (int) $json['anio'] . ' y elegiste ' . $anio . ' como año de los datos.' );
             }
-            if ( isset( $json['unidad'] ) && $json['unidad'] !== $unidad ) {
+            // Solo las bases de Enfermeria declaran su unidad (plazas o personas) en el archivo
+            if ( $tema === 'enfermeria' && isset( $json['unidad'] ) && $json['unidad'] !== $unidad ) {
                 $this->upload_fail( 'El JSON cuenta ' . esc_html( $json['unidad'] ) . ' y elegiste ' . esc_html( $unidad ) . ' como unidad.' );
             }
+            $otra_entidad = Siarhe_Validador::revisa_base_json( $json, $entidad_slug );
+            if ( $otra_entidad !== '' ) $this->upload_fail( $otra_entidad );
             $json['anio'] = $anio;
             $json['unidad'] = $unidad;
             $csv_texto = Siarhe_Static_Json::to_csv( $json );
             $revision = wp_tempnam( 'siarhe-static' );
             file_put_contents( $revision, $csv_texto );
             register_shutdown_function( function () use ( $revision ) { if ( is_file( $revision ) ) @unlink( $revision ); } );
-            $this->flash_notice( $this->validate_csv_file( $revision, 'static', $entidad_slug ) );
+            $this->flash_notice( $this->validate_csv_file( $revision, 'static', $entidad_slug, $tema ) );
         } else {
-            $this->flash_notice( $this->validate_csv_file( $tmp, 'static', $entidad_slug ) );
+            $avisos = $this->validate_csv_file( $tmp, 'static', $entidad_slug, $tema );
+            $otra_entidad = Siarhe_Validador::revisa_base_csv( $tmp, $entidad_slug );
+            if ( $otra_entidad !== '' ) $this->upload_fail( $otra_entidad );
+            $this->flash_notice( $avisos );
         }
 
         $current_user = wp_get_current_user();
@@ -935,7 +983,8 @@ class Siarhe_Admin {
         $target_dir = $upload_dir['basedir'] . '/siarhe-data/static-min/';
         if ( ! file_exists( $target_dir ) ) wp_mkdir_p( $target_dir );
 
-        $base = $entidad_slug . '-' . $anio . '-' . $unidad;
+        // Las bases de Enfermeria conservan el nombre {entidad}-{año}-{unidad}; las de otros temas agregan el suyo
+        $base = $entidad_slug . '-' . $anio . '-' . ( $tema === 'enfermeria' ? '' : str_replace( '_', '-', $tema ) . '-' ) . $unidad;
         $csv_file  = $target_dir . $base . '.csv';
         $json_file = $target_dir . $base . '.json';
         $this->archive_previous_version( $csv_file );
@@ -960,8 +1009,8 @@ class Siarhe_Admin {
         global $wpdb;
         $table_name = $wpdb->prefix . 'siarhe_static_assets';
         $existe = $wpdb->get_row( $wpdb->prepare(
-            "SELECT id FROM $table_name WHERE entidad_slug = %s AND tipo_archivo = 'static_min' AND anio_reporte = %d AND unidad = %s",
-            $entidad_slug, $anio, $unidad
+            "SELECT id FROM $table_name WHERE entidad_slug = %s AND tipo_archivo = 'static_min' AND anio_reporte = %d AND tema = %s AND unidad = %s",
+            $entidad_slug, $anio, $tema, $unidad
         ) );
 
         if ( $existe ) {
@@ -977,11 +1026,11 @@ class Siarhe_Admin {
             $datos = array(
                 'entidad_slug' => $entidad_slug, 'tipo_archivo' => 'static_min',
                 'ruta_archivo' => 'static-min/' . $base . '.csv', 'ruta_json' => $ruta_json,
-                'anio_reporte' => $anio, 'unidad' => $unidad, 'fecha_corte' => $fecha_corte, 'referencia_bibliografica' => $referencia,
+                'anio_reporte' => $anio, 'tema' => $tema, 'unidad' => $unidad, 'fecha_corte' => $fecha_corte, 'referencia_bibliografica' => $referencia,
                 'comentarios' => $comentarios, 'es_activo' => 1, 'fecha_subida' => current_time( 'mysql' ),
                 'subido_por' => $editor_name, 'modificado_por' => $editor_name, 'fecha_modificacion' => current_time('mysql')
             );
-            $formato = array( '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s' );
+            $formato = array( '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s' );
             $wpdb->insert( $table_name, $datos, $formato );
         }
 
@@ -1027,11 +1076,140 @@ class Siarhe_Admin {
             if ( file_exists( $filepath ) ) { unlink( $filepath ); siarhe_delete_data_read_copies( $filepath ); }
             if ( ! empty( $file->ruta_json ) ) {
                 $json_path = $upload_dir['basedir'] . '/siarhe-data/' . $file->ruta_json;
+                if ( $file->tipo_archivo === 'marcador' ) Siarhe_Marker_Json::borra_entidades( $json_path );
                 if ( file_exists( $json_path ) ) unlink( $json_path );
             }
             $wpdb->delete( $table_name, array( 'id' => $file_id ) );
         }
         wp_redirect( admin_url( 'admin.php?page=siarhe-uploader&tab=' . $tab_destino . '&status=deleted' ) ); exit;
+    }
+
+    // -------------------------------------------------------------------------
+    // HANDLERS: TEMAS DE BASES ESTATICAS (alta / baja de los que crea el administrador)
+    // -------------------------------------------------------------------------
+    private function base_tema_redirect( $status ) {
+        wp_safe_redirect( admin_url( 'admin.php?page=siarhe-uploader&tab=static&status=' . $status ) );
+        exit;
+    }
+
+    /** Temas propios guardados, tal como estan en la opcion: array( clave => array( 'label', 'unidades' ) ). */
+    private function saved_base_temas() {
+        $guardados = siarhe_decode_json_option( get_option( 'siarhe_bases_temas', '' ) );
+        return is_array( $guardados ) ? $guardados : array();
+    }
+
+    public function handle_base_tema_add() {
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Sin permisos.' );
+        check_admin_referer( 'siarhe_base_tema_add', 'tema_nonce' );
+
+        $label = sanitize_text_field( wp_unslash( isset( $_POST['tema_label'] ) ? $_POST['tema_label'] : '' ) );
+        $clave = sanitize_key( str_replace( array( ' ', '-' ), '_', remove_accents( wp_unslash( isset( $_POST['tema_clave'] ) ? $_POST['tema_clave'] : '' ) ) ) );
+        if ( $clave === '' ) $clave = sanitize_key( str_replace( array( ' ', '-' ), '_', remove_accents( $label ) ) );
+        $clave = substr( $clave, 0, 40 );
+        if ( $clave === '' || $label === '' ) $this->base_tema_redirect( 'tema_invalid' );
+        $temas = siarhe_base_temas();
+        if ( isset( $temas[ $clave ] ) ) $this->base_tema_redirect( 'tema_exists' );
+
+        $catalogo = siarhe_base_unidades();
+        $unidades = array();
+        foreach ( (array) ( isset( $_POST['tema_unidades'] ) ? wp_unslash( $_POST['tema_unidades'] ) : array() ) as $u ) {
+            $u = sanitize_key( $u );
+            if ( isset( $catalogo[ $u ] ) ) $unidades[] = $u;
+        }
+        if ( ! $unidades ) $unidades = array( 'frecuencia' );
+
+        $guardados = $this->saved_base_temas();
+        $guardados[ $clave ] = array( 'label' => $label, 'unidades' => $unidades );
+        update_option( 'siarhe_bases_temas', wp_json_encode( $guardados, JSON_UNESCAPED_UNICODE ) );
+        $this->base_tema_redirect( 'tema_added' );
+    }
+
+    /** Elimina un tema propio junto con las bases (archivos y registros) cargadas en el. */
+    public function handle_base_tema_delete() {
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Sin permisos.' );
+        check_admin_referer( 'siarhe_base_tema_delete', 'tema_nonce' );
+
+        $clave = sanitize_key( wp_unslash( isset( $_POST['tema_clave'] ) ? $_POST['tema_clave'] : '' ) );
+        $temas = siarhe_base_temas();
+        if ( ! isset( $temas[ $clave ] ) || ! empty( $temas[ $clave ]['sistema'] ) ) $this->base_tema_redirect( 'tema_invalid' );
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'siarhe_static_assets';
+        $bases = $wpdb->get_results( $wpdb->prepare( "SELECT id, ruta_archivo, ruta_json FROM $table WHERE tipo_archivo = 'static_min' AND tema = %s", $clave ) );
+        foreach ( (array) $bases as $b ) {
+            foreach ( array( $b->ruta_archivo, $b->ruta_json ) as $rel ) {
+                if ( empty( $rel ) ) continue;
+                $ruta = SIARHE_UPLOAD_DIR . 'static-min/' . basename( $rel );
+                if ( is_file( $ruta ) ) { @unlink( $ruta ); siarhe_delete_data_read_copies( $ruta ); }
+            }
+            $wpdb->delete( $table, array( 'id' => $b->id ) );
+        }
+        $guardados = $this->saved_base_temas();
+        unset( $guardados[ $clave ] );
+        update_option( 'siarhe_bases_temas', wp_json_encode( $guardados, JSON_UNESCAPED_UNICODE ) );
+        $this->base_tema_redirect( 'tema_deleted' );
+    }
+
+    // -------------------------------------------------------------------------
+    // VALIDACION DE LOS ARCHIVOS YA CARGADOS
+    // Revisa lo que esta en el servidor (de un apartado o de todos) y muestra que archivo no corresponde y donde esta.
+    // -------------------------------------------------------------------------
+    public function handle_validate_files() {
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'No tienes permisos.' );
+        check_admin_referer( 'siarhe_validate_files' );
+        set_time_limit( 0 );
+        wp_raise_memory_limit( 'admin' );
+
+        $secciones = Siarhe_Validador::secciones();
+        $seccion   = isset( $_POST['seccion'] ) ? sanitize_key( wp_unslash( $_POST['seccion'] ) ) : '';
+        if ( ! isset( $secciones[ $seccion ] ) ) $seccion = '';
+        set_transient( 'siarhe_validacion_' . get_current_user_id(), Siarhe_Validador::revisar( $seccion ), 10 * MINUTE_IN_SECONDS );
+
+        $destino = ( $seccion !== '' ) ? 'admin.php?page=siarhe-uploader&tab=' . $seccion . '&validacion=1' : 'admin.php?page=siarhe-dataviz&validacion=1';
+        wp_safe_redirect( admin_url( $destino ) );
+        exit;
+    }
+
+    /** Boton «Validar archivos cargados»: de un apartado de Carga de Datos o, con $seccion vacia, de todos. */
+    public static function render_validate_button( $seccion = '' ) {
+        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="siarhe-validate-form">';
+        echo '<input type="hidden" name="action" value="siarhe_validate_files">';
+        echo '<input type="hidden" name="seccion" value="' . esc_attr( $seccion ) . '">';
+        wp_nonce_field( 'siarhe_validate_files' );
+        echo '<button type="submit" class="button"><span class="dashicons dashicons-yes-alt"></span> Validar archivos cargados</button>';
+        self::help( $seccion === ''
+            ? 'Revisa todos los archivos que ya están en el servidor (mapas, localidades, bases estáticas y marcadores): que existan y que sean de la entidad, la capa, el año y la unidad donde están cargados. Si alguno no corresponde, dice cuál es y en qué apartado está para reemplazarlo.'
+            : 'Revisa los archivos de esta pestaña que ya están en el servidor: que existan y que sean de la entidad y del periodo donde están cargados. Si alguno no corresponde, dice cuál es para reemplazarlo.' );
+        echo '</form>';
+    }
+
+    /** Muestra (y consume) el resultado de la ultima validacion pedida por el usuario. */
+    public static function render_validation_result() {
+        if ( ! isset( $_GET['validacion'] ) ) return;
+        $clave = 'siarhe_validacion_' . get_current_user_id();
+        $res   = get_transient( $clave );
+        if ( ! is_array( $res ) ) return;
+        delete_transient( $clave );
+
+        $secciones = Siarhe_Validador::secciones();
+        $total = array_sum( $res['revisados'] );
+        $detalle = array();
+        foreach ( $res['revisados'] as $s => $n ) $detalle[] = $secciones[ $s ] . ': ' . (int) $n;
+        $resumen = 'Se revisaron ' . (int) $total . ' archivo(s) (' . implode( ' · ', $detalle ) . ').';
+
+        if ( empty( $res['problemas'] ) ) {
+            echo '<div class="notice notice-success is-dismissible"><p><strong>Todos los archivos están en su lugar.</strong> ' . esc_html( $resumen ) . '</p></div>';
+            return;
+        }
+        echo '<div class="notice notice-error siarhe-validacion"><p><strong>' . count( $res['problemas'] ) . ' problema(s) encontrados.</strong> ' . esc_html( $resumen )
+            . ' Sube de nuevo el archivo correcto en el apartado indicado (lo reemplaza) o elimínalo.</p>';
+        echo '<table class="widefat striped siarhe-validacion__tabla"><thead><tr><th>Apartado</th><th>Dónde está cargado</th><th>Archivo</th><th>Problema</th></tr></thead><tbody>';
+        foreach ( $res['problemas'] as $p ) {
+            $url = admin_url( 'admin.php?page=siarhe-uploader&tab=' . $p['seccion'] );
+            echo '<tr><td><a href="' . esc_url( $url ) . '">' . esc_html( $secciones[ $p['seccion'] ] ) . '</a></td><td>' . esc_html( $p['donde'] ) . '</td><td><code>'
+                . esc_html( $p['archivo'] ) . '</code></td><td>' . esc_html( $p['problema'] ) . '</td></tr>';
+        }
+        echo '</tbody></table></div>';
     }
 
     // -------------------------------------------------------------------------
@@ -1064,7 +1242,10 @@ class Siarhe_Admin {
         $assets = $wpdb->get_results( $wpdb->prepare( "SELECT id, ruta_archivo, ruta_json FROM $table WHERE tipo_archivo = %s AND entidad_slug = %s", 'marcador', $key ) );
         foreach ( (array) $assets as $asset ) {
             $rutas[] = $dir . basename( $asset->ruta_archivo );
-            if ( ! empty( $asset->ruta_json ) ) $rutas[] = $dir . basename( $asset->ruta_json );
+            if ( ! empty( $asset->ruta_json ) ) {
+                $rutas[] = $dir . basename( $asset->ruta_json );
+                Siarhe_Marker_Json::borra_entidades( $dir . basename( $asset->ruta_json ) );
+            }
             $wpdb->delete( $table, array( 'id' => $asset->id ) );
         }
         foreach ( array_unique( $rutas ) as $path ) {
@@ -1136,6 +1317,9 @@ class Siarhe_Admin {
 
         $periodo = Siarhe_Marker_Json::periodo( isset( $_POST['periodo'] ) ? wp_unslash( $_POST['periodo'] ) : '' );
         if ( $periodo === '' ) $this->upload_fail( 'Elige el periodo de los datos: un año o «Toda la historia».' );
+        if ( $periodo === Siarhe_Marker_Json::PERIODO_TOTAL && ! siarhe_marker_type_has_total( $tipos[ $tipo ] ) ) {
+            $this->upload_fail( '«' . $tipos[ $tipo ]['label'] . '» se carga por año: elige el año de los datos.' );
+        }
         $anio_db = ( $periodo === Siarhe_Marker_Json::PERIODO_TOTAL ) ? 0 : (int) $periodo;
 
         if ( ! isset( $_FILES['marker_file'] ) || empty( $_FILES['marker_file']['name'] ) ) $this->upload_fail( 'No se seleccionó ningún archivo.' );
@@ -1195,14 +1379,19 @@ class Siarhe_Admin {
                 $avisos[] = 'No se pudo crear el JSON del marcador (' . $resultado . '); el mapa leerá el CSV.';
             }
         }
-        $this->flash_notice( $avisos );
-
         if ( $anterior !== '' && $anterior !== $csv_file && is_file( $anterior ) ) {
             @unlink( $anterior );
             siarhe_delete_data_read_copies( $anterior );
         }
         siarhe_build_read_copy( $csv_file );
         $ruta_json = is_file( $json_file ) ? 'markers/' . $base . '.json' : '';
+
+        // Version por entidad: el mapa de cada entidad lee una capa que solo trae sus puntos
+        Siarhe_Marker_Json::borra_entidades( $json_file );
+        if ( $ruta_json !== '' && Siarhe_Marker_Json::divide_por_entidad( $json_file ) === 0 ) {
+            $avisos[] = 'No se crearon las versiones por entidad de la capa (no trae la clave de la entidad); los mapas de las entidades leerán la capa completa.';
+        }
+        $this->flash_notice( $avisos );
 
         if ( $existe ) {
             $wpdb->update( $table_name, array(

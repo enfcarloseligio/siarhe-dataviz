@@ -2,6 +2,27 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.8.0] - 2026-11-13
+
+### Carga de datos
+- **Filtro de periodo en las cuatro tablas:** *Geolocalización* y *Localidades (Geo)* filtran por marco, y *Bases Estáticas* y *Marcadores* por año. El selector solo ofrece los periodos con al menos un archivo cargado, abre en el más reciente (sin archivos, en el año o el marco vigente) y conserva la vista **Todos**. En cada periodo se listan todas las entidades, con archivo o sin él, para ver lo que falta.
+- **Orden de las entidades:** en los selectores y las tablas van primero **Extranjero**, después **República Mexicana** y después las entidades por su clave (01 a 32).
+- **Se retiran las entidades «Clínicas de Heridas» y «Clínicas de Catéteres»** (claves 98 y 99) de los mapas: sus datos ahora son un tema de las bases estáticas. Un archivo cargado en ellas aparece al final de su tabla como «entidad retirada» para poder eliminarlo.
+- **Validación de la entidad en las bases estáticas:** al subir un CSV o un JSON se comprueba, por su `CVE_ENT`, que sea de la entidad elegida. Se rechaza la base de una entidad en el lugar de otra, una estatal en República Mexicana y la nacional en una entidad, con un mensaje que dice de cuál es el archivo.
+- **Botón «Validar archivos cargados»:** en el Dashboard (todo) y en cada pestaña (lo suyo). Revisa lo que ya está en el servidor: que el archivo exista y que sea de la entidad, la capa, el marco, el año y la unidad donde está cargado. Si algo no corresponde, lista el apartado, dónde está cargado, el archivo y el problema, para reemplazarlo.
+
+### Bases estáticas
+- **Temas:** cada base es ahora **entidad + año + tema + unidad**. *Enfermería* (plazas de enfermería y recursos humanos de enfermería) y *Clínicas*, que abre un segundo selector con *Clínicas de catéteres* (por defecto) y *Clínicas de heridas*, en tasa y frecuencia. Las bases ya cargadas quedaron en Enfermería.
+- **Temas propios:** el administrador puede crear temas nuevos (nombre, clave y unidades de conteo) para cargar otras métricas, por ejemplo pasantes de servicio social, sin mezclarlas con las que ya existen; eliminar un tema borra sus bases.
+- La tabla filtra por año, tema y unidad. Las bases de otros temas se guardan como `{entidad}-{año}-{tema}-{unidad}` y solo exigen el identificador y el nombre (las de Enfermería siguen exigiendo población, `enfermeras_total` y `tasa_total`).
+- El mapa público sigue mostrando las bases de Enfermería; las de los demás temas se cargan y administran, y su vista en el mapa queda pendiente.
+
+### Marcadores
+- **Tipos de fábrica y su orden:** *Establecimientos de Salud*, *Clínicas de Catéteres*, *Clínicas de Heridas* y **Pasantes de Enfermería** (nuevo).
+- **Periodos por tipo:** los establecimientos de salud y los pasantes se cargan **por año**; las clínicas y las variables nuevas admiten además **Todas** (antes «Toda la historia»). La tabla lista, por tipo, primero «Todas» y después los años, del más reciente al más antiguo, y filtra por año y por tema; al elegir un año se ven también los archivos de «Todas».
+- Los archivos cargados antes de existir los periodos toman el suyo: los de las clínicas, «Todas»; los de establecimientos, el año más reciente.
+- **Versión por entidad:** se sigue cargando un solo archivo nacional, y el plugin crea de él una capa por entidad (`markers/entidades/`). El mapa de cada estado descarga solo sus puntos: el catálogo de establecimientos de 2026 pasa de 4.1 MB a 126 KB en promedio (327 KB el mayor). El botón *Generar copias de lectura ahora* del Dashboard las crea para las capas que ya estaban cargadas.
+
 ## [0.1.7.1] - 2026-11-12
 
 ### Carga de datos

@@ -263,10 +263,13 @@ window.SiarheAdmin = {
                 const sel = form.querySelector('[name="entidad_slug"]');
                 const national = sel && sel.value === 'republica-mexicana';
                 const ids = national ? ['CVE_ENT', 'cve_ent', 'mapa', 'id'] : ['CVE_MUN', 'cve_mun', 'CVE_ENT', 'cve_ent', 'id'];
+                // Solo las bases de Enfermería exigen la población; las de otros temas, el identificador y el nombre
+                const tema = form.querySelector('[name="tema"]');
+                const deEnfermeria = !tema || tema.value === 'enfermeria';
                 const missing = [];
                 if (!ids.some(n => b.cols.includes(n))) missing.push('identificador (' + ids.join(', ') + ')');
                 if (!['estado', 'Entidad', 'municipio'].some(n => b.cols.includes(n))) missing.push('nombre (estado, Entidad, municipio)');
-                if (!b.cols.some(c => c.toLowerCase().startsWith('pob'))) missing.push('población (una columna que empiece con "pob")');
+                if (deEnfermeria && !b.cols.some(c => c.toLowerCase().startsWith('pob'))) missing.push('población (una columna que empiece con "pob")');
                 return missing.length ? 'El CSV no tiene las columnas requeridas: ' + missing.join('; ') + '.' : '';
             },
             'geojson': (text) => {
@@ -319,6 +322,8 @@ window.SiarheAdmin = {
             if (sel && kind === 'static-csv') {
                 sel.addEventListener('change', run);
                 if (window.jQuery) jQuery(sel).on('change', run); // Select2 dispara eventos jQuery
+                const tema = form.querySelector('[name="tema"]');
+                if (tema) tema.addEventListener('change', run);
             }
             form.addEventListener('submit', e => {
                 if (error) {

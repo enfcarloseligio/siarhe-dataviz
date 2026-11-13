@@ -9,8 +9,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 $u = $siarhe_up;
 $k = $u['key'];
 
-// 1. Obtener Entidades (Helper Centralizado)
-$entidades_data = siarhe_get_entities();
+// 1. Entidades en el orden del panel: Extranjero, República Mexicana y las entidades por su clave
+$entidades_data = siarhe_get_entities_ordered();
 
 // 2. Obtener los archivos activos de este tipo desde la base de datos (del marco mas reciente al mas antiguo)
 global $wpdb;
@@ -31,11 +31,16 @@ foreach ($existing_files as $file) {
 krsort( $marcos_cargados );
 $marcos_disponibles = Siarhe_Geo::marcos();
 
+// La tabla abre en el marco más reciente que tiene al menos un archivo; sin archivos, en el marco vigente
+$marcos_tabla = $marcos_cargados ? array_keys( $marcos_cargados ) : array( (int) $marcos_disponibles[0] );
+$marco_inicial = (int) $marcos_tabla[0];
+
 // 4. Directorio base para comprobaciones de integridad física
 $upload_base_dir = defined('SIARHE_UPLOAD_DIR') ? SIARHE_UPLOAD_DIR : wp_upload_dir()['basedir'] . '/siarhe-data/';
 
 // 5. Gestión de Notificaciones (Feedback Transaccional)
 Siarhe_Admin::render_flash_notice();
+Siarhe_Admin::render_validation_result();
 if ( isset($_GET['status']) ) {
     if ( $_GET['status'] == 'success' ) echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( $u['msg_ok'] ) . '</p></div>';
     if ( $_GET['status'] == 'updated' ) echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( $u['msg_updated'] ) . '</p></div>';
@@ -135,10 +140,11 @@ if ( isset($_GET['status']) ) {
             <label>
                 Marco
                 <select id="siarhe-filter-marco" class="siarhe-select-sm">
+                    <?php foreach ( $marcos_tabla as $marco_op ) : ?><option value="<?php echo (int) $marco_op; ?>"<?php selected( (int) $marco_op, $marco_inicial ); ?>><?php echo (int) $marco_op; ?></option><?php endforeach; ?>
                     <option value="">Todos</option>
-                    <?php foreach ( array_keys( $marcos_cargados ) as $marco_op ) : ?><option value="<?php echo (int) $marco_op; ?>"><?php echo (int) $marco_op; ?></option><?php endforeach; ?>
                 </select>
             </label>
+            <?php Siarhe_Admin::render_validate_button( $k ); ?>
         </div>
 
         <div class="siarhe-pagination siarhe-pagination--bare">
@@ -170,32 +176,35 @@ if ( isset($_GET['status']) ) {
             $rows = [];
             $upload_base = defined('SIARHE_UPLOAD_DIR') ? SIARHE_UPLOAD_DIR : wp_upload_dir()['basedir'] . '/siarhe-data/';
 
-            // Una fila por entidad y marco cargado; las entidades sin archivo conservan una fila para ver lo que falta
-            foreach ($entidades_data as $slug => $data) {
-                $nombre = $data['nombre'];
-                $cve_ent = $data['CVE_ENT'];
-                $archivos_entidad = isset($files_by_slug[$slug]) ? $files_by_slug[$slug] : [ 0 => null ];
-
-                $sort_key = (int)$cve_ent;
-                if ($slug == 'republica-mexicana') $sort_key = -1;
-
-                foreach ($archivos_entidad as $marco_fila => $archivo) {
+            // En cada marco de la tabla, una fila por entidad (con archivo o sin él, para ver lo que falta), en el orden del panel
+            foreach ($marcos_tabla as $marco_fila) {
+                foreach ($entidades_data as $slug => $data) {
+                    $archivo = isset($files_by_slug[$slug][$marco_fila]) ? $files_by_slug[$slug][$marco_fila] : null;
                     $ruta_fisica = $archivo ? $upload_base . ltrim($archivo->ruta_archivo, '/') : '';
-                    $existe_fisico = $archivo && file_exists($ruta_fisica);
-
                     $rows[] = [
                         'slug' => $slug,
-                        'nombre' => $nombre,
-                        'cve_ent' => $cve_ent,
+                        'nombre' => $data['nombre'],
+                        'cve_ent' => $data['CVE_ENT'],
                         'marco' => (int) $marco_fila,
                         'archivo' => $archivo,
-                        'existe_fisico' => $existe_fisico,
+                        'existe_fisico' => $archivo && file_exists($ruta_fisica),
                         'ruta_fisica' => $ruta_fisica,
-                        'sort_key' => $sort_key
+                        'sort_key' => siarhe_entity_order( $slug )
                     ];
                 }
             }
-            usort($rows, function($a, $b) { return [ $a['sort_key'], -$a['marco'] ] <=> [ $b['sort_key'], -$b['marco'] ]; });
+            // Archivos de entidades que ya no están en el catálogo: se listan al final para poder eliminarlos
+            foreach ($files_by_slug as $slug => $por_marco) {
+                if ( isset( $entidades_data[$slug] ) ) continue;
+                foreach ($por_marco as $marco_fila => $archivo) {
+                    $ruta_fisica = $upload_base . ltrim($archivo->ruta_archivo, '/');
+                    $rows[] = [
+                        'slug' => $slug, 'nombre' => $slug . ' (entidad retirada)', 'cve_ent' => '—', 'marco' => (int) $marco_fila,
+                        'archivo' => $archivo, 'existe_fisico' => file_exists($ruta_fisica), 'ruta_fisica' => $ruta_fisica, 'sort_key' => 1000
+                    ];
+                }
+            }
+            usort($rows, function($a, $b) { return [ -$a['marco'], $a['sort_key'] ] <=> [ -$b['marco'], $b['sort_key'] ]; });
 
             foreach ($rows as $row) : 
                 $slug = $row['slug']; 
@@ -285,8 +294,15 @@ if ( isset($_GET['status']) ) {
 
                 <td data-label="Acciones">
                     <div class="siarhe-row-actions">
-                    <?php if ($exists) : 
-                        // 🌟 CACHE BUSTING: Fuerza al navegador a usar la versión más reciente basándose en el archivo físico
+                    <?php if (!$exists && $archivo) : // registro cuyo archivo ya no está en el servidor: solo se puede eliminar ?>
+                        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" data-confirm="<?php echo esc_attr( $u['delete_confirm'] ); ?>">
+                            <input type="hidden" name="action" value="<?php echo esc_attr( $u['action_delete'] ); ?>">
+                            <input type="hidden" name="file_id" value="<?php echo absint( $archivo->id ); ?>">
+                            <?php wp_nonce_field( $u['nonce_delete'] . $archivo->id ); ?>
+                            <button type="submit" class="button button-small button-danger" title="<?php echo esc_attr( $u['delete_title'] ); ?>"><span class="dashicons dashicons-trash"></span></button>
+                        </form>
+                    <?php elseif ($exists) :
+                        // La fecha del archivo va en el enlace para que el navegador no use una copia anterior
                         $cache_version = filemtime($row['ruta_fisica']);
                         $url_con_version = SIARHE_UPLOAD_URL . ltrim($archivo->ruta_archivo, '/') . '?v=' . $cache_version;
                     ?>
