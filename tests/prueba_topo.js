@@ -39,7 +39,7 @@ for (const marco of ['2016', '2020', '2025']) {
     if (!fs.existsSync(dir)) continue;
     console.log('2. marco ' + marco);
 
-    const ent = T.aColeccion(lee(path.join(dir, 'entidades.json')), topojson, d3.geoArea);
+    const ent = T.aColeccion(lee(path.join(dir, '33_entidades.json')), topojson, d3.geoArea);
     ok(ent.features.length === 32, 'entidades: ' + ent.features.length);
     ok(ent.features.every(f => /^\d{2}$/.test(f.properties.CVE_ENT) && f.properties.NOM_ENT && f.properties.NOMGEO), 'entidades con CVE_ENT y nombre');
     ok(ent.features.every(f => d3.geoArea(f) < 2 * Math.PI), 'entidades sin anillos invertidos');
@@ -49,29 +49,29 @@ for (const marco of ['2016', '2020', '2025']) {
     const b = d3.geoPath(proj).bounds(ent);
     ok(b[0][0] >= -1 && b[0][1] >= -1 && b[1][0] <= 1601 && b[1][1] <= 901, 'limites proyectados dentro del lienzo: ' + JSON.stringify(b));
 
-    const munRep = T.aColeccion(lee(path.join(dir, 'municipios_republica.json')), topojson, d3.geoArea);
+    const munRep = T.aColeccion(lee(path.join(dir, '33_municipios.json')), topojson, d3.geoArea);
     ok(munRep.features.length > 2400, 'municipios de la republica: ' + munRep.features.length);
     ok(munRep.features.every(f => f.properties.CVE_ENT.length === 2 && f.properties.CVE_MUN.length === 3 && f.properties.NOM_MUN !== undefined), 'municipios con CVE_ENT + CVE_MUN');
     ok(munRep.features.every(f => d3.geoArea(f) < 2 * Math.PI), 'municipios sin anillos invertidos');
 
     let sinFila = 0, totalMun = 0;
     for (const nn of ['01', '09', '20', '31']) {
-        const mun = T.aColeccion(lee(path.join(dir, 'municipios_' + nn + '.json')), topojson, d3.geoArea);
-        ok(mun.features.every(f => f.properties.CVE_ENT === nn), 'municipios_' + nn + ' de su entidad');
-        const loc = T.aColeccion(lee(path.join(dir, 'localidades_' + nn + '.json')), topojson, d3.geoArea);
-        ok(loc.features.length > 0 && loc.features.every(f => f.properties.CVE_ENT === nn && f.properties.CVE_MUN.length === 3 && f.properties.CVE_LOC.length === 4), 'localidades_' + nn);
+        const mun = T.aColeccion(lee(path.join(dir, nn + '_municipios.json')), topojson, d3.geoArea);
+        ok(mun.features.every(f => f.properties.CVE_ENT === nn), nn + '_municipios de su entidad');
+        const loc = T.aColeccion(lee(path.join(dir, nn + '_localidades.json')), topojson, d3.geoArea);
+        ok(loc.features.length > 0 && loc.features.every(f => f.properties.CVE_ENT === nn && f.properties.CVE_MUN.length === 3 && f.properties.CVE_LOC.length === 4), nn + '_localidades');
         ok(loc.features.every(f => ['Urbana', 'Rural', ''].includes(f.properties.AMBITO)), 'ambito de las localidades');
 
         // union con la base estatica de 2026 (la clave del CSV de una entidad es CVE_MUN de 3 digitos)
         const slugs = { '01': 'aguascalientes', '09': 'ciudad-de-mexico', '20': 'oaxaca', '31': 'yucatan' };
-        const csv = path.join(RHEMX, 'data/processed/mapas/2026/csv', slugs[nn] + '.csv');
+        const csv = path.join(RHEMX, 'data/processed/mapas/2026/csv', nn + '_' + slugs[nn] + '.csv');
         if (fs.existsSync(csv)) {
             const claves = new Set(csvFilas(csv).map(r => r.CVE_MUN));
             mun.features.forEach(f => { totalMun++; if (!claves.has(f.properties.CVE_MUN)) sinFila++; });
         }
     }
     console.log('   municipios sin fila en la base 2026: ' + sinFila + ' de ' + totalMun);
-    const csvNac = path.join(RHEMX, 'data/processed/mapas/2026/csv/republica-mexicana.csv');
+    const csvNac = path.join(RHEMX, 'data/processed/mapas/2026/csv/33_republica-mexicana.csv');
     if (fs.existsSync(csvNac)) {
         const claves = new Set(csvFilas(csvNac).map(r => r.CVE_ENT));
         ok(ent.features.every(f => claves.has(f.properties.CVE_ENT)), 'cada entidad tiene fila en la base nacional');
@@ -99,9 +99,9 @@ console.log('4. worker de geometrias');
     vm.createContext(wctx);
     vm.runInContext(fs.readFileSync(path.join(JS, 'siarhe-geo-worker.js'), 'utf8'), wctx);
 
-    const ent = T.aColeccion(lee(path.join(dir, 'entidades.json')), topojson, d3.geoArea);
+    const ent = T.aColeccion(lee(path.join(dir, '33_entidades.json')), topojson, d3.geoArea);
     const proj = d3.geoMercator().fitSize([1600, 900], ent);
-    for (const archivo of ['municipios_republica.json', 'localidades_01.json']) {
+    for (const archivo of ['33_municipios.json', '01_localidades.json']) {
         mensajes.length = 0;
         await wctx.onmessage({ data: { id: 1, url: path.join(dir, archivo), proj: { scale: proj.scale(), translate: proj.translate() },
             tolerances: [0.25, 0.06], libs: [path.join(JS, 'siarhe-topo.js'), path.join(JS, 'libs/topojson-client.min.js')] } });

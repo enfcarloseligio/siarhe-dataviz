@@ -97,8 +97,8 @@ El formato de carga es el **TopoJSON que exporta RHEMX** (`python src/geo_mapas.
 
 | Pestaña | Capa | República Mexicana | Cada entidad | Clave `c` |
 |---|---|---|---|---|
-| *Geolocalización* (`geojson/`) | Mapa base | `entidades.json` | `municipios_NN.json` | 2 dígitos / 5 dígitos |
-| *Localidades (Geo)* (`localidades/`) | Capa detallada | `municipios_republica.json` | `localidades_NN.json` | 5 dígitos / 9 dígitos |
+| *Geolocalización* (`geojson/`) | Mapa base | `33_entidades.json` | `NN_municipios.json` | 2 dígitos / 5 dígitos |
+| *Localidades (Geo)* (`localidades/`) | Capa detallada | `33_municipios.json` | `NN_localidades.json` | 5 dígitos / 9 dígitos |
 
 - **Estructura:** `"type": "Topology"`, objeto `datos` cuyas geometrías llevan `c` (clave), `n` (nombre) y, en las localidades, `t` (`u` urbana, `r` rural). Coordenadas en longitud/latitud **WGS84 (EPSG:4326)**. La clave une cada polígono con su fila de la base estática (`CVE_ENT`, o `CVE_MUN` = los tres últimos dígitos de la clave del municipio).
 - **Marco:** quinquenal (2005, 2010, 2015, 2020, 2025; 2030 cuando llegue). Cada marco dibuja los datos de sus cinco años; si el del año no está cargado se usa el anterior más cercano. El marco de 2016 se carga en 2015 y su fecha real va en *Fecha de corte*.

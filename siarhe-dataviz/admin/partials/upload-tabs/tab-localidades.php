@@ -21,8 +21,8 @@ $siarhe_up = array(
     'title_help'        => 'Capa opcional que el visitante activa en «Vista Geográfica»: municipios en el mapa nacional y localidades en el de cada entidad, para un marco geoestadístico.',
     'info'              => array(
         '<strong>Una capa por entidad y marco.</strong> El marco es quinquenal (2005, 2010, 2015…) y acompaña a los datos de sus cinco años. Subir otro archivo para la misma entidad y marco lo reemplaza.',
-        '<strong>Formatos admitidos:</strong> <code>.json</code> o <code>.topojson</code> con una topología <strong>TopoJSON</strong>, tal como la exporta RHEMX (<code>python src/geo_mapas.py</code>; los archivos quedan en <code>data/processed/geo/&lt;marco&gt;/</code>).',
-        '<strong>Qué archivo va aquí:</strong> en República Mexicana, <code>municipios_republica.json</code>; en cada entidad, su <code>localidades_NN.json</code> (por ejemplo <code>localidades_01.json</code> en Aguascalientes).',
+        '<strong>Formatos admitidos:</strong> <code>.json</code> o <code>.topojson</code> con una topología <strong>TopoJSON</strong>, tal como la exporta RHEMX (<code>python src/geo_mapas.py</code>; los archivos quedan en <code>data/processed/geo/&lt;marco&gt;/Capa 2 Localidades/</code>).',
+        '<strong>Qué archivo va aquí:</strong> en República Mexicana, <code>33_municipios.json</code>; en cada entidad, su <code>NN_localidades.json</code> (por ejemplo <code>01_localidades.json</code> en Aguascalientes).',
         '<strong>Estructura:</strong> objeto <code>datos</code> cuyas geometrías llevan <code>c</code> (clave: 5 dígitos el municipio, 9 la localidad), <code>n</code> (nombre) y, en las localidades, <code>t</code> (<code>u</code> urbana, <code>r</code> rural), con coordenadas en longitud/latitud <strong>WGS84 (EPSG:4326)</strong>.',
         '<strong>Nomenclatura:</strong> el archivo se guarda como <code>{entidad}-{marco}.json</code> en la carpeta de localidades. Los GeoJSON cargados antes se siguen leyendo y quedaron en el marco 2025.',
     ),

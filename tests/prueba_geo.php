@@ -24,15 +24,15 @@ ok( Siarhe_Geo::marco_para( 2026, array() ) === 0, 'sin marcos' );
 echo "2. validacion\n";
 $casos = array(
     // archivo, capa, slug, cve, se espera error
-    array( 'entidades.json',            'base', 'republica-mexicana', '33', false ),
-    array( 'municipios_01.json',        'base', 'aguascalientes',     '01', false ),
-    array( 'municipios_republica.json', 'loc',  'republica-mexicana', '33', false ),
-    array( 'localidades_01.json',       'loc',  'aguascalientes',     '01', false ),
-    array( 'localidades_01.json',       'base', 'aguascalientes',     '01', true ),  // capa equivocada
-    array( 'municipios_01.json',        'base', 'republica-mexicana', '33', true ),  // municipios donde van entidades
-    array( 'municipios_01.json',        'base', 'jalisco',            '14', true ),  // otra entidad
-    array( 'entidades.json',            'loc',  'republica-mexicana', '33', true ),  // entidades donde van municipios
-    array( 'agebs_01.json',             'loc',  'aguascalientes',     '01', true ),  // AGEB no es una capa del plugin
+    array( '33_entidades.json',            'base', 'republica-mexicana', '33', false ),
+    array( '01_municipios.json',        'base', 'aguascalientes',     '01', false ),
+    array( '33_municipios.json', 'loc',  'republica-mexicana', '33', false ),
+    array( '01_localidades.json',       'loc',  'aguascalientes',     '01', false ),
+    array( '01_localidades.json',       'base', 'aguascalientes',     '01', true ),  // capa equivocada
+    array( '01_municipios.json',        'base', 'republica-mexicana', '33', true ),  // municipios donde van entidades
+    array( '01_municipios.json',        'base', 'jalisco',            '14', true ),  // otra entidad
+    array( '33_entidades.json',            'loc',  'republica-mexicana', '33', true ),  // entidades donde van municipios
+    array( '01_agebs.json',             'loc',  'aguascalientes',     '01', true ),  // AGEB no es una capa del plugin
 );
 foreach ( $casos as $c ) {
     $r = Siarhe_Geo::validar_topologia( lee( $geo . $c[0] ), $c[1], $c[2], $c[3] );

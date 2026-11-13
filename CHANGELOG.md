@@ -2,6 +2,11 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.7.1] - 2026-11-12
+
+### Carga de datos
+- Los textos de ayuda de *Geolocalización* y *Localidades (Geo)* usan los nombres nuevos de los archivos de RHEMX, con la clave de la entidad al inicio (`33_entidades.json`, `01_municipios.json`, `33_municipios.json`, `01_localidades.json`), y dicen de qué carpeta se toman (`Capa 1 Geolocalizacion` y `Capa 2 Localidades`). El plugin valida el contenido y no depende del nombre del archivo, así que los archivos con los nombres anteriores se siguen aceptando.
+
 ## [0.1.7.0] - 2026-11-12
 
 ### Geometrías (mapa base y capa detallada)

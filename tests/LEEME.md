@@ -39,7 +39,7 @@ Cada script termina con `RESULTADO: todo correcto` o con la lista de fallas.
 
 | Script | Comprueba |
 |---|---|
-| `prueba_topo.js` | Marco que corresponde a cada año; conversión de `entidades`, `municipios_republica`, `municipios_NN` y `localidades_NN` (marcos 2016, 2020 y 2025); que ningún polígono quede con el anillo invertido; que cada polígono tenga fila en la base estática; el worker con una topología |
+| `prueba_topo.js` | Marco que corresponde a cada año; conversión de `33_entidades`, `33_municipios`, `NN_municipios` y `NN_localidades` (marcos 2016, 2020 y 2025); que ningún polígono quede con el anillo invertido; que cada polígono tenga fila en la base estática; el worker con una topología |
 | `prueba_geo.php` | Lista de marcos quinquenales; aceptación de cada archivo en su pestaña y rechazo por capa equivocada, entidad equivocada o AGEB |
 | `prueba_marcadores.php` | Periodos válidos; ida y vuelta JSON → CSV → JSON de las capas de RHEMX; ida y vuelta CSV → JSON → CSV del catálogo CLUES (celda por celda) |
 | `prueba_worker.js` | Mismos puntos desde el JSON y desde el CSV; filtros por nivel de atención; puntos de una sola entidad; capas de clínicas |
