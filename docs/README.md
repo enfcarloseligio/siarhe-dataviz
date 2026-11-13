@@ -14,7 +14,7 @@ Documentación técnica y de decisiones del plugin. Vive en la raíz del reposit
 | [versiones-y-publicacion.md](versiones-y-publicacion.md) | Hitos de versión (0.1.0.0, 0.5.0.0, 1.0) y el procedimiento para publicar |
 | [pruebas.md](pruebas.md) | Cómo se ha verificado el código y qué falta |
 
-Otros archivos útiles en la raíz: [`README.md`](../README.md) (presentación), [`CHANGELOG.md`](../CHANGELOG.md) (historial de versiones), [`CLAUDE.md`](../CLAUDE.md) (guía para trabajar el código con Claude Code) y [`LICENSE`](../LICENSE) (GPL v2).
+Otros archivos útiles en la raíz: [`README.md`](../README.md) (presentación), [`CHANGELOG.md`](../CHANGELOG.md) (historial de versiones) y [`LICENSE`](../LICENSE) (GPL v2).
 
 ## Cómo mantener esta documentación
 
