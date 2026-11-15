@@ -43,7 +43,7 @@ siarhe-dataviz/
 
 Scripts simples en un solo espacio de nombres `window.SiarheDataViz`, con orden de carga garantizado por dependencias de WordPress:
 
-`siarhe-core.js` (estado, utilidades, datos, paleta) → `siarhe-controls.js` (selectores, panel Personalizar, carga de marcadores) → `siarhe-tooltips.js` → `siarhe-map.js` (mapa D3, zoom, marcadores, medición, exportar PNG) y `siarhe-table.js`.
+`siarhe-topo.js` y `siarhe-capas.js` (lectura de geometrías) → `siarhe-core.js` (estado, utilidades, datos, paleta) → `siarhe-controls.js` (filas de controles, conmutadores, buscador, panel Personalizar, carga de marcadores) → `siarhe-posicion.js` (marcadores de posición por tema: establecimientos y clínicas por nivel o institución) → `siarhe-tooltips.js` → `siarhe-map.js` (mapa D3, zoom, marcadores, medición, exportar PNG) y `siarhe-table.js`.
 
 Workers (hilos en segundo plano, cada uno con respaldo si no se pueden usar):
 

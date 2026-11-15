@@ -27,23 +27,66 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             if (isTableOnly) {
                 wrapper.innerHTML = `
-                    <div class="siarhe-controls-row">
+                    <div class="siarhe-controls-row" data-fila="medida">
+                        <span class="siarhe-fila-titulo">Unidad y medida</span>
+                        <div class="siarhe-control-group siarhe-control-group--conm" id="c-medida"></div>
+                    </div>
+                    <div class="siarhe-controls-row" data-fila="vista">
+                        <span class="siarhe-fila-titulo">Datos de la tabla</span>
                         <div class="siarhe-control-group" id="c-tema"><label>Tema</label></div>
                         <div class="siarhe-control-group" id="c-indicador"><label>Indicador de la Tabla</label></div>
-                        <div class="siarhe-control-group" id="c-medida"><label>Medida</label></div>
                     </div>
                 `;
             } else {
+                const hayTabla = !!container.querySelector('#siarhe-table-section');
+                // Icono de linea (public/img) pintado con el color del texto del boton
+                const ico = (n) => container.dataset.img ? `<span class="siarhe-ctl-icon" aria-hidden="true" style="--ico: url('${container.dataset.img}${n}.svg')"></span>` : '';
                 wrapper.innerHTML = `
-                    <div class="siarhe-controls-row">
+                    <div class="siarhe-controls-row" data-fila="buscar">
+                        <span class="siarhe-fila-titulo">Buscar, tabla e imágenes</span>
+                        <div class="siarhe-control-group siarhe-control-group--buscar" id="c-buscar"><label for="siarhe-buscar-entrada">Buscar</label></div>
+                        <div class="siarhe-control-group siarhe-control-group--action">
+                            <button type="button" class="siarhe-btn siarhe-btn-share" title="Copia el enlace de esta vista (año, unidad, indicador, vista y marcadores)">
+                                ${ico('icon-enlace')} <span class="siarhe-btn-texto">Copiar enlace</span>
+                            </button>
+                        </div>
+                        ${hayTabla ? `<div class="siarhe-control-group siarhe-control-group--action">
+                            <button type="button" class="siarhe-btn siarhe-btn-ver-tabla" title="Ir a la tabla de datos">
+                                ${ico('icon-table')} <span class="siarhe-btn-texto">Ver tabla</span>
+                            </button>
+                        </div>` : ''}
+                        <div class="siarhe-control-group siarhe-control-group--action">
+                            <button type="button" class="siarhe-btn siarhe-btn-download-png" title="Descarga la imagen del mapa; lleva los nombres si las etiquetas están a la vista" aria-label="Descargar el mapa en PNG">
+                                ${ico('icon-camera')} <span class="siarhe-btn-texto">PNG</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="siarhe-controls-row" data-fila="medida">
+                        <span class="siarhe-fila-titulo">Unidad y medida</span>
+                        <div class="siarhe-control-group siarhe-control-group--conm" id="c-medida"></div>
+                    </div>
+                    <div class="siarhe-controls-row" data-fila="vista">
+                        <span class="siarhe-fila-titulo">Vista del mapa</span>
+                        <div class="siarhe-control-group" id="c-tema"><label>Tema</label></div>
+                        <div class="siarhe-control-group" id="c-indicador"><label>Indicador</label></div>
+                        <div class="siarhe-control-group" id="c-vista"><label>Vista Geográfica</label></div>
                         <div class="siarhe-control-group" id="c-escala"><label>Estilo de Mapa</label></div>
+                        <div class="siarhe-control-group siarhe-control-group--action" id="c-etiquetas">
+                            <button type="button" class="siarhe-btn siarhe-labels-btn" aria-pressed="false" title="Mostrar los nombres en el mapa">
+                                ${ico('icon-etiquetas')} <span class="siarhe-btn-texto">Ver etiquetas</span>
+                            </button>
+                        </div>
+                        <div class="siarhe-control-group siarhe-control-group--action" id="c-ancho">
+                            <button type="button" class="siarhe-btn siarhe-layout-btn" aria-pressed="false" title="Usar todo el ancho de la ventana o el ancho normal de la página">
+                                ${ico('icon-entidad')} <span class="siarhe-btn-texto">Ancho completo</span>
+                            </button>
+                        </div>
                         <div class="siarhe-control-group siarhe-control-group--action" id="c-personalizar">
                             <button type="button" class="siarhe-btn siarhe-palette-btn" aria-expanded="false" title="Cambiar los colores del mapa (solo en tu navegador)">
                                 <svg class="siarhe-reset-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.3-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4a3.6 3.6 0 0 0 3.6-3.6C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11.5" r="1"/><circle cx="12" cy="7.5" r="1"/><circle cx="16.5" cy="11.5" r="1"/></svg>
                                 <span>Personalizar</span>
                             </button>
                         </div>
-                        <div class="siarhe-control-group" id="c-vista"><label>Vista Geográfica</label></div>
                         <div class="siarhe-control-group siarhe-control-group--action" id="c-reset">
                             <button type="button" class="siarhe-btn siarhe-reset-btn" title="Volver a la configuración inicial">
                                 <svg class="siarhe-reset-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 3 3 9 9 9"/></svg>
@@ -51,12 +94,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                             </button>
                         </div>
                     </div>
-                    <div class="siarhe-controls-row">
-                        <div class="siarhe-control-group" id="c-tema"><label>Tema</label></div>
-                        <div class="siarhe-control-group" id="c-indicador"><label>Indicador</label></div>
-                        <div class="siarhe-control-group" id="c-medida"><label>Medida</label></div>
-                        <div class="siarhe-control-group" id="c-posicion"><label>Marcadores (Posición)</label></div>
-                        <div class="siarhe-control-group" id="c-espectro"><label>Marcadores (Densidad)</label></div>
+                    <div class="siarhe-controls-row" data-fila="posicion">
+                        <span class="siarhe-fila-titulo">Marcadores de posición</span>
+                    </div>
+                    <div class="siarhe-controls-row" data-fila="densidad">
+                        <span class="siarhe-fila-titulo">Marcadores de densidad</span>
                     </div>
                 `;
 
@@ -224,86 +266,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             });
 
             if (!isTableOnly) {
-                const buildMarkerDropdown = (targetId, typeFilter, placeholderTitle) => {
-                    const containerDiv = wrapper.querySelector('#' + targetId);
-                    const validMarkers = Object.keys(state.markerUrls).filter(k => app.controls.markerUrl(state, k) && app.utils.markerGroup((state.markerLabels[k] || {}).tipo) === typeFilter);
-
-                    if (validMarkers.length === 0) {
-                        containerDiv.innerHTML += `<div class="mc-trigger is-placeholder" style="cursor:not-allowed; background:#f1f5f9;"><span>No disponibles</span></div>`;
-                        return;
-                    }
-
-                    const field = document.createElement('div'); field.className = 'mc-field';
-                    const triggerMc = document.createElement('div'); triggerMc.className = `mc-trigger is-placeholder trigger-${typeFilter}`;
-                    triggerMc.innerHTML = `<span>${app.utils.esc(placeholderTitle)}</span>`;
-
-                    if(typeFilter === 'posicion') state.posTrigger = triggerMc;
-                    if(typeFilter === 'espectro') state.specTrigger = triggerMc;
-
-                    const menuMc = document.createElement('div'); menuMc.className = 'mc-menu';
-                    const searchBoxMc = document.createElement('div'); searchBoxMc.className = 'siarhe-cs-search';
-                    searchBoxMc.addEventListener('click', e => e.stopPropagation());
-                    const searchInputMc = document.createElement('input'); searchInputMc.type = 'text'; searchInputMc.placeholder = '🔍 Filtrar...';
-
-                    const btnClearMc = document.createElement('button'); btnClearMc.type = 'button'; btnClearMc.innerHTML = '✖ Limpiar';
-                    btnClearMc.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        Array.from(state.activeMarkers).forEach(k => {
-                            if(app.utils.markerGroup((state.markerLabels[k] || {}).tipo) === typeFilter) state.activeMarkers.delete(k);
-                        });
-                        optionsContainerMc.querySelectorAll('.mc-check').forEach(chk => chk.checked = false);
-                        if (app.map) { app.map.updateMarkers(state); app.map.renderMarkerLegend(state); }
-                        app.controls.updateMarkerDropdownText(state);
-                    });
-
-                    searchBoxMc.append(searchInputMc, btnClearMc); menuMc.appendChild(searchBoxMc);
-                    const optionsContainerMc = document.createElement('div'); optionsContainerMc.className = 'siarhe-cs-options';
-
-                    validMarkers.forEach(key => {
-                        const mkData = state.markerLabels[key] || {};
-                        const label = mkData.label || key;
-                        const opt = document.createElement('div'); opt.className = 'mc-option';
-                        opt.innerHTML = `<input type="checkbox" class="mc-check" value="${app.utils.esc(key)}"> <span>${app.utils.esc(label)}</span>`;
-
-                        opt.addEventListener('click', (e) => {
-                            if (e.target.tagName !== 'INPUT') {
-                                const chk = opt.querySelector('input'); chk.checked = !chk.checked;
-                                app.controls.toggleMarker(key, state, container);
-                            }
-                        });
-                        opt.querySelector('input').addEventListener('click', (e) => {
-                            e.stopPropagation(); app.controls.toggleMarker(key, state, container);
-                        });
-                        optionsContainerMc.appendChild(opt);
-                    });
-
-                    menuMc.appendChild(optionsContainerMc);
-
-                    searchInputMc.addEventListener('keyup', (e) => {
-                        const val = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                        optionsContainerMc.querySelectorAll('.mc-option').forEach(o => {
-                            const text = o.textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                            o.style.display = text.includes(val) ? '' : 'none';
-                        });
-                    });
-
-                    triggerMc.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        const isOpen = menuMc.classList.contains('open');
-                        container.querySelectorAll('.siarhe-cs-menu, .mc-menu').forEach(m => m.classList.remove('open'));
-                        if (!isOpen) {
-                            menuMc.classList.add('open'); searchInputMc.value = '';
-                            optionsContainerMc.querySelectorAll('.mc-option').forEach(o => o.style.display = '');
-                            setTimeout(() => searchInputMc.focus(), 50);
-                        }
-                    });
-
-                    field.append(triggerMc, menuMc); containerDiv.appendChild(field);
-                };
-
                 if (opts.showMarkers) {
-                    buildMarkerDropdown('c-posicion', 'posicion', 'Seleccionar Clínicas...');
-                    buildMarkerDropdown('c-espectro', 'espectro', 'Seleccionar Densidad...');
+                    state._mcDrops = [];
+                    // Posicion: recorrido por tema (Ver, Clinica, Por...) de siarhe-posicion.js; densidad: un desplegable por grupo
+                    if (app.pos) app.pos.build(container, state, wrapper);
+                    else app.controls.buildMarkerRow(container, state, wrapper, 'posicion');
+                    app.controls.buildMarkerRow(container, state, wrapper, 'espectro');
                 }
 
                 // ☀️ RENDERIZAR OPCIONES DE ESCALA CONECTADAS AL ESTADO
@@ -388,10 +356,51 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             if (!isTableOnly) app.controls.initPalette(container, state, wrapper, onUpdate);
 
+            // Boton de ancho: el sitio define la disposicion por defecto (contenedor o canvas) y el visitante puede cambiarla;
+            // su eleccion se recuerda en el navegador (localStorage «siarheLayout»)
+            const layoutBtn = wrapper.querySelector('.siarhe-layout-btn');
+            if (layoutBtn) {
+                const fijaAncho = function() { document.documentElement.style.setProperty('--siarhe-vw', document.documentElement.clientWidth + 'px'); };
+                let escucha = false;
+                const pon = function(canvas) {
+                    if (canvas) { fijaAncho(); if (!escucha) { window.addEventListener('resize', fijaAncho); escucha = true; } }
+                    container.classList.toggle('siarhe-layout-canvas', canvas);
+                    layoutBtn.setAttribute('aria-pressed', canvas ? 'true' : 'false');
+                    const t = layoutBtn.querySelector('.siarhe-btn-texto');
+                    if (t) t.textContent = canvas ? 'Ancho normal' : 'Ancho completo';
+                };
+                let guardado = null;
+                try { guardado = window.localStorage.getItem('siarheLayout'); } catch (e) {}
+                pon(guardado === 'canvas' || guardado === 'contenedor' ? guardado === 'canvas' : container.classList.contains('siarhe-layout-canvas'));
+                layoutBtn.addEventListener('click', function() {
+                    const canvas = !container.classList.contains('siarhe-layout-canvas');
+                    pon(canvas);
+                    try { window.localStorage.setItem('siarheLayout', canvas ? 'canvas' : 'contenedor'); } catch (e) {}
+                });
+            }
+
+            // Boton «Ver etiquetas»: nombres sobre el mapa, sin encimarse (app.map.setLabels)
+            const labelsBtn = wrapper.querySelector('.siarhe-labels-btn');
+            if (labelsBtn) {
+                state.syncLabelsBtn = function() {
+                    const on = !!state.showLabels;
+                    labelsBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+                    labelsBtn.classList.toggle('is-active', on);
+                    const t = labelsBtn.querySelector('.siarhe-btn-texto');
+                    if (t) t.textContent = on ? 'Ocultar etiquetas' : 'Ver etiquetas';
+                };
+                labelsBtn.addEventListener('click', function() {
+                    if (app.map) app.map.setLabels(state, !state.showLabels);
+                    state.syncLabelsBtn();
+                });
+                state.syncLabelsBtn();
+            }
+
             ph.appendChild(wrapper);
             app.controls.buildBaseSelectors(container, state, wrapper, onUpdate);
             app.controls.buildThemeSelector(container, state, wrapper);
             app.controls.buildMeasureSwitch(container, state, wrapper);
+            if (!isTableOnly) app.controls.buildSearch(container, state, wrapper);
             app.controls.addControlIcons(container, wrapper);
             app.controls.syncIndicatorOptions(container, state);
             app.controls.enhanceDropdowns(container, wrapper);
@@ -404,7 +413,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
          */
         initPalette: function(container, state, wrapper, onUpdate) {
             const btn = wrapper.querySelector('.siarhe-palette-btn');
-            const row = wrapper.querySelector('.siarhe-controls-row');
+            const row = wrapper.querySelector('.siarhe-controls-row[data-fila="vista"]');
             if (!btn || !row) return;
 
             const hex = (c) => { try { const k = d3.color(c); return k ? k.formatHex() : '#000000'; } catch (e) { return '#000000'; } };
@@ -587,6 +596,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const recargar = [];
             state._markerUrlUsed = state._markerUrlUsed || {};
             tipos.forEach(function(type) {
+                if (type.charAt(0) === '@') return; // capas y grupos de siarhe-posicion.js: los rehace app.pos.apply
                 const url = app.controls.markerUrl(state, type);
                 if (state._markerUrlUsed[type] === url) return;
                 delete state.markersData[type];
@@ -603,6 +613,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
             if (recargar.length && app.map) { app.map.updateMarkers(state); app.map.renderMarkerLegend(state); }
             app.controls.updateMarkerDropdownText(state);
+            if (app.pos && state.pos && state.pos.ui) await app.pos.apply(container, state);
         },
 
         /**
@@ -934,7 +945,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const selEscala = container.querySelector('#siarhe-escala-select');
             if (selEscala) selEscala.value = (state.colorMode === 'degradado' || state.colorMode === 'quartiles') ? 'cuartiles' : (state.colorMode === 'mono' ? 'monocromatico' : state.colorMode);
 
-            // 3) Marcadores apagados
+            // 3) Etiquetas y marcadores apagados
+            if (app.map) app.map.setLabels(state, false);
+            if (state.syncLabelsBtn) state.syncLabelsBtn();
+            if (app.pos) app.pos.reset(container, state);
             state.activeMarkers.clear();
             container.querySelectorAll('.mc-check').forEach(chk => { chk.checked = false; });
             if (app.map) app.map.updateMarkers(state);
@@ -1046,28 +1060,199 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             container.addEventListener('click', () => setTimeout(sync, 0), true);
         },
 
-        updateMarkerDropdownText: function(state) {
-            const upd = (trigger, typeFilter) => {
-                if (!trigger) return;
-                const sel = Array.from(state.activeMarkers).filter(k => app.utils.markerGroup((state.markerLabels[k] || {}).tipo) === typeFilter);
-
-                const clearBtn = trigger.parentElement.querySelector('.siarhe-cs-search button');
-                if (clearBtn) {
-                    clearBtn.style.display = sel.length > 0 ? 'block' : 'none';
-                }
-
-                if (sel.length === 0) {
-                    trigger.innerHTML = `<span>Seleccionar...</span>`;
-                    trigger.classList.add('is-placeholder');
-                } else {
-                    const labels = sel.map(k => (state.markerLabels[k] || {}).label || k);
-                    trigger.innerHTML = `<span>${app.utils.esc(labels.join(', '))}</span>`;
-                    trigger.classList.remove('is-placeholder');
-                }
+        /**
+         * Agrupa los marcadores disponibles de un tipo (posicion | espectro). Primero van los grupos del sistema (campo `grupo`
+         * del marcador; rotulos en data-marker-grupos: Establecimientos de Salud, Clinicas), en el orden de ese catalogo y aunque
+         * tengan un solo marcador. Los demas se agrupan por archivo: un archivo con varios marcadores es un grupo propio y los
+         * archivos de un solo marcador se juntan en un grupo final. En cada grupo el nombre de la opcion pierde lo que repite del
+         * titulo («Establecimientos de Salud: Primer Nivel» -> «Primer Nivel»; «Clinicas de cateteres» -> «Cateteres»).
+         * Devuelve [{ titulo, claves: [...], corto: { clave: texto } }].
+         */
+        markerGroups: function(state, typeFilter) {
+            const claves = Object.keys(state.markerUrls || {}).filter(function(k) {
+                return k.charAt(0) !== '@' && app.controls.markerUrl(state, k) && app.utils.markerGroup((state.markerLabels[k] || {}).tipo) === typeFilter;
+            });
+            let rotulos = state.markerGrupos;
+            if (!rotulos) {
+                try { rotulos = JSON.parse((state.containerEl && state.containerEl.dataset.markerGrupos) || '{}') || {}; } catch (e) { rotulos = {}; }
+                state.markerGrupos = rotulos;
+            }
+            const etiqueta = function(k) { return (state.markerLabels[k] || {}).label || k; };
+            const mayus = function(t) { return t.charAt(0).toUpperCase() + t.slice(1); };
+            const norm = app.controls._normBusqueda;
+            // Nombres cortos de un grupo: se quita el prefijo «Titulo: » o «Titulo de » cuando todos lo comparten
+            const cortos = function(ks, titulo) {
+                const corto = {};
+                const quita = function(t) {
+                    const i = t.indexOf(': ');
+                    if (i > 0 && (!titulo || norm(t.slice(0, i)) === norm(titulo))) return [t.slice(0, i), t.slice(i + 2)];
+                    if (titulo && norm(t).indexOf(norm(titulo) + ' de ') === 0) return [titulo, mayus(t.slice(titulo.length + 4))];
+                    return null;
+                };
+                const partes = ks.map(function(k) { return quita(etiqueta(k)); });
+                const comun = ks.length > 0 && partes.every(function(x) { return x && x[1] && norm(x[0]) === norm(partes[0][0]); });
+                ks.forEach(function(k, i) { corto[k] = comun ? partes[i][1] : etiqueta(k); });
+                return { corto: corto, prefijo: comun ? partes[0][0] : '' };
             };
 
-            upd(state.posTrigger, 'posicion');
-            upd(state.specTrigger, 'espectro');
+            const grupos = [];
+            const delSistema = {};
+            claves.forEach(function(k) {
+                const g = (state.markerLabels[k] || {}).grupo;
+                if (g && rotulos[g]) (delSistema[g] = delSistema[g] || []).push(k);
+            });
+            Object.keys(rotulos).forEach(function(g) {
+                if (delSistema[g]) grupos.push({ titulo: rotulos[g], claves: delSistema[g], corto: cortos(delSistema[g], rotulos[g]).corto, sistema: g });
+            });
+
+            const porArchivo = {}, orden = [], sueltos = [];
+            claves.forEach(function(k) {
+                const m = state.markerLabels[k] || {};
+                if (m.grupo && rotulos[m.grupo]) return;
+                const arch = m.archivo || k;
+                if (!porArchivo[arch]) { porArchivo[arch] = []; orden.push(arch); }
+                porArchivo[arch].push(k);
+            });
+            orden.forEach(function(arch) {
+                const ks = porArchivo[arch];
+                if (ks.length < 2) { sueltos.push(ks[0]); return; }
+                const c = cortos(ks, '');
+                const deArchivo = String(arch).replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ');
+                grupos.push({ titulo: c.prefijo || mayus(deArchivo), claves: ks, corto: c.corto });
+            });
+            if (sueltos.length) {
+                const corto = {};
+                sueltos.forEach(function(k) { corto[k] = etiqueta(k); });
+                grupos.push({ titulo: grupos.length ? 'Otros marcadores' : 'Marcadores', claves: sueltos, corto: corto });
+            }
+            return grupos;
+        },
+
+        /**
+         * Fila de marcadores (posicion o densidad): un desplegable por grupo (markerGroups) con casillas, buscador y los atajos
+         * «Todos» / «Ninguno», que actuan sobre lo que el buscador deja ver. Varios grupos pueden estar activos a la vez.
+         */
+        buildMarkerRow: function(container, state, wrapper, typeFilter, opts) {
+            opts = opts || {};
+            const fila = wrapper.querySelector('.siarhe-controls-row[data-fila="' + (typeFilter === 'posicion' ? 'posicion' : 'densidad') + '"]');
+            if (!fila) return [];
+            // soloOtros: sin los grupos del sistema (establecimientos y clinicas), que en posicion atiende siarhe-posicion.js
+            let grupos = app.controls.markerGroups(state, typeFilter);
+            if (opts.soloOtros) grupos = grupos.filter(function(g) { return !g.sistema; });
+            const creados = [];
+            const nuevoControl = function(titulo) {
+                const g = document.createElement('div');
+                g.className = 'siarhe-control-group siarhe-ctl-marcadores';
+                const l = document.createElement('label'); l.textContent = titulo; g.appendChild(l);
+                fila.appendChild(g);
+                creados.push(g);
+                return g;
+            };
+
+            if (!grupos.length && opts.soloOtros && !opts.marcador) return creados;
+            if (!grupos.length) {
+                const g = nuevoControl(typeFilter === 'posicion' ? 'Marcadores' : 'Densidad');
+                const t = document.createElement('div');
+                t.className = 'mc-trigger is-placeholder is-disabled'; t.setAttribute('aria-disabled', 'true');
+                t.innerHTML = '<span>No disponibles</span>';
+                g.appendChild(t);
+                return creados;
+            }
+
+            const sinAcentos = app.controls._normBusqueda;
+            grupos.forEach(function(grupo) {
+                const g = nuevoControl(grupo.titulo);
+                const field = document.createElement('div'); field.className = 'mc-field';
+                const trigger = document.createElement('div'); trigger.className = 'mc-trigger is-placeholder trigger-' + typeFilter;
+                trigger.innerHTML = '<span>Sin marcadores</span>';
+                const menu = document.createElement('div'); menu.className = 'mc-menu';
+                const caja = document.createElement('div'); caja.className = 'siarhe-cs-search';
+                caja.addEventListener('click', function(e) { e.stopPropagation(); });
+                const buscar = document.createElement('input'); buscar.type = 'text'; buscar.placeholder = 'Filtrar...';
+                buscar.setAttribute('aria-label', 'Filtrar ' + grupo.titulo.toLowerCase());
+                caja.appendChild(buscar);
+                const acciones = document.createElement('div'); acciones.className = 'mc-acciones';
+                acciones.addEventListener('click', function(e) { e.stopPropagation(); });
+                const bTodos = document.createElement('button'); bTodos.type = 'button'; bTodos.textContent = 'Todos';
+                const bNinguno = document.createElement('button'); bNinguno.type = 'button'; bNinguno.textContent = 'Ninguno';
+                acciones.appendChild(bTodos); acciones.appendChild(bNinguno);
+                const opciones = document.createElement('div'); opciones.className = 'siarhe-cs-options';
+
+                grupo.claves.forEach(function(key) {
+                    const opt = document.createElement('div'); opt.className = 'mc-option';
+                    opt.innerHTML = '<input type="checkbox" class="mc-check" value="' + app.utils.esc(key) + '"> <span>' + app.utils.esc(grupo.corto[key]) + '</span>';
+                    const chk = opt.querySelector('input');
+                    chk.checked = state.activeMarkers.has(key);
+                    opt.addEventListener('click', function(e) {
+                        if (e.target.tagName !== 'INPUT') { chk.checked = !chk.checked; app.controls.toggleMarker(key, state, container); }
+                    });
+                    chk.addEventListener('click', function(e) { e.stopPropagation(); app.controls.toggleMarker(key, state, container); });
+                    opciones.appendChild(opt);
+                });
+
+                const visibles = function() {
+                    return Array.from(opciones.querySelectorAll('.mc-option')).filter(function(o) { return o.style.display !== 'none'; })
+                        .map(function(o) { return o.querySelector('.mc-check'); });
+                };
+                buscar.addEventListener('input', function() {
+                    const q = sinAcentos(buscar.value);
+                    opciones.querySelectorAll('.mc-option').forEach(function(o) { o.style.display = sinAcentos(o.textContent).indexOf(q) !== -1 ? '' : 'none'; });
+                });
+                // «Todos»: activa uno por uno (cada marcador puede descargar su archivo); «Ninguno» apaga los visibles de una vez
+                bTodos.addEventListener('click', async function() {
+                    bTodos.disabled = true;
+                    for (const chk of visibles()) {
+                        if (state.activeMarkers.has(chk.value)) continue;
+                        chk.checked = true;
+                        await app.controls.toggleMarker(chk.value, state, container);
+                        if (!state.activeMarkers.has(chk.value)) chk.checked = false; // no se pudo cargar
+                    }
+                    bTodos.disabled = false;
+                });
+                bNinguno.addEventListener('click', function() {
+                    visibles().forEach(function(chk) { chk.checked = false; state.activeMarkers.delete(chk.value); });
+                    if (app.map) { app.map.updateMarkers(state); app.map.renderMarkerLegend(state); }
+                    app.controls.updateMarkerDropdownText(state);
+                    if (app.urlState) app.urlState.write(container, state);
+                });
+
+                trigger.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const abierto = menu.classList.contains('open');
+                    container.querySelectorAll('.siarhe-cs-menu, .mc-menu').forEach(function(m) { m.classList.remove('open'); });
+                    if (!abierto) {
+                        menu.classList.add('open'); buscar.value = '';
+                        opciones.querySelectorAll('.mc-option').forEach(function(o) { o.style.display = ''; });
+                        setTimeout(function() { buscar.focus(); }, 50);
+                    }
+                });
+
+                menu.appendChild(caja); menu.appendChild(acciones); menu.appendChild(opciones);
+                field.appendChild(trigger); field.appendChild(menu); g.appendChild(field);
+                state._mcDrops.push({ trigger: trigger, grupo: grupo });
+            });
+            return creados;
+        },
+
+        /** Resumen de cada desplegable de marcadores: «Sin marcadores», el nombre del unico activo, «Todos (n)» o «n seleccionados». */
+        markerSummary: function(grupo, activos) {
+            const sel = grupo.claves.filter(function(k) { return activos.has(k); });
+            if (!sel.length) return '';
+            if (sel.length === 1) return grupo.corto[sel[0]];
+            if (sel.length === grupo.claves.length) return 'Todos (' + sel.length + ')';
+            return sel.length + ' seleccionados';
+        },
+
+        updateMarkerDropdownText: function(state) {
+            (state._mcDrops || []).forEach(function(d) {
+                const texto = app.controls.markerSummary(d.grupo, state.activeMarkers);
+                const span = document.createElement('span');
+                span.textContent = texto || 'Sin marcadores';
+                d.trigger.innerHTML = '';
+                d.trigger.appendChild(span);
+                d.trigger.title = d.grupo.claves.filter(function(k) { return state.activeMarkers.has(k); }).map(function(k) { return d.grupo.corto[k]; }).join(', ');
+                d.trigger.classList.toggle('is-placeholder', !texto);
+            });
         },
 
         /** Icono de linea (los mismos de RHEMX) antes del titulo de cada control; se pinta con el color del texto. */
@@ -1076,15 +1261,17 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (!base) return;
             const iconos = {
                 'c-anio': 'icon-calendario', 'c-unidad': 'icon-institucion', 'c-tema': 'icon-nivel', 'c-indicador': 'icon-grafico-pastel',
-                'c-escala': 'icon-paleta', 'c-vista': 'icon-entidad', 'c-posicion': 'icon-marcadores', 'c-espectro': 'icon-marcadores'
+                'c-escala': 'icon-paleta', 'c-buscar': 'icon-buscar', 'c-vista': 'icon-entidad'
             };
-            Object.keys(iconos).forEach(function(id) {
-                const label = wrapper.querySelector('#' + id + ' > label');
+            const etiquetas = Object.keys(iconos).map(function(id) { return [wrapper.querySelector('#' + id + ' > label'), iconos[id]]; });
+            wrapper.querySelectorAll('.siarhe-ctl-marcadores > label').forEach(function(l) { etiquetas.push([l, 'icon-marcadores']); });
+            etiquetas.forEach(function(par) {
+                const label = par[0];
                 if (!label || label.querySelector('.siarhe-ctl-icon')) return;
                 const i = document.createElement('span');
                 i.className = 'siarhe-ctl-icon';
                 i.setAttribute('aria-hidden', 'true');
-                i.style.setProperty('--ico', 'url("' + base + iconos[id] + '.svg")');
+                i.style.setProperty('--ico', 'url("' + base + par[1] + '.svg")');
                 label.insertBefore(i, label.firstChild);
             });
         },
@@ -1137,48 +1324,192 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
         },
 
+        /** Texto sin acentos ni mayusculas, para comparar nombres al buscar. */
+        _normBusqueda: function(t) {
+            return String(t == null ? '' : t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+        },
+
+        /**
+         * Buscador de lugares: entidades (mapa nacional) o municipios en la vista base y, con la vista detallada cargada,
+         * municipios y localidades. Al elegir un resultado el mapa se acerca a ese lugar y lo resalta. Lista tipo combobox
+         * (flechas, Enter y Esc).
+         */
+        buildSearch: function(container, state, wrapper) {
+            const host = wrapper.querySelector('#c-buscar');
+            if (!host || !app.map) return;
+            const norm = app.controls._normBusqueda;
+            const MAX_POR_GRUPO = 8;
+
+            const entrada = document.createElement('input');
+            entrada.type = 'search'; entrada.id = 'siarhe-buscar-entrada'; entrada.className = 'siarhe-metric-select siarhe-buscar-entrada';
+            entrada.placeholder = state.isNacional ? 'Estado o municipio' : 'Municipio o localidad';
+            entrada.autocomplete = 'off';
+            entrada.setAttribute('role', 'combobox'); entrada.setAttribute('aria-autocomplete', 'list');
+            entrada.setAttribute('aria-haspopup', 'listbox'); entrada.setAttribute('aria-expanded', 'false');
+            const lista = document.createElement('ul');
+            lista.className = 'siarhe-resultados'; lista.id = 'siarhe-resultados-' + Math.random().toString(36).slice(2, 7);
+            lista.setAttribute('role', 'listbox'); lista.hidden = true;
+            entrada.setAttribute('aria-controls', lista.id);
+            host.appendChild(entrada); host.appendChild(lista);
+
+            // Nombre de cada geometria: el de la base cargada (si trae el lugar) o el de las propiedades de la capa
+            const nombreBase = function(f) {
+                const p = f.properties || {};
+                const row = state.dataMap ? state.dataMap.get(app.utils.getGeoKey(p, state.isNacional)) : null;
+                return (row && row.estado) || p.NOMGEO || p.NOM_MUN || p.NOM_ENT || '';
+            };
+            const busca = function(q) {
+                const nq = norm(q);
+                const grupos = [];
+                if (nq.length < 2) return grupos;
+                const toma = function(titulo, features, nombreDe, detalleDe, esDetalle) {
+                    const items = [];
+                    for (let i = 0; i < features.length && items.length < MAX_POR_GRUPO; i++) {
+                        const f = features[i], n = nombreDe(f);
+                        if (n && norm(n).indexOf(nq) !== -1) items.push({ f: f, texto: n, detalle: detalleDe(f), detalleCapa: esDetalle });
+                    }
+                    if (items.length) grupos.push({ titulo: titulo, items: items });
+                };
+                const base = (state.geoData && state.geoData.features) || [];
+                if (!state.isGeoLocMode) toma(state.isNacional ? 'Entidades' : 'Municipios', base, nombreBase, function() { return ''; }, false);
+                const det = state.isGeoLocMode && state.locGeoData && Array.isArray(state.locGeoData.features) ? state.locGeoData.features : null;
+                if (det) {
+                    const esLoc = function(f) { return !!(f.properties && (f.properties.NOM_LOC || f.properties.LOCALIDAD)); };
+                    const nombreDet = function(f) { const p = f.properties || {}; return p.NOM_LOC || p.LOCALIDAD || p.NOM_MUN || p.MUNICIPIO || p.NOMGEO || ''; };
+                    const detalleDet = function(f) { const p = f.properties || {}; return esLoc(f) ? [p.NOM_MUN || p.MUNICIPIO, p.NOM_ENT].filter(Boolean).join(', ') : (p.NOM_ENT || ''); };
+                    const locs = det.filter(esLoc), muns = det.filter(function(f) { return !esLoc(f); });
+                    if (muns.length) toma('Municipios', muns, nombreDet, detalleDet, true);
+                    if (locs.length) toma('Localidades', locs, nombreDet, detalleDet, true);
+                }
+                return grupos;
+            };
+
+            let items = [], activo = -1;
+            const cierra = function() { lista.hidden = true; entrada.setAttribute('aria-expanded', 'false'); activo = -1; };
+            const marca = function() { lista.querySelectorAll('.siarhe-res-item').forEach(function(li, i) { li.classList.toggle('activo', i === activo); }); };
+            const esc = function(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; };
+            const dibuja = function() {
+                const grupos = busca(entrada.value);
+                items = grupos.reduce(function(a, g) { return a.concat(g.items); }, []);
+                let n = 0;
+                lista.innerHTML = grupos.map(function(g) {
+                    return '<li class="siarhe-res-grupo" role="presentation">' + g.titulo + '</li>' + g.items.map(function(it) {
+                        return '<li class="siarhe-res-item" role="option" data-i="' + (n++) + '">' + esc(it.texto) + (it.detalle ? '<small>' + esc(it.detalle) + '</small>' : '') + '</li>';
+                    }).join('');
+                }).join('') + (!items.length && norm(entrada.value).length >= 2 ? '<li class="siarhe-res-vacio" role="presentation">Sin resultados</li>' : '');
+                lista.hidden = !lista.innerHTML;
+                entrada.setAttribute('aria-expanded', String(!lista.hidden));
+                activo = -1;
+            };
+            const elige = function(it) {
+                cierra();
+                entrada.value = it.texto;
+                entrada.blur();
+                app.map.focusFeature(state, it.f, it.detalleCapa);
+                const mapDiv = container.querySelector('.siarhe-map-container');
+                if (mapDiv && !document.fullscreenElement) {
+                    const r = mapDiv.getBoundingClientRect();
+                    if (r.top < 0 || r.bottom > window.innerHeight) mapDiv.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                }
+            };
+            entrada.addEventListener('input', dibuja);
+            entrada.addEventListener('focus', function() { if (norm(entrada.value).length >= 2) dibuja(); });
+            entrada.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') { cierra(); return; }
+                if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && items.length) {
+                    e.preventDefault();
+                    activo = (activo + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+                    marca();
+                    const li = lista.querySelector('.siarhe-res-item.activo');
+                    if (li && li.scrollIntoView) li.scrollIntoView({ block: 'nearest' });
+                } else if (e.key === 'Enter' && items.length) {
+                    e.preventDefault();
+                    elige(items[activo >= 0 ? activo : 0]);
+                }
+            });
+            lista.addEventListener('mousedown', function(e) { e.preventDefault(); });
+            lista.addEventListener('click', function(e) {
+                const li = e.target.closest('.siarhe-res-item');
+                if (li) elige(items[Number(li.dataset.i)]);
+            });
+            document.addEventListener('pointerdown', function(e) { if (!host.contains(e.target)) cierra(); });
+        },
+
+        /**
+         * Conmutador de dos opciones (como el de RHEMX): rotulo, pista con perilla y rotulo. Se puede pulsar cualquiera de los tres.
+         * def = { etiqueta, a: {valor, texto, titulo}, b: {...}, alCambiar(valor) }. Devuelve { el, set(valor), get(), deshabilita(a, b) };
+         * set() solo pinta (no llama a alCambiar), para sincronizarlo desde fuera.
+         */
+        makeSwitch: function(def) {
+            const el = document.createElement('span');
+            el.className = 'siarhe-conm'; el.setAttribute('role', 'group'); el.setAttribute('aria-label', def.etiqueta);
+            const op = function(o) {
+                const b = document.createElement('button');
+                b.type = 'button'; b.className = 'siarhe-conm-op'; b.textContent = o.texto; b.title = o.titulo || '';
+                return b;
+            };
+            const opA = op(def.a), opB = op(def.b);
+            const pista = document.createElement('button');
+            pista.type = 'button'; pista.className = 'siarhe-conm-pista'; pista.setAttribute('role', 'switch');
+            pista.setAttribute('aria-label', 'Cambiar entre ' + def.a.texto.toLowerCase() + ' y ' + def.b.texto.toLowerCase());
+            pista.innerHTML = '<span class="siarhe-conm-perilla"></span>';
+            el.appendChild(opA); el.appendChild(pista); el.appendChild(opB);
+            let valor = def.a.valor;
+            const dis = { a: false, b: false };
+            const pinta = function() {
+                const enB = valor === def.b.valor;
+                opA.classList.toggle('is-active', !enB); opB.classList.toggle('is-active', enB);
+                opA.setAttribute('aria-pressed', enB ? 'false' : 'true'); opB.setAttribute('aria-pressed', enB ? 'true' : 'false');
+                pista.setAttribute('aria-checked', enB ? 'true' : 'false');
+                opA.disabled = dis.a; opB.disabled = dis.b;
+                pista.disabled = dis.a || dis.b;
+            };
+            const elige = function(v) {
+                if (v === valor || (v === def.a.valor && dis.a) || (v === def.b.valor && dis.b)) return;
+                valor = v; pinta();
+                if (def.alCambiar) def.alCambiar(v);
+            };
+            opA.addEventListener('click', function() { elige(def.a.valor); });
+            opB.addEventListener('click', function() { elige(def.b.valor); });
+            pista.addEventListener('click', function() { elige(valor === def.a.valor ? def.b.valor : def.a.valor); });
+            pinta();
+            return {
+                el: el,
+                get: function() { return valor; },
+                set: function(v) { valor = v === def.b.valor ? def.b.valor : def.a.valor; pinta(); },
+                deshabilita: function(a, b) { dis.a = !!a; dis.b = !!b; pinta(); }
+            };
+        },
+
         /**
          * Conmutador Medida (Tasa / Frecuencia): alterna el indicador entre su tasa por mil habitantes y su frecuencia (numero de
-         * plazas o personas). Cada boton se desactiva si el indicador no tiene esa medida.
+         * plazas o personas). Cada opcion se desactiva si el indicador no tiene esa medida.
          */
         buildMeasureSwitch: function(container, state, wrapper) {
             const host = wrapper.querySelector('#c-medida');
             if (!host) return;
             const info0 = state.metricas[state.currentMetric] || {};
             state.medida = info0.tipo === 'tasa' || !info0.tipo ? 'tasa' : 'absoluto';
-            const grupo = document.createElement('div');
-            grupo.className = 'siarhe-seg'; grupo.setAttribute('role', 'group'); grupo.setAttribute('aria-label', 'Medida del indicador');
-            const defs = [['tasa', 'Tasa', 'Tasa por mil habitantes'], ['absoluto', 'Frecuencia', 'Número de plazas o de personas']];
-            const botones = {};
-            defs.forEach(function(d) {
-                const b = document.createElement('button');
-                b.type = 'button'; b.className = 'siarhe-seg__btn'; b.textContent = d[1]; b.title = d[2]; b.dataset.medida = d[0];
-                b.addEventListener('click', function() {
-                    if (b.disabled) return;
-                    state.medida = d[0];
-                    const fam = app.controls.metricFamily(state, state.currentMetric);
-                    const destino = fam[d[0]];
+            const sw = app.controls.makeSwitch({
+                etiqueta: 'Medida del indicador',
+                a: { valor: 'tasa', texto: 'Tasa', titulo: 'Tasa por mil habitantes' },
+                b: { valor: 'absoluto', texto: 'Frecuencia', titulo: 'Número de plazas o de personas' },
+                alCambiar: function(v) {
+                    state.medida = v;
+                    const destino = app.controls.metricFamily(state, state.currentMetric)[v];
                     if (destino && destino !== state.currentMetric) {
                         const opt = container.querySelector('.siarhe-cs-option[data-key="' + destino + '"]');
                         if (opt) opt.click(); // mismo camino que elegirlo en la lista: escala, tabla, mapa y aviso de marcadores
                     }
                     app.controls.syncIndicatorOptions(container, state);
                     state.refreshMeasure();
-                });
-                botones[d[0]] = b;
-                grupo.appendChild(b);
+                }
             });
-            host.appendChild(grupo);
+            host.appendChild(sw.el);
             state.refreshMeasure = function() {
                 const fam = app.controls.metricFamily(state, state.currentMetric);
-                const actual = (state.metricas[state.currentMetric] || {}).tipo === 'tasa' ? 'tasa' : 'absoluto';
-                defs.forEach(function(d) {
-                    const b = botones[d[0]];
-                    b.disabled = !fam[d[0]];
-                    const activo = d[0] === actual && !!fam[d[0]];
-                    b.classList.toggle('is-active', activo);
-                    b.setAttribute('aria-pressed', activo ? 'true' : 'false');
-                });
+                sw.deshabilita(!fam.tasa, !fam.absoluto);
+                sw.set((state.metricas[state.currentMetric] || {}).tipo === 'tasa' ? 'tasa' : 'absoluto');
             };
             state.refreshMeasure();
         },
@@ -1233,10 +1564,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             state.base = { bases: bases, anio: container.dataset.anio || anios[0], unidad: container.dataset.unidad || 'plazas' };
             if (!bases[state.base.anio]) state.base.anio = anios[0];
 
-            const etiquetaUnidad = { plazas: 'Plazas de enfermería', personas: 'Recursos humanos estimados' };
             const unidadesDe = function(anio) { return Object.keys(bases[anio] || {}); };
-            const row = wrapper.querySelector('.siarhe-controls-row');
-            if (!row) return;
+            const filaVista = wrapper.querySelector('.siarhe-controls-row[data-fila="vista"]');
+            const filaMedida = wrapper.querySelector('.siarhe-controls-row[data-fila="medida"]');
+            if (!filaVista || !filaMedida) return;
 
             const grupo = function(id, titulo) {
                 const g = document.createElement('div');
@@ -1249,17 +1580,22 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             anios.forEach(function(a) { const o = document.createElement('option'); o.value = a; o.textContent = a; selAnio.appendChild(o); });
             gAnio.appendChild(selAnio);
 
-            const gUnidad = grupo('c-unidad', 'Unidad de conteo');
-            const selUnidad = document.createElement('select'); selUnidad.className = 'siarhe-metric-select'; selUnidad.id = 'siarhe-unidad-select';
-            gUnidad.appendChild(selUnidad);
+            // Unidad de conteo: conmutador Plazas / Recursos humanos; la opcion sin base cargada para el año queda desactivada
+            const gUnidad = document.createElement('div');
+            gUnidad.className = 'siarhe-control-group siarhe-control-group--conm'; gUnidad.id = 'c-unidad';
+            const swUnidad = app.controls.makeSwitch({
+                etiqueta: 'Unidad de conteo',
+                a: { valor: 'plazas', texto: 'Plazas', titulo: 'Contar plazas de enfermería' },
+                b: { valor: 'personas', texto: 'Recursos humanos', titulo: 'Contar recursos humanos estimados (personas)' },
+                alCambiar: function(v) { state.base.unidad = v; cambia(); }
+            });
+            gUnidad.appendChild(swUnidad.el);
 
             const llenaUnidades = function() {
                 const u = unidadesDe(state.base.anio);
-                selUnidad.innerHTML = '';
-                u.forEach(function(k) { const o = document.createElement('option'); o.value = k; o.textContent = etiquetaUnidad[k] || k; selUnidad.appendChild(o); });
                 if (u.indexOf(state.base.unidad) === -1) state.base.unidad = u[0];
-                selUnidad.value = state.base.unidad;
-                selUnidad.disabled = u.length < 2; // con una sola unidad se muestra cual es, sin opcion de cambiarla
+                swUnidad.deshabilita(u.indexOf('plazas') === -1, u.indexOf('personas') === -1);
+                swUnidad.set(state.base.unidad);
             };
             selAnio.value = state.base.anio;
             llenaUnidades();
@@ -1290,10 +1626,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 });
             };
             selAnio.addEventListener('change', function() { state.base.anio = selAnio.value; llenaUnidades(); cambia(); });
-            selUnidad.addEventListener('change', function() { state.base.unidad = selUnidad.value; cambia(); });
 
-            row.insertBefore(gUnidad, row.firstChild);
-            row.insertBefore(gAnio, row.firstChild);
+            filaMedida.insertBefore(gUnidad, filaMedida.children[1] || null);
+            filaVista.insertBefore(gAnio, filaVista.children[1] || null);
         },
 
         /**
@@ -1334,36 +1669,49 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         },
 
         setupActionButtons: function(container, state) {
-            const btnLabels = container.querySelector('.siarhe-btn-toggle-labels');
             const btnPng = container.querySelector('.siarhe-btn-download-png');
 
             const btnShare = container.querySelector('.siarhe-btn-share');
             if (btnShare) {
+                const txt = btnShare.querySelector('.siarhe-btn-texto') || btnShare;
+                const original = txt.textContent;
+                let temporizador = null;
+                const aviso = function(t) {
+                    txt.textContent = t;
+                    clearTimeout(temporizador);
+                    temporizador = setTimeout(function() { txt.textContent = original; }, 2000);
+                };
                 btnShare.addEventListener('click', async (e) => {
                     e.preventDefault();
                     if (app.urlState) app.urlState.flush(container, state); // la URL debe reflejar el estado actual
                     const url = window.location.href;
-                    const original = btnShare.innerHTML;
                     try {
                         await navigator.clipboard.writeText(url);
-                        btnShare.textContent = '✅ Enlace copiado';
-                        setTimeout(() => { btnShare.innerHTML = original; }, 2000);
+                        aviso('¡Enlace copiado!');
                     } catch (err) {
                         window.prompt('Copia este enlace:', url);
                     }
                 });
             }
 
+            const btnTabla = container.querySelector('.siarhe-btn-ver-tabla');
+            if (btnTabla) {
+                btnTabla.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const sec = container.querySelector('#siarhe-table-section');
+                    if (!sec) return;
+                    const det = sec.querySelector('details.siarhe-table-details');
+                    if (det) det.open = true;
+                    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                    sec.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+                });
+            }
+
+            // Un solo botón: la imagen sale como se ve el mapa, con nombres si «Ver etiquetas» está encendido
             if (btnPng) {
                 btnPng.addEventListener('click', (e) => {
                     e.preventDefault();
-                    if (app.map) app.map.downloadMapAsPNG(container, state, false);
-                });
-            }
-            if (btnLabels) {
-                btnLabels.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    if (app.map) app.map.downloadMapAsPNG(container, state, true);
+                    if (app.map) app.map.downloadMapAsPNG(container, state, !!state.showLabels);
                 });
             }
         },

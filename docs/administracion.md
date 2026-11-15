@@ -42,10 +42,11 @@ Reemplazar un archivo **guarda una copia del anterior** (ver *Versiones y Copias
 ## Personalizar (`siarhe-customize`)
 
 - **Tema Admin:** colores de las tablas del propio panel, con vista previa.
-- **Mapa & Colores:** colores del mapa (cuartiles, monocromático, rangos, valor 0 y sin dato), **botones del sitio** (fondo, borde y texto en estado normal, al pasar el cursor y al presionar; el texto también pinta los íconos), estilos de la tabla pública, estilo de cada marcador y **ancho de la página del mapa**: *contenedor* (centrado, máximo 1140 px) o *canvas* (ancho completo de la ventana con un margen lateral de 2.5 % a 5 %).
+- **Mapa & Colores:** colores del mapa (cuartiles, monocromático, rangos, valor 0 y sin dato), **botones del sitio** (fondo, borde y texto en estado normal, al pasar el cursor y al presionar; el texto también pinta los íconos), estilos de la tabla pública y estilo de cada marcador.
 
 ## Configuración (`siarhe-settings`)
 
+- **General:** disposición por defecto de las páginas del mapa: *contenedor* (centrado, máximo 1140 px) o *canvas* (ancho completo de la ventana con un margen lateral de 2.5 % a 5 %). Hasta la 0.1.10.0 estaba en *Personalizar › Mapa & Colores*; lo guardado ahí sigue valiendo mientras no se guarde esta pestaña. En PC el visitante puede cambiarla para sí con el botón «Ancho completo» / «Ancho normal» del mapa (se recuerda en su navegador).
 - **Enlaces y Rutas:** a qué página lleva el doble clic de cada entidad y los documentos legales.
 - **Tooltips:** contenido, orden y colores de las tarjetas del mapa y de los marcadores.
 - **Métricas (CSV):** indicadores (columnas del CSV). Las **nativas** están protegidas; se pueden agregar propias con tipo (tasa o absoluto), escala y colores. La tabla filtra por tema.

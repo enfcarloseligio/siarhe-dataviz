@@ -128,13 +128,14 @@ class Siarhe_Shortcodes {
         wp_add_inline_style( 'siarhe-frontend-css', siarhe_get_css_variables_css() );
 
         // 3. Registrar D3.js (se encola como dependencia de siarhe-core-js solo cuando hay un shortcode)
-        wp_register_script( 'd3-js', 'https://d3js.org/d3.v7.min.js', array(), '7.0.0', true );
+        //    Primero la copia del plugin (misma versión siempre y sin depender de terceros); el CDN queda de respaldo
+        wp_register_script( 'd3-js', SIARHE_URL . 'public/js/libs/d3.v7.min.js', array(), '7.9.0', true );
 
-        // Respaldo local: siarhe-core.js lo carga solo si el CDN falla o no trae las funciones de D3 que se usan
+        // Respaldo en el CDN: siarhe-core.js lo carga solo si la copia local falla o no trae las funciones de D3 que se usan
         wp_add_inline_script(
             'd3-js',
             'window.SiarheDataVizConfig = ' . wp_json_encode( array(
-                'd3Fallback' => SIARHE_URL . 'public/js/libs/d3.v7.min.js?ver=7.9.0',
+                'd3Fallback' => 'https://d3js.org/d3.v7.min.js',
                 // Lectura de TopoJSON: se cargan solo cuando la geometria es una topologia (pagina y worker)
                 'topojson'   => SIARHE_URL . 'public/js/libs/topojson-client.min.js?ver=3.1.0',
                 'topoHelper' => SIARHE_URL . 'public/js/siarhe-topo.js?ver=' . SIARHE_VERSION,

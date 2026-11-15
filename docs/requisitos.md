@@ -44,6 +44,6 @@ Verificado en: Brave en PC (Windows), Brave en Android (vertical y horizontal, t
 
 ## Servicios externos
 
-- **D3.js v7** desde `d3js.org`, con **respaldo local** en `public/js/libs/` si el CDN falla.
+- **D3.js v7** (7.9.0) desde la copia del plugin en `public/js/libs/`, con **respaldo en el CDN** (`d3js.org`) si la copia local falla.
 - **Select2** (solo en el panel) desde CDN, con respaldo local en `admin/libs/`.
 - No se envían datos a terceros.

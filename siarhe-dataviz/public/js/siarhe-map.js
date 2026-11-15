@@ -73,13 +73,19 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const targetPx = isMobile ? 10 : 11.5;
             let L = Math.max(1, targetPx / (15 * s));
 
-            // Limites fisicos: alto combinado <= 80 % y ancho <= 46 % (60 % en pantalla completa) del contenedor
-            const capH = (0.8 * rect.height) / ((lb.h + mb.h) * s);
-            const capW = ((isFullscreen ? 0.6 : 0.46) * rect.width) / (Math.max(lb.w, mb.w) * s);
-            L = Math.max(0.5, Math.min(L, capH, capW));
+            // Como en RHEMX: la de colores (arriba) ocupa a lo mas el 46 % del ancho y la mitad del alto; la de marcadores (abajo)
+            // mide lo mismo mientras quepa en el ancho visible y, si las dos no caben una sobre otra, se reducen juntas
+            const anchoVisible = rect.width / s, altoVisible = rect.height / s;
+            L = Math.max(0.5, Math.min(L, (0.46 * rect.width) / (lb.w * s), (0.5 * rect.height) / (lb.h * s)));
+            let Lm = L;
+            if (hasMarkers) {
+                Lm = Math.max(0.3, Math.min(L, (anchoVisible - 2 * padX) / (mb.w + 12)));
+                const libre = altoVisible - 3 * padY, suma = lb.h * L + mb.h * Lm;
+                if (suma > libre) { const f = Math.max(0.3, libre / suma); L *= f; Lm *= f; }
+            }
 
             state.gLegend.attr("transform", `translate(${left + padX + lb.ox * L}, ${top + padY + lb.oy * L}) scale(${L})`);
-            state.gMarkerLegend.attr("transform", `translate(${left + padX + mb.ox * L}, ${bottom - padY}) scale(${L})`);
+            state.gMarkerLegend.attr("transform", `translate(${left + padX + mb.ox * Lm}, ${bottom - padY}) scale(${Lm})`);
         },
 
         initResponsiveLegends: function(container, state) {
@@ -279,9 +285,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     if (e.sourceEvent) app.map._cvSchedule(state); else app.map._cvDraw(state);
                     const k = e.transform.k;
 
-                    state.gLabels.selectAll("text.siarhe-label")
-                        .style("font-size", `${14 / k}px`)
-                        .attr("stroke-width", 2.5 / k);
+                    if (state.showLabels || state._labelsPng) {
+                        const fsE = app.map._labelFs(state, k);
+                        state.gLabels.selectAll("text.siarhe-label")
+                            .style("font-size", `${fsE}px`)
+                            .attr("stroke-width", fsE * 0.2);
+                    }
 
                     state.gPaths.selectAll("path.siarhe-feature").attr("stroke-width", 0.5 / k);
                     if (state.isGeoLocMode && state._locBuilt) {
@@ -298,8 +307,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     if (state.measure && state.measure.points.length > 0) app.map.renderMeasure(state, k);
                 });
 
+            // Al terminar cada zoom se recalcula que etiquetas caben sin encimarse
+            zoom.on("end.etiquetas", () => { if (state.showLabels) app.map.declutterLabels(state); });
             svg.call(zoom).on("dblclick.zoom", null);
             state.zoom = zoom;
+            if (state.showLabels && state.gLabels) state.gLabels.style("display", "block");
             svg.call(zoom.transform, state.initialTransform);
 
             app.map.renderZoomButtons(container, mapDiv, svg, zoom, state);
@@ -574,7 +586,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 });
                 state._labelFeatures = Array.from(maxAreaFeatures.values()).map(item => {
                     const c = state.path.centroid(item.feature);
-                    return { feature: item.feature, x: isNaN(c[0]) ? 0 : c[0], y: isNaN(c[1]) ? 0 : c[1] };
+                    return { feature: item.feature, area: item.area, x: isNaN(c[0]) ? 0 : c[0], y: isNaN(c[1]) ? 0 : c[1] };
                 });
                 state._labelFeaturesSrc = baseGeoData;
             }
@@ -590,16 +602,66 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .attr("text-anchor", "middle")
                 .attr("fill", "#0F172A")
                 .attr("stroke", "#ffffff")
-                .attr("stroke-width", 2.5 / currentK)
+                .attr("stroke-width", app.map._labelFs(state, currentK) * 0.2)
                 .attr("paint-order", "stroke fill")
                 .attr("stroke-linejoin", "round")
-                .style("font-size", `${14 / currentK}px`)
+                .style("font-size", `${app.map._labelFs(state, currentK)}px`)
                 .style("font-weight", "bold")
                 .text(d => {
                     let cve = app.utils.getGeoKey(d.feature.properties, state.isNacional);
                     const row = state.dataMap.get(cve);
                     return row ? row.estado : (d.feature.properties.NOMGEO || d.feature.properties.NOM_ENT || "");
                 });
+            if (state.showLabels) app.map.declutterLabels(state);
+        },
+
+        /** Tamano de la letra de las etiquetas en unidades del mapa: 13 px de pantalla (12 en telefono) a cualquier zoom. */
+        _labelFs: function(state, k) {
+            let sc = 1, px = 13;
+            try { const m = app.map._markerMetrics(state, k); if (m && m.sc > 0) sc = m.sc; } catch (e) {}
+            try { if (app.map._deviceInfo(state).kind === 'phone') px = 12; } catch (e) {}
+            return px / (k * sc);
+        },
+
+        /**
+         * Cajas de las etiquetas que caben sin encimarse, en unidades del viewBox. `items` = [{ x, y, texto, area }], `fs` = alto
+         * de la letra en esas unidades (constante en pantalla: al acercar caben mas). Gana la geometria de mayor area.
+         * Devuelve un arreglo de booleanos (visible o no) en el orden de `items`.
+         */
+        _labelFit: function(items, fs) {
+            const alto = fs * 1.25, margen = fs * 0.25;
+            const orden = items.map(function(it, i) { return i; }).sort(function(a, b) { return (items[b].area || 0) - (items[a].area || 0); });
+            const puestas = [], visible = items.map(function() { return false; });
+            orden.forEach(function(i) {
+                const it = items[i], t = String(it.texto || '');
+                if (!t) return;
+                const w = t.length * fs * 0.6 + margen * 2;
+                const c = { x0: it.x - w / 2, x1: it.x + w / 2, y0: it.y - alto + margen, y1: it.y + margen * 2 };
+                for (let j = 0; j < puestas.length; j++) {
+                    const o = puestas[j];
+                    if (c.x0 < o.x1 && c.x1 > o.x0 && c.y0 < o.y1 && c.y1 > o.y0) return;
+                }
+                puestas.push(c); visible[i] = true;
+            });
+            return visible;
+        },
+
+        /** Oculta las etiquetas que se encimarian con otra mas importante en el zoom actual (se llama al terminar cada zoom). */
+        declutterLabels: function(state) {
+            if (!state.gLabels || !state.svg) return;
+            let k = 1; try { k = d3.zoomTransform(state.svg.node()).k; } catch (e) {}
+            const nodos = state.gLabels.selectAll("text.siarhe-label").nodes();
+            const items = nodos.map(function(n) { const d = n.__data__ || {}; return { x: d.x, y: d.y, area: d.area, texto: n.textContent }; });
+            const visible = app.map._labelFit(items, app.map._labelFs(state, k));
+            nodos.forEach(function(n, i) { n.style.display = visible[i] ? '' : 'none'; });
+        },
+
+        /** Muestra u oculta los nombres sobre el mapa (boton «Etiquetas»). */
+        setLabels: function(state, on) {
+            state.showLabels = !!on;
+            if (!state.gLabels) return;
+            state.gLabels.style("display", state.showLabels ? "block" : "none");
+            if (state.showLabels) { app.map.renderLabels(state); app.map.declutterLabels(state); }
         },
 
         renderLegend: function(state, stats, mode) {
@@ -752,8 +814,33 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 addLabel(gN, 26, 13, "S/D");
             }
 
-            state._legendBox = { w: boxW, h: boxH, ox: 12, oy: 32 };
+            // Encabezado como en RHEMX: el nombre del indicador (en varias lineas si es largo) y debajo la medida. La caja crece
+            // hacia arriba lo que ocupan las lineas adicionales, asi el resto de la leyenda no cambia de sitio dentro de ella.
+            const nombreInd = (app.controls && app.controls.indicatorName ? app.controls.indicatorName(metricInfo) : '') || label;
+            const unidadBase = (state.base && state.base.unidad) === 'personas' ? 'Recursos humanos' : 'Plazas';
+            const lineasTitulo = app.map._wrap(nombreInd, 26);
+            const subtitulo = metricInfo.tipo === 'tasa' ? 'Tasa por 1,000 habitantes' : unidadBase;
+            const PASO = 21, extra = lineasTitulo.length * PASO;   // el subtitulo ocupa el renglon del titulo original
+            boxW = Math.max(boxW, Math.max.apply(null, lineasTitulo.map(t => t.length * 9.6)) + 28, subtitulo.length * 7.6 + 28);
+            g.select("rect").attr("y", -32 - extra).attr("height", boxH + extra).attr("width", boxW);
+            g.select("text").remove();
+            lineasTitulo.forEach((t, i) => g.append("text").attr("x", 0).attr("y", -8 - extra + i * PASO).text(t)
+                .style("font-size", FT + "px").style("font-weight", "bold").style("fill", "#0F172A"));
+            g.append("text").attr("x", 0).attr("y", -8).text(subtitulo).style("font-size", FL + "px").style("fill", "#475569");
+
+            state._legendBox = { w: boxW, h: boxH + extra, ox: 12, oy: 32 + extra };
             if (state.containerEl) app.map.layoutLegends(state.containerEl, state);
+        },
+
+        /** Parte un texto en lineas de `max` caracteres como mucho, sin cortar palabras. */
+        _wrap: function(texto, max) {
+            const lineas = []; let actual = '';
+            String(texto || '').split(' ').forEach(p => {
+                if (actual && (actual + ' ' + p).length > max) { lineas.push(actual); actual = p; }
+                else actual = actual ? actual + ' ' + p : p;
+            });
+            if (actual) lineas.push(actual);
+            return lineas.length ? lineas : [''];
         },
 
         /**
@@ -1639,7 +1726,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         syncReferencias: function(state) {
             if (!state.containerEl) return;
             const activos = new Set();
-            state.activeMarkers.forEach(k => { const m = (state.markerLabels || {})[k]; if (m && m.archivo) activos.add(m.archivo); });
+            state.activeMarkers.forEach(k => {
+                const m = (state.markerLabels || {})[k];
+                if (!m) return;
+                if (m.archivo) activos.add(m.archivo);
+                (m.archivos || []).forEach(a => activos.add(a)); // grupos de siarhe-posicion.js que unen dos capas (catéteres y heridas)
+            });
             state.containerEl.querySelectorAll('.siarhe-ref-clinica').forEach(col => { col.hidden = !activos.has(col.getAttribute('data-ref-archivo')); });
         },
 
@@ -1854,6 +1946,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             node.style.opacity = 1; // dispara el fundido de entrada
         },
 
+        /**
+         * Leyenda de marcadores (abajo a la izquierda). Los marcadores por tema (siarhe-posicion.js) llevan el cuadro de RHEMX:
+         * titulo, resumen y grupos de simbolos (_legendPos); los demas activos (densidad, marcadores propios) van en una lista
+         * (_legendList) encima de el. Cada parte se dibuja con su borde inferior en y = 0 y luego se apilan.
+         */
         renderMarkerLegend: function(state) {
             app.map.updateMeasureAvailability(state);
             const g = state.gMarkerLegend;
@@ -1861,11 +1958,93 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             g.style("font-family", "Roboto, Arial, sans-serif");
 
             const actives = Array.from(state.activeMarkers);
-            if (actives.length === 0) {
+            const virtuales = actives.filter(k => k.charAt(0) === '@');
+            let sueltos = actives.filter(k => k.charAt(0) !== '@');
+            let modelo = null;
+            if (virtuales.length && app.pos) {
+                const tn = state.containerEl ? state.containerEl.querySelector('h2.siarhe-title') : null;
+                const lugar = state.isNacional ? '' : (tn ? tn.textContent.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ ]/g, '').trim() : '');
+                modelo = app.pos.leyenda(state, lugar);
+            }
+            if (!modelo) sueltos = actives;   // sin modelo, todo va a la lista
+
+            const partes = [];
+            if (modelo) { const sub = g.append("g"); partes.push({ sub: sub, caja: app.map._legendPos(sub, modelo) }); }
+            if (sueltos.length) { const sub = g.append("g"); partes.push({ sub: sub, caja: app.map._legendList(state, sub, sueltos) }); }
+            if (!partes.length) {
                 state._markerBox = null;
                 if (state.containerEl) app.map.layoutLegends(state.containerEl, state);
                 return;
             }
+            let y = 0, ancho = 0;
+            partes.forEach(q => { q.sub.attr("transform", `translate(0, ${-y})`); y += q.caja.h + 10; ancho = Math.max(ancho, q.caja.w); });
+            state._markerBox = { w: ancho, h: y - 10, ox: 12 };
+            if (state.containerEl) app.map.layoutLegends(state.containerEl, state);
+        },
+
+        /**
+         * Cuadro de la leyenda por tema (port de dibujaLeyendaPosicion de RHEMX). Los simbolos de un grupo fluyen en una fila
+         * mientras caben en ANCHO_FILA y despues pasan a la siguiente; los grupos «columnas» (instituciones) se reparten en dos
+         * columnas iguales y su nombre baja de linea sin cortarse. El titulo y el resumen se parten para no desbordar.
+         * Dibuja con el borde inferior en y = 0 y devuelve { w, h }.
+         */
+        _legendPos: function(gRaiz, modelo) {
+            const ANCHO_FILA = 540, ANCHO_LETRA = 7.3, ICONO = 21, SEPARACION = 24, PASO_FILA = 24, INTERLINEA = 16, PASO_TEXTO = 19;
+            const COLUMNAS = 2, ANCHO_COLUMNA = Math.floor(ANCHO_FILA / COLUMNAS), LETRAS_COLUMNA = Math.floor((ANCHO_COLUMNA - ICONO - 12) / 6.9);
+            const SUAVE = '#475569';
+            const texto = (g, x, y, t, tam, peso, color) => g.append("text").attr("x", x).attr("y", y).text(t)
+                .style("font-size", tam + "px").style("font-weight", peso || 400).style("fill", color || "#0F172A");
+            const titulo = app.map._wrap(modelo.titulo, 58);
+            const lineas = app.map._wrap(modelo.texto, 76);
+            const yTexto = 22 + (titulo.length - 1) * PASO_TEXTO;
+            let m = yTexto + (lineas.length - 1) * PASO_TEXTO + 18, anchoMax = 0;
+            const rotulos = [], marcas = [];
+            modelo.grupos.forEach((gr, gi) => {
+                if (gr.titulo) { rotulos.push({ y: m, texto: gr.titulo }); m += 19; }
+                if (gr.columnas) {
+                    for (let i = 0; i < gr.items.length; i += COLUMNAS) {
+                        const fila = gr.items.slice(i, i + COLUMNAS).map(it => Object.assign({}, it, { lineas: app.map._wrap(it.texto, LETRAS_COLUMNA) }));
+                        const alto = Math.max.apply(null, fila.map(it => it.lineas.length));
+                        fila.forEach((it, c) => marcas.push(Object.assign(it, { x: c * ANCHO_COLUMNA, y: m })));
+                        m += Math.max(PASO_FILA, alto * INTERLINEA + 8);
+                    }
+                    m -= PASO_FILA;
+                    anchoMax = Math.max(anchoMax, COLUMNAS * ANCHO_COLUMNA - SEPARACION);
+                } else {
+                    let x = 0, fila = 0;
+                    gr.items.forEach(it => {
+                        const w = ICONO + it.texto.length * ANCHO_LETRA;
+                        if (x > 0 && x + w > ANCHO_FILA) { x = 0; fila++; }
+                        marcas.push(Object.assign({}, it, { lineas: [it.texto], x: x, y: m + fila * PASO_FILA }));
+                        x += w + SEPARACION;
+                        anchoMax = Math.max(anchoMax, x - SEPARACION);
+                    });
+                    m += fila * PASO_FILA;
+                }
+                if (gi < modelo.grupos.length - 1) m += 30;
+            });
+            anchoMax = Math.max(anchoMax, Math.max.apply(null, titulo.map(t => t.length * 9.2)), Math.max.apply(null, lineas.map(t => t.length * 7.1)));
+            const ancho = Math.min(ANCHO_FILA, Math.max(260, anchoMax)) + 24;
+            const alto = m + 38;
+            // El contenido se dibuja desde arriba (y = -22 es el borde superior) y el grupo se sube para que termine en y = 0
+            const g = gRaiz.append("g").attr("transform", `translate(0, ${-(alto - 22)})`);
+            g.append("rect").attr("x", -12).attr("y", -22).attr("width", ancho).attr("height", alto).attr("rx", 6)
+                .attr("fill", "rgba(255,255,255,0.92)").style("filter", "drop-shadow(2px 2px 2px rgba(0,0,0,0.12))");
+            titulo.forEach((l, i) => texto(g, 0, i * PASO_TEXTO, l, 16, 700));
+            lineas.forEach((l, i) => texto(g, 0, yTexto + i * PASO_TEXTO, l, 14, 400, SUAVE));
+            rotulos.forEach(r => texto(g, 0, r.y, r.texto, 12.5, 700, SUAVE));
+            marcas.forEach(c => {
+                const e = c.estilo || {};
+                g.append("path").attr("transform", `translate(${c.x + 7},${c.y})`)
+                    .attr("d", d3.symbol().type(app.utils.getD3Shape(e.shape)).size(115)())
+                    .attr("fill", e.fill || SUAVE).attr("stroke", e.stroke || "#ffffff").attr("stroke-width", 1);
+                c.lineas.forEach((l, i) => texto(g, c.x + ICONO, c.y + 5 + i * INTERLINEA, l, 14, 400, SUAVE));
+            });
+            return { w: ancho, h: alto };
+        },
+
+        /** Lista «Marcadores Activos» (un renglon por marcador) con el borde inferior en y = 0. Devuelve { w, h }. */
+        _legendList: function(state, g, actives) {
 
             // Tamanos en unidades del viewBox (layoutLegends los escala); la caja crece hacia arriba desde abajo
             const FT = 17, FL = 15, ROW = 26;
@@ -1933,8 +2112,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     .style("font-size", FL + "px").style("fill", "#475569");
             });
 
-            state._markerBox = { w: boxWidth, h: boxHeight, ox: 12 };
-            if (state.containerEl) app.map.layoutLegends(state.containerEl, state);
+            return { w: boxWidth, h: boxHeight };
         },
 
         // =====================================================================
@@ -2398,11 +2576,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     btnFullscreen.innerHTML = '⤡';
                     mapContainer.classList.add('is-fullscreen');
 
-                    mapContainer.classList.remove('controls-are-hidden');
+                    // El panel entra cerrado para dejar ver el mapa; se abre con el boton de controles y se cierra con su X o con Esc
+                    mapContainer.classList.add('controls-are-hidden');
                     if (controlsEl) {
                         mapContainer.appendChild(controlsEl);
                         controlsEl.classList.add('is-fullscreen-mode');
-                        controlsEl.classList.remove('is-hidden');
+                        controlsEl.classList.add('is-hidden');
                     }
                 } else {
                     if (document.exitFullscreen) { document.exitFullscreen(); }
@@ -2438,6 +2617,35 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 }
             });
 
+            // Esc en pantalla completa, como en RHEMX: con el panel de controles abierto solo lo cierra; con el panel cerrado sale de
+            // la pantalla completa. El navegador consume Esc antes que la pagina, asi que mientras dura la pantalla completa se le
+            // pide esa tecla (Keyboard Lock, Chrome y Edge); donde no existe, Esc sale directamente como siempre.
+            const enPantalla = () => (document.fullscreenElement || document.webkitFullscreenElement) === mapContainer;
+            const pideEsc = () => {
+                const teclado = navigator.keyboard;
+                if (!teclado || !teclado.lock) return;
+                if (enPantalla()) teclado.lock(['Escape']).catch(() => {});
+                else if (!document.fullscreenElement && !document.webkitFullscreenElement) teclado.unlock();
+            };
+            ['fullscreenchange', 'webkitfullscreenchange'].forEach(ev => document.addEventListener(ev, pideEsc));
+            document.addEventListener('keydown', (e) => {
+                if (e.key !== 'Escape' || !enPantalla()) return;
+                if (state.measure && state.measure.active) return;            // midiendo, Esc termina la medicion
+                if (e.target && e.target.closest && e.target.closest('.siarhe-resultados, .siarhe-buscar-entrada')) return; // el buscador cierra su lista
+                const panel = mapContainer.querySelector('.siarhe-controls-layout');
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                const abierto = panel && panel.querySelector('.siarhe-cs-menu.open, .mc-menu.open');
+                if (abierto) { abierto.classList.remove('open'); return; }     // primero el desplegable abierto
+                if (panel && !panel.classList.contains('is-hidden')) {
+                    panel.classList.add('is-hidden');
+                    mapContainer.classList.add('controls-are-hidden');
+                    return;
+                }
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            }, true);
+
             ctrlDiv.appendChild(btnFullscreen);
 
             if (!state.isNacional && state.homeUrl) {
@@ -2447,12 +2655,45 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             ctrlDiv.appendChild(btnShowControls);
         },
 
+        /**
+         * Acerca el mapa a una geometria (resultado del buscador) y la resalta unos segundos. `feature` puede ser de la capa base
+         * (se mide con state.path) o de la detallada (ya trae `bounds` = [x0, y0, x1, y1] en unidades del viewBox).
+         */
+        focusFeature: function(state, feature, esDetalle) {
+            if (!state.svg || !state.zoom || !feature) return;
+            const W = 1600, H = 900;
+            let b;
+            if (feature.bounds) b = [[feature.bounds[0], feature.bounds[1]], [feature.bounds[2], feature.bounds[3]]];
+            else if (state.path) b = state.path.bounds(feature);
+            if (!b || !isFinite(b[0][0]) || !isFinite(b[1][0])) return;
+
+            const dx = Math.max(b[1][0] - b[0][0], 1), dy = Math.max(b[1][1] - b[0][1], 1);
+            const kMax = state.zoom.scaleExtent()[1];
+            const k = Math.max(1, Math.min(kMax, 0.8 / Math.max(dx / W, dy / H)));
+            const t = d3.zoomIdentity.translate(W / 2 - k * (b[0][0] + b[1][0]) / 2, H / 2 - k * (b[0][1] + b[1][1]) / 2).scale(k);
+            // Resalte: el trazo del lugar se oscurece y engrosa 3 s. Se aplica al terminar el acercamiento, porque el zoom reescribe el grosor.
+            const resalta = function() {
+                const capa = esDetalle ? state.gLocPaths : state.gPaths;
+                if (!capa) return;
+                const nodo = capa.selectAll(esDetalle ? 'path.siarhe-loc-feature' : 'path.siarhe-feature')
+                    .filter(function(d) { return d === feature || (d && d.properties === feature.properties); });
+                if (nodo.empty()) return;
+                clearTimeout(state._focoTimer);
+                nodo.raise().attr('stroke', '#0F172A').attr('stroke-width', 2.5 / k);
+                state._focoTimer = setTimeout(function() { nodo.attr('stroke', '#fff').attr('stroke-width', 0.5 / k); }, 3000);
+            };
+            const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (reduce) { state.svg.call(state.zoom.transform, t); resalta(); }
+            else state.svg.transition().duration(700).call(state.zoom.transform, t).on('end', resalta);
+        },
+
         downloadMapAsPNG: function(container, state, withLabels) {
             const mapDiv = container.querySelector('.siarhe-map-container');
             const svgNode = mapDiv.querySelector('svg');
             if (!svgNode) return;
 
-            if (withLabels) state.gLabels.style("display", "block");
+            state.gLabels.style("display", withLabels ? "block" : "none");
+            if (withLabels) { app.map.renderLabels(state); app.map.declutterLabels(state); }
 
             setTimeout(() => {
                 // Marcadores SVG fuera de pantalla pueden tener un tamano anterior: se actualizan todos antes de clonar
@@ -2486,6 +2727,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const totalH = (lb ? lb.h : 0) + (mb ? mb.h : 0);
                 let L = 1.5; // ~22 px de texto en el PNG final
                 if (totalH > 0) L = Math.min(L, ((900 - 2 * padU) * 0.92) / totalH);
+                if (mb && mb.w > 0) L = Math.min(L, (vbW - 2 * padU) / (mb.w + 12));   // la de marcadores no pasa del ancho de la imagen
 
                 const legendEl = clone.querySelector('.siarhe-legend-group');
                 const markerLegendEl = clone.querySelector('.siarhe-marker-legend-group');
@@ -2508,7 +2750,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
                     const metricInfo = state.metricas[state.currentMetric];
                     const anioNode = document.querySelector('.siarhe-dynamic-year');
-                    const anio = anioNode ? anioNode.innerText : new Date().getFullYear();
+                    const anio = (state.base && state.base.anio) || (anioNode ? anioNode.innerText : new Date().getFullYear());
                     const titleNode = container.querySelector('h2.siarhe-title');
                     const entidadNombre = titleNode ? titleNode.innerText.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '').trim() : "México";
 
@@ -2547,7 +2789,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const nombreArchivo = `${labelClean}_${entidadClean}_${anio}${withLabels ? '_Etiquetas' : ''}.png`;
 
                     const a = document.createElement("a"); a.download = nombreArchivo; a.href = canvas.toDataURL("image/png"); a.click();
-                    if (withLabels) state.gLabels.style("display", "none");
+                    state.gLabels.style("display", state.showLabels ? "block" : "none");
                 };
                 img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
             }, 150);

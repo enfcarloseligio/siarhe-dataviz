@@ -2,6 +2,45 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.11.0] - 2026-11-14
+
+Ajustes sobre la 0.1.10.0, que entran al repositorio en el mismo commit. Revisado con `php -l`, `node --check` y `tests/`; **falta verlo en un WordPress real** (el arnés de navegador no pasa por PHP).
+
+### Mapa
+- **Un solo botón «PNG»** en lugar de «PNG sin etiquetas» y «PNG con etiquetas»: descarga el mapa como se ve, con los nombres si «Ver etiquetas» está encendido y sin ellos si está apagado.
+- **Aviso legal:** dice «proceso de limpieza y depuración».
+
+### Panel
+- **Configuración › General** (pestaña nueva): disposición por defecto de las páginas, contenedor (máximo 1140 px) o canvas (ancho completo con margen lateral de 2.5 % a 5 %). Sale de *Personalizar › Mapa y Colores*; lo que estaba guardado ahí sigue valiendo hasta que se guarde la pestaña nueva.
+
+### Interno
+- **D3 se carga primero de la copia del plugin** (7.9.0, la última de la serie 7) y solo si falla del CDN; antes era al revés.
+
+## [0.1.10.0] - 2026-11-14
+
+Controles del mapa homologados con RHEMX. Probado con `tests/` (Node y PHP) y visto en navegador con el arnés de `tests/arnes/` (datos reales de RHEMX, sin WordPress); **falta revisarlo en un WordPress real**. No tuvo commit propio: entró al repositorio junto con la 0.1.11.0.
+
+### Mapa
+- **Controles en filas con título:** «Buscar, tabla e imágenes», «Unidad y medida», «Vista del mapa», «Marcadores de posición» y «Marcadores de densidad». La tabla sola lleva «Unidad y medida» y «Datos de la tabla».
+- **Conmutadores:** la unidad (Plazas / Recursos humanos) y la medida (Tasa / Frecuencia) se cambian con un conmutador; la opción sin datos queda desactivada.
+- **Buscador de lugares:** entidades o municipios y, con la vista detallada, municipios y localidades; al elegir uno el mapa se acerca y lo resalta.
+- **Botones junto al buscador:** «Copiar enlace», «Ver tabla», «PNG sin etiquetas» y «PNG con etiquetas» (se retira la barra de botones que estaba bajo el mapa). Llevan iconos de línea propios en lugar de Dashicons.
+- **Marcadores de posición por tema, como en RHEMX:** «Ver» (Sin marcadores, Establecimientos de Salud, Clínicas, Otros marcadores); con Clínicas, «Clínica» (Catéteres, Heridas, Ambas); «Por» (nivel de atención o institución, del año elegido o de toda la serie «(todas)»; las opciones sin datos para el año quedan deshabilitadas) y selección múltiple de instituciones y niveles leída de la capa, con conteos. El color es el del nivel de atención; la forma, la del nivel, la de la institución o la del tipo de clínica (catéteres triángulo, heridas triángulo invertido, las dos en la misma unidad estrella). Solo se ve una familia a la vez.
+- **Estilo por defecto de los niveles de atención:** cruz verde, dorada y guinda para primer, segundo y tercer nivel; triángulo y círculo grises para «No Aplica» y «No Especificado» (se pueden cambiar en *Personalizar › Mapa y Colores*).
+- **Leyendas como las de RHEMX:** la de colores lleva el nombre del indicador y, debajo, la medida («Tasa por 1,000 habitantes», «Plazas» o «Recursos humanos»). La de marcadores por tema lleva título, resumen (cuántas unidades o clínicas y de qué periodo) y los símbolos por grupo: «Nivel de atención (color)», «Institución (forma)» en dos columnas o «Clínica (forma)»; ya no hay un renglón por cada institución y nivel. Las dos leyendas se reducen juntas para no encimarse ni salirse del mapa.
+- **Panel de controles con el estilo de RHEMX:** el título de cada fila va a la izquierda y cada control es una caja con su icono, su rótulo y su selector en línea; los botones son blancos con el icono en el color de marca (el color de los botones de *Personalizar*). En tableta los controles se reparten en cuadrícula y en móvil van a todo el ancho, con los botones de dos en dos.
+- **Marcadores de densidad y marcadores propios:** un desplegable por grupo con casillas, filtro y «Todos» / «Ninguno».
+- **Etiquetas:** botón «Ver etiquetas»; los nombres miden 13 px en pantalla a cualquier zoom y ya no se enciman (se oculta el del polígono menor y se recalcula al terminar cada zoom).
+- **Ancho de la página desde el mapa:** botón «Ancho completo» / «Ancho normal» (en PC); la elección del visitante se recuerda en su navegador.
+- **Tamaños por dispositivo:** alto común de los controles (`--alto-control`: 32 px con el dedo, 30 px con ratón) y distribución para móvil (controles de dos en dos), tableta (de tres en tres) y PC (en línea).
+- **Pantalla completa:** el panel de controles entra cerrado, ocupa el ancho de la pantalla a tamaño real (ya no reducido) con la × dentro y se desplaza por dentro si no cabe; **Esc** cierra primero el desplegable abierto, luego el panel y al final sale de la pantalla completa (en Chrome y Edge; en los demás navegadores Esc sale directamente).
+- **Enlaces:** el enlace copiado lleva los marcadores por tema (`p`); los enlaces anteriores con `k=ESTAB_1,CATETER...` se traducen a la selección equivalente.
+
+### Interno
+- `public/js/siarhe-posicion.js` (`app.pos`): marcadores de posición por tema con marcadores virtuales (claves «@»).
+- `siarhe_marker_grupos()` y campo `grupo` en los marcadores con que viene el plugin (forzado al leer la configuración).
+- `tests/prueba_controles.js` y arnés de navegador en `tests/arnes/`.
+
 ## [0.1.9.0] - 2026-11-13
 
 ### Panel

@@ -139,7 +139,15 @@ function siarhe_get_map_defaults() {
  * El margen se mantiene entre 2.5 % y 5 %, el rango de la regla de diseño.
  */
 function siarhe_get_layout() {
-    $opts   = siarhe_get_map_options();
+    // Se guarda en Configuración › General (siarhe_general_options); lo elegido antes en Personalizar › Mapa y Colores
+    // (siarhe_map_options) sigue valiendo mientras no se guarde la pestaña General
+    $opts    = siarhe_get_map_options();
+    $general = get_option( 'siarhe_general_options', array() );
+    if ( is_array( $general ) ) {
+        foreach ( array( 'layout', 'canvas_margin' ) as $clave ) {
+            if ( isset( $general[ $clave ] ) && $general[ $clave ] !== '' ) $opts[ $clave ] = $general[ $clave ];
+        }
+    }
     $margen = (float) str_replace( ',', '.', (string) $opts['canvas_margin'] );
     return array(
         'modo'   => ( $opts['layout'] === 'canvas' ) ? 'canvas' : 'contenedor',
@@ -401,18 +409,31 @@ function siarhe_base_tema_mapa() {
  * Marcadores con que viene el plugin. Los de establecimientos de salud por nivel de atencion son del sistema ("sistema"):
  * llevan los mismos textos que RHEMX y filtran el catalogo por su columna de nivel de atencion.
  */
+/**
+ * Grupos de marcadores del sistema: en el mapa, cada grupo es un desplegable propio con sus marcadores como opciones.
+ * Un marcador pertenece a un grupo por su campo `grupo`; los que no lo tienen se agrupan por archivo.
+ *
+ * @return array clave => rótulo
+ */
+function siarhe_marker_grupos() {
+    return array(
+        'establecimientos' => 'Establecimientos de Salud',
+        'clinicas'         => 'Clínicas',
+    );
+}
+
 function siarhe_get_default_marcadores() {
     $clinica = array( 'tipo' => 'posicion', 'filtro_col' => '', 'filtro_val' => '', 'visibilidad' => 'publico', 'is_core' => true );
     $defaults = array(
-        'CATETER' => array_merge( array( 'label' => 'Clínicas de catéteres', 'archivo' => 'clinicas-cateteres.csv' ), $clinica ),
-        'HERIDAS' => array_merge( array( 'label' => 'Clínicas de heridas', 'archivo' => 'clinicas-heridas.csv' ), $clinica ),
+        'CATETER' => array_merge( array( 'label' => 'Clínicas de catéteres', 'archivo' => 'clinicas-cateteres.csv', 'grupo' => 'clinicas' ), $clinica ),
+        'HERIDAS' => array_merge( array( 'label' => 'Clínicas de heridas', 'archivo' => 'clinicas-heridas.csv', 'grupo' => 'clinicas' ), $clinica ),
         'PASANTES' => array_merge( array( 'label' => 'Pasantes de enfermería', 'archivo' => 'pasantes-enfermeria.csv' ), $clinica ),
     );
     $niveles = array( 'ESTAB_1' => 'Primer Nivel', 'ESTAB_2' => 'Segundo Nivel', 'ESTAB_3' => 'Tercer Nivel', 'ESTAB_6' => 'No Aplica', 'ESTAB_NE' => 'No Especificado' );
     foreach ( $niveles as $clave => $nivel ) {
         $defaults[ $clave ] = array(
             'label' => 'Establecimientos de Salud: ' . $nivel, 'tipo' => 'posicion', 'archivo' => 'establecimientos-salud.csv',
-            'filtro_col' => 'nivel_atencion', 'filtro_val' => $nivel, 'visibilidad' => 'publico', 'is_core' => true, 'sistema' => true,
+            'filtro_col' => 'nivel_atencion', 'filtro_val' => $nivel, 'visibilidad' => 'publico', 'is_core' => true, 'sistema' => true, 'grupo' => 'establecimientos',
         );
     }
     return $defaults;
@@ -435,6 +456,8 @@ function siarhe_get_marcadores_config() {
             if ( isset( $m['visibilidad'] ) ) $forzado['visibilidad'] = $m['visibilidad'];
             $m = $forzado;
         }
+        // El grupo de los marcadores con que viene el plugin es del sistema: no depende de lo guardado
+        if ( isset( $defaults[ $clave ]['grupo'] ) ) $m['grupo'] = $defaults[ $clave ]['grupo'];
         $out[ $clave ] = $m;
     }
     // Los marcadores con que viene el plugin siempre existen (un marcador sin archivo cargado no se ofrece en el mapa)

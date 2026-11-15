@@ -13,6 +13,7 @@ wp_enqueue_script( 'siarhe-topo-js', SIARHE_URL . 'public/js/siarhe-topo.js', ar
 wp_enqueue_script( 'siarhe-capas-js', SIARHE_URL . 'public/js/siarhe-capas.js', array(), $siarhe_js_ver('siarhe-capas.js'), true );
 wp_enqueue_script( 'siarhe-core-js', SIARHE_URL . 'public/js/siarhe-core.js', array('d3-js', 'siarhe-topo-js', 'siarhe-capas-js'), $siarhe_js_ver('siarhe-core.js'), true );
 wp_enqueue_script( 'siarhe-controls-js', SIARHE_URL . 'public/js/siarhe-controls.js', array('siarhe-core-js'), $siarhe_js_ver('siarhe-controls.js'), true );
+wp_enqueue_script( 'siarhe-posicion-js', SIARHE_URL . 'public/js/siarhe-posicion.js', array('siarhe-core-js', 'siarhe-controls-js'), $siarhe_js_ver('siarhe-posicion.js'), true );
 
 // 2. Mapa (Solo si el shortcode incluye la letra 'M')
 if ( strpos( strtoupper($mode), 'M' ) !== false ) {
@@ -103,6 +104,13 @@ foreach ( $geos['loc'] as $marco_g => $fila_g ) {
 $marco_loc = Siarhe_Geo::marco_para( $anio, array_keys( $geos['loc'] ) );
 $geojson_loc_url = $marco_loc ? $geos_mapa['loc'][ (string) $marco_loc ]['url'] : '';
 
+$estilos_nivel_def = array(
+    'ESTAB_1'  => array( 'cross', '#1E5B4F' ),
+    'ESTAB_2'  => array( 'cross', '#A57F2C' ),
+    'ESTAB_3'  => array( 'cross', '#9B2247' ),
+    'ESTAB_6'  => array( 'triangle', '#57595C' ),
+    'ESTAB_NE' => array( 'circle', '#475569' ),
+);
 foreach ($marcadores_array as $key => $mk) {
     $visibilidad = isset($mk['visibilidad']) ? $mk['visibilidad'] : 'publico';
     
@@ -115,9 +123,11 @@ foreach ($marcadores_array as $key => $mk) {
     $marker_urls[$key] = $marcadores_archivos[ $mk['archivo'] ]; // { periodo: url }
     $marker_labels[$key] = $mk;  
     
+    // Sin estilo guardado, los niveles de atención llevan el de RHEMX (cruz verde, dorada y guinda; triángulo y círculo grises)
+    $estilo_def = isset( $estilos_nivel_def[ $key ] ) ? $estilos_nivel_def[ $key ] : array( 'circle', '#0A66C2' );
     $marker_config[$key] = [
-        'shape' => isset($opts["m_{$s_key}_shape"]) ? $opts["m_{$s_key}_shape"] : 'circle',
-        'fill'  => isset($opts["m_{$s_key}_fill"]) ? $opts["m_{$s_key}_fill"] : '#0A66C2',
+        'shape' => isset($opts["m_{$s_key}_shape"]) ? $opts["m_{$s_key}_shape"] : $estilo_def[0],
+        'fill'  => isset($opts["m_{$s_key}_fill"]) ? $opts["m_{$s_key}_fill"] : $estilo_def[1],
         'fill2' => isset($opts["m_{$s_key}_fill2"]) ? $opts["m_{$s_key}_fill2"] : '', // Spike: color del pico mas bajo
         'stroke'=> isset($opts["m_{$s_key}_stroke"]) ? $opts["m_{$s_key}_stroke"] : '#ffffff',
     ];
@@ -272,6 +282,7 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
      data-marker-config='<?php echo esc_attr(wp_json_encode($marker_config)); ?>'
      data-marker-urls='<?php echo esc_attr(wp_json_encode($marker_urls)); ?>'
      data-marker-labels='<?php echo esc_attr(wp_json_encode($marker_labels)); ?>'
+     data-marker-grupos='<?php echo esc_attr(wp_json_encode(siarhe_marker_grupos())); ?>'
      data-entity-urls='<?php echo esc_attr(wp_json_encode($entity_urls)); ?>' 
      data-metricas='<?php echo esc_attr($metricas_clean_json); ?>' 
      data-tooltips='<?php echo esc_attr($tooltip_json); ?>' 
@@ -315,7 +326,7 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
                     <li><strong>Navega:</strong> Haz doble clic en un <?php echo $es_nacional ? 'estado' : 'municipio'; ?>. En celular, toca dos veces seguidas.</li>
                     <li><strong>Compara Regiones:</strong> Usa el selector "Indicador" (arriba del mapa) para visualizar tasas o totales. La tasa mostrada se calcula <strong>por cada mil habitantes</strong>.</li>
                     <li><strong>Localiza Unidades:</strong> Activa "Marcadores" para ver Unidades Especiales o información epidemiológica.</li>
-                    <li><strong>Descarga:</strong> Utiliza los botones debajo del mapa para obtener imágenes o descarga la tabla en Excel.</li>
+                    <li><strong>Descarga:</strong> Utiliza la fila «Buscar, tabla e imágenes» (arriba del mapa) para buscar un lugar, copiar el enlace, ir a la tabla u obtener el mapa en PNG (con los nombres si «Ver etiquetas» está encendido); en la tabla puedes descargar el Excel.</li>
                 </ul>
             </details>
 
@@ -330,18 +341,6 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
 
             <div class="siarhe-map-footer">
                 💡 Tip: Usa los controles para hacer zoom +/- o ⟳ para resetear. Pasa el cursor para ver detalles.
-            </div>
-
-            <div class="siarhe-map-actions">
-                <button class="siarhe-btn siarhe-btn-download-png">
-                    <span class="dashicons dashicons-camera" style="margin-top: 3px;"></span> Mapa PNG
-                </button>
-                <button class="siarhe-btn siarhe-btn-toggle-labels">
-                    <span class="dashicons dashicons-tag" style="margin-top: 3px;"></span> Mapa con Etiquetas
-                </button>
-                <button type="button" class="siarhe-btn siarhe-btn-share">
-                    <span class="dashicons dashicons-admin-links" style="margin-top: 3px;"></span> Copiar enlace de esta vista
-                </button>
             </div>
 
         </section>
@@ -427,7 +426,7 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
         </p>
 
         <p class="siarhe-legal-disclaimer siarhe-break-text">
-            Toda la información fue obtenida de fuentes oficiales, a través de sus portales de datos abiertos o por medio de las solicitudes de transparencia correspondientes. El análisis sigue un proceso de depuración, por lo que los resultados pueden diferir de las cifras oficiales, y no representa una postura oficial de dichas instituciones. Recomendamos revisar nuestros <a href="<?php echo esc_url($url_terminos); ?>" target="_blank">Términos y Condiciones</a> y el <a href="<?php echo esc_url($url_aviso); ?>" target="_blank">Aviso Legal</a> para más detalles.
+            Toda la información fue obtenida de fuentes oficiales, a través de sus portales de datos abiertos o por medio de las solicitudes de transparencia correspondientes. El análisis sigue un proceso de limpieza y depuración, por lo que los resultados pueden diferir de las cifras oficiales, y no representa una postura oficial de dichas instituciones. Recomendamos revisar nuestros <a href="<?php echo esc_url($url_terminos); ?>" target="_blank">Términos y Condiciones</a> y el <a href="<?php echo esc_url($url_aviso); ?>" target="_blank">Aviso Legal</a> para más detalles.
         </p>
     </footer>
 

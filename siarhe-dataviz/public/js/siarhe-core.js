@@ -140,9 +140,20 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             return isNaN(n) ? null : n;
         },
 
+        // Triangulo con la punta hacia abajo (clinicas de heridas), del mismo tamano que d3.symbolTriangle
+        symbolTriangleDown: {
+            draw: function(context, size) {
+                const y = -Math.sqrt(size / (Math.sqrt(3) * 3)), x = Math.sqrt(3) * y;
+                context.moveTo(0, -y * 2);
+                context.lineTo(-x, y);
+                context.lineTo(x, y);
+                context.closePath();
+            }
+        },
+
         getD3Shape: function(shapeName) {
             if (typeof d3 === 'undefined') return null;
-            const shapes = { 'circle': d3.symbolCircle, 'square': d3.symbolSquare, 'triangle': d3.symbolTriangle, 'diamond': d3.symbolDiamond, 'star': d3.symbolStar, 'cross': d3.symbolCross };
+            const shapes = { 'circle': d3.symbolCircle, 'square': d3.symbolSquare, 'triangle': d3.symbolTriangle, 'diamond': d3.symbolDiamond, 'star': d3.symbolStar, 'cross': d3.symbolCross, 'triangle2': app.utils.symbolTriangleDown };
             return shapes[shapeName] || d3.symbolCircle;
         },
 
@@ -279,7 +290,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 document.head.appendChild(s);
             });
         }
-        console.warn('[SIARHE] D3 del CDN no disponible o incompleto; usando la copia local.');
+        console.warn('[SIARHE] La copia local de D3 no está disponible o está incompleta; se usa la del CDN.');
         app._d3Fallback.then(function() {
             if (usable()) callback(); else if (onFail) onFail();
         }).catch(function() { if (onFail) onFail(); });
@@ -349,7 +360,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     // 3b. ESTADO COMPARTIBLE POR URL (hash)
     // ==========================================
     // Formato: #siarhe-<CVE_ENT>=<querystring codificada>  (varias instancias se separan con ';')
-    //   a = año de los datos, u = unidad (plazas | personas), m = metrica, e = escala de color, v = vista (detalle), k = marcadores activos (separados por coma)
+    //   a = año de los datos, u = unidad (plazas | personas), m = metrica, e = escala de color, v = vista (detalle), k = marcadores activos (separados por coma),
+    //   p = marcadores de posicion por tema: ver~clinica~modo[~niveles separados por |]
     // Solo se escribe lo que difiere del estado inicial, asi la URL limpia sigue limpia.
     app.urlState = {
         _timer: null,
@@ -387,7 +399,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             state._urlPending = {
                 view: qs.get('v') === 'detalle' ? 'detalle' : 'base',
-                markers: (qs.get('k') || '').split(',').filter(Boolean)
+                markers: (qs.get('k') || '').split(',').filter(Boolean),
+                pos: qs.get('p') || ''
             };
         },
 
@@ -406,15 +419,22 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 }
             }
 
-            if (p.markers.length > 0 && app.controls) {
+            if ((p.markers.length > 0 || p.pos) && app.controls) {
                 (async function() {
+                    // p = marcadores de posicion por tema (siarhe-posicion.js); k = marcadores sueltos. Un enlace anterior con
+                    // marcadores del sistema en k (ESTAB_1, CATETER...) se traduce a la seleccion equivalente.
+                    let adoptado = false;
+                    if (p.pos && app.pos) await app.pos.deEnlace(container, state, p.pos);
                     for (const type of p.markers) {
+                        if (!p.pos && app.pos && app.pos.adopta(state, type)) { adoptado = true; continue; }
                         if (app.controls.markerUrl(state, type) && !state.activeMarkers.has(type)) {
                             await app.controls.toggleMarker(type, state, container);
                             const chk = container.querySelector('.mc-check[value="' + CSS.escape(type) + '"]');
                             if (chk) chk.checked = true;
+                            if (state.pos && state.pos.ui && !state.pos.ver && (state.markerLabels[type] || {}).tipo === 'posicion') { state.pos.ver = 'otros'; app.pos.sync(state); }
                         }
                     }
+                    if (adoptado) await app.pos.apply(container, state);
                 })();
             }
         },
@@ -439,7 +459,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (state.base.unidad !== state._baseInicial.unidad) qs.set('u', state.base.unidad);
             }
             if (state.isGeoLocMode) qs.set('v', 'detalle');
-            if (state.activeMarkers && state.activeMarkers.size > 0) qs.set('k', Array.from(state.activeMarkers).join(','));
+            const sueltos = state.activeMarkers ? Array.from(state.activeMarkers).filter(function(k) { return k.charAt(0) !== '@'; }) : [];
+            if (sueltos.length > 0) qs.set('k', sueltos.join(','));
+            const posEnlace = app.pos ? app.pos.aEnlace(state) : '';
+            if (posEnlace) qs.set('p', posEnlace);
 
             const raw = (window.location.hash || '').replace(/^#/, '');
             // Si la pagina usa el hash para otra cosa (ancla propia), no lo tocamos

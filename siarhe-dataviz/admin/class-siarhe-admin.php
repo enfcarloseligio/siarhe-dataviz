@@ -334,6 +334,7 @@ class Siarhe_Admin {
     public function register_plugin_settings() {
         $arr  = array( 'sanitize_callback' => array( $this, 'sanitize_array_option' ) );
         $json = array( 'sanitize_callback' => array( $this, 'sanitize_json_option' ) );
+        register_setting( 'siarhe_general_group', 'siarhe_general_options', $arr );
         register_setting( 'siarhe_links_group', 'siarhe_links_map', $arr );
         register_setting( 'siarhe_theme_group', 'siarhe_theme_options', $arr );
         register_setting( 'siarhe_map_group', 'siarhe_map_options', $arr );

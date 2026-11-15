@@ -8,7 +8,7 @@ El proyecto **no tiene suite de pruebas versionada** ni paso de compilación. Es
 |---|---|
 | Sintaxis de JavaScript | `node --check archivo.js` en cada `.js` de `public/js/` y `admin/js/` |
 | Scripts incrustados en PHP | Se extraen los bloques `<script>` de las plantillas (reemplazando `<?php … ?>`) y se pasan por `node --check` |
-| PHP | No hay PHP en el equipo de desarrollo: se revisa el **balance de llaves, paréntesis y corchetes** y se prueba en WordPress |
+| PHP | `php -l` en cada `.php` cambiado (PHP 8.4 fuera de WordPress) y prueba en WordPress |
 | Versión | `Version:` y `SIARHE_VERSION` iguales; archivo sin BOM (primeros bytes `3c3f70`) |
 | En el sitio | Pruebas manuales en PC (Windows, Brave) y Android (Brave), vertical y horizontal, normal y pantalla completa; el Dashboard comprueba salud y compresión |
 
@@ -33,6 +33,11 @@ La carpeta [`tests/`](../tests/LEEME.md) guarda las pruebas de la lectura de geo
 En la 0.1.8.0 se agregó `prueba_validador.php` (entidad de las bases estáticas y marcadores por entidad) y pasaron las cinco con PHP 8.4 y Node; además se revisó la sintaxis de todos los `.php` cambiados con `php -l`.
 
 La 0.1.9.0 (selectores con búsqueda, esqueleto de carga, contenedor o canvas, referencias, total sin extranjero) se revisó con `php -l`, `node --check` y las cinco pruebas; tampoco se ha visto en WordPress. `prueba_validador.php` escribe en `builds\pruebas\division\` para no pisar los archivos de las demás.
+
+La 0.1.10.0 (controles homologados con RHEMX) agregó `prueba_controles.js` (conmutador, buscador, grupos de marcadores, etiquetas sin encimarse y marcadores de posición por tema, con un DOM simulado) y el **arnés de navegador** de `tests/arnes/`, que carga el front real con datos de RHEMX sin WordPress. Con el arnés se vieron en PC, tableta y móvil los controles, los marcadores por tema, el cambio de año, los enlaces, el buscador, las etiquetas, el ancho, la tabla y la pantalla completa con Esc. La 0.1.11.0 (un solo botón «PNG», D3 local primero, pestaña *Configuración › General*) se revisó con `php -l`, `node --check` y `prueba_controles.js`.
+
+> [!IMPORTANT]
+> La 0.1.10.0 y la 0.1.11.0 **no se han probado en un WordPress real**. Falta todo el lado PHP (que la pestaña *General* guarde y el mapa la respete, que D3 cargue de `public/js/libs/`), el aspecto con el tema del sitio, la descarga del PNG, las páginas estatales, la vista detallada y los marcadores de densidad.
 
 > [!IMPORTANT]
 > La 0.1.8.0 tampoco se ha probado en un WordPress real: faltan las pantallas de carga con sus filtros, la migración del esquema (versión 4: columna `tema`), la carga de bases de clínicas y de temas propios, el botón *Validar archivos cargados* y la versión por entidad de los marcadores en el mapa de un estado.

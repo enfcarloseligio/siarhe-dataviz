@@ -158,23 +158,10 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
         </tr>
     </table>
 
-    <h3 class="siarhe-section-spaced siarhe-section-title">Ancho de la Página del Mapa<?php Siarhe_Admin::help('Contenedor: el mapa, los controles y la tabla van centrados con un ancho máximo de 1140 px. Canvas: ocupan todo el ancho de la ventana, fuera del contenedor del tema, con un margen de seguridad a cada lado.'); ?></h3>
-    <table class="form-table">
-        <tr>
-            <th scope="row"><label for="siarhe-layout">Disposición</label></th>
-            <td>
-                <?php $siarhe_layout_actual = siarhe_get_layout(); ?>
-                <select name="siarhe_map_options[layout]" id="siarhe-layout">
-                    <option value="contenedor"<?php selected( $siarhe_layout_actual['modo'], 'contenedor' ); ?>>Contenedor (máximo 1140 px)</option>
-                    <option value="canvas"<?php selected( $siarhe_layout_actual['modo'], 'canvas' ); ?>>Canvas (ancho completo)</option>
-                </select>
-            </td>
-        </tr>
-        <tr>
-            <th scope="row"><label for="siarhe-canvas-margin">Margen lateral del canvas (%)</label><?php Siarhe_Admin::help('Espacio de seguridad a cada lado en la disposición canvas, como porcentaje del ancho de la ventana: de 2.5 a 5.'); ?></th>
-            <td><input type="number" name="siarhe_map_options[canvas_margin]" id="siarhe-canvas-margin" min="2.5" max="5" step="0.5" value="<?php echo esc_attr( $siarhe_layout_actual['margen'] ); ?>" class="small-text"> %</td>
-        </tr>
-    </table>
+    <?php // La disposición (contenedor o canvas) se configura en Configuración › General; aquí solo se conserva lo guardado antes ?>
+    <?php $siarhe_layout_actual = siarhe_get_layout(); ?>
+    <input type="hidden" name="siarhe_map_options[layout]" value="<?php echo esc_attr( $siarhe_layout_actual['modo'] ); ?>">
+    <input type="hidden" name="siarhe_map_options[canvas_margin]" value="<?php echo esc_attr( $siarhe_layout_actual['margen'] ); ?>">
 
     <h3 class="siarhe-section-spaced siarhe-section-title">Botones del Mapa y la Tabla<?php Siarhe_Admin::help('Estilo unico de todos los botones del sitio publico (Personalizar, Restablecer, Mapa PNG, Etiquetas, Copiar enlace, Descargar Excel). El color del texto tambien pinta los iconos del boton.'); ?></h3>
     <p class="description">Todos los botones comparten este estilo. El color de texto también se aplica a sus íconos.</p>

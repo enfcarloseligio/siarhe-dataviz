@@ -1114,21 +1114,59 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     mask: var(--ico) center / contain no-repeat;
 }
 
-/* Conmutador Medida (Tasa / Frecuencia).
+/* Filas de controles con título (como RHEMX): cada fila agrupa una tarea y las filas se separan con una línea punteada */
+.siarhe-viz-wrapper .siarhe-controls-row { flex-wrap: wrap; }
+.siarhe-viz-wrapper .siarhe-controls-row ~ .siarhe-controls-row { padding-top: 10px; border-top: 1px dashed #cbd5e1; }
+.siarhe-viz-wrapper .siarhe-controls-row .siarhe-control-group { flex: 1 1 170px; }
+.siarhe-viz-wrapper .siarhe-controls-row .siarhe-control-group--action { flex: 0 0 auto; }
+.siarhe-viz-wrapper .siarhe-controls-row .siarhe-control-group--conm { flex: 0 0 auto; }
+.siarhe-viz-wrapper .siarhe-fila-titulo {
+    flex: 0 0 100%; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 11.5px; color: #0A66C2;
+    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: -6px;
+}
+
+/* Conmutador de dos opciones (Plazas / Recursos humanos, Tasa / Frecuencia).
    Cada estado declara fondo y texto juntos: el tema del sitio suele dar a button:hover y button:focus
-   un texto blanco, y si aquí solo se fijara el fondo el rótulo quedaría ilegible sobre el gris claro. */
-.siarhe-viz-wrapper .siarhe-seg { display: flex; width: 100%; height: 38px; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; background: #fff; box-sizing: border-box; }
-.siarhe-viz-wrapper .siarhe-seg__btn { flex: 1; border: 0; background: transparent; color: #334155; font: inherit; font-size: 14px; cursor: pointer; padding: 0 10px; transition: background-color 0.2s, color 0.2s; }
-.siarhe-viz-wrapper .siarhe-seg__btn + .siarhe-seg__btn { border-left: 1px solid #cbd5e1; }
-.siarhe-viz-wrapper .siarhe-seg__btn:hover:not(:disabled):not(.is-active),
-.siarhe-viz-wrapper .siarhe-seg__btn:focus:not(:disabled):not(.is-active) { background: #e2e8f0; color: #0F172A; }
-.siarhe-viz-wrapper .siarhe-seg__btn.is-active,
-.siarhe-viz-wrapper .siarhe-seg__btn.is-active:hover,
-.siarhe-viz-wrapper .siarhe-seg__btn.is-active:focus { background: var(--s-btn-bg, #0A66C2); color: var(--s-btn-text, #F8FAFC); }
-.siarhe-viz-wrapper .siarhe-seg__btn:disabled,
-.siarhe-viz-wrapper .siarhe-seg__btn:disabled:hover,
-.siarhe-viz-wrapper .siarhe-seg__btn:disabled:focus { background: transparent; color: #94a3b8; cursor: not-allowed; }
-.siarhe-viz-wrapper .siarhe-seg__btn:focus-visible { outline: 2px solid #06B6D4; outline-offset: -2px; }
+   un texto blanco, y si aquí solo se fijara el fondo el rótulo quedaría ilegible sobre el fondo claro. */
+.siarhe-viz-wrapper .siarhe-conm {
+    display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; box-sizing: border-box;
+    border: 1px solid #cbd5e1; border-radius: 999px; background: #fff;
+}
+.siarhe-viz-wrapper .siarhe-conm-op,
+.siarhe-viz-wrapper .siarhe-conm-op:hover,
+.siarhe-viz-wrapper .siarhe-conm-op:focus {
+    border: 0; background: transparent; padding: 0; margin: 0; box-shadow: none; font: inherit; font-size: 13.5px; font-weight: 600;
+    color: #57595C; white-space: nowrap; cursor: pointer; text-transform: none; letter-spacing: 0;
+}
+.siarhe-viz-wrapper .siarhe-conm-op.is-active,
+.siarhe-viz-wrapper .siarhe-conm-op.is-active:hover,
+.siarhe-viz-wrapper .siarhe-conm-op.is-active:focus { color: var(--s-btn-bg, #0A66C2); }
+.siarhe-viz-wrapper .siarhe-conm-op:disabled,
+.siarhe-viz-wrapper .siarhe-conm-op:disabled:hover { color: #94a3b8; cursor: not-allowed; }
+.siarhe-viz-wrapper .siarhe-conm-pista,
+.siarhe-viz-wrapper .siarhe-conm-pista:hover,
+.siarhe-viz-wrapper .siarhe-conm-pista:focus {
+    position: relative; flex: none; width: 38px; height: 20px; padding: 0; margin: 0; border: 0; border-radius: 999px;
+    background: #98989A; cursor: pointer; box-shadow: none;
+}
+.siarhe-viz-wrapper .siarhe-conm-pista[aria-checked="true"],
+.siarhe-viz-wrapper .siarhe-conm-pista[aria-checked="true"]:hover,
+.siarhe-viz-wrapper .siarhe-conm-pista[aria-checked="true"]:focus { background: var(--s-btn-bg, #0A66C2); }
+.siarhe-viz-wrapper .siarhe-conm-pista:disabled,
+.siarhe-viz-wrapper .siarhe-conm-pista:disabled:hover { opacity: 0.5; cursor: not-allowed; }
+.siarhe-viz-wrapper .siarhe-conm-pista:focus-visible,
+.siarhe-viz-wrapper .siarhe-conm-op:focus-visible { outline: 2px solid #06B6D4; outline-offset: 2px; }
+.siarhe-viz-wrapper .siarhe-conm-perilla {
+    position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.15s;
+}
+.siarhe-viz-wrapper .siarhe-conm-pista[aria-checked="true"] .siarhe-conm-perilla { transform: translateX(18px); }
+@media (prefers-reduced-motion: reduce) { .siarhe-viz-wrapper .siarhe-conm-perilla { transition: none; } }
+@media (max-width: 767px) {
+    .siarhe-viz-wrapper .siarhe-controls-row .siarhe-control-group,
+    .siarhe-viz-wrapper .siarhe-controls-row .siarhe-control-group--conm { flex: none; width: 100%; }
+    .siarhe-viz-wrapper .siarhe-conm { width: 100%; justify-content: space-between; }
+    .siarhe-viz-wrapper .siarhe-fila-titulo { margin-bottom: 0; }
+}
 .siarhe-viz-wrapper .siarhe-metric-select:disabled { background: #f8fafc; color: #64748b; cursor: default; }
 
 /* =========================================
@@ -1166,3 +1204,175 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 
 /* Referencias del pie que solo se ven con sus marcadores activos */
 .siarhe-viz-wrapper .siarhe-ref-col[hidden] { display: none; }
+
+
+/* Buscador de lugares (fila «Buscar, tabla e imágenes»): la lista de resultados se abre bajo el campo */
+.siarhe-viz-wrapper .siarhe-control-group--buscar { position: relative; flex: 2 1 260px; }
+.siarhe-viz-wrapper .siarhe-buscar-entrada { cursor: text; justify-content: flex-start; }
+.siarhe-viz-wrapper .siarhe-resultados {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 30; margin: 2px 0 0; padding: 4px 0; list-style: none; max-height: 280px; overflow-y: auto;
+    background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.15);
+}
+.siarhe-viz-wrapper .siarhe-resultados[hidden] { display: none; }
+.siarhe-viz-wrapper .siarhe-res-grupo { padding: 6px 12px 2px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #0A66C2; }
+.siarhe-viz-wrapper .siarhe-res-item { padding: 7px 12px; font-size: 14px; color: #334155; cursor: pointer; line-height: 1.3; }
+.siarhe-viz-wrapper .siarhe-res-item small { display: block; font-size: 12px; color: #64748b; }
+.siarhe-viz-wrapper .siarhe-res-item:hover,
+.siarhe-viz-wrapper .siarhe-res-item.activo { background: #e2e8f0; color: #0F172A; }
+.siarhe-viz-wrapper .siarhe-res-vacio { padding: 8px 12px; font-size: 13px; color: #64748b; }
+.siarhe-viz-wrapper .siarhe-btn .dashicons { vertical-align: middle; }
+
+/* Desplegables de marcadores (uno por grupo): atajos «Todos» / «Ninguno» bajo el filtro y estado sin archivos */
+.siarhe-viz-wrapper .mc-menu { min-width: 240px; }
+.siarhe-viz-wrapper .mc-acciones { display: flex; gap: 8px; padding: 6px 10px; border-bottom: 1px solid #e2e8f0; background: #fff; }
+.siarhe-viz-wrapper .mc-acciones button,
+.siarhe-viz-wrapper .mc-acciones button:hover,
+.siarhe-viz-wrapper .mc-acciones button:focus {
+    flex: 1; height: 30px; padding: 0 10px; margin: 0; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc; color: #334155;
+    font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; box-shadow: none; text-transform: none; letter-spacing: 0;
+}
+.siarhe-viz-wrapper .mc-acciones button:hover:not(:disabled) { background: #e2e8f0; color: #0F172A; }
+.siarhe-viz-wrapper .mc-acciones button:disabled { opacity: 0.5; cursor: progress; }
+.siarhe-viz-wrapper .mc-acciones button:focus-visible { outline: 2px solid #06B6D4; outline-offset: 1px; }
+.siarhe-viz-wrapper .mc-trigger.is-disabled { cursor: not-allowed; background: #f1f5f9; }
+.siarhe-viz-wrapper .mc-trigger.is-disabled::after { content: none; }
+
+/* Boton «Ver etiquetas» encendido: mismo color con borde interior, para distinguirlo del resto de la fila */
+.siarhe-viz-wrapper .siarhe-labels-btn.is-active,
+.siarhe-viz-wrapper .siarhe-labels-btn.is-active:hover,
+.siarhe-viz-wrapper .siarhe-labels-btn.is-active:focus {
+    background-color: var(--s-btn-hover-bg, #084C94); color: var(--s-btn-text, #F8FAFC); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.55);
+}
+
+/* Marcadores de posición por tema: selección múltiple de instituciones y niveles (conteo a la derecha) */
+.siarhe-viz-wrapper label.mc-option { margin: 0; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.siarhe-viz-wrapper .mc-option .mc-n { margin-left: auto; padding-left: 10px; font-style: normal; font-size: 12px; color: #64748b; font-variant-numeric: tabular-nums; }
+.siarhe-viz-wrapper .mc-vacio { padding: 10px 12px; font-size: 13px; color: #64748b; }
+.siarhe-viz-wrapper .siarhe-control-group[hidden] { display: none; }
+
+/* Botón de ancho (contenedor / canvas): en pantallas chicas las dos disposiciones son iguales */
+@media (max-width: 1023px) { .siarhe-viz-wrapper #c-ancho { display: none; } }
+
+/* =========================================
+   PANEL DE CONTROLES COMO EL DE RHEMX (geoespacial.css / graficos.css), con el color de marca del sitio
+   - Cada fila lleva su título a la izquierda y los controles en línea; las filas se separan con una línea punteada.
+   - Cada control es una caja: icono, rótulo y selector dentro del mismo borde (.control-icono de RHEMX).
+   - Los botones son blancos con el icono en el color de marca (.btn-action-sm de RHEMX); encendidos, se rellenan.
+   - --alto-control: alto común (32 px con el dedo, 30 px con ratón). Anchos: 0–767 / 768–1023 / 1024+.
+   ========================================= */
+.siarhe-viz-wrapper { --alto-control: 32px; --s-marca: var(--s-btn-bg, #0A66C2); }
+@media (hover: hover) and (pointer: fine) { .siarhe-viz-wrapper { --alto-control: 30px; } }
+
+.siarhe-viz-wrapper .siarhe-controls-layout { gap: 8px; padding: 12px 16px; background: #fff; border: 1px solid #cbd5e1; border-radius: 10px; }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-controls-row { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-controls-row ~ .siarhe-controls-row { padding-top: 8px; border-top: 1px dashed #d5dae1; }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-fila-titulo {
+    flex: 0 0 auto; margin: 0; font-family: inherit; font-size: 11.5px; font-weight: 700; color: var(--s-marca);
+    text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap;
+}
+
+/* Caja de un control: icono + rótulo + selector */
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-controls-row .siarhe-control-group {
+    display: inline-flex; flex-direction: row; align-items: center; gap: 6px; flex: 0 1 auto; width: auto; min-width: 0; max-width: 100%;
+    height: var(--alto-control); padding: 0 6px 0 10px; box-sizing: border-box;
+    background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; transition: border-color 0.15s ease;
+}
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-controls-row .siarhe-control-group[hidden] { display: none; }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-controls-row .siarhe-control-group:hover,
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-controls-row .siarhe-control-group:focus-within { border-color: var(--s-marca); }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-control-group > label {
+    display: inline-flex; align-items: center; gap: 6px; flex: none; margin: 0; font-family: inherit; font-size: 11.5px; font-weight: 700;
+    color: #64748b; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; line-height: 1;
+}
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-control-group > label .siarhe-ctl-icon { width: 16px; height: 16px; margin: 0; background-color: var(--s-marca); }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-custom-select,
+.siarhe-viz-wrapper .siarhe-controls-layout .mc-field { flex: 1 1 auto; width: auto; min-width: 0; }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-metric-select,
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-cs-trigger,
+.siarhe-viz-wrapper .siarhe-controls-layout .mc-trigger {
+    flex: 1 1 auto; width: auto; min-width: 0; max-width: 100%; height: calc(var(--alto-control) - 2px); min-height: 0;
+    padding: 0 4px; border: 0; border-radius: 4px; background-color: transparent; box-shadow: none;
+    font-size: 13.5px; font-weight: 600; color: #0F172A;
+}
+.siarhe-viz-wrapper .siarhe-controls-layout select.siarhe-metric-select { padding-right: 22px; text-overflow: ellipsis; }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-cs-trigger,
+.siarhe-viz-wrapper .siarhe-controls-layout .mc-trigger { min-width: 110px; gap: 6px; }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-cs-trigger > span,
+.siarhe-viz-wrapper .siarhe-controls-layout .mc-trigger > span { line-height: calc(var(--alto-control) - 2px); padding-right: 4px; }
+.siarhe-viz-wrapper .siarhe-controls-layout .mc-trigger.is-placeholder > span { color: #475569; font-weight: 600; }
+.siarhe-viz-wrapper .siarhe-controls-layout .mc-trigger.is-disabled { background: transparent; }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-cs-menu,
+.siarhe-viz-wrapper .siarhe-controls-layout .mc-menu { min-width: 260px; }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-buscar-entrada { cursor: text; font-weight: 400; outline: none; }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-controls-row .siarhe-control-group--buscar { flex: 1 1 280px; max-width: 420px; }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-control-group--buscar .siarhe-resultados { left: -1px; right: -1px; }
+
+/* Botones y conmutadores no llevan caja propia */
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-controls-row .siarhe-control-group--action,
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-controls-row .siarhe-control-group--conm {
+    flex: 0 0 auto; height: auto; padding: 0; border: 0; background: transparent;
+}
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-conm { height: var(--alto-control); border-color: #cbd5e1; }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-conm-op { font-size: 13.5px; }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-conm-op.is-active { color: var(--s-marca); }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-btn,
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-btn:focus {
+    height: var(--alto-control); min-height: 0; padding: 0 12px; gap: 6px; white-space: nowrap; border-radius: 6px;
+    background-color: #fff; border: 1px solid #cbd5e1; color: #0F172A; font-size: 13px; font-weight: 600; box-shadow: none; transform: none;
+}
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-btn .siarhe-ctl-icon,
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-btn svg { margin: 0; width: 16px; height: 16px; color: var(--s-marca); }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-btn .siarhe-ctl-icon { background-color: var(--s-marca); }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-btn:hover,
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-btn:focus-visible { background-color: #F1F5F9; border-color: var(--s-marca); color: var(--s-marca); }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-btn.is-active,
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-btn[aria-pressed="true"],
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-btn[aria-expanded="true"] { background-color: var(--s-marca); border-color: var(--s-marca); color: var(--s-btn-text, #fff); box-shadow: none; }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-btn.is-active .siarhe-ctl-icon,
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-btn[aria-pressed="true"] .siarhe-ctl-icon { background-color: currentColor; }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-btn[aria-pressed="true"] svg,
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-btn[aria-expanded="true"] svg { color: currentColor; }
+
+/* Tableta (768–1023): cuadrícula que reparte los controles; el título ocupa su propio renglón */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .siarhe-viz-wrapper .siarhe-controls-layout .siarhe-controls-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+    .siarhe-viz-wrapper .siarhe-controls-layout .siarhe-fila-titulo { grid-column: 1 / -1; }
+    .siarhe-viz-wrapper .siarhe-controls-layout .siarhe-controls-row .siarhe-control-group { display: flex; width: 100%; max-width: none; }
+    .siarhe-viz-wrapper .siarhe-controls-layout .siarhe-btn { width: 100%; justify-content: center; }
+    .siarhe-viz-wrapper .siarhe-controls-layout .siarhe-conm { width: 100%; justify-content: space-between; }
+}
+/* Móvil (0–767): dos columnas; los controles con rótulo y el buscador a todo el ancho y los botones de dos en dos */
+@media (max-width: 767px) {
+    .siarhe-viz-wrapper .siarhe-controls-layout { padding: 10px 12px; }
+    .siarhe-viz-wrapper .siarhe-controls-layout .siarhe-controls-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .siarhe-viz-wrapper .siarhe-controls-layout .siarhe-fila-titulo,
+    .siarhe-viz-wrapper .siarhe-controls-layout .siarhe-controls-row .siarhe-control-group { grid-column: 1 / -1; display: flex; width: 100%; max-width: none; }
+    .siarhe-viz-wrapper .siarhe-controls-layout .siarhe-controls-row .siarhe-control-group--action { grid-column: auto; }
+    .siarhe-viz-wrapper .siarhe-controls-layout .siarhe-btn { width: 100%; justify-content: center; padding: 0 8px; }
+    .siarhe-viz-wrapper .siarhe-controls-layout .siarhe-conm { width: 100%; justify-content: space-between; }
+    .siarhe-viz-wrapper .siarhe-controls-layout .siarhe-cs-menu,
+    .siarhe-viz-wrapper .siarhe-controls-layout .mc-menu { min-width: 0; }
+}
+
+/* Pantalla completa (como RHEMX): el panel ocupa el ancho de la pantalla menos la columna de botones del mapa, a tamaño
+   real (sin reducir), con la × dentro; si no cabe en el alto se desplaza por dentro */
+.siarhe-viz-wrapper .siarhe-controls-layout.is-fullscreen-mode {
+    position: absolute; top: var(--siarhe-edge, 12px); left: var(--siarhe-edge, 12px); right: calc(var(--siarhe-edge, 12px) + 48px); bottom: auto;
+    width: auto; max-width: none; margin: 0; transform: none;
+    max-height: calc(100% - 2 * var(--siarhe-edge, 12px)); overflow-y: auto; overflow-x: hidden;
+    padding: 14px 16px; gap: 8px; background: #fff; border: 1px solid #cbd5e1; border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25); z-index: 1000;
+}
+@media (min-width: 768px) and (min-height: 700px) {
+    .siarhe-viz-wrapper .siarhe-controls-layout.is-fullscreen-mode { overflow: visible; }   /* los desplegables pueden salir del panel */
+}
+.siarhe-viz-wrapper .siarhe-controls-layout.is-fullscreen-mode.is-hidden { display: none; }
+.siarhe-viz-wrapper .siarhe-controls-layout.is-fullscreen-mode .siarhe-controls-row:first-of-type { padding-right: 44px; }
+.siarhe-viz-wrapper .siarhe-controls-layout.is-fullscreen-mode .siarhe-close-controls-btn,
+.siarhe-viz-wrapper .siarhe-controls-layout.is-fullscreen-mode .siarhe-close-controls-btn:hover,
+.siarhe-viz-wrapper .siarhe-controls-layout.is-fullscreen-mode .siarhe-close-controls-btn:focus {
+    display: flex; position: absolute; top: 8px; right: 8px; bottom: auto; left: auto; transform: none; width: 34px; height: 34px;
+    border: 0; border-radius: 50%; background: var(--s-marca); color: var(--s-btn-text, #fff); font-size: 14px; box-shadow: none; z-index: 3;
+}
+.siarhe-viz-wrapper .siarhe-controls-layout.is-fullscreen-mode .siarhe-metric-select,
+.siarhe-viz-wrapper .siarhe-controls-layout.is-fullscreen-mode .mc-trigger { height: calc(var(--alto-control) - 2px); font-size: 13.5px; }

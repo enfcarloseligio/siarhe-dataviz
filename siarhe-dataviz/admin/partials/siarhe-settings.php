@@ -16,6 +16,7 @@ $siarhe_screens = array(
     'siarhe-settings' => array(
         'title' => 'Configuración del Sistema SIARHE',
         'tabs'  => array(
+            'general'    => array( 'label' => 'General',           'icon' => 'dashicons-admin-generic', 'group' => 'siarhe_general_group' ),
             'enlaces'    => array( 'label' => 'Enlaces y Rutas',   'icon' => 'dashicons-admin-links', 'group' => 'siarhe_links_group' ),
             'tooltip'    => array( 'label' => 'Tooltips',          'icon' => 'dashicons-info',        'group' => 'siarhe_tooltip_group' ),
             'metricas'   => array( 'label' => 'Métricas (CSV)',    'icon' => 'dashicons-chart-bar',   'group' => 'siarhe_metricas_group' ),
