@@ -101,7 +101,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (tt.geo_rate !== false) {
                     let tasaKey = (state.metricas[mKey].tipo === 'tasa') ? mKey : app.utils.findRateKeyForAbsolute(pKey, state.metricas);
                     let valTasa = row && tasaKey ? row[tasaKey] : null;
-                    const valTasaFmt = (valTasa !== null && valTasa !== undefined) ? valTasa.toFixed(2) : '—';
+                    const valTasaFmt = (valTasa !== null && valTasa !== undefined) ? app.utils.fmtTasa(valTasa) : '—';
                     const labelTasa = state.metricas[mKey] ? state.metricas[mKey].label : 'Tasa';
                     blocks['rate'] = { label: labelTasa, value: valTasaFmt };
                 }

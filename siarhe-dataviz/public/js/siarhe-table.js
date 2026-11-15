@@ -261,10 +261,23 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     else {
                         td.classList.add('siarhe-num');
                         if (vacio(v)) { td.textContent = SIN_DATO; td.classList.add('siarhe-sin-dato'); }
-                        else td.textContent = c.tasa ? v.toFixed(2) : fmtN(v);
+                        else td.textContent = c.tasa ? app.utils.fmtTasa(v) : fmtN(v);
                     }
                     fila.appendChild(td);
                 });
+                // Como en RHEMX: el renglón resalta su lugar en el mapa y, en la República, un clic entra al estado
+                if (!r.isTotal && !r.isSpecial) {
+                    const llave = state.isNacional ? r.CVE_ENT : (r.CVE_MUN || r.CVE_ENT);
+                    if (app.map && app.map.resalta) {
+                        fila.addEventListener('mouseenter', function() { app.map.resalta(state, llave, true); });
+                        fila.addEventListener('mouseleave', function() { app.map.resalta(state, llave, false); });
+                    }
+                    if (state.isNacional && app.nav && app.nav.disponible()) {
+                        fila.classList.add('siarhe-row-enlace');
+                        fila.title = 'Ver los municipios de ' + (r.estado || 'la entidad');
+                        fila.addEventListener('click', function() { app.nav.ir(container, app.table.clave(r, true)); });
+                    }
+                }
                 tbody.appendChild(fila);
             });
         },

@@ -2,6 +2,31 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.13.0] - 2026-11-15
+
+Tercera tanda de la copia del mapa de RHEMX. Probado con `tests/` y visto en navegador con el arnés (República y los 32 estados, datos de RHEMX, sin WordPress); **falta verlo en un WordPress real**, sobre todo el lado del servidor (la vista de un estado por `admin-ajax.php` y la pantalla *Personalizar › Mapa y Colores*).
+
+### Mapa
+- **Entrar a un estado sin cambiar de página, como en RHEMX:** en la República, el doble clic en un estado, un renglón de la tabla o un resultado del buscador (estado, municipio o unidad de salud) cargan la vista de ese estado en el mismo lugar. Dentro del estado aparece el botón **«Ir a la República»** junto a los de zoom, y Esc también regresa. La entidad viaja en el enlace (`siarhe-en=28`), así «Copiar enlace» abre la página ya dentro del estado y con el lugar buscado. Las páginas de cada entidad siguen existiendo; si la vista no se puede cargar, el doble clic lleva a la página como antes.
+- **«Estilo de marcadores»** (botón nuevo en la fila «Marcadores de posición»): forma, relleno y borde de cada nivel de atención, solo para la vista del visitante, con «Restaurar». Cuando la forma la decide la institución o el tipo de clínica solo se ofrecen los colores.
+- **Decimales de las tasas como en RHEMX:** tres por debajo de 1, dos entre 1 y 10 y uno desde 10; el cero se escribe «0» (antes siempre dos, «0.00»). Aplica a la leyenda, la tabla, la ficha del lugar y la cifra del encabezado.
+- **PNG igual desde cualquier dispositivo:** la imagen se arma siempre con las medidas de PC (marcadores, etiquetas y leyendas), se descargue desde un teléfono, una tableta o una PC.
+
+### Tabla
+- Al pasar el cursor por un renglón se resalta su lugar en el mapa; en la República, el clic en un renglón entra al estado.
+
+### Panel
+- **Colores del sistema:** los colores de los indicadores por defecto son los de RHEMX (degradado guinda, naranja, arena, verde y verde oscuro; rangos en verdes; monocromático arena a dorado; cero en gris azulado) y cada marcador del sistema trae su estilo (niveles de atención en cruz verde, dorada y guinda; «No Aplica» triángulo gris; «No Especificado» círculo gris; clínicas de catéteres triángulo verde y de heridas triángulo invertido guinda; pasantes círculo dorado). Lo guardado en el sitio se respeta.
+- **Personalizar › Mapa y Colores en apartados plegables:** Mapa de Calor, Botones, Tabla y Estilos de Marcadores, estos últimos por grupo (Establecimientos de Salud, Clínicas, Otros marcadores) y con la marca «Sistema».
+- **Restablecer:** «Restablecer colores de los indicadores» y «Restablecer estilos de los marcadores» quitan lo guardado para que vuelvan los valores del sistema (sirve para limpiar los estilos puestos a mano antes de que los marcadores fueran del sistema).
+- Forma nueva para los marcadores: triángulo invertido.
+
+### Interno
+- `app.nav` (`siarhe-core.js`: `ir`, `regresa`, `delEnlace`), acción pública `siarhe_vista` (`Siarhe_Shortcodes::ajax_vista`, entrega el mismo HTML del shortcode) y `SiarheDataVizConfig.vista`; `container._siarhe` guarda el estado de la visualización.
+- `app.utils.fmtTasa`, `app.map.resalta`, `app.pos._panelEstilos` y `state.pos.estilos`; `state._exportando` fija las medidas de la exportación en `_deviceInfo`.
+- `siarhe_marker_style()`, `siarhe_marker_style_defaults()` y `siarhe_map_color_keys()` (`helpers.php`): una sola fuente del estilo de cada marcador para la vista pública y el panel; acción `siarhe_reset_colors`.
+- Pruebas: `prueba_controles.js` comprueba los decimales y la entidad del enlace; el arnés arma la vista de cualquier entidad (`arma.py … <entidad>`).
+
 ## [0.1.12.0] - 2026-11-15
 
 Segunda tanda de la copia del mapa de RHEMX, tras la prueba de la 0.1.11.0 en el sitio. Probado con `tests/` y visto en navegador con el arnés (datos de RHEMX, sin WordPress); **falta verlo en un WordPress real**.

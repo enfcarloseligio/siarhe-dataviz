@@ -25,11 +25,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     const getVar = (n, f) => styles.getPropertyValue(n).trim() || f;
 
     app.colors = {
-        RANGE: [ getVar('--s-map-c1', '#eff3ff'), getVar('--s-map-c2', '#bdd7e7'), getVar('--s-map-c3', '#9ecae1'), getVar('--s-map-c4', '#6baed6'), getVar('--s-map-c5', '#08519c') ],
+        RANGE: [ getVar('--s-map-c1', '#9b2247'), getVar('--s-map-c2', '#ffa500'), getVar('--s-map-c3', '#e6d194'), getVar('--s-map-c4', '#008000'), getVar('--s-map-c5', '#006400') ],
         // ☀️ NUEVOS COLORES GLOBALES PARA RANGOS PERSONALIZADOS AÑADIDOS
-        CUSTOM_RANGE: [ getVar('--s-map-range-1', '#ffedd5'), getVar('--s-map-range-2', '#fdba74'), getVar('--s-map-range-3', '#f59e0b'), getVar('--s-map-range-4', '#b45309') ],
-        MONO: [ getVar('--s-map-mono-min', '#f0f9ff'), getVar('--s-map-mono-max', '#0369a1') ],
-        ZERO: getVar('--s-map-zero', '#d9d9d9'),
+        CUSTOM_RANGE: [ getVar('--s-map-range-1', '#e6f4ea'), getVar('--s-map-range-2', '#9fd5b5'), getVar('--s-map-range-3', '#3faf7b'), getVar('--s-map-range-4', '#1e5b4f') ],
+        MONO: [ getVar('--s-map-mono-min', '#e5e0d3'), getVar('--s-map-mono-max', '#a57100') ],
+        ZERO: getVar('--s-map-zero', '#b5b4c3'),
         NULL: getVar('--s-map-null', '#000000')
     };
 
@@ -65,7 +65,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 app.layout.fijaAncho();
                 if (!app.layout._escucha) { window.addEventListener('resize', app.layout.fijaAncho); app.layout._escucha = true; }
             }
-            wrappers.forEach(function(w) { w.classList.toggle('siarhe-layout-canvas', canvas); });
+            document.querySelectorAll('.siarhe-viz-wrapper').forEach(function(w) { w.classList.toggle('siarhe-layout-canvas', canvas); });
             document.querySelectorAll('[data-siarhe-layout]').forEach(function(b) {
                 b.setAttribute('aria-pressed', String(b.dataset.siarheLayout === modo));
             });
@@ -124,6 +124,17 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 requestAnimationFrame(go);
                 setTimeout(go, 50);
             });
+        },
+
+        /**
+         * Tasa con los decimales de RHEMX: uno desde 10, dos entre 1 y 10 y tres por debajo de 1 (una tasa pequeña
+         * con dos decimales se quedaría en 0.00). El cero se escribe «0».
+         */
+        fmtTasa: function(v) {
+            if (v === null || v === undefined || isNaN(v)) return 'S/D';
+            if (v === 0) return '0';
+            const d = v >= 10 ? 1 : (v >= 1 ? 2 : 3);
+            return v.toLocaleString('es-MX', { minimumFractionDigits: d, maximumFractionDigits: d });
         },
 
         /** Escapa texto de datos (CSV/GeoJSON/config) antes de insertarlo en innerHTML. */
@@ -666,7 +677,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
 
             const absFmt = totalAbs.toLocaleString('es-MX');
-            const valFmt = (valorMuestra === null || valorMuestra === undefined) ? '—' : valorMuestra.toLocaleString('es-MX', { maximumFractionDigits: 2 });
+            const valFmt = (valorMuestra === null || valorMuestra === undefined) ? '—'
+                : (info.tipo === 'tasa' ? app.utils.fmtTasa(valorMuestra) : valorMuestra.toLocaleString('es-MX', { maximumFractionDigits: 2 }));
 
             headerDiv.innerHTML = info.tipo === 'tasa'
                 ? `<span style="margin-right:15px;">${app.utils.esc(info.fullLabel)}: <strong style="color:#0A66C2; font-size:1.2em;">${valFmt}</strong></span><span>Enfermeras: <strong style="color:#0A66C2; font-size:1.2em;">${absFmt}</strong></span>`
@@ -677,6 +689,91 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     // ==========================================
     // 5. ORQUESTADOR DE INICIALIZACIÓN
     // ==========================================
+    /**
+     * Navegación dentro de la página, como en RHEMX: entrar a un estado (o volver a la República) sin cambiar de página.
+     * El servidor entrega la vista de la entidad pedida (la misma que da su shortcode) y aquí se pone en el lugar de la
+     * que se veía. La entidad con la que abrió la página queda en `data-origen` para poder volver, y la entidad a la que
+     * se entró viaja en el enlace (`siarhe-en=28`). Sin dirección de vistas (`SiarheDataVizConfig.vista`) no hace nada.
+     */
+    app.nav = {
+        CLAVE: 'siarhe-en',
+
+        disponible: function() { return !!(window.SiarheDataVizConfig || {}).vista; },
+
+        // Entidad pedida en el enlace, o ''
+        delEnlace: function() {
+            const parte = (window.location.hash || '').replace(/^#/, '').split(';').find(function(p) { return p.indexOf(app.nav.CLAVE + '=') === 0; });
+            const cve = parte ? parte.slice(app.nav.CLAVE.length + 1) : '';
+            return /^\d{2}$/.test(cve) ? cve : '';
+        },
+
+        // Deja en el enlace solo la entidad a la que se entró (las elecciones de la vista anterior ya no aplican)
+        _anota: function(cve, origen) {
+            const raw = (window.location.hash || '').replace(/^#/, '');
+            if (raw && !raw.split(';').every(function(p) { return p.indexOf('siarhe-') === 0; })) return;
+            const nuevo = cve && cve !== origen ? '#' + app.nav.CLAVE + '=' + cve : '';
+            try { window.history.replaceState(null, '', window.location.pathname + window.location.search + nuevo); } catch (e) {}
+        },
+
+        /**
+         * Pone la vista de la entidad `cve` en lugar de `container`. `opts.foco` (`mun:28009`, `clues:…`) se aplica cuando
+         * la vista nueva termina de cargar. Devuelve la visualización nueva, o null si no se pudo (queda la anterior).
+         */
+        ir: async function(container, cve, opts) {
+            opts = opts || {};
+            const plantilla = (window.SiarheDataVizConfig || {}).vista;
+            if (!plantilla || !/^\d{2}$/.test(cve || '') || cve === container.dataset.cveEnt) return null;
+            const origen = container.dataset.origen || container.dataset.cveEnt;
+            const cargando = container.querySelector('.siarhe-loading-overlay');
+            if (cargando) { cargando.style.display = 'flex'; const p = cargando.querySelector('p'); if (p) p.textContent = 'Cargando…'; }
+            let nuevo = null;
+            try {
+                const url = plantilla.replace('{ent}', cve).replace('{mode}', (container.dataset.mode || 'MT').trim());
+                const r = await fetch(url, { credentials: 'same-origin' });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+                const hallado = doc.querySelector('.siarhe-viz-wrapper');
+                if (hallado) nuevo = document.importNode(hallado, true);
+            } catch (err) {
+                console.warn('[SIARHE] No se pudo cargar la vista de la entidad ' + cve, err);
+            }
+            if (!nuevo) { if (cargando) cargando.style.display = 'none'; return null; }
+
+            if (document.fullscreenElement && document.exitFullscreen) { try { await document.exitFullscreen(); } catch (e) {} }
+            nuevo.dataset.origen = origen;
+            nuevo.classList.toggle('siarhe-layout-canvas', container.classList.contains('siarhe-layout-canvas'));
+            const barra = container.querySelector('.siarhe-barra-pagina');
+            if (container._siarhe && container._siarhe.tooltip) { try { container._siarhe.tooltip.remove(); } catch (e) {} }
+            container.replaceWith(nuevo);
+            if (barra) nuevo.insertBefore(barra, nuevo.firstChild);
+            app.nav._anota(cve, origen);
+            app.initVisualization(nuevo);
+
+            if (opts.foco) {
+                await app.nav._espera(nuevo);
+                const st = nuevo._siarhe;
+                if (st && st.buscador) { await st.buscador.aplicaFoco(opts.foco); if (app.urlState) app.urlState.write(nuevo, st); }
+            }
+            return nuevo;
+        },
+
+        // Vuelve a la entidad con la que abrió la página
+        regresa: function(container) {
+            return container.dataset.origen ? app.nav.ir(container, container.dataset.origen) : Promise.resolve(null);
+        },
+
+        // Espera a que la visualización termine su primera carga (o 20 s)
+        _espera: function(container) {
+            return new Promise(function(resuelve) {
+                const t0 = Date.now();
+                (function mira() {
+                    if ((container.classList.contains('siarhe-cargado') && container._siarhe && container._siarhe.buscador) || Date.now() - t0 > 20000) resuelve();
+                    else setTimeout(mira, 120);
+                })();
+            });
+        }
+    };
+
     app.initVisualization = function(container) {
         const cveEnt = container.dataset.cveEnt;
         let geojsonUrl = container.dataset.geojson;
@@ -772,6 +869,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 app.data.calcularTotalHeader(container, state);
             }
 
+            container._siarhe = state;
+
             // Callback centralizado para actualizaciones en cadena (Selector Métrica)
             const onMetricUpdate = () => {
                 if (app.map && mode.includes('M')) app.map.updateVisuals(container, state);
@@ -824,7 +923,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     app.layout.init(wrappers);
     app.ensureD3(
-        function() { wrappers.forEach(container => { app.initVisualization(container); }); },
+        function() {
+            // Un enlace copiado dentro de un estado (`siarhe-en=28`) abre la página y entra a ese estado
+            const entra = wrappers.length === 1 && app.nav.disponible() ? app.nav.delEnlace() : '';
+            wrappers.forEach(container => {
+                if (entra && entra !== container.dataset.cveEnt) {
+                    const resto = (window.location.hash || '').replace(/^#/, '');
+                    app.nav.ir(container, entra).then(function(nuevo) {
+                        if (nuevo) { try { window.history.replaceState(null, '', '#' + resto); } catch (e) {} }
+                        else app.initVisualization(container);
+                    });
+                } else app.initVisualization(container);
+            });
+        },
         function() {
             wrappers.forEach(container => {
                 const loading = container.querySelector('.siarhe-loading-overlay');

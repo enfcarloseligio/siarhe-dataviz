@@ -59,7 +59,11 @@ En este orden, de abajo hacia arriba:
 3. `<svg class="siarhe-overlay-svg">`: leyendas y capa de medición (mismo `viewBox`, sigue el zoom).
 4. Controles HTML (zoom, panel de medición) y el tooltip.
 
-La exportación a PNG clona el SVG principal y le agrega las leyendas, la medición y los puntos del canvas como vectores.
+La exportación a PNG clona el SVG principal y le agrega las leyendas, la medición y los puntos del canvas como vectores. Mientras se arma (`state._exportando`), `_deviceInfo` da siempre las medidas de PC, así la imagen es la misma desde cualquier dispositivo.
+
+### Navegación dentro de la página
+
+`app.nav` (`siarhe-core.js`) deja entrar a un estado desde la República sin cambiar de página: pide a `admin-ajax.php?action=siarhe_vista&ent=NN&mode=…` (`Siarhe_Shortcodes::ajax_vista`, pública y de solo lectura) el mismo HTML que entrega el shortcode de esa entidad, lo pone en lugar de la visualización que se veía y lo inicia con `app.initVisualization`. La entidad con la que abrió la página queda en `data-origen` (botón «Ir a la República» y Esc) y la entidad a la que se entró va en el enlace como `siarhe-en=NN`. La dirección llega en `SiarheDataVizConfig.vista`; sin ella, o si la petición falla, el doble clic lleva a la página de la entidad.
 
 ## Puntos de extensión
 

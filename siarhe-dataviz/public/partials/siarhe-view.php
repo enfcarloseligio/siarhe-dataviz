@@ -104,13 +104,6 @@ foreach ( $geos['loc'] as $marco_g => $fila_g ) {
 $marco_loc = Siarhe_Geo::marco_para( $anio, array_keys( $geos['loc'] ) );
 $geojson_loc_url = $marco_loc ? $geos_mapa['loc'][ (string) $marco_loc ]['url'] : '';
 
-$estilos_nivel_def = array(
-    'ESTAB_1'  => array( 'cross', '#1E5B4F' ),
-    'ESTAB_2'  => array( 'cross', '#A57F2C' ),
-    'ESTAB_3'  => array( 'cross', '#9B2247' ),
-    'ESTAB_6'  => array( 'triangle', '#57595C' ),
-    'ESTAB_NE' => array( 'circle', '#475569' ),
-);
 foreach ($marcadores_array as $key => $mk) {
     $visibilidad = isset($mk['visibilidad']) ? $mk['visibilidad'] : 'publico';
     
@@ -119,18 +112,11 @@ foreach ($marcadores_array as $key => $mk) {
     
     if ( empty( $mk['archivo'] ) || empty( $marcadores_archivos[ $mk['archivo'] ] ) ) continue;
 
-    $s_key = strtolower($key);
     $marker_urls[$key] = $marcadores_archivos[ $mk['archivo'] ]; // { periodo: url }
     $marker_labels[$key] = $mk;  
     
-    // Sin estilo guardado, los niveles de atención llevan el de RHEMX (cruz verde, dorada y guinda; triángulo y círculo grises)
-    $estilo_def = isset( $estilos_nivel_def[ $key ] ) ? $estilos_nivel_def[ $key ] : array( 'circle', '#0A66C2' );
-    $marker_config[$key] = [
-        'shape' => isset($opts["m_{$s_key}_shape"]) ? $opts["m_{$s_key}_shape"] : $estilo_def[0],
-        'fill'  => isset($opts["m_{$s_key}_fill"]) ? $opts["m_{$s_key}_fill"] : $estilo_def[1],
-        'fill2' => isset($opts["m_{$s_key}_fill2"]) ? $opts["m_{$s_key}_fill2"] : '', // Spike: color del pico mas bajo
-        'stroke'=> isset($opts["m_{$s_key}_stroke"]) ? $opts["m_{$s_key}_stroke"] : '#ffffff',
-    ];
+    // Estilo guardado en Personalizar o, si no hay, el del sistema (los de RHEMX)
+    $marker_config[$key] = siarhe_marker_style( $key, $mk, $opts );
 }
 
 

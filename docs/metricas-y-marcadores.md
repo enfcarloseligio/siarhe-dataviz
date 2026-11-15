@@ -75,6 +75,7 @@ La *clave relacionada* **no es una columna del CSV**: es un **nombre de grupo** 
   - un **número fijo**.
   El primer límite inferior vacío se guarda como `Vmin` y el último superior vacío como `Vmax`.
 - **Valor 0** y **sin dato (S/D)** tienen sus propios colores generales (*Personalizar › Mapa y Colores › Casos Especiales*).
+- Los colores generales de fábrica son los del mapa de RHEMX; **Restablecer colores de los indicadores** vuelve a ellos.
 
 ## Cómo agregar una métrica nueva
 
@@ -140,11 +141,11 @@ Después, **sube el CSV** con *Tipo de Marcador* = la variable. Debe traer `LATI
 
 ## Paso 3 — Estilo (Personalizar › Mapa y Colores › Estilos dinámicos de marcadores)
 
-Cada marcador aparece con una **vista previa** y estos ajustes, guardados como `m_{clave en minúsculas}_…`:
+Los marcadores aparecen por grupo, en bloques plegables, cada uno con una **vista previa** y estos ajustes, guardados como `m_{clave en minúsculas}_…`. Los del sistema traen su estilo de fábrica (el de RHEMX) y se pueden cambiar; **Restablecer estilos de los marcadores** vuelve a él. Un marcador propio sin estilo guardado sale como círculo azul.
 
 | Ajuste | Aplica a | Notas |
 |---|---|---|
-| **Forma** | Posición | Círculo, cuadrado, triángulo, rombo, estrella o cruz. Espectro es siempre círculo y spike siempre triángulo |
+| **Forma** | Posición | Círculo, cuadrado, triángulo, triángulo invertido, rombo, estrella o cruz. Espectro es siempre círculo y spike siempre triángulo |
 | **Relleno** | Todos | Espectro: por defecto rojo semitransparente. Spike: es el color del pico **más alto** |
 | **Color del pico más bajo** (opcional) | Spike | Si se deja vacío, los picos bajos usan una versión clara del color alto |
 | **Borde** | Todos | Se dibuja fino (0.4–1 px) |

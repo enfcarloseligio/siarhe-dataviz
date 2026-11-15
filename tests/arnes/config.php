@@ -17,6 +17,8 @@ $out = array(
     'temas'      => siarhe_get_temas(),
     'marcadores' => siarhe_get_marcadores_config(),
     'grupos'     => siarhe_marker_grupos(),
+    'estilos'    => array_map( function( $k, $m ) { return siarhe_marker_style( $k, $m, array() ); }, array_keys( siarhe_get_marcadores_config() ), siarhe_get_marcadores_config() ),
+    'claves'     => array_keys( siarhe_get_marcadores_config() ),
     'css'        => function_exists( 'siarhe_get_css_variables_css' ) ? siarhe_get_css_variables_css() : '',
 );
 echo json_encode( $out, JSON_UNESCAPED_UNICODE );

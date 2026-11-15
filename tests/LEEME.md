@@ -49,7 +49,7 @@ Cada script termina con `RESULTADO: todo correcto` o con la lista de fallas.
 | `prueba_geo.php` | Lista de marcos quinquenales; aceptación de cada archivo en su pestaña y rechazo por capa equivocada, entidad equivocada o AGEB |
 | `prueba_marcadores.php` | Periodos válidos; ida y vuelta JSON → CSV → JSON de las capas de RHEMX; ida y vuelta CSV → JSON → CSV del catálogo CLUES (celda por celda) |
 | `prueba_worker.js` | Mismos puntos desde el JSON y desde el CSV; filtros por nivel de atención; puntos de una sola entidad; capas de clínicas |
-| `prueba_controles.js` | Sin argumentos (`node tests\prueba_controles.js`). Conmutador de dos opciones, normalización del buscador, grupos y resumen de los desplegables de marcadores, acomodo de etiquetas sin encimarse, rango y orden de los resultados del buscador y columnas y claves de la tabla, con un DOM simulado |
+| `prueba_controles.js` | Sin argumentos (`node tests\prueba_controles.js`). Conmutador de dos opciones, normalización del buscador, grupos y resumen de los desplegables de marcadores, acomodo de etiquetas sin encimarse, rango y orden de los resultados del buscador, columnas y claves de la tabla, decimales de las tasas y entidad del enlace, con un DOM simulado |
 | `prueba_validador.php` | Orden Extranjero, República Mexicana y entidades; tipos de marcador y sus periodos; temas de las bases; las 33 bases de un año aceptadas en su lugar y rechazadas en otro (CSV y JSON); una base de clínicas; división de `unidades_clues`, catéteres y heridas en 32 capas con las mismas filas que la completa |
 
 Lo que **no** cubren: las pantallas del panel, la carga real de archivos y el aspecto del mapa. Eso se prueba en un WordPress (ver [docs/pruebas.md](../docs/pruebas.md)).
@@ -64,16 +64,17 @@ Paso 1 — Configuración por defecto del plugin (métricas, temas, marcadores) 
 php tests\arnes\config.php siarhe-dataviz > builds\pruebas\config.json
 ```
 
-Paso 2 — Página de prueba (el tercer argumento opcional es `canvas` o `contenedor`):
+Paso 2 — Página de prueba (el tercer argumento opcional es `canvas` o `contenedor`; el cuarto, la clave de la entidad, `33` = República por defecto). Cada llamada deja además `vista-<clave>.html`, que es lo que la navegación dentro del mapa pide al entrar a un estado; para probarla hay que armar también los estados:
 
 ```powershell
 python tests\arnes\arma.py builds\pruebas\config.json builds\pruebas\arnes.html
+python tests\arnes\arma.py builds\pruebas\config.json builds\pruebas\estado-28.html contenedor 28
 ```
 
 Paso 3 — Servidor local desde la carpeta que contiene `siarhe-dataviz` y `rhemx`, y abrir `http://127.0.0.1:8765/siarhe-dataviz/builds/pruebas/arnes.html`:
 
 ```powershell
-cd ..; python -m http.server 8765 --bind 127.0.0.1
+cd ..; node _contexto\general\servidor_local.js . 8765
 ```
 
 > [!NOTE]

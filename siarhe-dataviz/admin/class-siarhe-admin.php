@@ -43,6 +43,9 @@ class Siarhe_Admin {
         add_action( 'admin_post_siarhe_marker_var_delete', array( $this, 'handle_marker_var_delete' ) );
         add_action( 'admin_post_siarhe_marker_var_reset', array( $this, 'handle_marker_var_reset' ) );
 
+        // --- PERSONALIZAR: volver a los colores del sistema ---
+        add_action( 'admin_post_siarhe_reset_colors', array( $this, 'handle_reset_colors' ) );
+
         // Subidas con barra de progreso (XHR): la redireccion final se devuelve como JSON
         add_filter( 'wp_redirect', array( $this, 'redirect_as_json_for_xhr' ), 10, 1 );
 
@@ -1288,6 +1291,32 @@ class Siarhe_Admin {
             $this->marker_redirect( 'var_deleted' );
         }
         $this->marker_redirect( 'var_invalid' );
+    }
+
+    /**
+     * Personalizar › Mapa y Colores: quita lo guardado para que vuelvan a regir los valores del sistema.
+     * `que` = mapa (colores de los indicadores), marcadores (estilos de todos los marcadores) o todo.
+     */
+    public function handle_reset_colors() {
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Sin permisos.' );
+        check_admin_referer( 'siarhe_reset_colors' );
+
+        $que  = isset( $_GET['que'] ) ? sanitize_key( $_GET['que'] ) : 'todo';
+        $opts = get_option( 'siarhe_map_options', array() );
+        if ( ! is_array( $opts ) ) $opts = array();
+
+        if ( $que === 'mapa' || $que === 'todo' ) {
+            foreach ( siarhe_map_color_keys() as $clave ) unset( $opts[ $clave ] );
+        }
+        if ( $que === 'marcadores' || $que === 'todo' ) {
+            foreach ( array_keys( $opts ) as $clave ) {
+                if ( preg_match( '/^m_.+_(shape|fill|fill2|stroke)$/', $clave ) ) unset( $opts[ $clave ] );
+            }
+        }
+        update_option( 'siarhe_map_options', $opts );
+
+        wp_safe_redirect( admin_url( 'admin.php?page=siarhe-customize&tab=mapa&siarhe_reset=' . ( in_array( $que, array( 'mapa', 'marcadores' ), true ) ? $que : 'todo' ) ) );
+        exit;
     }
 
     public function handle_marker_var_reset() {

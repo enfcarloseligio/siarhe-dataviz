@@ -1,32 +1,56 @@
-<?php // /admin/partials/settings-tabs/tab-mapa.php
+<?php
+/**
+ * siarhe-dataviz/admin/partials/settings-tabs/tab-mapa.php
+ * Personalizar › Mapa y Colores: colores de los indicadores, botones y tabla del sitio público y estilo de cada marcador.
+ * Cada apartado es un bloque plegable. Los colores de los indicadores y los estilos de los marcadores del sistema
+ * tienen valores por defecto (siarhe_get_map_defaults, siarhe_marker_style_defaults) a los que se puede volver.
+ */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// 1. Obtener opciones guardadas
+// 1. Opciones guardadas y valores por defecto
 $defaults = siarhe_get_map_defaults();
 $opts     = siarhe_get_map_options();
 
-// 3. Obtener marcadores dinámicos desde la BD
-$marcadores = siarhe_get_marcadores_config();
-
-// Fallback por si la BD está vacía al cargar esta pestaña
-if (empty($marcadores)) {
-    $marcadores = [
-        'CATETER' => ['label' => 'Clínicas de catéteres', 'tipo' => 'posicion'],
-        'HERIDAS' => ['label' => 'Clínicas de heridas', 'tipo' => 'posicion'],
-        'ESTAB_1' => ['label' => 'Establecimientos (1er Nivel)', 'tipo' => 'posicion'],
-        'ESTAB_2' => ['label' => 'Establecimientos (2do Nivel)', 'tipo' => 'posicion'],
-        'ESTAB_3' => ['label' => 'Establecimientos (3er Nivel)', 'tipo' => 'posicion'],
-        'ESTAB_6' => ['label' => 'Establecimientos (No Aplica)', 'tipo' => 'posicion']
-    ];
+// 2. Marcadores configurados, repartidos en los grupos del sistema y «Otros marcadores»
+$marcadores   = siarhe_get_marcadores_config();
+$grupos_mk    = array();
+$nombres_grup = siarhe_marker_grupos();
+foreach ( $nombres_grup as $clave_g => $nombre_g ) $grupos_mk[ $nombre_g ] = array();
+$grupos_mk['Otros marcadores'] = array();
+foreach ( $marcadores as $clave_m => $mk_m ) {
+    $g = ( isset( $mk_m['grupo'] ) && isset( $nombres_grup[ $mk_m['grupo'] ] ) ) ? $nombres_grup[ $mk_m['grupo'] ] : 'Otros marcadores';
+    $grupos_mk[ $g ][ $clave_m ] = $mk_m;
 }
+$grupos_mk = array_filter( $grupos_mk );
 
-// Colores heredados para que los nativos no pierdan su diseño original
-$legacy_colors = [ 'cateter' => '#1E5B4F', 'heridas' => '#9B2247', 'estab_1' => '#4daf4a', 'estab_2' => '#377eb8', 'estab_3' => '#e41a1c', 'estab_6' => '#984ea3' ];
-$legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'circle', 'estab_2' => 'square', 'estab_3' => 'star', 'estab_6' => 'cross' ];
+// 3. Enlaces para volver a los valores del sistema (se piden fuera del formulario de ajustes)
+$url_reset = function( $que ) {
+    return wp_nonce_url( admin_url( 'admin-post.php?action=siarhe_reset_colors&que=' . $que ), 'siarhe_reset_colors' );
+};
+$avisos_reset = array(
+    'mapa'       => 'Los colores de los indicadores volvieron a los del sistema.',
+    'marcadores' => 'Los estilos de los marcadores volvieron a los del sistema.',
+    'todo'       => 'Los colores de los indicadores y los estilos de los marcadores volvieron a los del sistema.',
+);
+$reset_hecho = isset( $_GET['siarhe_reset'] ) ? sanitize_key( $_GET['siarhe_reset'] ) : '';
 ?>
 
 <style>
     .siarhe-flex-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end; }
+
+    /* Apartados plegables */
+    .siarhe-plegable { border: 1px solid #dcdcde; border-radius: 6px; background: #fff; margin: 0 0 12px; }
+    .siarhe-plegable > summary { cursor: pointer; padding: 12px 16px; list-style: none; display: flex; align-items: center; gap: 8px; }
+    .siarhe-plegable > summary::-webkit-details-marker { display: none; }
+    .siarhe-plegable > summary::before { content: "\25B8"; color: #646970; font-size: 14px; }
+    .siarhe-plegable[open] > summary::before { content: "\25BE"; }
+    .siarhe-plegable[open] > summary { border-bottom: 1px solid #f0f0f1; }
+    .siarhe-plegable > summary h3, .siarhe-plegable > summary strong { margin: 0; padding: 0; border: 0; font-size: 14px; }
+    .siarhe-plegable > summary .siarhe-plegable-cuenta { margin-left: auto; color: #646970; font-size: 12px; font-weight: 400; }
+    .siarhe-plegable-cuerpo { padding: 4px 16px 12px; }
+    .siarhe-plegable .siarhe-plegable { margin: 10px 0 0; background: #fcfcfc; }
+    .siarhe-reset-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 10px 0 4px; }
+    .siarhe-badge.sistema { background: #e7f1fb; color: #0a4b78; border-color: #b8d6f0; }
 
     .siarhe-marker-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; border-bottom: 1px dashed #eee; padding-bottom: 15px; margin-bottom: 15px; }
     .siarhe-marker-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
@@ -80,8 +104,11 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
 <div class="siarhe-card siarhe-upload-card">
     <h2>🎨 Personalización Visual (Frontend)</h2>
     <p>Define los colores que verán los usuarios en los mapas y tablas del sitio web.</p>
+    <?php if ( isset( $avisos_reset[ $reset_hecho ] ) ) : ?>
+        <div class="notice notice-success inline"><p><?php echo esc_html( $avisos_reset[ $reset_hecho ] ); ?></p></div>
+    <?php endif; ?>
 
-    <h3 class="siarhe-section-spaced siarhe-section-spaced--first siarhe-section-title">Mapa de Calor (Escala de Colores)<?php Siarhe_Admin::help('Colores generales del mapa. Cada metrica puede usar estos o los suyos propios.'); ?></h3>
+    <details class="siarhe-plegable" open><summary><h3 class="siarhe-section-title">Mapa de Calor (Escala de Colores)<?php Siarhe_Admin::help('Colores generales del mapa. Cada metrica puede usar estos o los suyos propios.'); ?></h3></summary><div class="siarhe-plegable-cuerpo">
 
     <table class="form-table" role="presentation">
         <tr>
@@ -158,12 +185,19 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
         </tr>
     </table>
 
+    <div class="siarhe-reset-fila">
+        <a class="button" href="<?php echo esc_url( $url_reset( 'mapa' ) ); ?>" onclick="return confirm('Se quitarán los colores guardados de los indicadores y volverán los del sistema. ¿Continuar?');">Restablecer colores de los indicadores</a>
+        <span class="description">Vuelve al degradado, los rangos, el monocromático, el valor 0 y el sin dato del sistema.</span>
+    </div>
+
     <?php // La disposición (contenedor o canvas) se configura en Configuración › General; aquí solo se conserva lo guardado antes ?>
     <?php $siarhe_layout_actual = siarhe_get_layout(); ?>
     <input type="hidden" name="siarhe_map_options[layout]" value="<?php echo esc_attr( $siarhe_layout_actual['modo'] ); ?>">
     <input type="hidden" name="siarhe_map_options[canvas_margin]" value="<?php echo esc_attr( $siarhe_layout_actual['margen'] ); ?>">
 
-    <h3 class="siarhe-section-spaced siarhe-section-title">Botones del Mapa y la Tabla<?php Siarhe_Admin::help('Estilo unico de todos los botones del sitio publico (Personalizar, Restablecer, Mapa PNG, Etiquetas, Copiar enlace, Descargar Excel). El color del texto tambien pinta los iconos del boton.'); ?></h3>
+    </div></details>
+
+    <details class="siarhe-plegable"><summary><h3 class="siarhe-section-title">Botones del Mapa y la Tabla<?php Siarhe_Admin::help('Estilo unico de todos los botones del sitio publico (Personalizar, Restablecer, Mapa PNG, Etiquetas, Copiar enlace, Descargar Excel). El color del texto tambien pinta los iconos del boton.'); ?></h3></summary><div class="siarhe-plegable-cuerpo">
     <p class="description">Todos los botones comparten este estilo. El color de texto también se aplica a sus íconos.</p>
 
     <table class="form-table">
@@ -181,7 +215,9 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
         </tr>
     </table>
 
-    <h3 class="siarhe-section-spaced siarhe-section-title">Estilos de Tabla de Datos<?php Siarhe_Admin::help('Apariencia de la tabla de datos que se muestra en el sitio publico.'); ?></h3>
+    </div></details>
+
+    <details class="siarhe-plegable"><summary><h3 class="siarhe-section-title">Estilos de Tabla de Datos<?php Siarhe_Admin::help('Apariencia de la tabla de datos que se muestra en el sitio publico.'); ?></h3></summary><div class="siarhe-plegable-cuerpo">
 
     <table class="form-table">
         <tr>
@@ -206,25 +242,28 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
         </tr>
     </table>
 
-    <h3 class="siarhe-section-spaced siarhe-section-title">📍 Estilos Dinámicos de Marcadores<?php Siarhe_Admin::help('Forma, relleno y borde de cada marcador. Se generan a partir de los marcadores definidos en Configuracion > Marcadores.'); ?></h3>
-    <p class="description">Aquí aparecerán automáticamente todos los marcadores que registres en la pestaña "Marcadores (CSV)".</p>
+    </div></details>
 
+    <details class="siarhe-plegable"><summary><h3 class="siarhe-section-title">📍 Estilos Dinámicos de Marcadores<?php Siarhe_Admin::help('Forma, relleno y borde de cada marcador. Se generan a partir de los marcadores definidos en Configuracion > Marcadores.'); ?></h3></summary><div class="siarhe-plegable-cuerpo">
+    <p class="description">Aparecen aquí todos los marcadores de Configuración › Marcadores, por grupo. Los del sistema ya traen su estilo; lo que cambies y guardes lo sustituye.</p>
+    <div class="siarhe-reset-fila">
+        <a class="button" href="<?php echo esc_url( $url_reset( 'marcadores' ) ); ?>" onclick="return confirm('Se quitarán los estilos guardados de todos los marcadores y volverán los del sistema. ¿Continuar?');">Restablecer estilos de los marcadores</a>
+        <span class="description">Quita lo guardado: los marcadores del sistema vuelven a su estilo y los propios al círculo azul.</span>
+    </div>
+
+    <?php foreach ( $grupos_mk as $titulo_grupo => $lista_grupo ) : ?>
+    <details class="siarhe-plegable"><summary><strong><?php echo esc_html( $titulo_grupo ); ?></strong><span class="siarhe-plegable-cuenta"><?php echo count( $lista_grupo ); ?> marcador<?php echo count( $lista_grupo ) === 1 ? '' : 'es'; ?></span></summary><div class="siarhe-plegable-cuerpo">
     <table class="form-table">
-        <?php foreach ($marcadores as $key => $mk):
-            $s_key = strtolower($key);
-            $tipo = isset($mk['tipo']) ? $mk['tipo'] : 'posicion';
-            $is_espectro = ($tipo === 'espectro');
-            $is_spike    = ($tipo === 'spike');
-
-            // Lógica para asignar forma por defecto (El espectro SIEMPRE es círculo)
-            $shape_val = isset($opts["m_{$s_key}_shape"]) ? $opts["m_{$s_key}_shape"] : (isset($legacy_shapes[$s_key]) ? $legacy_shapes[$s_key] : 'circle');
-            if ($is_espectro || $is_spike) $shape_val = 'circle';
-
-            // Si es un Espectro nuevo, le damos un color rojo semi-transparente (rgba) por defecto
-            $default_fill = $is_espectro ? 'rgba(214, 54, 56, 0.6)' : ($is_spike ? '#D63638' : '#0A66C2');
-            $fill_val   = isset($opts["m_{$s_key}_fill"])   ? $opts["m_{$s_key}_fill"]   : (isset($legacy_colors[$s_key]) ? $legacy_colors[$s_key] : $default_fill);
-            $stroke_val = isset($opts["m_{$s_key}_stroke"]) ? $opts["m_{$s_key}_stroke"] : '#ffffff';
-            $fill2_val  = isset($opts["m_{$s_key}_fill2"])  ? $opts["m_{$s_key}_fill2"]  : ''; // Spike: color del pico mas bajo (vacio = version clara del color alto)
+        <?php foreach ( $lista_grupo as $key => $mk ) :
+            $s_key = strtolower( $key );
+            $tipo = isset( $mk['tipo'] ) ? $mk['tipo'] : 'posicion';
+            $is_espectro = ( $tipo === 'espectro' );
+            $is_spike    = ( $tipo === 'spike' );
+            $estilo_mk   = siarhe_marker_style( $key, $mk, $opts );
+            $shape_val   = $estilo_mk['shape'];
+            $fill_val    = $estilo_mk['fill'];
+            $stroke_val  = $estilo_mk['stroke'];
+            $fill2_val   = $estilo_mk['fill2'];   // espinas: color del pico más bajo (vacío = versión clara del color alto)
         ?>
         <tr>
             <th scope="row">
@@ -239,6 +278,7 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
                     <?php else: ?>
                         <span class="siarhe-badge neutral">📍 Posición Fija</span>
                     <?php endif; ?>
+                    <?php if ( ! empty( $mk['is_core'] ) || ! empty( $mk['sistema'] ) ) : ?><span class="siarhe-badge sistema">Sistema</span><?php endif; ?>
                 </div>
             </th>
             <td>
@@ -263,6 +303,7 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
                                 <option value="diamond" <?php selected($shape_val, 'diamond'); ?>>Rombo</option>
                                 <option value="star" <?php selected($shape_val, 'star'); ?>>Estrella</option>
                                 <option value="cross" <?php selected($shape_val, 'cross'); ?>>Cruz</option>
+                                <option value="triangle2" <?php selected($shape_val, 'triangle2'); ?>>Triángulo invertido</option>
                             </select>
                         <?php endif; ?>
                     </div>
@@ -288,6 +329,10 @@ $legacy_shapes = [ 'cateter' => 'circle', 'heridas' => 'square', 'estab_1' => 'c
         </tr>
         <?php endforeach; ?>
     </table>
+    </div></details>
+    <?php endforeach; ?>
+
+    </div></details>
 
 </div>
 
@@ -300,7 +345,8 @@ document.addEventListener('DOMContentLoaded', function() {
         triangle: '<polygon points="15,4 26,24 4,24" />',
         diamond: '<polygon points="15,2 26,15 15,28 4,15" />',
         star: '<polygon points="15,2 19,10 28,11 21,17 23,26 15,22 7,26 9,17 2,11 11,10" />',
-        cross: '<path d="M11,5 H19 V11 H25 V19 H19 V25 H11 V19 H5 V11 H11 Z" />'
+        cross: '<path d="M11,5 H19 V11 H25 V19 H19 V25 H11 V19 H5 V11 H11 Z" />',
+        triangle2: '<polygon points="15,26 26,6 4,6" />'
     };
 
     // Convierte cualquier color CSS (hex, rgb, rgba) a [r, g, b, a] usando el propio navegador

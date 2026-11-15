@@ -692,7 +692,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
                     if (!isNaN(numToFormat)) {
                         if (metricInfo.tipo === 'tasa') {
-                            return numToFormat.toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            return app.utils.fmtTasa(numToFormat);
                         } else {
                             return numToFormat.toLocaleString('es-MX', {maximumFractionDigits: 2});
                         }
@@ -744,7 +744,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
                 const g0 = g.append("g").attr("transform", `translate(0, ${12 + (4 * 36) + 8})`);
                 g0.append("rect").attr("width", 16).attr("height", 16).style("fill", pal.ZERO);
-                addLabel(g0, 26, 13, "0.00");
+                addLabel(g0, 26, 13, "0");
 
                 const gN = g.append("g").attr("transform", `translate(0, ${12 + (4 * 36) + 36})`);
                 gN.append("rect").attr("width", 16).attr("height", 16).style("fill", pal.NULL);
@@ -773,8 +773,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     .attr("offset", (d, i) => `${(i / (colorArr.length - 1)) * 100}%`)
                     .attr("stop-color", d => d);
 
-                const valStrs = domainVals.map(v => (v !== undefined && v !== null)
-                    ? v.toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2}) : "0.00");
+                // Tasas con los decimales de RHEMX; las frecuencias, en enteros
+                const valStrs = domainVals.map(v => (v === undefined || v === null) ? "0"
+                    : (metricInfo.tipo === 'tasa' ? app.utils.fmtTasa(v) : Math.round(v).toLocaleString('es-MX')));
                 const maxLen = Math.max.apply(null, valStrs.map(t => t.length));
 
                 const h = 160, w = 20, step = h / 4;
@@ -797,7 +798,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
                 const g0 = g.append("g").attr("transform", `translate(0, ${h + 34})`);
                 g0.append("rect").attr("width", 16).attr("height", 16).style("fill", pal.ZERO);
-                addLabel(g0, 26, 13, "0.00");
+                addLabel(g0, 26, 13, "0");
 
                 const gN = g.append("g").attr("transform", `translate(0, ${h + 62})`);
                 gN.append("rect").attr("width", 16).attr("height", 16).style("fill", pal.NULL);
@@ -934,9 +935,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
         handleMapClick: function(d, state) {
             let cve = app.utils.getGeoKey(d.properties, state.isNacional);
-            if (state.entityUrls && state.entityUrls[cve]) {
-                window.location.href = state.entityUrls[cve];
-            }
+            const aPagina = function() { if (state.entityUrls && state.entityUrls[cve]) window.location.href = state.entityUrls[cve]; };
+            // En la República se entra al estado dentro del mismo mapa (como en RHEMX); si no se puede, se va a su página
+            if (state.isNacional && app.nav && app.nav.disponible() && state.containerEl) {
+                app.nav.ir(state.containerEl, String(cve).padStart(2, '0')).then(function(nuevo) { if (!nuevo) aPagina(); });
+            } else aPagina();
         },
 
         /**
@@ -1575,6 +1578,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
          * Se guarda 200 ms para no forzar una medicion de la pagina en cada marcador y cada cuadro.
          */
         _deviceInfo: function(state) {
+            // Imagen descargada: siempre con las medidas de PC y a la escala de la imagen (el lienzo de 900 unidades de alto ocupa
+            // 820 px), así el PNG es igual se descargue desde un celular, una tableta o una PC, como en RHEMX
+            if (state._exportando) return { t: 0, w: 1920, h: 820, coarse: false, kind: 'pc', isTouch: false, sc: 820 / 900 };
             const now = performance.now();
             if (state._devCache && now - state._devCache.t < 200) return state._devCache;
             let w = 0, h = 0;
@@ -2520,6 +2526,24 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 return b;
             };
 
+            // Dentro de un estado al que se entró desde otra vista: botón para volver (también con Esc fuera de pantalla completa)
+            if (container.dataset.origen && container.dataset.origen !== container.dataset.cveEnt && app.nav) {
+                const aRepublica = container.dataset.origen === '33';
+                const volver = createBtn('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>',
+                    aRepublica ? 'Ir a la República' : 'Volver', (e) => { e.preventDefault(); app.nav.regresa(container); });
+                volver.classList.add('siarhe-btn-volver');
+                const conEsc = (e) => {
+                    if (!container.isConnected) { document.removeEventListener('keydown', conEsc); return; }
+                    if (e.key !== 'Escape' || e.defaultPrevented || document.fullscreenElement) return;
+                    if (state.measure && state.measure.active) return;
+                    if (container.querySelector('.siarhe-cs-menu.open, .mc-menu.open, .siarhe-resultados:not([hidden])')) return;
+                    const t = e.target;
+                    if (t && t.closest && (t.closest('input, select, textarea') || !(t === document.body || container.contains(t)))) return;
+                    app.nav.regresa(container);
+                };
+                document.addEventListener('keydown', conEsc);
+            }
+
             createBtn('+', 'Acercar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 2); });
             createBtn('–', 'Alejar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 0.5); });
             createBtn('⟳', 'Reset', (e) => { e.preventDefault(); svg.transition().duration(750).call(zoom.transform, state.initialTransform); });
@@ -2679,6 +2703,17 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             else state.svg.transition().duration(700).call(state.zoom.transform, t).on('end', resalta);
         },
 
+        /** Resalta (o deja de resaltar) el lugar de la capa base con esa clave de datos; lo usa la tabla al pasar el cursor. */
+        resalta: function(state, clave, on) {
+            if (!state.gPaths || !state.svg) return;
+            const k = d3.zoomTransform(state.svg.node()).k || 1;
+            const nodo = state.gPaths.selectAll('path.siarhe-feature')
+                .filter(function(d) { return d && String(app.utils.getGeoKey(d.properties || {}, state.isNacional)) === String(clave); });
+            if (nodo.empty()) return;
+            if (on) nodo.raise().attr('stroke', '#0F172A').attr('stroke-width', 2.5 / k);
+            else nodo.attr('stroke', '#fff').attr('stroke-width', 0.5 / k);
+        },
+
         /**
          * Centra y acerca el mapa a un marcador (una unidad hallada con el buscador), lo deja seleccionado y abre su ficha.
          */
@@ -2711,8 +2746,18 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const svgNode = mapDiv.querySelector('svg');
             if (!svgNode) return;
 
+            // Mientras se arma la imagen, marcadores y etiquetas se miden con las medidas de exportación (_deviceInfo)
+            state._exportando = true;
             state.gLabels.style("display", withLabels ? "block" : "none");
             if (withLabels) { app.map.renderLabels(state); app.map.declutterLabels(state); }
+            // Devuelve el mapa de la pantalla a sus medidas una vez clonado
+            const restaura = () => {
+                state._exportando = false;
+                state._mkStale = true;
+                try { app.map._refreshMarkerGeometry(state, d3.zoomTransform(svgNode), true); } catch (e) {}
+                state.gLabels.style("display", state.showLabels ? "block" : "none");
+                if (state.showLabels) { app.map.renderLabels(state); app.map.declutterLabels(state); }
+            };
 
             setTimeout(() => {
                 // Marcadores SVG fuera de pantalla pueden tener un tamano anterior: se actualizan todos antes de clonar
@@ -2730,6 +2775,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 }
                 const mkLayerEl = clone.querySelector('.markers-layer');
                 if (mkLayerEl) app.map._cvMaterialize(state, mkLayerEl);
+                restaura();
 
                 // Lienzo ampliado: el mapa conserva su proporcion (antes se estiraba 1600x900 -> 1600x820)
                 // y las leyendas se anclan a las esquinas del PNG con un tamano pensado para presentaciones.
@@ -2810,7 +2856,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const nombreArchivo = `${labelClean}_${entidadClean}_${anio}${withLabels ? '_Etiquetas' : ''}.png`;
 
                     const a = document.createElement("a"); a.download = nombreArchivo; a.href = canvas.toDataURL("image/png"); a.click();
-                    state.gLabels.style("display", state.showLabels ? "block" : "none");
                 };
                 img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
             }, 150);

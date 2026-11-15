@@ -1426,3 +1426,19 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 .siarhe-viz-wrapper table.siarhe-data-table tr.siarhe-row-lugar td:first-child { font-weight: 700; }
 .siarhe-viz-wrapper .siarhe-table-wrapper:fullscreen { padding: 16px; background: #fff; overflow: auto; box-sizing: border-box; }
 .siarhe-viz-wrapper .siarhe-table-wrapper:fullscreen .siarhe-table-container { overflow: visible; }
+
+/* =========================================
+   PANEL «ESTILO DE MARCADORES» (como el de RHEMX)
+   Una fila por nivel de atención: forma, relleno y borde. Se abre bajo la fila «Marcadores de posición».
+   ========================================= */
+.siarhe-viz-wrapper .siarhe-estilos-lista { display: flex; flex-direction: column; gap: 6px; }
+.siarhe-viz-wrapper .siarhe-estilo-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 13px; }
+.siarhe-viz-wrapper .siarhe-estilo-fila strong { min-width: 110px; color: #0F172A; }
+.siarhe-viz-wrapper .siarhe-estilo-fila label { display: inline-flex; align-items: center; gap: 6px; margin: 0; color: #64748b; font-size: 12.5px; font-weight: 400; }
+.siarhe-viz-wrapper .siarhe-estilo-fila select { height: 28px; min-height: 0; padding: 0 22px 0 6px; border: 1px solid #cbd5e1; border-radius: 4px; background-color: #fff; font-size: 13px; color: #0F172A; }
+.siarhe-viz-wrapper .siarhe-estilo-fila input[type="color"] { width: 34px; height: 26px; padding: 0; border: 1px solid #cbd5e1; border-radius: 4px; background: none; cursor: pointer; }
+.siarhe-viz-wrapper .siarhe-estilo-fila[data-sin-forma] label:has(select) { display: none; }
+
+/* Renglones de la tabla que llevan a un lugar (en la República, entrar al estado) */
+.siarhe-viz-wrapper table.siarhe-data-table tr.siarhe-row-enlace { cursor: pointer; }
+.siarhe-viz-wrapper table.siarhe-data-table tr.siarhe-row-enlace:hover td { cursor: pointer; }

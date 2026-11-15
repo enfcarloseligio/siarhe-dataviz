@@ -286,3 +286,34 @@ console.log('prueba_controles: marcadores de posición por tema correctos');
     assert.strictEqual(app.table.clave({ CVE_ENT: '33', isTotal: true }, true), '');
     console.log('prueba_controles: columnas y claves de la tabla correctas');
 }
+
+// Decimales de las tasas (como en RHEMX) y entidad pedida en el enlace para la navegación dentro del mapa
+{
+    const nucleo = fs.readFileSync(path.join(__dirname, '..', 'siarhe-dataviz', 'public', 'js', 'siarhe-core.js'), 'utf8');
+    global.document.addEventListener = () => {};
+    global.getComputedStyle = () => ({ getPropertyValue: () => '' });
+    new Function(nucleo).call(global);
+    const f = app.utils.fmtTasa;
+    assert.strictEqual(f(0), '0');
+    assert.strictEqual(f(0.1154), '0.115');
+    assert.strictEqual(f(0.9996), '1.000');
+    assert.strictEqual(f(1), '1.00');
+    assert.strictEqual(f(2.094), '2.09');
+    assert.strictEqual(f(9.999), '10.00');
+    assert.strictEqual(f(10), '10.0');
+    assert.strictEqual(f(1234.56), '1,234.6');
+    assert.strictEqual(f(null), 'S/D');
+    assert.strictEqual(f(NaN), 'S/D');
+
+    const con = h => { global.location = { hash: h }; return app.nav.delEnlace(); };
+    assert.strictEqual(con(''), '');
+    assert.strictEqual(con('#siarhe-en=28'), '28');
+    assert.strictEqual(con('#siarhe-en=28;siarhe-28=f=mun:28009'), '28');
+    assert.strictEqual(con('#siarhe-33=a=2024;siarhe-en=14'), '14');
+    assert.strictEqual(con('#siarhe-en=abc'), '');
+    assert.strictEqual(con('#siarhe-en=280'), '');
+    assert.strictEqual(app.nav.disponible(), false);
+    global.SiarheDataVizConfig = { vista: '/x?ent={ent}&mode={mode}' };
+    assert.strictEqual(app.nav.disponible(), true);
+    console.log('prueba_controles: decimales de las tasas y entidad del enlace correctos');
+}

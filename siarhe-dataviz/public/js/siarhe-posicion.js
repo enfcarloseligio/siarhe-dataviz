@@ -151,6 +151,9 @@
                 const e = (state.markerStyles || {})[k];
                 if (e && e.fill) out[norm(m.filtro_val)] = { shape: e.shape || 'circle', fill: e.fill, stroke: e.stroke || '#ffffff' };
             });
+            // Lo que el visitante cambió en «Estilo de marcadores» (solo en su vista) va encima
+            const propios = (state.pos && state.pos.estilos) || {};
+            Object.keys(propios).forEach(function(n) { out[n] = Object.assign({}, out[n] || ESTILO_OTRO, propios[n]); });
             return out;
         },
 
@@ -300,6 +303,90 @@
             return { el: g, sel: s };
         },
 
+        /**
+         * Botón y panel «Estilo de marcadores», como el de RHEMX: forma, color de relleno y de borde de cada nivel de
+         * atención, solo para la vista del visitante (`pos.estilos`, no se guarda en el sitio). Cuando la forma la decide
+         * la institución o el tipo de clínica, el selector de forma se oculta. Devuelve { sync(visible) }.
+         */
+        _panelEstilos: function(container, state, fila) {
+            const FORMAS = { circle: 'Círculo', square: 'Cuadrado', triangle: 'Triángulo', diamond: 'Diamante', star: 'Estrella', cross: 'Cruz', triangle2: 'Triángulo invertido' };
+            const img = container.dataset.img || '';
+            const hex = function(c) {
+                if (/^#[0-9a-f]{6}$/i.test(c || '')) return c;
+                const col = (typeof d3 !== 'undefined' && c) ? d3.color(c) : null;
+                return col ? col.formatHex() : '#000000';
+            };
+
+            const grupo = document.createElement('div');
+            grupo.className = 'siarhe-control-group siarhe-control-group--action';
+            grupo.innerHTML = '<button type="button" class="siarhe-btn siarhe-estilos-btn" aria-expanded="false" title="Forma y colores de los marcadores">' +
+                (img ? '<span class="siarhe-ctl-icon" aria-hidden="true" style="--ico: url(&quot;' + img + 'icon-paleta.svg&quot;)"></span> ' : '') +
+                '<span class="siarhe-btn-texto">Estilo de marcadores</span></button>';
+            fila.appendChild(grupo);
+            const boton = grupo.querySelector('button');
+
+            const panel = document.createElement('div');
+            panel.className = 'siarhe-palette-panel siarhe-estilos-panel';
+            panel.hidden = true;
+            panel.setAttribute('role', 'group');
+            panel.setAttribute('aria-label', 'Estilo de los marcadores');
+            panel.innerHTML = '<div class="siarhe-palette-head"><strong>Estilo de marcadores</strong><span>Solo cambia tu vista; no se guarda en el sitio.</span></div>' +
+                '<div class="siarhe-estilos-lista"></div>' +
+                '<div class="siarhe-palette-actions"><button type="button" class="siarhe-btn siarhe-estilos-restaurar">Restaurar</button>' +
+                '<button type="button" class="siarhe-btn siarhe-estilos-cerrar">Cerrar</button></div>';
+            fila.parentNode.insertBefore(panel, fila.nextSibling);
+            const lista = panel.querySelector('.siarhe-estilos-lista');
+
+            const cambia = function(nivel, campo, valor) {
+                const pos = state.pos, n = norm(nivel);
+                pos.estilos = pos.estilos || {};
+                pos.estilos[n] = Object.assign({}, app.pos.estilosNivel(state)[n] || ESTILO_OTRO, pos.estilos[n]);
+                pos.estilos[n][campo] = valor;
+                app.pos.apply(container, state);
+            };
+            ORDEN_NIVELES.forEach(function(nivel) {
+                const f = document.createElement('div');
+                f.className = 'siarhe-estilo-fila'; f.dataset.nivel = nivel;
+                f.innerHTML = '<strong>' + nivel + '</strong>' +
+                    '<label>Forma <select>' + Object.keys(FORMAS).map(function(id) { return '<option value="' + id + '">' + FORMAS[id] + '</option>'; }).join('') + '</select></label>' +
+                    '<label>Relleno <input type="color" data-campo="fill"></label><label>Borde <input type="color" data-campo="stroke"></label>';
+                lista.appendChild(f);
+                f.querySelector('select').addEventListener('change', function(e) { cambia(nivel, 'shape', e.target.value); });
+                f.querySelectorAll('input').forEach(function(i) { i.addEventListener('input', function() { cambia(nivel, i.dataset.campo, i.value); }); });
+            });
+
+            const refresca = function() {
+                const pos = state.pos, estilos = app.pos.estilosNivel(state);
+                const sinForma = pos.ver === 'clinicas' || (modoDe(pos.modo) || {}).por === 'institucion';
+                lista.querySelectorAll('.siarhe-estilo-fila').forEach(function(f) {
+                    const e = estilos[norm(f.dataset.nivel)] || ESTILO_OTRO;
+                    f.querySelector('select').value = FORMAS[e.shape] ? e.shape : 'circle';
+                    f.toggleAttribute('data-sin-forma', sinForma);
+                    f.querySelector('[data-campo="fill"]').value = hex(e.fill);
+                    f.querySelector('[data-campo="stroke"]').value = hex(e.stroke);
+                });
+            };
+            const abre = function(abierto) {
+                panel.hidden = !abierto;
+                boton.setAttribute('aria-expanded', String(abierto));
+                if (abierto) refresca();
+            };
+            boton.addEventListener('click', function() { abre(panel.hidden); });
+            panel.querySelector('.siarhe-estilos-cerrar').addEventListener('click', function() { abre(false); });
+            panel.querySelector('.siarhe-estilos-restaurar').addEventListener('click', function() {
+                state.pos.estilos = null;
+                refresca();
+                app.pos.apply(container, state);
+            });
+
+            return {
+                sync: function(visible) {
+                    grupo.hidden = !visible;
+                    if (!visible) abre(false); else if (!panel.hidden) refresca();
+                }
+            };
+        },
+
         /** Arma la fila «Marcadores de posición». La llama renderMain en lugar del desplegable por grupo. */
         build: function(container, state, wrapper) {
             const fila = wrapper.querySelector('.siarhe-controls-row[data-fila="posicion"]');
@@ -323,6 +410,7 @@
             ui.inst = app.pos._multi(container, fila, 'Instituciones', 'Elige instituciones', cambia);
             // Al tocar los niveles la lista deja de seguir sola a «todos los que haya»
             ui.niv = app.pos._multi(container, fila, 'Niveles', 'Elige niveles', function() { pos.nivAuto = false; cambia(); });
+            ui.estilos = app.pos._panelEstilos(container, state, fila);
             ui.otros = app.controls.buildMarkerRow(container, state, wrapper, 'posicion', { soloOtros: true }) || [];
 
             const opcion = function(v, t) { const o = document.createElement('option'); o.value = v; o.textContent = t; return o; };
@@ -395,6 +483,7 @@
             ui.modo.el.hidden = !sistema;
             ui.inst.el.hidden = !porInst;
             ui.niv.el.hidden = !sistema;
+            if (ui.estilos) ui.estilos.sync(sistema);
             ui.otros.forEach(function(el) { el.hidden = pos.ver !== 'otros'; });
         },
 
@@ -603,7 +692,7 @@
             if (!pos || !pos.ui) return;
             pos.seq++;
             app.pos._limpia(state);
-            pos.ver = ''; pos.reinicia = true; pos.pendNiveles = null; pos.vistos = null;
+            pos.ver = ''; pos.reinicia = true; pos.pendNiveles = null; pos.vistos = null; pos.estilos = null;
             app.pos.sync(state);
         },
 

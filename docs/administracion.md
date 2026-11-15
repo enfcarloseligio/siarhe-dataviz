@@ -42,7 +42,7 @@ Reemplazar un archivo **guarda una copia del anterior** (ver *Versiones y Copias
 ## Personalizar (`siarhe-customize`)
 
 - **Tema Admin:** colores de las tablas del propio panel, con vista previa.
-- **Mapa & Colores:** colores del mapa (cuartiles, monocromático, rangos, valor 0 y sin dato), **botones del sitio** (fondo, borde y texto en estado normal, al pasar el cursor y al presionar; el texto también pinta los íconos), estilos de la tabla pública y estilo de cada marcador.
+- **Mapa & Colores:** colores del mapa (cuartiles, monocromático, rangos, valor 0 y sin dato), **botones del sitio** (fondo, borde y texto en estado normal, al pasar el cursor y al presionar; el texto también pinta los íconos), estilos de la tabla pública y estilo de cada marcador. Cada apartado es un bloque plegable y los marcadores van por grupo (*Establecimientos de Salud*, *Clínicas*, *Otros marcadores*); los del sistema llevan la marca «Sistema» y ya traen su estilo. **Restablecer colores de los indicadores** y **Restablecer estilos de los marcadores** quitan lo guardado y vuelven a los valores del sistema (piden confirmación; no tocan botones ni tabla).
 
 ## Configuración (`siarhe-settings`)
 

@@ -105,17 +105,18 @@ function siarhe_get_entity_catalog() {
  */
 function siarhe_get_map_defaults() {
     return array(
-        // Mapa (secuencial de 5 pasos, cuartiles)
-        'map_c1' => '#eff3ff', 'map_c2' => '#bdd7e7', 'map_c3' => '#6baed6', 'map_c4' => '#3182bd', 'map_c5' => '#08519c',
+        // Colores de los indicadores: los del mapa de RHEMX (rhemx/web/assets/js/geoespacial.js, COLORES)
+        // Degradado de 5 pasos (minimo, Q1, mediana, Q3, maximo)
+        'map_c1' => '#9b2247', 'map_c2' => '#ffa500', 'map_c3' => '#e6d194', 'map_c4' => '#008000', 'map_c5' => '#006400',
 
-        // Mapa (4 rangos personalizados)
-        'range_c1' => '#ffedd5', 'range_c2' => '#fdba74', 'range_c3' => '#f59e0b', 'range_c4' => '#b45309',
+        // 4 rangos
+        'range_c1' => '#e6f4ea', 'range_c2' => '#9fd5b5', 'range_c3' => '#3faf7b', 'range_c4' => '#1e5b4f',
 
-        // Mapa (secuencial monocromatico)
-        'mono_min' => '#f0f9ff', 'mono_max' => '#0369a1',
+        // Monocromatico (claro y oscuro)
+        'mono_min' => '#e5e0d3', 'mono_max' => '#a57100',
 
         // Casos especiales: valor 0 y sin dato
-        'map_zero' => '#d9d9d9', 'map_null' => '#000000',
+        'map_zero' => '#b5b4c3', 'map_null' => '#000000',
 
         // Botones del frontend (todos comparten estilo): normal, al pasar el cursor y al presionar
         'btn_bg'        => '#0A66C2', 'btn_border'        => '#0A66C2', 'btn_text'        => '#F8FAFC',
@@ -131,6 +132,57 @@ function siarhe_get_map_defaults() {
 
         // Disposición de la página del mapa: 'contenedor' (centrado, máximo 1140 px) o 'canvas' (ancho completo) y su margen lateral (%)
         'layout' => 'contenedor', 'canvas_margin' => '2.5',
+    );
+}
+
+/**
+ * Claves de siarhe_map_options que guardan los colores de los indicadores (degradado, rangos, monocromatico, cero y sin dato).
+ */
+function siarhe_map_color_keys() {
+    return array( 'map_c1', 'map_c2', 'map_c3', 'map_c4', 'map_c5', 'range_c1', 'range_c2', 'range_c3', 'range_c4', 'mono_min', 'mono_max', 'map_zero', 'map_null' );
+}
+
+/**
+ * Estilo por defecto de los marcadores del sistema (forma, relleno y borde), los de RHEMX: los niveles de atencion son
+ * cruces verde, dorada y guinda, «No Aplica» un triangulo y «No Especificado» un circulo grises.
+ */
+function siarhe_marker_style_defaults() {
+    return array(
+        'ESTAB_1'  => array( 'shape' => 'cross',     'fill' => '#1E5B4F', 'stroke' => '#ffffff' ),
+        'ESTAB_2'  => array( 'shape' => 'cross',     'fill' => '#A57F2C', 'stroke' => '#ffffff' ),
+        'ESTAB_3'  => array( 'shape' => 'cross',     'fill' => '#9B2247', 'stroke' => '#ffffff' ),
+        'ESTAB_6'  => array( 'shape' => 'triangle',  'fill' => '#57595C', 'stroke' => '#ffffff' ),
+        'ESTAB_NE' => array( 'shape' => 'circle',    'fill' => '#475569', 'stroke' => '#ffffff' ),
+        'CATETER'  => array( 'shape' => 'triangle',  'fill' => '#1E5B4F', 'stroke' => '#ffffff' ),
+        'HERIDAS'  => array( 'shape' => 'triangle2', 'fill' => '#9B2247', 'stroke' => '#ffffff' ),
+        'PASANTES' => array( 'shape' => 'circle',    'fill' => '#A57F2C', 'stroke' => '#ffffff' ),
+    );
+}
+
+/**
+ * Estilo vigente de un marcador: lo guardado en Personalizar (siarhe_map_options, claves m_<clave>_*) o, si no hay, el
+ * del sistema; los marcadores propios sin estilo guardado salen como circulo azul (o rojo si son de densidad).
+ * Devuelve array( 'shape', 'fill', 'fill2', 'stroke' ).
+ */
+function siarhe_marker_style( $key, $mk, $opts ) {
+    $s    = strtolower( $key );
+    $tipo = isset( $mk['tipo'] ) ? $mk['tipo'] : 'posicion';
+    $defs = siarhe_marker_style_defaults();
+    if ( isset( $defs[ $key ] ) ) {
+        $def = $defs[ $key ];
+    } else {
+        $def = array( 'shape' => 'circle', 'stroke' => '#ffffff',
+            'fill' => $tipo === 'espectro' ? 'rgba(214, 54, 56, 0.6)' : ( $tipo === 'spike' ? '#D63638' : '#0A66C2' ) );
+    }
+    $valor = function( $campo, $por_defecto ) use ( $opts, $s ) {
+        $k = "m_{$s}_{$campo}";
+        return ( isset( $opts[ $k ] ) && $opts[ $k ] !== '' ) ? $opts[ $k ] : $por_defecto;
+    };
+    return array(
+        'shape'  => ( $tipo === 'espectro' || $tipo === 'spike' ) ? 'circle' : $valor( 'shape', $def['shape'] ),
+        'fill'   => $valor( 'fill', $def['fill'] ),
+        'fill2'  => isset( $opts[ "m_{$s}_fill2" ] ) ? $opts[ "m_{$s}_fill2" ] : '',   // espinas: color del pico mas bajo
+        'stroke' => $valor( 'stroke', $def['stroke'] ),
     );
 }
 

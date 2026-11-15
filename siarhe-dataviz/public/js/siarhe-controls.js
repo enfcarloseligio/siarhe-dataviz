@@ -1481,7 +1481,18 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             };
 
             // ---- Ir al lugar. Devuelve el foco del enlace (`tipo:clave`) o null si no hubo a dónde ir ----
+            // Entidad (2 dígitos) cuyo polígono contiene un punto, para saber a qué estado pertenece una unidad
+            const entidadDe = function(p) {
+                const f = capaBase().find(function(x) { try { return d3.geoContains(x, [p.lon, p.lat]); } catch (e) { return false; } });
+                return f ? claveDe(f).slice(0, 2) : '';
+            };
             const ir = async function(it) {
+                // En la República, como en RHEMX, el lugar se ve dentro de su estado: se entra a él y ahí se busca
+                if (state.isNacional && app.nav && app.nav.disponible()) {
+                    const cve = it.tipo === 'clues' ? entidadDe(it.p) : it.clave.slice(0, 2);
+                    const foco = it.tipo === 'ent' ? '' : it.tipo + ':' + it.clave;
+                    if (cve && await app.nav.ir(container, cve, { foco: foco })) return null;
+                }
                 if (it.tipo === 'clues') {
                     const d = await app.pos.muestraUnidad(container, state, it.p);
                     if (!d) return null;
@@ -1529,6 +1540,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 // En pantalla completa el panel tapa el mapa: se cierra para ver a dónde se llegó
                 if (wrapper.classList.contains('is-fullscreen-mode')) { const x = wrapper.querySelector('.siarhe-close-controls-btn'); if (x) x.click(); }
                 state.foco = await ir(it);
+                if (!container.isConnected) return;   // se entró a un estado: esta vista ya no está en la página
                 if (app.urlState) app.urlState.write(container, state);
                 const mapDiv = container.querySelector('.siarhe-map-container');
                 if (mapDiv && !document.fullscreenElement) {
