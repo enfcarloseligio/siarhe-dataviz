@@ -83,22 +83,31 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (guardado === 'canvas' || guardado === 'contenedor') modo = guardado;
             } catch (e) {}
 
-            const img = primero.dataset.img || '';
-            const ico = function(n) { return img ? '<span class="siarhe-ctl-icon" aria-hidden="true" style="--ico: url(&quot;' + img + n + '.svg&quot;)"></span>' : ''; };
-            const barra = document.createElement('div');
-            barra.className = 'siarhe-barra-pagina';
-            barra.innerHTML = '<div class="siarhe-layout-toggle" role="group" aria-label="Ancho de la página">' +
-                '<button type="button" class="siarhe-layout-op" data-siarhe-layout="contenedor" title="Contenedor: ancho limitado, más cómodo de leer">' + ico('icon-contenedor') + ' Contenedor</button>' +
-                '<button type="button" class="siarhe-layout-op" data-siarhe-layout="canvas" title="Canvas: todo el ancho de la ventana, ideal para ver mejor el mapa y la tabla">' + ico('icon-canvas') + ' Canvas</button>' +
-                '</div>';
-            primero.insertBefore(barra, primero.firstChild);
+            // La barra la imprime el servidor (siarhe-view.php) con su espacio ya reservado; solo se arma aquí si falta
+            let barra = document.querySelector('.siarhe-barra-pagina');
+            if (!barra) {
+                const img = primero.dataset.img || '';
+                const ico = function(n) { return img ? '<span class="siarhe-ctl-icon" aria-hidden="true" style="--ico: url(&quot;' + img + n + '.svg&quot;)"></span>' : ''; };
+                barra = document.createElement('div');
+                barra.className = 'siarhe-barra-pagina';
+                barra.innerHTML = '<div class="siarhe-layout-toggle" role="group" aria-label="Ancho de la página">' +
+                    '<button type="button" class="siarhe-layout-op" data-siarhe-layout="contenedor" title="Contenedor: ancho limitado, más cómodo de leer">' + ico('icon-contenedor') + ' Contenedor</button>' +
+                    '<button type="button" class="siarhe-layout-op" data-siarhe-layout="canvas" title="Canvas: todo el ancho de la ventana, ideal para ver mejor el mapa y la tabla">' + ico('icon-canvas') + ' Canvas</button>' +
+                    '</div>';
+                primero.insertBefore(barra, primero.firstChild);
+            }
             barra.addEventListener('click', function(e) {
                 const b = e.target.closest('[data-siarhe-layout]');
                 if (!b) return;
                 app.layout.aplica(wrappers, b.dataset.siarheLayout);
                 try { window.localStorage.setItem(app.layout.CLAVE, b.dataset.siarheLayout); } catch (err) {}
             });
-            app.layout.aplica(wrappers, modo);
+            // Solo si el visitante eligió otro ancho se redibuja; con el del sitio la página queda como la dibujó el servidor
+            if (modo !== (primero.classList.contains('siarhe-layout-canvas') ? 'canvas' : 'contenedor')) app.layout.aplica(wrappers, modo);
+            else {
+                if (modo === 'canvas') { app.layout.fijaAncho(); window.addEventListener('resize', app.layout.fijaAncho); app.layout._escucha = true; }
+                document.querySelectorAll('[data-siarhe-layout]').forEach(function(b) { b.setAttribute('aria-pressed', String(b.dataset.siarheLayout === modo)); });
+            }
         }
     };
 
@@ -515,8 +524,25 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             app.urlState._timer = setTimeout(function() { app.urlState.flush(container, state); }, 200);
         },
 
-        flush: function(container, state) {
-            if (!state.metricas) return;
+        /**
+         * Dirección de la página de una entidad (Configuración › Enlaces y Rutas) con lo que se está viendo en el `#`: año,
+         * unidad, indicador, estilo y marcadores, y `foco` (`mun:28009`, `clues:…`) si se llegó desde el buscador. La vista
+         * de municipios del mapa nacional no viaja: en la página del estado los municipios son el mapa base. Devuelve ''
+         * si la entidad no tiene página configurada.
+         */
+        enlaceEntidad: function(state, cve, foco) {
+            cve = String(cve || '').padStart(2, '0');
+            const url = state.entityUrls && state.entityUrls[cve];
+            if (!url) return '';
+            const qs = app.urlState._params(state);
+            qs.delete('v'); qs.delete('f');
+            if (foco) qs.set('f', foco);
+            const str = qs.toString();
+            return String(url).split('#')[0] + (str ? '#siarhe-' + cve + '=' + encodeURIComponent(str) : '');
+        },
+
+        // Parámetros del enlace de una visualización (lo que difiere de como abrió)
+        _params: function(state) {
             const d = state._urlDefaults || {};
             const qs = new URLSearchParams();
 
@@ -535,6 +561,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const posEnlace = app.pos ? app.pos.aEnlace(state) : '';
             if (posEnlace) qs.set('p', posEnlace);
             if (state.foco) qs.set('f', state.foco);
+            return qs;
+        },
+
+        flush: function(container, state) {
+            if (!state.metricas) return;
+            const qs = app.urlState._params(state);
 
             const raw = (window.location.hash || '').replace(/^#/, '');
             // Si la pagina usa el hash para otra cosa (ancla propia), no lo tocamos
@@ -691,9 +723,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     // ==========================================
     /**
      * Navegación dentro de la página, como en RHEMX: entrar a un estado (o volver a la República) sin cambiar de página.
-     * El servidor entrega la vista de la entidad pedida (la misma que da su shortcode) y aquí se pone en el lugar de la
-     * que se veía. La entidad con la que abrió la página queda en `data-origen` para poder volver, y la entidad a la que
-     * se entró viaja en el enlace (`siarhe-en=28`). Sin dirección de vistas (`SiarheDataVizConfig.vista`) no hace nada.
+     * La dirección que entrega la vista de una entidad viene en `SiarheDataVizConfig.vista`; el mapa estático no la entrega
+     * (cada entidad tiene su página, ver `app.urlState.enlaceEntidad`), así que aquí no hace nada. Queda para el mapa
+     * dinámico de SQL, donde todo vivirá en un solo lugar.
      */
     app.nav = {
         CLAVE: 'siarhe-en',

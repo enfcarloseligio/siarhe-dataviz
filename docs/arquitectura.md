@@ -61,9 +61,15 @@ En este orden, de abajo hacia arriba:
 
 La exportación a PNG clona el SVG principal y le agrega las leyendas, la medición y los puntos del canvas como vectores. Mientras se arma (`state._exportando`), `_deviceInfo` da siempre las medidas de PC, así la imagen es la misma desde cualquier dispositivo.
 
-### Navegación dentro de la página
+### Navegación entre entidades
 
-`app.nav` (`siarhe-core.js`) deja entrar a un estado desde la República sin cambiar de página: pide a `admin-ajax.php?action=siarhe_vista&ent=NN&mode=…` (`Siarhe_Shortcodes::ajax_vista`, pública y de solo lectura) el mismo HTML que entrega el shortcode de esa entidad, lo pone en lugar de la visualización que se veía y lo inicia con `app.initVisualization`. La entidad con la que abrió la página queda en `data-origen` (botón «Ir a la República» y Esc) y la entidad a la que se entró va en el enlace como `siarhe-en=NN`. La dirección llega en `SiarheDataVizConfig.vista`; sin ella, o si la petición falla, el doble clic lleva a la página de la entidad.
+En el mapa estático cada entidad tiene su página (*Configuración › Enlaces y Rutas*, `data-entity-urls`). En la República, el clic en un estado, en un renglón de la tabla o en un resultado del buscador abre esa página con `app.urlState.enlaceEntidad(state, cve, foco)`: la dirección configurada más, en el `#`, los parámetros de lo que se está viendo (`a`, `u`, `m`, `e`, `k`, `p`) y el lugar buscado (`f`, por ejemplo `mun:28009` o `clues:…`); la página del estado los aplica al abrir (`app.urlState.apply`). Sin página configurada, el buscador acerca el mapa nacional.
+
+`app.nav` (entrar a un estado sin cambiar de página) sigue en `siarhe-core.js` pero solo se activa si `SiarheDataVizConfig.vista` trae la dirección de una vista; el mapa estático no la entrega. Queda para el mapa dinámico de SQL.
+
+### Hoja de estilos y cambio de diseño
+
+`Siarhe_Shortcodes::pagina_usa_shortcode()` busca el shortcode en el contenido y en `_elementor_data`; si lo encuentra, la hoja se encola en `wp_enqueue_scripts` y sale en `<head>` (filtro `siarhe_estilos_en_cabecera`). Encolada desde el shortcode llegaría al final del `<body>` y la página se dibujaría primero sin estilo. Para que el JavaScript no recorra la página al arrancar, el conmutador Contenedor / Canvas sale del servidor (`siarhe-view.php`, una vez por página) y los esqueletos del panel y de la cifra del encabezado miden lo mismo que lo que los sustituye.
 
 ## Puntos de extensión
 

@@ -1487,11 +1487,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 return f ? claveDe(f).slice(0, 2) : '';
             };
             const ir = async function(it) {
-                // En la República, como en RHEMX, el lugar se ve dentro de su estado: se entra a él y ahí se busca
-                if (state.isNacional && app.nav && app.nav.disponible()) {
+                // En la República el lugar se ve en la página de su estado (la configurada en Enlaces y Rutas), que abre con
+                // el lugar buscado en el enlace; sin página configurada, se acerca el mapa nacional
+                if (state.isNacional && app.urlState) {
                     const cve = it.tipo === 'clues' ? entidadDe(it.p) : it.clave.slice(0, 2);
-                    const foco = it.tipo === 'ent' ? '' : it.tipo + ':' + it.clave;
-                    if (cve && await app.nav.ir(container, cve, { foco: foco })) return null;
+                    const url = cve ? app.urlState.enlaceEntidad(state, cve, it.tipo === 'ent' ? '' : it.tipo + ':' + it.clave) : '';
+                    if (url) { state._saliendo = true; window.location.href = url; return null; }
                 }
                 if (it.tipo === 'clues') {
                     const d = await app.pos.muestraUnidad(container, state, it.p);
@@ -1540,7 +1541,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 // En pantalla completa el panel tapa el mapa: se cierra para ver a dónde se llegó
                 if (wrapper.classList.contains('is-fullscreen-mode')) { const x = wrapper.querySelector('.siarhe-close-controls-btn'); if (x) x.click(); }
                 state.foco = await ir(it);
-                if (!container.isConnected) return;   // se entró a un estado: esta vista ya no está en la página
+                if (state._saliendo || !container.isConnected) return;   // se va a la página del estado
                 if (app.urlState) app.urlState.write(container, state);
                 const mapDiv = container.querySelector('.siarhe-map-container');
                 if (mapDiv && !document.fullscreenElement) {

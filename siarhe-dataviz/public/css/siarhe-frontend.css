@@ -1190,7 +1190,15 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 }
 /* El recuadro con el indicador giratorio no se muestra durante la primera carga: lo sustituye el esqueleto */
 .siarhe-viz-wrapper:not(.siarhe-cargado) .siarhe-loading-overlay { display: none; }
-.siarhe-viz-wrapper .siarhe-controls-placeholder:empty { min-height: 120px; border-radius: 6px; margin-bottom: 15px; }
+/* El esqueleto del panel mide lo mismo que el panel armado (cinco filas con título), así la página no se recorre al
+   aparecer los controles: 690 px en móvil, 468 px en tableta y 320 px en PC */
+.siarhe-viz-wrapper .siarhe-controls-placeholder:empty { min-height: 690px; border-radius: 6px; }
+@media (min-width: 768px) { .siarhe-viz-wrapper .siarhe-controls-placeholder:empty { min-height: 468px; } }
+@media (min-width: 1024px) { .siarhe-viz-wrapper .siarhe-controls-placeholder:empty { min-height: 320px; } }
+/* La cifra del encabezado (tasa y enfermeras) se escribe al cargar los datos: su renglón queda reservado (dos líneas en
+   móvil y tableta, una en PC) */
+.siarhe-viz-wrapper .siarhe-dynamic-total { min-height: 42px; }
+@media (min-width: 1024px) { .siarhe-viz-wrapper .siarhe-dynamic-total { min-height: 24px; } }
 .siarhe-viz-wrapper .siarhe-table-controls-placeholder:empty { min-height: 48px; border-radius: 6px; }
 .siarhe-viz-wrapper .siarhe-esqueleto-tabla { display: grid; gap: 8px; padding: 4px 0; }
 .siarhe-viz-wrapper .siarhe-esqueleto-fila { height: 34px; border-radius: 4px; }

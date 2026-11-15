@@ -936,12 +936,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         },
 
         handleMapClick: function(d, state) {
-            let cve = app.utils.getGeoKey(d.properties, state.isNacional);
-            const aPagina = function() { if (state.entityUrls && state.entityUrls[cve]) window.location.href = state.entityUrls[cve]; };
-            // En la República se entra al estado dentro del mismo mapa (como en RHEMX); si no se puede, se va a su página
-            if (state.isNacional && app.nav && app.nav.disponible() && state.containerEl) {
-                app.nav.ir(state.containerEl, String(cve).padStart(2, '0')).then(function(nuevo) { if (!nuevo) aPagina(); });
-            } else aPagina();
+            // En la República, un estado lleva a la página configurada para él, con lo que se está viendo en el enlace
+            if (!state.isNacional) return;
+            const url = app.urlState ? app.urlState.enlaceEntidad(state, app.utils.getGeoKey(d.properties, true)) : '';
+            if (url) window.location.href = url;
         },
 
         /**

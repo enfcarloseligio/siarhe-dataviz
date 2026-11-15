@@ -22,6 +22,8 @@ def base_de(anio, carpeta):
     hallado = [f for f in os.listdir(d) if f.startswith(ENT + '_') and f.endswith('.json')]
     return f'{R}data/processed/mapas/data/{anio}/{carpeta}/{hallado[0]}' if hallado else ''
 NOMBRE = 'República Mexicana'
+# Página de cada entidad (Configuración › Enlaces y Rutas): en el arnés, la página armada para esa entidad
+ENLACES = {f'{n:02d}': f'/siarhe-dataviz/builds/pruebas/estado-{n:02d}.html' for n in range(1, 33)} if NACIONAL else {}
 
 bases = {}
 for anio in ('2025', '2024', '2019'):
@@ -69,7 +71,7 @@ doc = f'''<!DOCTYPE html>
 <link rel="stylesheet" href="{P}css/siarhe-frontend.css">
 <style>{cfg.get('css', '')}</style>
 <style>body {{ margin: 0; font-family: Roboto, Arial, sans-serif; background: #fff; }} .tema {{ max-width: 1240px; margin: 0 auto; padding: 20px 50px; }} button:hover {{ color: #fff; }}</style>
-<script>window.SiarheDataVizConfig = {json.dumps({'d3Fallback': P + 'js/libs/d3.v7.min.js', 'topojson': P + 'js/libs/topojson-client.min.js', 'topoHelper': P + 'js/siarhe-topo.js', 'capas': P + 'js/siarhe-capas.js', 'xlsx': P + 'js/libs/xlsx.full.min.js', 'vista': '/siarhe-dataviz/builds/pruebas/vista-{ent}.html'})};</script>
+<script>window.SiarheDataVizConfig = {json.dumps({'d3Fallback': P + 'js/libs/d3.v7.min.js', 'topojson': P + 'js/libs/topojson-client.min.js', 'topoHelper': P + 'js/siarhe-topo.js', 'capas': P + 'js/siarhe-capas.js', 'xlsx': P + 'js/libs/xlsx.full.min.js'})};</script>
 </head><body><div class="tema">
 <div class="siarhe-viz-wrapper{' siarhe-layout-canvas' if layout == 'canvas' else ''}" style="--s-canvas-margin: 2.5%;" id="siarhe-viz-{ENT}"
  data-cve-ent="{ENT}" data-slug="{'republica-mexicana' if NACIONAL else 'entidad-' + ENT}" data-mode="MT"
@@ -78,7 +80,11 @@ doc = f'''<!DOCTYPE html>
  data-geojson-loc="{at(geos['loc'].get('2025', {}).get('url', ''))}" data-geos="{at(geos)}"
  data-worker="{P}js/siarhe-worker.js" data-geo-worker="{P}js/siarhe-geo-worker.js"
  data-marker-config="{at(estilos)}" data-marker-urls="{at(urls)}" data-marker-labels="{at(labels)}" data-marker-grupos="{at(cfg['grupos'])}"
- data-entity-urls="{at({})}" data-metricas="{at(cfg['metricas'])}" data-tooltips="{at(tooltips)}" data-home-url="">
+ data-entity-urls="{at(ENLACES)}" data-metricas="{at(cfg['metricas'])}" data-tooltips="{at(tooltips)}" data-home-url="">
+  <div class="siarhe-barra-pagina"><div class="siarhe-layout-toggle" role="group" aria-label="Ancho de la página">
+    <button type="button" class="siarhe-layout-op" data-siarhe-layout="contenedor" aria-pressed="{'false' if layout == 'canvas' else 'true'}"><span class="siarhe-ctl-icon" aria-hidden="true" style="--ico: url(&quot;{P}img/icon-contenedor.svg&quot;)"></span> Contenedor</button>
+    <button type="button" class="siarhe-layout-op" data-siarhe-layout="canvas" aria-pressed="{'true' if layout == 'canvas' else 'false'}"><span class="siarhe-ctl-icon" aria-hidden="true" style="--ico: url(&quot;{P}img/icon-canvas.svg&quot;)"></span> Canvas</button>
+  </div></div>
   <section id="siarhe-map-section" class="siarhe-section-map siarhe-block-card">
     <header class="siarhe-header"><h2 class="siarhe-title">{NOMBRE if NACIONAL else 'Entidad ' + ENT}</h2><div class="siarhe-dynamic-total"></div></header>
     <div class="siarhe-controls-placeholder"></div>

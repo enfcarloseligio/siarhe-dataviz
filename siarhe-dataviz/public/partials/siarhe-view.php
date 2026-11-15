@@ -273,6 +273,21 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
      data-metricas='<?php echo esc_attr($metricas_clean_json); ?>' 
      data-tooltips='<?php echo esc_attr($tooltip_json); ?>' 
      data-home-url="<?php echo esc_url($home_url); ?>"> 
+    <?php
+    // Conmutador Contenedor / Canvas: una vez por página, en la primera visualización. Sale del servidor con su espacio
+    // reservado para que la página no se recorra cuando el JS lo activa (siarhe-core.js, app.layout).
+    if ( empty( $GLOBALS['siarhe_barra_puesta'] ) ) :
+        $GLOBALS['siarhe_barra_puesta'] = true;
+        $siarhe_img = SIARHE_URL . 'public/img/';
+        $siarhe_es_canvas = $siarhe_layout['modo'] === 'canvas';
+    ?>
+    <div class="siarhe-barra-pagina">
+        <div class="siarhe-layout-toggle" role="group" aria-label="Ancho de la página">
+            <button type="button" class="siarhe-layout-op" data-siarhe-layout="contenedor" aria-pressed="<?php echo $siarhe_es_canvas ? 'false' : 'true'; ?>" title="Contenedor: ancho limitado, más cómodo de leer"><span class="siarhe-ctl-icon" aria-hidden="true" style="--ico: url(&quot;<?php echo esc_url( $siarhe_img . 'icon-contenedor.svg' ); ?>&quot;)"></span> Contenedor</button>
+            <button type="button" class="siarhe-layout-op" data-siarhe-layout="canvas" aria-pressed="<?php echo $siarhe_es_canvas ? 'true' : 'false'; ?>" title="Canvas: todo el ancho de la ventana, ideal para ver mejor el mapa y la tabla"><span class="siarhe-ctl-icon" aria-hidden="true" style="--ico: url(&quot;<?php echo esc_url( $siarhe_img . 'icon-canvas.svg' ); ?>&quot;)"></span> Canvas</button>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <?php 
     if ( strpos($mode, 'M') !== false && strpos($mode, 'T') !== false ) : 

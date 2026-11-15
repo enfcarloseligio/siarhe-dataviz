@@ -2,6 +2,24 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.15.0] - 2026-11-15
+
+Corrección de la navegación de la 0.1.13.0 y del cambio de diseño que bajó la medición de PageSpeed en PC (de 100 a 79). Probado con `tests/` y en el arnés; **falta verlo en un WordPress real**.
+
+### Mapa
+- **Cada entidad se ve en su página**, la que se configuró en *Configuración › Enlaces y Rutas*, como antes de la 0.1.13.0. En la República, el clic en un estado, el clic en un renglón de la tabla y los resultados del buscador (estado, municipio o unidad de salud) abren la página de esa entidad y le pasan en el enlace lo que se estaba viendo: año, unidad, indicador, estilo, marcadores y el lugar buscado (`#siarhe-28=a=2024&f=mun:28009`). Sin página configurada, el buscador acerca el mapa nacional y el clic no hace nada.
+- Ya no se entra a un estado dentro del mapa nacional ni existe el botón «Ir a la República»: eso queda para el mapa dinámico de SQL, donde todo vivirá en un solo lugar.
+
+### Rendimiento (cambio de diseño)
+- **La hoja de estilos se imprime en `<head>` también cuando el shortcode está en un widget de Elementor.** Antes solo se buscaba en el contenido de la página; con Elementor la hoja llegaba al final del `<body>`, la visualización se dibujaba primero sin estilo y luego saltaba (CLS de 0.47 en PC). El filtro `siarhe_estilos_en_cabecera` permite forzarlo en otros casos.
+- **El conmutador Contenedor / Canvas lo imprime el servidor** con su espacio reservado, en lugar de insertarse con JavaScript, y solo se vuelve a acomodar la página si el visitante había elegido otro ancho.
+- **El esqueleto del panel mide lo mismo que el panel** (690 px en móvil, 468 en tableta, 320 en PC) y el renglón de la cifra del encabezado queda reservado. En el arnés, el cambio de diseño al cargar bajó de 0.126 a 0.005 en PC y tableta y a 0.0006 en móvil.
+
+### Interno
+- `app.urlState.enlaceEntidad(state, cve, foco)` y `app.urlState._params(state)`; `Siarhe_Shortcodes::pagina_usa_shortcode()`.
+- Se quitan la acción `siarhe_vista` (`admin-ajax.php`) y `SiarheDataVizConfig.vista`; `app.nav` sigue en `siarhe-core.js` pero no se activa sin esa dirección.
+- El arnés imprime la barra de disposición y los enlaces de las 32 entidades (`estado-NN.html`).
+
 ## [0.1.14.0] - 2026-11-15
 
 Funciones de la tabla de RHEMX y nombres nuevos de las carpetas de RHEMX. Probado con `tests/` y visto en el arnés (República y un estado); **falta verlo en un WordPress real**.

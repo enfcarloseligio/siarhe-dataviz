@@ -9,31 +9,22 @@ class Siarhe_Shortcodes {
         
         // Cargar scripts frontend (D3, Leaflet, CSS propios) solo en el frontend
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_scripts' ) );
-
-        // Vista de una entidad para la navegación dentro del mapa (entrar a un estado sin cambiar de página)
-        add_action( 'wp_ajax_siarhe_vista', array( $this, 'ajax_vista' ) );
-        add_action( 'wp_ajax_nopriv_siarhe_vista', array( $this, 'ajax_vista' ) );
     }
 
     /**
-     * Devuelve el HTML de la visualización de una entidad, el mismo que entrega su shortcode. Es información pública:
-     * no cambia nada en el sitio y respeta la visibilidad de marcadores y métricas según haya sesión o no.
-     * Parámetros (GET): ent = clave de la entidad (01 a 33), mode = M | T | MT.
+     * Indica si la página que se está mostrando usa un shortcode del plugin, para imprimir su hoja de estilos en <head>.
+     * Busca en el contenido y en los datos de Elementor (allí queda el shortcode cuando se pone en un widget). El filtro
+     * `siarhe_estilos_en_cabecera` permite forzarlo en páginas que arman el contenido de otra forma.
      */
-    public function ajax_vista() {
-        $ent  = isset( $_GET['ent'] ) ? str_pad( preg_replace( '/\D/', '', (string) wp_unslash( $_GET['ent'] ) ), 2, '0', STR_PAD_LEFT ) : '';
-        $mode = isset( $_GET['mode'] ) ? strtoupper( sanitize_key( wp_unslash( $_GET['mode'] ) ) ) : 'MT';
-        if ( ! in_array( $mode, array( 'M', 'T', 'MT' ), true ) ) $mode = 'MT';
-
-        foreach ( siarhe_get_entities() as $slug => $data ) {
-            if ( (string) $data['CVE_ENT'] !== $ent || (int) $ent < 1 || (int) $ent > 33 ) continue;
-            nocache_headers();
-            header( 'Content-Type: text/html; charset=' . get_option( 'blog_charset' ) );
-            echo $this->render_viz( $slug, $data['CVE_ENT'], $mode, $data['nombre'] ); // phpcs:ignore WordPress.Security.EscapeOutput -- la plantilla escapa su salida
-            wp_die();
+    private function pagina_usa_shortcode() {
+        $usa = false;
+        if ( is_singular() ) {
+            $id     = get_queried_object_id();
+            $patron = '/\[siarhe_mapa_(?:M|T|MT)_CVE_ENT_/';
+            $usa    = (bool) preg_match( $patron, (string) get_post_field( 'post_content', $id ) )
+                   || (bool) preg_match( $patron, (string) get_post_meta( $id, '_elementor_data', true ) );
         }
-        status_header( 404 );
-        wp_die( 'Entidad no disponible.' );
+        return (bool) apply_filters( 'siarhe_estilos_en_cabecera', $usa );
     }
 
     /**
@@ -166,16 +157,15 @@ class Siarhe_Shortcodes {
                 'topoHelper' => SIARHE_URL . 'public/js/siarhe-topo.js?ver=' . SIARHE_VERSION,
                 // Lectura de las capas de marcadores en JSON dentro del worker
                 'capas'      => SIARHE_URL . 'public/js/siarhe-capas.js?ver=' . SIARHE_VERSION,
-                // Vista de una entidad para entrar a un estado dentro del mismo mapa ({ent} y {mode} los pone el JS)
-                'vista'      => admin_url( 'admin-ajax.php' ) . '?action=siarhe_vista&ent={ent}&mode={mode}',
                 // SheetJS: se pide solo al descargar la tabla en Excel
                 'xlsx'       => SIARHE_URL . 'public/js/libs/xlsx.full.min.js?ver=0.18.5',
             ) ) . ';',
             'before'
         );
 
-        // 4. Si el contenido actual ya usa un shortcode del plugin, el CSS se encola en <head>
-        if ( is_singular() && preg_match( '/\[siarhe_mapa_(?:M|T|MT)_CVE_ENT_/', (string) get_post_field( 'post_content', get_queried_object_id() ) ) ) {
+        // 4. Si la página usa un shortcode del plugin, el CSS va en <head>: encolado desde el shortcode llegaría al final del
+        //    <body> y la visualización se dibujaría primero sin estilo (cambio de diseño que penaliza la medición de Google)
+        if ( $this->pagina_usa_shortcode() ) {
             wp_enqueue_style( 'siarhe-frontend-css' );
         }
     }

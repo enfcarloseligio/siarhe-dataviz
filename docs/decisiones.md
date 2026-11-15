@@ -21,7 +21,8 @@ Formato: **qué se decidió** — porqué — consecuencias. Las más recientes 
 - **Un solo estilo para todos los botones del sitio**, configurable por variables CSS (`--s-btn-*`), sin las clases `.button` de WordPress — el tema los recoloreaba. Los controles de zoom, el panel de medición y los avisos conservan su estilo.
 - **La tabla de datos viene plegada cuando se muestran mapa y tabla juntos** — en entidades con tablas grandes empujaba las referencias.
 - **Colores personalizados del visitante solo en su navegador** (no se guardan en el sitio ni en el enlace compartible); se aplican también al PNG. Lo mismo el «Estilo de marcadores» del visitante.
-- **Páginas por entidad y, además, entrar al estado dentro del mapa** (0.1.13.0) — las páginas separadas se conservan por el SEO; la navegación dentro del mapa nacional copia el recorrido de RHEMX y reutiliza la vista del shortcode, sin duplicar lógica.
+- **Cada entidad en su página, con lo que se veía en el enlace** (0.1.15.0) — el mapa estático lleva a la página configurada para cada entidad (SEO y lo que el administrador decidió); la 0.1.13.0 entraba al estado dentro del mapa nacional y se revirtió. Ver todo en un solo lugar queda para el mapa dinámico de SQL.
+- **Nada que recorra la página al cargar** (0.1.15.0) — hoja en `<head>`, barra de disposición desde el servidor y esqueletos del tamaño final: el sitio retrasa el JavaScript hasta la primera interacción, así que en la medición de Google la página se queda como la dibuja el servidor.
 - **Tasas con decimales según su tamaño** (3 bajo 1, 2 hasta 10, 1 desde 10), como RHEMX — con dos decimales fijos una tasa pequeña se leía «0.00».
 - **El PNG se arma con medidas de PC** — antes dependía de la pantalla desde la que se descargaba.
 - **Texto de los tooltips en formato "Nombre Propio"** salvo la CLUES; conectores en minúscula, siglas de hasta 3 letras y una lista de siglas conocidas se conservan.

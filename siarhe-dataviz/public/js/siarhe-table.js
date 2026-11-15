@@ -391,10 +391,15 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         fila.addEventListener('mouseenter', function() { app.map.resalta(state, llave, true); });
                         fila.addEventListener('mouseleave', function() { app.map.resalta(state, llave, false); });
                     }
-                    if (state.isNacional && app.nav && app.nav.disponible()) {
+                    // En la República, el renglón lleva a la página configurada para la entidad (con lo que se está viendo)
+                    const destino = state.isNacional && app.urlState ? app.urlState.enlaceEntidad(state, app.table.clave(r, true)) : '';
+                    if (destino) {
                         fila.classList.add('siarhe-row-enlace');
-                        fila.title = 'Ver los municipios de ' + (r.estado || 'la entidad');
-                        fila.addEventListener('click', function() { app.nav.ir(container, app.table.clave(r, true)); });
+                        fila.title = 'Ir a la página de ' + (r.estado || 'la entidad');
+                        fila.addEventListener('click', function() {
+                            const url = app.urlState.enlaceEntidad(state, app.table.clave(r, true));
+                            if (url) window.location.href = url;
+                        });
                     }
                 }
                 tbody.appendChild(fila);
