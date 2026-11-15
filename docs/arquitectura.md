@@ -69,7 +69,7 @@ En el mapa estático cada entidad tiene su página (*Configuración › Enlaces 
 
 ### Hoja de estilos y cambio de diseño
 
-`Siarhe_Shortcodes::pagina_usa_shortcode()` busca el shortcode en el contenido y en `_elementor_data`; si lo encuentra, la hoja se encola en `wp_enqueue_scripts` y sale en `<head>` (filtro `siarhe_estilos_en_cabecera`). Encolada desde el shortcode llegaría al final del `<body>` y la página se dibujaría primero sin estilo. Para que el JavaScript no recorra la página al arrancar, el conmutador Contenedor / Canvas sale del servidor (`siarhe-view.php`, una vez por página) y los esqueletos del panel y de la cifra del encabezado miden lo mismo que lo que los sustituye.
+`Siarhe_Shortcodes::pagina_usa_shortcode()` busca el shortcode en el contenido y en `_elementor_data`; si lo encuentra, la hoja se encola en `wp_enqueue_scripts` y sale en `<head>` (filtro `siarhe_estilos_en_cabecera`). Si no salió ahí (por ejemplo, el shortcode está en una plantilla de Elementor), `render_viz` la imprime con `wp_print_styles` justo antes de la visualización. Encolada desde el shortcode llegaría al final del `<body>` y la página se dibujaría primero sin estilo. Para que el JavaScript no recorra la página al arrancar, el conmutador Contenedor / Canvas sale del servidor (`siarhe-view.php`, una vez por página) y los esqueletos del panel y de la cifra del encabezado miden lo mismo que lo que los sustituye.
 
 ## Puntos de extensión
 

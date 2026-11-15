@@ -2,6 +2,26 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.16.0] - 2026-11-15
+
+Segunda corrección del cambio de diseño en PC y más piezas de RHEMX. Probado con `tests/` y en el arnés; **falta verlo en un WordPress real**.
+
+### Rendimiento (cambio de diseño)
+- **La hoja de estilos sale justo antes de la visualización** cuando no salió en `<head>`. En el sitio el shortcode está en una plantilla de Elementor que la detección de la 0.1.15.0 no encontró, así que la hoja seguía al final del `<body>` (PageSpeed en PC: 77 y 78, CLS 0.595). Impresa antes de la visualización, el navegador no la dibuja hasta tener la hoja y ya no se recorre.
+
+### Mapa
+- **Aro del marcador, como en RHEMX:** el marcador bajo el cursor se dibuja más grande con un aro azul oscuro (`#0F172A`) y el seleccionado (clic, panel de encimados o buscador) con un aro del color de marca del sitio (azul `#0A66C2` por defecto). Funciona con pocos marcadores (SVG) y con muchos (canvas), y el aro conserva su tamaño al hacer zoom.
+- **Las 14 formas de marcador de RHEMX:** círculo, elipse, cuadrado, cuadrado chico, triángulo, triángulo invertido, diamante, rombo, estrella, cruz, más, equis, asterisco y ye. Las de líneas finas (más, equis, asterisco, ye) toman el borde del color del relleno. Están en «Estilo de marcadores», en *Personalizar › Mapa y Colores* y en el modo «por institución», que ahora reparte las 14 en el orden de RHEMX antes de volver a empezar con un tono más claro.
+- **Ficha del marcador:** muestra las plazas o los recursos humanos de enfermería de la unidad (según la unidad elegida), la CLUES anterior y, en las clínicas de catéteres, los reportes y los años con reportes.
+- **Las etiquetas viajan en el enlace** (`etq=1`): «Copiar enlace» con los nombres a la vista los muestra al abrirlo.
+
+### Panel
+- *Personalizar › Mapa y Colores* en un orden más natural: Botones (abierto), Tabla, Colores de los Indicadores y Marcadores.
+
+### Interno
+- El worker de marcadores conserva en `_raw` las columnas de personal, CLUES anterior y reportes (`RAW_COLS`); los aros de marcadores que ya no están se borran al cambiar de capa.
+- `app.map.pintaAros` / `coloresAro`, capa `g.siarhe-aros`; `app.utils.NOMBRES_FORMA`, `FORMAS_DE_LINEA`, `symbolEllipse`, `symbolSquareSmall`; `siarhe_marker_formas()` en `helpers.php`.
+
 ## [0.1.15.0] - 2026-11-15
 
 Corrección de la navegación de la 0.1.13.0 y del cambio de diseño que bajó la medición de PageSpeed en PC (de 100 a 79). Probado con `tests/` y en el arnés; **falta verlo en un WordPress real**.

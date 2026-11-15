@@ -274,7 +274,14 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const bgOpacity = (tt.mk_bg_opacity !== undefined ? parseInt(tt.mk_bg_opacity, 10) : 90) / 100;
             const txtColor = tt.mk_text_color || '#f8fafc';
             const finalBgColor = app.map.hexToRgba(bgColor, bgOpacity);
-            const mkOrder = tt.mk_order || ['mk_inst', 'mk_clues', 'mk_tipo', 'mk_nivel', 'mk_separator', 'mk_juris', 'mk_mun'];
+            const mkOrder = (tt.mk_order || ['mk_inst', 'mk_clues', 'mk_tipo', 'mk_nivel', 'mk_separator', 'mk_juris', 'mk_mun']).slice();
+            // CLUES anterior y personal de enfermería de la unidad (como en RHEMX): van tras la CLUES y tras el nivel aunque el orden
+            // guardado en Configuración › Tooltips sea anterior a estos datos
+            [['mk_anterior', 'mk_clues'], ['mk_personal', 'mk_nivel']].forEach(function(par) {
+                if (mkOrder.indexOf(par[0]) !== -1) return;
+                const i = mkOrder.indexOf(par[1]);
+                mkOrder.splice(i === -1 ? mkOrder.length : i + 1, 0, par[0]);
+            });
 
             let zonaTexto = "";
             if (d.estrato) {
@@ -290,6 +297,14 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (tt.mk_inst !== false && d.institucion) blocks['mk_inst'] = { label: 'Institución', value: tc(d.institucion) };
             if (tt.mk_clues !== false && d.clues) blocks['mk_clues'] = { label: 'CLUES', value: d.clues };
             if (tt.mk_nivel !== false && d.nivel_atencion) blocks['mk_nivel'] = { label: 'Nivel', value: tc(d.nivel_atencion) };
+            if (d._raw) {
+                const anterior = app.utils.getColValue(d._raw, ['clues anterior', 'anterior']);
+                if (tt.mk_clues !== false && anterior) blocks['mk_anterior'] = { label: 'CLUES anterior', value: anterior };
+                // Plazas o recursos humanos de enfermería que el SIARHE registra en la unidad, según la unidad de conteo elegida
+                const personas = state.base && state.base.unidad === 'personas';
+                const n = app.utils.parseNum(app.utils.getColValue(d._raw, personas ? ['recursos humanos estimados', 'personas'] : ['plazas de enfermeria', 'plazas']));
+                if (n !== null) blocks['mk_personal'] = { label: personas ? 'Recursos humanos de enfermería' : 'Plazas de enfermería', value: n.toLocaleString('es-MX') };
+            }
             if (tt.mk_juris !== false && d.jurisdiccion) blocks['mk_juris'] = { label: 'Jurisdicción', value: tc(d.jurisdiccion) };
             
             if (tt.mk_tipo !== false && (d.tipo_estab || d.tipologia)) {
@@ -336,6 +351,22 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 }
             });
 
+            // Clínica de catéteres: reportes del periodo y, en la capa de toda la historia, los años con reportes (como en RHEMX)
+            let htmlClinica = '';
+            if (d._raw) {
+                const reportes = app.utils.parseNum(app.utils.getColValue(d._raw, ['reportes']));
+                if (reportes !== null) {
+                    const anios = app.utils.getColValue(d._raw, ['anios reportados', 'anios']);
+                    const primer = app.utils.getColValue(d._raw, ['primer anio', 'primer']), ultimo = app.utils.getColValue(d._raw, ['ultimo anio', 'ultimo']);
+                    const fila = function(etq, val) {
+                        return `<div style="font-size:11px; line-height: 1.4; margin-bottom: 3px;"><span style="color:#06B6D4; opacity:0.9;">${app.utils.esc(etq)}:</span> <strong style="color:${txtColor};">${app.utils.esc(val)}</strong></div>`;
+                    };
+                    htmlClinica = `<div style="border-top: 1px dashed rgba(255,255,255,0.2); margin: 6px 0;"></div><div style="font-size:11px; font-weight:700; margin-bottom:3px;">Clínica de catéteres</div>` +
+                        fila(anios ? 'Reportes de catéteres (toda la historia)' : 'Reportes de catéteres', reportes.toLocaleString('es-MX')) +
+                        (anios ? fila('Años con reportes', anios + (primer && ultimo ? ' (' + primer + '–' + ultimo + ')' : '')) : '');
+                }
+            }
+
             let htmlReglas = '';
             if (d._agrupados_total !== undefined && d._agrupados_total > 0) {
                 htmlReglas += `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed rgba(255,255,255,0.3);">`;
@@ -371,6 +402,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
             html += htmlStandard;
             html += htmlHighlight;
+            html += htmlClinica;
             html += htmlReglas; 
             html += `</div>`;
 

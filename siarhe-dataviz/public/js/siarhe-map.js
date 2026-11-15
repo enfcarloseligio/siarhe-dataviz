@@ -275,6 +275,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     // si se agendara para el siguiente, los marcadores irian un paso atras durante el movimiento.
                     // Con el puntero o el dedo (sourceEvent) se agrupa en un solo dibujo por cuadro.
                     if (e.sourceEvent) app.map._cvSchedule(state); else app.map._cvDraw(state);
+                    if (state._aroHover || state._aroSel) app.map.pintaAros(state);
                     const k = e.transform.k;
 
                     if (state.showLabels || state._labelsPng) {
@@ -1187,24 +1188,29 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
             ctx.globalAlpha = 1;
 
-            // Marcador bajo el cursor: borde mas grueso
-            [cv.hover, cv.sel].forEach(function(hv) {
+            // Marcador bajo el cursor y el seleccionado (clic, panel de encimados o buscador), como en RHEMX: se dibujan encima, el de
+            // posición más grande, y con un aro para saber a cuál responde el mapa (oscuro al pasar el cursor, color de marca el elegido)
+            const aros = app.map.coloresAro(state);
+            [[cv.hover, 2, aros.hover], [cv.sel, 3.5, aros.sel]].forEach(function(par) {
+                const hv = par[0];
                 if (!hv) return;
                 const sx = Math.round(v.ox + v.sc * (v.t.x + v.k * hv.x)), sy = Math.round(v.oy + v.sc * (v.t.y + v.k * hv.y));
+                ctx.lineWidth = par[1]; ctx.strokeStyle = par[2];
                 if (hv.kind === 'spk') {
-                    const col = cv.spk[hv.d.tipo];
-                    app.map._cvTriangle(ctx, sx, sy, dims.spkW, dims.spkMin + (dims.spkMax - dims.spkMin) * hv.t);
-                    ctx.fillStyle = col.colors[hv.lv]; ctx.strokeStyle = col.edge; ctx.lineWidth = dims.spkStroke * 2;
-                    ctx.fill(); ctx.stroke();
-                } else {
-                    const area = hv.kind === 'bub' ? app.map._cvBubbleArea(dims, hv.frac).area : areaPos;
-                    const sp = app.map._cvSprite(state, hv.d.tipo, area, v.sc, dpr, hv.kind === 'bub');
-                    ctx.save();
-                    ctx.translate(sx, sy);
-                    ctx.fillStyle = sp.fill; ctx.strokeStyle = sp.style.stroke; ctx.lineWidth = 2 * sp.lw;
-                    ctx.fill(sp.path); ctx.stroke(sp.path);
-                    ctx.restore();
+                    const col = cv.spk[hv.d.tipo], alto = dims.spkMin + (dims.spkMax - dims.spkMin) * hv.t;
+                    app.map._cvTriangle(ctx, sx, sy, dims.spkW, alto);
+                    ctx.fillStyle = col.colors[hv.lv]; ctx.fill();
+                    app.map._cvTriangle(ctx, sx, sy + 2, dims.spkW + 2.5, alto + 3);
+                    ctx.lineWidth = par[1]; ctx.strokeStyle = par[2]; ctx.stroke();
+                    return;
                 }
+                const burbuja = hv.kind === 'bub';
+                const area = burbuja ? app.map._cvBubbleArea(dims, hv.frac).area : areaPos * 1.8;
+                const sp = app.map._cvSprite(state, hv.d.tipo, area, v.sc, dpr, burbuja);
+                ctx.drawImage(sp.img, sx - sp.side / 2, sy - sp.side / 2, sp.side, sp.side);
+                const r = burbuja ? Math.sqrt(area / Math.PI) + 3 : Math.sqrt(area) * 0.62 + 3;
+                ctx.beginPath(); ctx.arc(sx, sy, r, 0, 2 * Math.PI);
+                ctx.lineWidth = par[1]; ctx.strokeStyle = par[2]; ctx.stroke();
             });
             app.utils.perf('canvas: dibujo de marcadores', t0, drawn + ' de ' + pts.length + ' visibles');
         },
@@ -1370,6 +1376,44 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (!app.utils.isDensity((state.markerLabels[el.__data__.tipo] || {}).tipo)) d3.select(el).raise();
                 state._stackEl = el;
             }
+            state._aroSel = state._stackEl || null;
+            app.map.pintaAros(state);
+        },
+
+        /** Colores del aro: oscuro al pasar el cursor y el color de marca del sitio (`--s-marca`) en el marcador elegido. */
+        coloresAro: function(state) {
+            if (!state._colorMarca) {
+                const host = state.svg && state.svg.node();
+                const v = host ? getComputedStyle(host).getPropertyValue('--s-marca').trim() : '';
+                state._colorMarca = v || '#0A66C2';
+            }
+            return { hover: '#0F172A', sel: state._colorMarca };
+        },
+
+        /**
+         * Aros de los marcadores SVG (pocos puntos; con muchos los dibuja el canvas): un círculo alrededor del marcador bajo el
+         * cursor (`state._aroHover`) y otro alrededor del elegido (`state._aroSel`). Van en una capa propia sobre los marcadores,
+         * en unidades del mapa, y se redibujan con el zoom para conservar su tamaño en pantalla.
+         */
+        pintaAros: function(state) {
+            if (!state.gMarkers) return;
+            const padre = state.gMarkers.node().parentNode;
+            let capa = state.gAros;
+            if (!capa || !capa.node().isConnected) capa = state.gAros = d3.select(padre).append('g').attr('class', 'siarhe-aros').style('pointer-events', 'none');
+            else padre.appendChild(capa.node());
+            let k = 1; try { k = d3.zoomTransform(state.svg.node()).k; } catch (err) {}
+            const mt = app.map._markerMetrics(state, k), u = 1 / (k * mt.sc), col = app.map.coloresAro(state);
+            const datos = [[state._aroHover, 2, col.hover], [state._aroSel, 3.5, col.sel]]
+                .filter(function(p) { return p[0] && p[0].isConnected && p[0].__x !== undefined; });
+            capa.selectAll('circle').data(datos).join('circle')
+                .attr('cx', function(p) { return p[0].__x; }).attr('cy', function(p) { return p[0].__y; })
+                .attr('r', function(p) {
+                    const tipo = (state.markerLabels[(p[0].__data__ || {}).tipo] || {}).tipo;
+                    const b = p[0].getBBox ? p[0].getBBox() : null;
+                    const base = app.utils.isDensity(tipo) && b ? Math.max(b.width, b.height) / 2 : Math.sqrt(mt.symbolSize) * 0.62;
+                    return base + 3 * u;
+                })
+                .attr('fill', 'none').attr('stroke', function(p) { return p[2]; }).attr('stroke-width', function(p) { return p[1] * u; });
         },
 
         _svgUnmark: function(state, el) {
@@ -1824,6 +1868,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         const mt = app.map._markerMetrics(state, k);
                         node.setAttribute("stroke-width", (2 * mt.strokePx) / (k * mt.sc));
                         if (!app.utils.isDensity(config.tipo)) { d3.select(node).raise(); }
+                        state._aroHover = node;
+                        app.map.pintaAros(state);
 
                         const mapDiv = node.closest('.siarhe-map-container');
                         if (app.tooltips && mapDiv) app.tooltips.showMarkerTooltip(e, d, state, mapDiv);
@@ -1833,6 +1879,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         const kz = zoomK(), mz = app.map._markerMetrics(state, kz);
                         e.target.setAttribute("stroke-width", mz.strokePx / (kz * mz.sc));
                         if (state.tooltip) state.tooltip.style("display", "none");
+                        if (state._aroHover === e.target) { state._aroHover = null; app.map.pintaAros(state); }
                     });
                 // El clic (medir, marcadores encimados) se atiende en app.map.stackBind
             }
@@ -1843,6 +1890,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             // Lista de nodos para el zoom y modo denso: con muchos puntos se prioriza la velocidad de dibujo
             state._mkNodes = state.gMarkers.selectAll("path.siarhe-marker").nodes();
             state._mkStale = false;
+            // Los aros de marcadores que ya no están (otra capa, otro año) se borran
+            if (state._aroHover && !state._aroHover.isConnected) state._aroHover = null;
+            if (state._aroSel && !state._aroSel.isConnected) state._aroSel = null;
+            if (state.gAros) app.map.pintaAros(state);
             state.gMarkers.classed("siarhe-markers-dense", svgPoints.length > 5000);
             app.map._cvSet(state, cvPoints);
 
@@ -2731,6 +2782,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (cv && cv.pts && cv.pts.length) {
                     cv.sel = cv.pts.find(function(p) { return p.d === d || (d.clues && p.d.clues === d.clues && p.d.tipo === d.tipo); }) || null;
                     app.map._cvSchedule(state);
+                } else if (state._mkNodes) {
+                    state._aroSel = state._mkNodes.find(function(n) { const m = n.__data__; return m && (m === d || (d.clues && m.clues === d.clues && m.tipo === d.tipo)); }) || null;
+                    app.map.pintaAros(state);
                 }
                 // El marcador quedó en el centro del lienzo: ahí se abre su ficha
                 const r = nodo.getBoundingClientRect();

@@ -228,15 +228,45 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
         },
 
+        // Cuadrado más chico (80 % del lado) y elipse vertical con la misma área que el círculo: formas de RHEMX que d3 no trae
+        symbolSquareSmall: {
+            draw: function(context, size) { const l = Math.sqrt(size) * 0.8; context.rect(-l / 2, -l / 2, l, l); }
+        },
+        symbolEllipse: {
+            draw: function(context, size) {
+                const r = Math.sqrt(size / Math.PI), a = r / 1.4, b = r * 1.4, k = 0.5523;
+                context.moveTo(a, 0); context.bezierCurveTo(a, b * k, a * k, b, 0, b); context.bezierCurveTo(-a * k, b, -a, b * k, -a, 0);
+                context.bezierCurveTo(-a, -b * k, -a * k, -b, 0, -b); context.bezierCurveTo(a * k, -b, a, -b * k, a, 0); context.closePath();
+            }
+        },
+
+        /**
+         * Formas de los marcadores: las mismas 14 de RHEMX (geoespacial.js, FORMAS), con sus nombres. `FORMAS_DE_LINEA` son las
+         * hechas de líneas finas (más, equis, asterisco, ye): su borde toma el color del relleno, si no se verían blancas.
+         */
+        NOMBRES_FORMA: {
+            circle: 'Círculo', ellipse: 'Elipse', square: 'Cuadrado', triangle: 'Triángulo', diamond: 'Diamante', star: 'Estrella', cross: 'Cruz',
+            plus: 'Más', times: 'Equis', wye: 'Ye', triangle2: 'Triángulo invertido', diamond2: 'Rombo', square2: 'Cuadrado chico', asterisk: 'Asterisco'
+        },
+        FORMAS_DE_LINEA: ['plus', 'times', 'asterisk', 'wye'],
+
         getD3Shape: function(shapeName) {
             if (typeof d3 === 'undefined') return null;
-            const shapes = { 'circle': d3.symbolCircle, 'square': d3.symbolSquare, 'triangle': d3.symbolTriangle, 'diamond': d3.symbolDiamond, 'star': d3.symbolStar, 'cross': d3.symbolCross, 'triangle2': app.utils.symbolTriangleDown };
+            const shapes = {
+                circle: d3.symbolCircle, ellipse: app.utils.symbolEllipse, square: d3.symbolSquare, triangle: d3.symbolTriangle,
+                diamond: d3.symbolDiamond, star: d3.symbolStar, cross: d3.symbolCross, plus: d3.symbolPlus, times: d3.symbolTimes,
+                wye: d3.symbolWye, triangle2: app.utils.symbolTriangleDown, diamond2: d3.symbolDiamond2,
+                square2: app.utils.symbolSquareSmall, asterisk: d3.symbolAsterisk
+            };
             return shapes[shapeName] || d3.symbolCircle;
         },
 
         getMarkerStyle: function(type, state) {
-            if (state.markerStyles[type]) return state.markerStyles[type];
-            return { shape: 'circle', fill: '#000000', fill2: '', stroke: '#ffffff' };
+            const e = state.markerStyles[type];
+            if (!e) return { shape: 'circle', fill: '#000000', fill2: '', stroke: '#ffffff' };
+            // Formas de líneas finas: el borde es el relleno (como en RHEMX)
+            if (app.utils.FORMAS_DE_LINEA.indexOf(e.shape) !== -1 && e.stroke !== e.fill) return Object.assign({}, e, { stroke: e.fill });
+            return e;
         },
 
         // Tipos de marcador que codifican un valor numerico (burbuja o pico)
@@ -478,7 +508,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 view: qs.get('v') === 'detalle' ? 'detalle' : 'base',
                 markers: (qs.get('k') || '').split(',').filter(Boolean),
                 pos: qs.get('p') || '',
-                foco: qs.get('f') || ''
+                foco: qs.get('f') || '',
+                etiquetas: qs.get('etq') === '1'
             };
         },
 
@@ -487,6 +518,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const p = state._urlPending;
             if (!p) return;
             state._urlPending = null;
+
+            // etq=1: los nombres de los lugares a la vista, como los dejó quien copió el enlace
+            if (p.etiquetas && app.map) {
+                app.map.setLabels(state, true);
+                if (state.syncLabelsBtn) state.syncLabelsBtn();
+            }
 
             if (p.view === 'detalle') {
                 const sel = container.querySelector('#siarhe-vista-select');
@@ -561,6 +598,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const posEnlace = app.pos ? app.pos.aEnlace(state) : '';
             if (posEnlace) qs.set('p', posEnlace);
             if (state.foco) qs.set('f', state.foco);
+            if (state.showLabels) qs.set('etq', '1');
             return qs;
         },
 

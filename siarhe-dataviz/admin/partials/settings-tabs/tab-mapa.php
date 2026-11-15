@@ -108,7 +108,54 @@ $reset_hecho = isset( $_GET['siarhe_reset'] ) ? sanitize_key( $_GET['siarhe_rese
         <div class="notice notice-success inline"><p><?php echo esc_html( $avisos_reset[ $reset_hecho ] ); ?></p></div>
     <?php endif; ?>
 
-    <details class="siarhe-plegable" open><summary><h3 class="siarhe-section-title">Mapa de Calor (Escala de Colores)<?php Siarhe_Admin::help('Colores generales del mapa. Cada metrica puede usar estos o los suyos propios.'); ?></h3></summary><div class="siarhe-plegable-cuerpo">
+    <details class="siarhe-plegable" open><summary><h3 class="siarhe-section-title">Botones del Mapa y la Tabla<?php Siarhe_Admin::help('Estilo unico de todos los botones del sitio publico (Personalizar, Restablecer, Mapa PNG, Etiquetas, Copiar enlace, Descargar Excel). El color del texto tambien pinta los iconos del boton.'); ?></h3></summary><div class="siarhe-plegable-cuerpo">
+    <p class="description">Todos los botones comparten este estilo. El color de texto también se aplica a sus íconos.</p>
+
+    <table class="form-table">
+        <tr>
+            <th scope="row">Estado normal<?php Siarhe_Admin::help('Colores del boton en reposo.'); ?></th>
+            <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[btn_bg]" value="<?php echo esc_attr($opts['btn_bg']); ?>" class="siarhe-color-field"></div><div><label>Borde:</label><br><input type="text" name="siarhe_map_options[btn_border]" value="<?php echo esc_attr($opts['btn_border']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[btn_text]" value="<?php echo esc_attr($opts['btn_text']); ?>" class="siarhe-color-field"></div></div></td>
+        </tr>
+        <tr>
+            <th scope="row">Al pasar el cursor<?php Siarhe_Admin::help('Colores cuando el cursor esta sobre el boton o recibe el foco del teclado.'); ?></th>
+            <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[btn_hover_bg]" value="<?php echo esc_attr($opts['btn_hover_bg']); ?>" class="siarhe-color-field"></div><div><label>Borde:</label><br><input type="text" name="siarhe_map_options[btn_hover_border]" value="<?php echo esc_attr($opts['btn_hover_border']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[btn_hover_text]" value="<?php echo esc_attr($opts['btn_hover_text']); ?>" class="siarhe-color-field"></div></div></td>
+        </tr>
+        <tr>
+            <th scope="row">Al presionar<?php Siarhe_Admin::help('Colores mientras el boton se mantiene presionado.'); ?></th>
+            <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[btn_active_bg]" value="<?php echo esc_attr($opts['btn_active_bg']); ?>" class="siarhe-color-field"></div><div><label>Borde:</label><br><input type="text" name="siarhe_map_options[btn_active_border]" value="<?php echo esc_attr($opts['btn_active_border']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[btn_active_text]" value="<?php echo esc_attr($opts['btn_active_text']); ?>" class="siarhe-color-field"></div></div></td>
+        </tr>
+    </table>
+
+    </div></details>
+
+    <details class="siarhe-plegable"><summary><h3 class="siarhe-section-title">Estilos de Tabla de Datos<?php Siarhe_Admin::help('Apariencia de la tabla de datos que se muestra en el sitio publico.'); ?></h3></summary><div class="siarhe-plegable-cuerpo">
+
+    <table class="form-table">
+        <tr>
+            <th scope="row">Encabezados (Header)<?php Siarhe_Admin::help('Colores de fondo y texto de la fila de encabezados de la tabla publica.'); ?></th>
+            <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[th_bg]" value="<?php echo esc_attr($opts['th_bg']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[th_text]" value="<?php echo esc_attr($opts['th_text']); ?>" class="siarhe-color-field"></div></div></td>
+        </tr>
+        <tr>
+            <th scope="row">Fila de Totales (ID 9999)<?php Siarhe_Admin::help('Estilo de la fila de totales (registro con ID 9999) de la tabla publica.'); ?></th>
+            <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[tr_total_bg]" value="<?php echo esc_attr($opts['tr_total_bg']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[tr_total_txt]" value="<?php echo esc_attr($opts['tr_total_txt']); ?>" class="siarhe-color-field"></div></div></td>
+        </tr>
+        <tr>
+            <th scope="row">Cuerpo Tabla (Impar)<?php Siarhe_Admin::help('Colores de las filas impares de la tabla publica.'); ?></th>
+            <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[tr_odd]" value="<?php echo esc_attr($opts['tr_odd']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[tr_odd_txt]" value="<?php echo esc_attr($opts['tr_odd_txt']); ?>" class="siarhe-color-field"></div></div></td>
+        </tr>
+        <tr>
+            <th scope="row">Cuerpo Tabla (Par)<?php Siarhe_Admin::help('Colores de las filas pares de la tabla publica.'); ?></th>
+            <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[tr_even]" value="<?php echo esc_attr($opts['tr_even']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[tr_even_txt]" value="<?php echo esc_attr($opts['tr_even_txt']); ?>" class="siarhe-color-field"></div></div></td>
+        </tr>
+        <tr>
+            <th scope="row">Bordes<?php Siarhe_Admin::help('Color de las lineas de la tabla publica.'); ?></th>
+            <td><div class="siarhe-flex-row"><div><label>Color:</label><br><input type="text" name="siarhe_map_options[border_color]" value="<?php echo esc_attr($opts['border_color']); ?>" class="siarhe-color-field"></div><div><label>Grosor (px):</label><br><input type="number" name="siarhe_map_options[border_width]" value="<?php echo esc_attr($opts['border_width']); ?>" class="small-text" min="0" max="5"></div></div></td>
+        </tr>
+    </table>
+
+    </div></details>
+
+    <details class="siarhe-plegable"><summary><h3 class="siarhe-section-title">Colores de los Indicadores (Mapa de Calor)<?php Siarhe_Admin::help('Colores generales del mapa. Cada metrica puede usar estos o los suyos propios.'); ?></h3></summary><div class="siarhe-plegable-cuerpo">
 
     <table class="form-table" role="presentation">
         <tr>
@@ -197,53 +244,6 @@ $reset_hecho = isset( $_GET['siarhe_reset'] ) ? sanitize_key( $_GET['siarhe_rese
 
     </div></details>
 
-    <details class="siarhe-plegable"><summary><h3 class="siarhe-section-title">Botones del Mapa y la Tabla<?php Siarhe_Admin::help('Estilo unico de todos los botones del sitio publico (Personalizar, Restablecer, Mapa PNG, Etiquetas, Copiar enlace, Descargar Excel). El color del texto tambien pinta los iconos del boton.'); ?></h3></summary><div class="siarhe-plegable-cuerpo">
-    <p class="description">Todos los botones comparten este estilo. El color de texto también se aplica a sus íconos.</p>
-
-    <table class="form-table">
-        <tr>
-            <th scope="row">Estado normal<?php Siarhe_Admin::help('Colores del boton en reposo.'); ?></th>
-            <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[btn_bg]" value="<?php echo esc_attr($opts['btn_bg']); ?>" class="siarhe-color-field"></div><div><label>Borde:</label><br><input type="text" name="siarhe_map_options[btn_border]" value="<?php echo esc_attr($opts['btn_border']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[btn_text]" value="<?php echo esc_attr($opts['btn_text']); ?>" class="siarhe-color-field"></div></div></td>
-        </tr>
-        <tr>
-            <th scope="row">Al pasar el cursor<?php Siarhe_Admin::help('Colores cuando el cursor esta sobre el boton o recibe el foco del teclado.'); ?></th>
-            <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[btn_hover_bg]" value="<?php echo esc_attr($opts['btn_hover_bg']); ?>" class="siarhe-color-field"></div><div><label>Borde:</label><br><input type="text" name="siarhe_map_options[btn_hover_border]" value="<?php echo esc_attr($opts['btn_hover_border']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[btn_hover_text]" value="<?php echo esc_attr($opts['btn_hover_text']); ?>" class="siarhe-color-field"></div></div></td>
-        </tr>
-        <tr>
-            <th scope="row">Al presionar<?php Siarhe_Admin::help('Colores mientras el boton se mantiene presionado.'); ?></th>
-            <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[btn_active_bg]" value="<?php echo esc_attr($opts['btn_active_bg']); ?>" class="siarhe-color-field"></div><div><label>Borde:</label><br><input type="text" name="siarhe_map_options[btn_active_border]" value="<?php echo esc_attr($opts['btn_active_border']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[btn_active_text]" value="<?php echo esc_attr($opts['btn_active_text']); ?>" class="siarhe-color-field"></div></div></td>
-        </tr>
-    </table>
-
-    </div></details>
-
-    <details class="siarhe-plegable"><summary><h3 class="siarhe-section-title">Estilos de Tabla de Datos<?php Siarhe_Admin::help('Apariencia de la tabla de datos que se muestra en el sitio publico.'); ?></h3></summary><div class="siarhe-plegable-cuerpo">
-
-    <table class="form-table">
-        <tr>
-            <th scope="row">Encabezados (Header)<?php Siarhe_Admin::help('Colores de fondo y texto de la fila de encabezados de la tabla publica.'); ?></th>
-            <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[th_bg]" value="<?php echo esc_attr($opts['th_bg']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[th_text]" value="<?php echo esc_attr($opts['th_text']); ?>" class="siarhe-color-field"></div></div></td>
-        </tr>
-        <tr>
-            <th scope="row">Fila de Totales (ID 9999)<?php Siarhe_Admin::help('Estilo de la fila de totales (registro con ID 9999) de la tabla publica.'); ?></th>
-            <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[tr_total_bg]" value="<?php echo esc_attr($opts['tr_total_bg']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[tr_total_txt]" value="<?php echo esc_attr($opts['tr_total_txt']); ?>" class="siarhe-color-field"></div></div></td>
-        </tr>
-        <tr>
-            <th scope="row">Cuerpo Tabla (Impar)<?php Siarhe_Admin::help('Colores de las filas impares de la tabla publica.'); ?></th>
-            <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[tr_odd]" value="<?php echo esc_attr($opts['tr_odd']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[tr_odd_txt]" value="<?php echo esc_attr($opts['tr_odd_txt']); ?>" class="siarhe-color-field"></div></div></td>
-        </tr>
-        <tr>
-            <th scope="row">Cuerpo Tabla (Par)<?php Siarhe_Admin::help('Colores de las filas pares de la tabla publica.'); ?></th>
-            <td><div class="siarhe-flex-row"><div><label>Fondo:</label><br><input type="text" name="siarhe_map_options[tr_even]" value="<?php echo esc_attr($opts['tr_even']); ?>" class="siarhe-color-field"></div><div><label>Texto:</label><br><input type="text" name="siarhe_map_options[tr_even_txt]" value="<?php echo esc_attr($opts['tr_even_txt']); ?>" class="siarhe-color-field"></div></div></td>
-        </tr>
-        <tr>
-            <th scope="row">Bordes<?php Siarhe_Admin::help('Color de las lineas de la tabla publica.'); ?></th>
-            <td><div class="siarhe-flex-row"><div><label>Color:</label><br><input type="text" name="siarhe_map_options[border_color]" value="<?php echo esc_attr($opts['border_color']); ?>" class="siarhe-color-field"></div><div><label>Grosor (px):</label><br><input type="number" name="siarhe_map_options[border_width]" value="<?php echo esc_attr($opts['border_width']); ?>" class="small-text" min="0" max="5"></div></div></td>
-        </tr>
-    </table>
-
-    </div></details>
-
     <details class="siarhe-plegable"><summary><h3 class="siarhe-section-title">📍 Estilos Dinámicos de Marcadores<?php Siarhe_Admin::help('Forma, relleno y borde de cada marcador. Se generan a partir de los marcadores definidos en Configuracion > Marcadores.'); ?></h3></summary><div class="siarhe-plegable-cuerpo">
     <p class="description">Aparecen aquí todos los marcadores de Configuración › Marcadores, por grupo. Los del sistema ya traen su estilo; lo que cambies y guardes lo sustituye.</p>
     <div class="siarhe-reset-fila">
@@ -297,13 +297,9 @@ $reset_hecho = isset( $_GET['siarhe_reset'] ) ? sanitize_key( $_GET['siarhe_rese
                             </select>
                         <?php else: ?>
                             <select name="siarhe_map_options[m_<?php echo esc_attr($s_key); ?>_shape]" id="m_<?php echo esc_attr($s_key); ?>_shape">
-                                <option value="circle" <?php selected($shape_val, 'circle'); ?>>Círculo</option>
-                                <option value="square" <?php selected($shape_val, 'square'); ?>>Cuadrado</option>
-                                <option value="triangle" <?php selected($shape_val, 'triangle'); ?>>Triángulo</option>
-                                <option value="diamond" <?php selected($shape_val, 'diamond'); ?>>Rombo</option>
-                                <option value="star" <?php selected($shape_val, 'star'); ?>>Estrella</option>
-                                <option value="cross" <?php selected($shape_val, 'cross'); ?>>Cruz</option>
-                                <option value="triangle2" <?php selected($shape_val, 'triangle2'); ?>>Triángulo invertido</option>
+                                <?php foreach ( siarhe_marker_formas() as $forma_id => $forma_nombre ) : ?>
+                                <option value="<?php echo esc_attr( $forma_id ); ?>" <?php selected( $shape_val, $forma_id ); ?>><?php echo esc_html( $forma_nombre ); ?></option>
+                                <?php endforeach; ?>
                             </select>
                         <?php endif; ?>
                     </div>
@@ -346,8 +342,17 @@ document.addEventListener('DOMContentLoaded', function() {
         diamond: '<polygon points="15,2 26,15 15,28 4,15" />',
         star: '<polygon points="15,2 19,10 28,11 21,17 23,26 15,22 7,26 9,17 2,11 11,10" />',
         cross: '<path d="M11,5 H19 V11 H25 V19 H19 V25 H11 V19 H5 V11 H11 Z" />',
-        triangle2: '<polygon points="15,26 26,6 4,6" />'
+        triangle2: '<polygon points="15,26 26,6 4,6" />',
+        ellipse: '<ellipse cx="15" cy="15" rx="7.5" ry="12" />',
+        diamond2: '<polygon points="15,4 23,15 15,26 7,15" />',
+        square2: '<rect x="8" y="8" width="14" height="14" />',
+        plus: '<path d="M15,4 V26 M4,15 H26" />',
+        times: '<path d="M7,7 L23,23 M23,7 L7,23" />',
+        asterisk: '<path d="M15,4 V26 M5.5,9.5 L24.5,20.5 M24.5,9.5 L5.5,20.5" />',
+        wye: '<path d="M15,15 V27 M15,15 L5,9 M15,15 L25,9" />'
     };
+    // Formas de líneas finas: el borde toma el color del relleno, como en el mapa
+    const deLinea = ['plus', 'times', 'asterisk', 'wye'];
 
     // Convierte cualquier color CSS (hex, rgb, rgba) a [r, g, b, a] usando el propio navegador
     const colorCtx = document.createElement('canvas').getContext('2d');
@@ -391,9 +396,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
             svgBox.innerHTML = shapes[shape] || shapes.circle;
             const el = svgBox.firstElementChild;
-            el.setAttribute('fill', fill);
-            el.setAttribute('stroke', stroke);
-            el.setAttribute('stroke-width', '2');
+            const linea = deLinea.indexOf(shape) !== -1;
+            el.setAttribute('fill', linea ? 'none' : fill);
+            el.setAttribute('stroke', linea ? fill : stroke);
+            el.setAttribute('stroke-width', linea ? '3' : '2');
             el.setAttribute('stroke-linejoin', 'round');
         }
     }

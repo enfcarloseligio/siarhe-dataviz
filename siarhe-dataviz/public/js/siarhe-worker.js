@@ -105,7 +105,9 @@ async function loadFile(url, libs) {
 }
 
 // Columnas de la fila original que otros modulos siguen leyendo despues (tooltips y densidad)
-const RAW_COLS = ['entidad', 'nom_ent', 'localidad', 'nom_loc', 'cve_mun', 'cve mun', 'clave del municipio', 'municipio', 'clave_municipio'];
+// Columnas que se conservan en _raw para la ficha: ubicación, personal de enfermería de la unidad, CLUES anterior y reportes de las clínicas
+const RAW_COLS = ['entidad', 'nom_ent', 'localidad', 'nom_loc', 'cve_mun', 'cve mun', 'clave del municipio', 'municipio', 'clave_municipio',
+    'plazas de enfermeria', 'recursos humanos estimados', 'clues anterior', 'reportes', 'anios reportados', 'primer anio', 'ultimo anio'];
 
 function processRows(file, spec) {
     const header = file.header, rows = file.rows;

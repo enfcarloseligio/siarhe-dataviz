@@ -117,7 +117,14 @@ class Siarhe_Shortcodes {
 
         // 3. Cargar la Plantilla PHP
         ob_start();
-        
+
+        // Si la hoja de estilos no salió en <head> (el shortcode está en una plantilla o un widget que no se detectó), se imprime
+        // aquí, justo antes de la visualización: el navegador no dibuja lo que sigue hasta tenerla y la página no se recorre al
+        // aplicarse. Impresa al final del <body>, como haría WordPress por su cuenta, la visualización se veía primero sin estilo.
+        if ( ! wp_style_is( 'siarhe-frontend-css', 'done' ) ) {
+            wp_print_styles( array( 'siarhe-frontend-css' ) );
+        }
+
         $template_path = SIARHE_PATH . 'public/partials/siarhe-view.php';
         
         if ( file_exists( $template_path ) ) {

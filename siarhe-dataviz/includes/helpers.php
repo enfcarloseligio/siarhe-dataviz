@@ -143,6 +143,17 @@ function siarhe_map_color_keys() {
 }
 
 /**
+ * Formas de marcador que se pueden elegir: las 14 de RHEMX con sus nombres (siarhe-core.js, app.utils.NOMBRES_FORMA).
+ */
+function siarhe_marker_formas() {
+    return array(
+        'circle' => 'Círculo', 'ellipse' => 'Elipse', 'square' => 'Cuadrado', 'square2' => 'Cuadrado chico', 'triangle' => 'Triángulo',
+        'triangle2' => 'Triángulo invertido', 'diamond' => 'Diamante', 'diamond2' => 'Rombo', 'star' => 'Estrella', 'cross' => 'Cruz',
+        'plus' => 'Más', 'times' => 'Equis', 'asterisk' => 'Asterisco', 'wye' => 'Ye',
+    );
+}
+
+/**
  * Estilo por defecto de los marcadores del sistema (forma, relleno y borde), los de RHEMX: los niveles de atencion son
  * cruces verde, dorada y guinda, «No Aplica» un triangulo y «No Especificado» un circulo grises.
  */

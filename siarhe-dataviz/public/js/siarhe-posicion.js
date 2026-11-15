@@ -29,7 +29,8 @@
         'no especificado': { shape: 'circle', fill: '#475569', stroke: '#ffffff' }
     };
     const ESTILO_OTRO = { shape: 'circle', fill: '#475569', stroke: '#ffffff' };
-    const FORMAS_INSTITUCION = ['cross', 'circle', 'square', 'triangle', 'diamond', 'star', 'triangle2'];
+    // Orden de RHEMX (ORDEN_FORMAS_INSTITUCION): al agotarse, se vuelve a empezar con el color más claro
+    const FORMAS_INSTITUCION = ['cross', 'circle', 'square', 'triangle', 'diamond', 'star', 'wye', 'triangle2', 'diamond2', 'square2', 'ellipse', 'plus', 'times', 'asterisk'];
     const CLINICAS = [
         { id: 'cateteres', clave: 'CATETER', bit: 1, nombre: 'Catéteres' },
         { id: 'heridas', clave: 'HERIDAS', bit: 2, nombre: 'Heridas' }
@@ -309,7 +310,7 @@
          * la institución o el tipo de clínica, el selector de forma se oculta. Devuelve { sync(visible) }.
          */
         _panelEstilos: function(container, state, fila) {
-            const FORMAS = { circle: 'Círculo', square: 'Cuadrado', triangle: 'Triángulo', diamond: 'Diamante', star: 'Estrella', cross: 'Cruz', triangle2: 'Triángulo invertido' };
+            const FORMAS = app.utils.NOMBRES_FORMA;
             const img = container.dataset.img || '';
             const hex = function(c) {
                 if (/^#[0-9a-f]{6}$/i.test(c || '')) return c;

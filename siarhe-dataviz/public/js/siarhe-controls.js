@@ -375,6 +375,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 labelsBtn.addEventListener('click', function() {
                     if (app.map) app.map.setLabels(state, !state.showLabels);
                     state.syncLabelsBtn();
+                    if (app.urlState) app.urlState.write(container, state);
                 });
                 state.syncLabelsBtn();
             }

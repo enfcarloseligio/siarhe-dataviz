@@ -145,7 +145,7 @@ Los marcadores aparecen por grupo, en bloques plegables, cada uno con una **vist
 
 | Ajuste | Aplica a | Notas |
 |---|---|---|
-| **Forma** | Posición | Círculo, cuadrado, triángulo, triángulo invertido, rombo, estrella o cruz. Espectro es siempre círculo y spike siempre triángulo |
+| **Forma** | Posición | Las 14 de RHEMX: círculo, elipse, cuadrado, cuadrado chico, triángulo, triángulo invertido, diamante, rombo, estrella, cruz, más, equis, asterisco y ye. Las de líneas finas (más, equis, asterisco, ye) se dibujan con el color del relleno. Espectro es siempre círculo y spike siempre triángulo |
 | **Relleno** | Todos | Espectro: por defecto rojo semitransparente. Spike: es el color del pico **más alto** |
 | **Color del pico más bajo** (opcional) | Spike | Si se deja vacío, los picos bajos usan una versión clara del color alto |
 | **Borde** | Todos | Se dibuja fino (0.4–1 px) |
