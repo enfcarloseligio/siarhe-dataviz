@@ -4,7 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 /**
  * Variables adicionales que generan las bases de RHEMX (mapas.py), ademas de las de nivel de atencion: estudios (con LEO) y
  * areas de especializacion (esp_*). Cada una da dos columnas, enfermeras_<clave> y tasa_<clave>. Se genera desde
- * data/processed/mapas/diccionario_variables.csv de RHEMX: [clave, grupo, nombre, descripcion].
+ * data/processed/mapas/data/diccionario_variables.csv de RHEMX: [clave, grupo, nombre, descripcion].
 */
 return array(
     array( 'est_auxiliar', 'Estudios', 'Auxiliar', 'Plazas cuyo máximo grado de estudios es auxiliar de enfermería' ),

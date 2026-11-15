@@ -17,16 +17,16 @@ ENT = sys.argv[4] if len(sys.argv) > 4 else '33'
 NACIONAL = ENT == '33'
 # Archivo de la base de la entidad: 33_republica-mexicana.json, 28_tamaulipas.json...
 def base_de(anio, carpeta):
-    d = raiz + f'{R}data/processed/mapas/{anio}/{carpeta}'
+    d = raiz + f'{R}data/processed/mapas/data/{anio}/{carpeta}'
     if not os.path.isdir(d): return ''
     hallado = [f for f in os.listdir(d) if f.startswith(ENT + '_') and f.endswith('.json')]
-    return f'{R}data/processed/mapas/{anio}/{carpeta}/{hallado[0]}' if hallado else ''
+    return f'{R}data/processed/mapas/data/{anio}/{carpeta}/{hallado[0]}' if hallado else ''
 NOMBRE = 'República Mexicana'
 
 bases = {}
 for anio in ('2025', '2024', '2019'):
     u = {}
-    for unidad, carpeta in (('plazas', 'json'), ('personas', 'json_personas')):
+    for unidad, carpeta in (('plazas', 'json_plazas'), ('personas', 'json_personas')):
         url = base_de(anio, carpeta)
         if hay(url): u[unidad] = {'url': url, 'fecha': '01/ene/' + anio}
     if u: bases[anio] = u

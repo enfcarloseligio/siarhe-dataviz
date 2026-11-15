@@ -1442,3 +1442,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 /* Renglones de la tabla que llevan a un lugar (en la República, entrar al estado) */
 .siarhe-viz-wrapper table.siarhe-data-table tr.siarhe-row-enlace { cursor: pointer; }
 .siarhe-viz-wrapper table.siarhe-data-table tr.siarhe-row-enlace:hover td { cursor: pointer; }
+
+/* Selectores propios de la tabla (espejo de los del mapa) y renglón del lugar señalado en el mapa */
+.siarhe-viz-wrapper .siarhe-tabla-barra .siarhe-tabla-selectores { margin-bottom: 8px; }
+.siarhe-viz-wrapper table.siarhe-data-table tbody tr.siarhe-row-resaltada td { background-color: var(--s-th-hover, #e2e8f0); }

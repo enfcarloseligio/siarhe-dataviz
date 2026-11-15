@@ -115,6 +115,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .style("cursor", "pointer")
                 .on("mouseover", (e, d) => {
                     if(app.tooltips) app.tooltips.showGeoTooltip(e, d, state, mapDiv);
+                    if (app.table && app.table.resaltaFila) app.table.resaltaFila(state, app.utils.getGeoKey(d.properties, state.isNacional), true);
                 })
                 .on("mousemove", (e) => {
                     const [mx, my] = d3.pointer(e, mapDiv);
@@ -124,6 +125,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
                     state.gPaths.selectAll("path.siarhe-feature").attr("stroke", "#fff").attr("stroke-width", 0.5 / k);
                     if (state.tooltip) state.tooltip.style("opacity", 0).style("display", "none");
+                    if (app.table && app.table.resaltaFila) app.table.resaltaFila(state, null, false);
                 })
                 .on("click", (e, d) => {
                     const ahora = Date.now();
@@ -2708,7 +2710,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (!state.gPaths || !state.svg) return;
             const k = d3.zoomTransform(state.svg.node()).k || 1;
             const nodo = state.gPaths.selectAll('path.siarhe-feature')
-                .filter(function(d) { return d && String(app.utils.getGeoKey(d.properties || {}, state.isNacional)) === String(clave); });
+                .filter(function(d) { return d && String(app.utils.getGeoKey(d.properties || {}, state.isNacional)) === String(app.utils.cleanKey(clave)); });
             if (nodo.empty()) return;
             if (on) nodo.raise().attr('stroke', '#0F172A').attr('stroke-width', 2.5 / k);
             else nodo.attr('stroke', '#fff').attr('stroke-width', 0.5 / k);

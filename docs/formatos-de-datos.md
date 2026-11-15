@@ -31,7 +31,7 @@ Nombre de los archivos en el servidor: `{entidad}-{año}-{unidad}.csv` y `.json`
 
 ### CSV o JSON: se acepta cualquiera y siempre existen los dos
 
-Se puede subir el CSV o el JSON optimizado que genera RHEMX (`data/processed/mapas/<año>/json/` para plazas y `json_personas/` para personas, con los mismos nombres que los CSV). El plugin valida lo que se sube y crea el otro formato (`Siarhe_Static_Json`), de modo que los dos son siempre equivalentes: el CSV queda para descargarlo o editarlo en Excel y el JSON, que pesa casi la mitad, es el que lee el mapa.
+Se puede subir el CSV o el JSON optimizado que genera RHEMX (`data/processed/mapas/data/<año>/json_plazas/` para plazas y `json_personas/` para personas, con los mismos nombres que los CSV). El plugin valida lo que se sube y crea el otro formato (`Siarhe_Static_Json`), de modo que los dos son siempre equivalentes: el CSV queda para descargarlo o editarlo en Excel y el JSON, que pesa casi la mitad, es el que lee el mapa.
 
 El JSON (`formato: "siarhe-estatico"`, `version: 1`) lleva las mismas columnas que el CSV, pero no repite las tasas que se pueden calcular: cada `tasa_<x>` que es exactamente `enfermeras_<x> / población × 1,000` se declara en `tasas` y el navegador la calcula.
 
@@ -114,7 +114,7 @@ Tipos de marcador: **posición** (símbolo fijo), **espectro** (burbuja con áre
 
 ## Geometrías (TopoJSON por marco geoestadístico)
 
-El formato de carga es el **TopoJSON que exporta RHEMX** (`python src/geo_mapas.py`; copia lista para el plugin en `data/processed/geo/<marco>/`, con un `LEEME.txt`). Hay un archivo por **capa, entidad y marco**, guardado como `{entidad}-{marco}.json`.
+El formato de carga es el **TopoJSON que exporta RHEMX** (`python src/geo_mapas.py`; copia lista para el plugin en `data/processed/mapas/geo/<marco>/`, con un `LEEME.txt`). Hay un archivo por **capa, entidad y marco**, guardado como `{entidad}-{marco}.json`.
 
 | Pestaña | Capa | República Mexicana | Cada entidad | Clave `c` |
 |---|---|---|---|---|

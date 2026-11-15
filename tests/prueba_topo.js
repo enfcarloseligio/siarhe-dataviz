@@ -64,14 +64,14 @@ for (const marco of ['2016', '2020', '2025']) {
 
         // union con la base estatica de 2026 (la clave del CSV de una entidad es CVE_MUN de 3 digitos)
         const slugs = { '01': 'aguascalientes', '09': 'ciudad-de-mexico', '20': 'oaxaca', '31': 'yucatan' };
-        const csv = path.join(RHEMX, 'data/processed/mapas/2026/csv', nn + '_' + slugs[nn] + '.csv');
+        const csv = path.join(RHEMX, 'data/processed/mapas/data/2026/csv_plazas', nn + '_' + slugs[nn] + '.csv');
         if (fs.existsSync(csv)) {
             const claves = new Set(csvFilas(csv).map(r => r.CVE_MUN));
             mun.features.forEach(f => { totalMun++; if (!claves.has(f.properties.CVE_MUN)) sinFila++; });
         }
     }
     console.log('   municipios sin fila en la base 2026: ' + sinFila + ' de ' + totalMun);
-    const csvNac = path.join(RHEMX, 'data/processed/mapas/2026/csv/33_republica-mexicana.csv');
+    const csvNac = path.join(RHEMX, 'data/processed/mapas/data/2026/csv_plazas/33_republica-mexicana.csv');
     if (fs.existsSync(csvNac)) {
         const claves = new Set(csvFilas(csvNac).map(r => r.CVE_ENT));
         ok(ent.features.every(f => claves.has(f.properties.CVE_ENT)), 'cada entidad tiene fila en la base nacional');

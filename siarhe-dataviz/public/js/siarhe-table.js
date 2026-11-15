@@ -115,6 +115,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 boton('siarhe-tabla-json', 'icon-json', 'JSON', 'Descargar la tabla en JSON') +
                 '</div>';
             vista.insertBefore(barra, vista.firstChild);
+            if (hayMapa) app.table._selectores(container, state, barra);
 
             const alPulsar = function(clase, fn) {
                 const b = barra.querySelector('.' + clase);
@@ -140,6 +141,123 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             alPulsar('siarhe-tabla-csv', function() { app.table.aCSV(container, state); });
             alPulsar('siarhe-tabla-xlsx', function() { app.table.aXLSX(container, state); });
             alPulsar('siarhe-tabla-json', function() { app.table.aJSON(container, state); });
+        },
+
+        /**
+         * Selectores propios de la tabla cuando el shortcode trae mapa y tabla, como en RHEMX: año, tema, indicador, unidad y
+         * medida, sin subir al mapa a cambiarlos. Son un espejo de los controles del mapa: cada uno acciona el suyo y se
+         * repinta con `state.syncTabla()` (lo llama `update` y cualquier cambio en el panel del mapa). La tabla sola no los
+         * necesita: ya lleva sus controles (`renderMain`).
+         */
+        _selectores: function(container, state, barra) {
+            const mapa = container.querySelector('#siarhe-map-section');
+            if (!mapa || !app.controls || !app.controls.makeSwitch) return;
+            const fila = document.createElement('div');
+            fila.className = 'siarhe-controls-row siarhe-tabla-selectores';
+            fila.dataset.fila = 'datos';
+            fila.innerHTML = '<span class="siarhe-fila-titulo">Datos de la tabla</span>';
+            barra.insertBefore(fila, barra.firstChild);
+
+            const grupo = function(titulo, ico) {
+                const g = document.createElement('div');
+                g.className = 'siarhe-control-group';
+                const label = document.createElement('label');
+                label.innerHTML = icono(container, ico) + ' ';
+                label.appendChild(document.createTextNode(titulo));
+                const sel = document.createElement('select');
+                sel.className = 'siarhe-metric-select';
+                sel.setAttribute('aria-label', titulo + ' de la tabla');
+                g.appendChild(label); g.appendChild(sel);
+                fila.appendChild(g);
+                return { g: g, sel: sel };
+            };
+            const llena = function(sel, opciones, valor) {
+                const firma = opciones.map(function(o) { return o.v + '|' + o.t + '|' + (o.d ? 1 : 0); }).join('~');
+                if (sel.dataset.firma !== firma) {
+                    sel.innerHTML = '';
+                    opciones.forEach(function(o) {
+                        const op = document.createElement('option');
+                        op.value = o.v; op.textContent = o.t; op.disabled = !!o.d;
+                        sel.appendChild(op);
+                    });
+                    sel.dataset.firma = firma;
+                }
+                sel.value = valor;
+            };
+
+            // Año y tema: selectores nativos del mapa
+            const nativo = function(titulo, ico, id) {
+                const c = grupo(titulo, ico);
+                const origen = function() { return mapa.querySelector('#' + id); };
+                c.sel.addEventListener('change', function() {
+                    const o = origen();
+                    if (!o) return;
+                    o.value = c.sel.value;
+                    o.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+                return function() {
+                    const o = origen(), g = o && o.closest('.siarhe-control-group');
+                    c.g.hidden = !o || o.options.length < 2 || !!(g && g.hidden);
+                    if (o) llena(c.sel, Array.from(o.options).map(function(x) { return { v: x.value, t: x.textContent, d: x.disabled }; }), o.value);
+                };
+            };
+            const pintaAnio = nativo('Año', 'icon-calendario', 'siarhe-anio-select');
+            const pintaTema = nativo('Tema', 'icon-nivel', 'siarhe-tema-select');
+
+            // Indicador: las opciones visibles del desplegable del mapa
+            const ind = grupo('Indicador', 'icon-grafico-pastel');
+            const opcionesInd = function() { return Array.from(mapa.querySelectorAll('#c-indicador .siarhe-cs-option[data-key]')); };
+            ind.sel.addEventListener('change', function() {
+                const o = opcionesInd().find(function(x) { return x.dataset.key === ind.sel.value; });
+                if (o) o.click();
+            });
+            const pintaIndicador = function() {
+                const visibles = opcionesInd().filter(function(x) { return !x.hidden; });
+                llena(ind.sel, visibles.map(function(x) { return { v: x.dataset.key, t: x.textContent }; }), state.currentMetric);
+            };
+
+            // Unidad y medida: conmutadores que accionan el del mapa
+            const conmutador = function(id, etiqueta) {
+                const origen = function() { return Array.from(mapa.querySelectorAll('#' + id + ' .siarhe-conm-op')); };
+                const ops = origen();
+                if (ops.length !== 2) return function() {};
+                const g = document.createElement('div');
+                g.className = 'siarhe-control-group siarhe-control-group--conm';
+                const sw = app.controls.makeSwitch({
+                    etiqueta: etiqueta + ' de la tabla',
+                    a: { valor: 'a', texto: ops[0].textContent, titulo: ops[0].title },
+                    b: { valor: 'b', texto: ops[1].textContent, titulo: ops[1].title },
+                    alCambiar: function(v) { const o = origen()[v === 'b' ? 1 : 0]; if (o) o.click(); }
+                });
+                g.appendChild(sw.el);
+                fila.appendChild(g);
+                return function() {
+                    const o = origen();
+                    if (o.length !== 2) return;
+                    sw.deshabilita(o[0].disabled, o[1].disabled);
+                    sw.set(o[1].classList.contains('is-active') ? 'b' : 'a');
+                };
+            };
+            const pintaUnidad = conmutador('c-unidad', 'Unidad de conteo');
+            const pintaMedida = conmutador('c-medida', 'Medida');
+
+            state.syncTabla = function() { pintaAnio(); pintaTema(); pintaIndicador(); pintaUnidad(); pintaMedida(); };
+            state.syncTabla();
+            // Lo que se cambie en el panel del mapa se refleja aquí aunque no redibuje la tabla
+            let pendiente = 0;
+            const alCambiar = function() { clearTimeout(pendiente); pendiente = setTimeout(function() { if (container.isConnected) state.syncTabla(); }, 60); };
+            mapa.addEventListener('change', alCambiar);
+            mapa.addEventListener('click', alCambiar);
+        },
+
+        /** Marca (o desmarca) el renglón del lugar con esa clave de datos; lo usa el mapa al pasar el cursor por un lugar. */
+        resaltaFila: function(state, clave, on) {
+            const tbody = state.tableElements && state.tableElements.tbody;
+            if (!tbody) return;
+            tbody.querySelectorAll('tr.siarhe-row-resaltada').forEach(function(tr) { tr.classList.remove('siarhe-row-resaltada'); });
+            if (!on || clave === undefined || clave === null) return;
+            const fila = Array.from(tbody.rows).find(function(tr) { return tr.dataset.clave === String(app.utils.cleanKey(clave)); });
+            if (fila) fila.classList.add('siarhe-row-resaltada');
         },
 
         // ==========================================
@@ -268,6 +386,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 // Como en RHEMX: el renglón resalta su lugar en el mapa y, en la República, un clic entra al estado
                 if (!r.isTotal && !r.isSpecial) {
                     const llave = state.isNacional ? r.CVE_ENT : (r.CVE_MUN || r.CVE_ENT);
+                    fila.dataset.clave = String(app.utils.cleanKey(llave));
                     if (app.map && app.map.resalta) {
                         fila.addEventListener('mouseenter', function() { app.map.resalta(state, llave, true); });
                         fila.addEventListener('mouseleave', function() { app.map.resalta(state, llave, false); });
@@ -280,6 +399,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 }
                 tbody.appendChild(fila);
             });
+            if (state.syncTabla) state.syncTabla();
         },
 
         // ==========================================

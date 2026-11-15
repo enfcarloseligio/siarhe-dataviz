@@ -2,6 +2,25 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.14.0] - 2026-11-15
+
+Funciones de la tabla de RHEMX y nombres nuevos de las carpetas de RHEMX. Probado con `tests/` y visto en el arnés (República y un estado); **falta verlo en un WordPress real**.
+
+### Tabla
+- **Selectores propios**, como en RHEMX, cuando el shortcode trae mapa y tabla: fila «Datos de la tabla» con Año, Tema, Indicador y los conmutadores Plazas / Recursos humanos y Tasa / Frecuencia, sobre los botones de la tabla. Cambian lo mismo que los del mapa y se mantienen iguales a ellos, así no hay que subir al mapa para cambiar lo que se consulta. La tabla sola (`[siarhe_mapa_T_…]`) ya traía sus controles y no cambia.
+- **Resalte en los dos sentidos:** al pasar el cursor por un lugar del mapa se marca su renglón en la tabla (antes solo del renglón al mapa).
+- El mapa y la tabla siguen siendo dos bloques separados (no se alternan en la misma tarjeta), porque el shortcode puede traer solo la tabla.
+
+### Panel
+- Los textos de ayuda de *Carga de Datos* nombran las carpetas actuales de RHEMX: geometrías en `data/processed/mapas/geo/<marco>/`, bases en `data/processed/mapas/data/<año>/` (`json_plazas`, `json_personas`) y clínicas en `data/processed/marcadores/<tipo>/<año>` o `historico`.
+
+### Interno
+- `app.table._selectores`, `state.syncTabla` y `app.table.resaltaFila`; cada renglón lleva `data-clave`.
+- Las pruebas y el arnés leen las carpetas nuevas de RHEMX.
+
+### No se hizo
+- La columna del estado en la lista de municipios del país y la lista de localidades de RHEMX necesitan datos que el plugin no carga (la base nacional solo trae entidades y las bases no traen localidades); «Comparar con» otro año sigue pendiente como función del mapa.
+
 ## [0.1.13.0] - 2026-11-15
 
 Tercera tanda de la copia del mapa de RHEMX. Probado con `tests/` y visto en navegador con el arnés (República y los 32 estados, datos de RHEMX, sin WordPress); **falta verlo en un WordPress real**, sobre todo el lado del servidor (la vista de un estado por `admin-ajax.php` y la pantalla *Personalizar › Mapa y Colores*).
