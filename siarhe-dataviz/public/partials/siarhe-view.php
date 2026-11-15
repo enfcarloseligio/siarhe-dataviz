@@ -326,7 +326,7 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
                     <li><strong>Navega:</strong> Haz doble clic en un <?php echo $es_nacional ? 'estado' : 'municipio'; ?>. En celular, toca dos veces seguidas.</li>
                     <li><strong>Compara Regiones:</strong> Usa el selector "Indicador" (arriba del mapa) para visualizar tasas o totales. La tasa mostrada se calcula <strong>por cada mil habitantes</strong>.</li>
                     <li><strong>Localiza Unidades:</strong> Activa "Marcadores" para ver Unidades Especiales o información epidemiológica.</li>
-                    <li><strong>Descarga:</strong> Utiliza la fila «Buscar, tabla e imágenes» (arriba del mapa) para buscar un lugar, copiar el enlace, ir a la tabla u obtener el mapa en PNG (con los nombres si «Ver etiquetas» está encendido); en la tabla puedes descargar el Excel.</li>
+                    <li><strong>Descarga:</strong> Utiliza la fila «Buscar, tabla e imágenes» (arriba del mapa) para buscar un lugar, copiar el enlace, ir a la tabla u obtener el mapa en PNG (con los nombres si «Ver etiquetas» está encendido); la tabla se descarga en CSV, Excel o JSON.</li>
                 </ul>
             </details>
 
@@ -373,11 +373,6 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
                 </div>
             </div>
 
-            <div style="text-align: center; margin-top: 15px;">
-                <button class="siarhe-btn siarhe-btn-download-excel">
-                    <span class="dashicons dashicons-media-spreadsheet" style="margin-top: 3px;"></span> Descargar Excel <?php echo $es_nacional ? 'Nacional' : 'Estatal'; ?>
-                </button>
-            </div>
             <?php if ($table_collapsible) : ?></div></details><?php endif; ?>
         </section>
     <?php endif; ?>

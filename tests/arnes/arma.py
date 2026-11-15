@@ -54,7 +54,7 @@ doc = f'''<!DOCTYPE html>
 <link rel="stylesheet" href="{P}css/siarhe-frontend.css">
 <style>{cfg.get('css', '')}</style>
 <style>body {{ margin: 0; font-family: Roboto, Arial, sans-serif; background: #fff; }} .tema {{ max-width: 1240px; margin: 0 auto; padding: 20px 50px; }} button:hover {{ color: #fff; }}</style>
-<script>window.SiarheDataVizConfig = {json.dumps({'d3Fallback': P + 'js/libs/d3.v7.min.js', 'topojson': P + 'js/libs/topojson-client.min.js', 'topoHelper': P + 'js/siarhe-topo.js', 'capas': P + 'js/siarhe-capas.js'})};</script>
+<script>window.SiarheDataVizConfig = {json.dumps({'d3Fallback': P + 'js/libs/d3.v7.min.js', 'topojson': P + 'js/libs/topojson-client.min.js', 'topoHelper': P + 'js/siarhe-topo.js', 'capas': P + 'js/siarhe-capas.js', 'xlsx': P + 'js/libs/xlsx.full.min.js'})};</script>
 </head><body><div class="tema">
 <div class="siarhe-viz-wrapper{' siarhe-layout-canvas' if layout == 'canvas' else ''}" style="--s-canvas-margin: 2.5%;" id="siarhe-viz-33"
  data-cve-ent="33" data-slug="republica-mexicana" data-mode="MT"
@@ -74,8 +74,7 @@ doc = f'''<!DOCTYPE html>
   </section>
   <section id="siarhe-table-section" class="siarhe-section-table siarhe-block-card siarhe-table-collapsible">
     <details class="siarhe-table-details"><summary class="siarhe-table-summary"><h2>Tabla</h2></summary><div class="siarhe-table-body">
-    <div class="siarhe-table-wrapper"><div class="siarhe-table-container"></div></div>
-    <button class="siarhe-btn siarhe-btn-download-excel">Descargar Excel</button></div></details>
+    <div class="siarhe-table-wrapper"><div class="siarhe-table-container"></div></div></div></details>
   </section>
 </div></div>
 {''.join(f'<script src="{P}js/{s}"></script>' for s in scripts)}

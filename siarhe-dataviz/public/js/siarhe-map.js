@@ -260,19 +260,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             app.map.enableKeyboard(container, state, mapDiv);
             app.map.stackBind(state);
 
-            let maxZoom = state.initialTransform.k * 25;
-            if (maxZoom < 50) maxZoom = 50;
-            // Mapa nacional: 50x deja ~84 m por pixel en PC y ~223 m en movil, poco para separar establecimientos de una
-            // ciudad. Se amplia hasta ~30 m por pixel (tope 400x); los mapas estatales ya parten de un acercamiento mayor.
-            try {
-                const gb = d3.geoBounds(state.geoData);
-                const latMid = (gb[0][1] + gb[1][1]) / 2;
-                const metersPerUnit = 111320 * Math.cos(latMid * Math.PI / 180) / (projection.scale() * Math.PI / 180);
-                const mr = mapDiv.getBoundingClientRect();
-                const scr = (mr.width > 0 && mr.height > 0) ? Math.min(mr.width / width, mr.height / height) : 0.5;
-                const byResolution = Math.round(metersPerUnit / (30 * Math.max(scr, 0.2)));
-                if (isFinite(byResolution)) maxZoom = Math.max(maxZoom, Math.min(400, byResolution));
-            } catch (err) {}
+            // Zoom máximo como en RHEMX: 50 veces el encuadre de la República y 200 veces el de un estado, igual en
+            // celular, tableta y PC. Los marcadores dejan de reducirse a 25 veces, así que acercarse más no los cambia.
+            const maxZoom = state.initialTransform.k * (state.isNacional ? 50 : 200);
             const zoom = d3.zoom()
                 .scaleExtent([1, maxZoom])
                 .on("zoom", (e) => {
@@ -617,9 +607,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
         /** Tamano de la letra de las etiquetas en unidades del mapa: 13 px de pantalla (12 en telefono) a cualquier zoom. */
         _labelFs: function(state, k) {
-            let sc = 1, px = 13;
+            let sc = 1, px = 11;   // 11 px en tableta y PC, 10 en teléfono (RHEMX)
             try { const m = app.map._markerMetrics(state, k); if (m && m.sc > 0) sc = m.sc; } catch (e) {}
-            try { if (app.map._deviceInfo(state).kind === 'phone') px = 12; } catch (e) {}
+            try { if (app.map._deviceInfo(state).kind === 'phone') px = 10; } catch (e) {}
             return px / (k * sc);
         },
 
@@ -1620,11 +1610,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
 
             const dev = app.map._deviceInfo(state);
-            const SIZES = { phone: [11, 8], tablet: [15, 10], pc: [14, 8] };   // [tamano base, tamano minimo] en px
+            // [tamaño base, tamaño mínimo] en px, los de RHEMX; el zoom se cuenta desde el encuadre inicial del mapa
+            const SIZES = { phone: [11, 8], tablet: [14, 11], pc: [17, 14] };
+            const kRel = k / ((state.initialTransform && state.initialTransform.k) || 1);
             const base = SIZES[dev.kind][0], min = SIZES[dev.kind][1];
             let px = base;
-            if (k >= 25) px = min;
-            else if (k > 4) px = base * Math.pow(min / base, Math.log(k / 4) / Math.log(25 / 4));
+            if (kRel >= 25) px = min;
+            else if (kRel > 4) px = base * Math.pow(min / base, Math.log(kRel / 4) / Math.log(25 / 4));
 
             const sc = dev.sc > 0.05 ? dev.sc : 0.5;
             const extentUser = px / sc;                          // ancho en unidades del viewBox
@@ -1632,7 +1624,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             // Burbujas y espinas (densidad): tamano en pixeles de pantalla que CRECE al acercar (de k=4 a k=25), para que
             // con zoom sean mas faciles de ver y de tocar. Antes se definian en unidades del mapa: en el movil la base de
             // una espina medida ~3 px.
-            const zt = k <= 4 ? 0 : (k >= 25 ? 1 : Math.log(k / 4) / Math.log(25 / 4));
+            const zt = kRel <= 4 ? 0 : (kRel >= 25 ? 1 : Math.log(kRel / 4) / Math.log(25 / 4));
             const lerp = (a, b) => a + (b - a) * zt;
             const SPK = {                                       // [con poco zoom, con mucho zoom]
                 pc:     { half: [3.4, 4.5], hMin: [17, 22], hMax: [69, 88] },
@@ -2528,8 +2520,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 return b;
             };
 
-            createBtn('+', 'Acercar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 1.5); });
-            createBtn('–', 'Alejar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 0.6); });
+            createBtn('+', 'Acercar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 2); });
+            createBtn('–', 'Alejar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 0.5); });
             createBtn('⟳', 'Reset', (e) => { e.preventDefault(); svg.transition().duration(750).call(zoom.transform, state.initialTransform); });
 
             // Medir distancias: solo tiene sentido si existen marcadores de posicion configurados
@@ -2669,7 +2661,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             const dx = Math.max(b[1][0] - b[0][0], 1), dy = Math.max(b[1][1] - b[0][1], 1);
             const kMax = state.zoom.scaleExtent()[1];
-            const k = Math.max(1, Math.min(kMax, 0.8 / Math.max(dx / W, dy / H)));
+            const k = Math.max(1, Math.min(kMax, 0.85 / Math.max(dx / W, dy / H)));
             const t = d3.zoomIdentity.translate(W / 2 - k * (b[0][0] + b[1][0]) / 2, H / 2 - k * (b[0][1] + b[1][1]) / 2).scale(k);
             // Resalte: el trazo del lugar se oscurece y engrosa 3 s. Se aplica al terminar el acercamiento, porque el zoom reescribe el grosor.
             const resalta = function() {
@@ -2685,6 +2677,33 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             if (reduce) { state.svg.call(state.zoom.transform, t); resalta(); }
             else state.svg.transition().duration(700).call(state.zoom.transform, t).on('end', resalta);
+        },
+
+        /**
+         * Centra y acerca el mapa a un marcador (una unidad hallada con el buscador), lo deja seleccionado y abre su ficha.
+         */
+        focusPoint: function(state, d) {
+            if (!state.svg || !state.zoom || !state.projection || !d) return;
+            const c = state.projection([d.lon, d.lat]);
+            if (!c || isNaN(c[0]) || isNaN(c[1])) return;
+            const W = 1600, H = 900;
+            const kActual = d3.zoomTransform(state.svg.node()).k;
+            const k = Math.min(state.zoom.scaleExtent()[1], Math.max(kActual, state.isNacional ? 25 : 8));
+            const t = d3.zoomIdentity.translate(W / 2 - k * c[0], H / 2 - k * c[1]).scale(k);
+            const muestra = function() {
+                const nodo = state.svg.node(), mapDiv = nodo.parentNode;
+                const cv = state._cv;
+                if (cv && cv.pts && cv.pts.length) {
+                    cv.sel = cv.pts.find(function(p) { return p.d === d || (d.clues && p.d.clues === d.clues && p.d.tipo === d.tipo); }) || null;
+                    app.map._cvSchedule(state);
+                }
+                // El marcador quedó en el centro del lienzo: ahí se abre su ficha
+                const r = nodo.getBoundingClientRect();
+                if (app.tooltips && state.tooltip) app.tooltips.showMarkerTooltip({ clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }, d, state, mapDiv);
+            };
+            const quieto = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (quieto) { state.svg.call(state.zoom.transform, t); muestra(); }
+            else state.svg.transition().duration(700).call(state.zoom.transform, t).on('end', muestra);
         },
 
         downloadMapAsPNG: function(container, state, withLabels) {
@@ -2765,7 +2784,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     refNodes.forEach(node => {
                         if (node.innerHTML.includes('dashicons-groups') || node.innerHTML.includes('Datos de Enfermería')) {
                             const pTag = node.querySelector('p');
-                            if (pTag) refText = pTag.innerText.replace(/\n/g, ' | ');
+                            // Un renglón por dato (fuente, fecha de corte), unidos con « | » y sin renglones vacíos
+                            if (pTag) refText = pTag.innerText.split(/\n+/).map(t => t.replace(/\s+/g, ' ').trim()).filter(Boolean)
+                                .join(' | ').replace(/: \| /g, ': ');
                         }
                     });
 

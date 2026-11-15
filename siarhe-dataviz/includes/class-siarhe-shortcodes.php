@@ -141,6 +141,8 @@ class Siarhe_Shortcodes {
                 'topoHelper' => SIARHE_URL . 'public/js/siarhe-topo.js?ver=' . SIARHE_VERSION,
                 // Lectura de las capas de marcadores en JSON dentro del worker
                 'capas'      => SIARHE_URL . 'public/js/siarhe-capas.js?ver=' . SIARHE_VERSION,
+                // SheetJS: se pide solo al descargar la tabla en Excel
+                'xlsx'       => SIARHE_URL . 'public/js/libs/xlsx.full.min.js?ver=0.18.5',
             ) ) . ';',
             'before'
         );

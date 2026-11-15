@@ -504,6 +504,43 @@
             pinta();
         },
 
+        /** Catálogo de establecimientos del año que se ve (ya filtrado a la entidad de la página), para el buscador. */
+        unidades: function(container, state) {
+            const k = app.pos.claveEstab(state), url = app.pos.urlEstab(state);
+            if (!url) return Promise.resolve([]);
+            return app.pos._capa(container, state, { url: url, bit: 0, archivo: (state.markerLabels[k] || {}).archivo || '' });
+        },
+
+        /**
+         * Deja a la vista el marcador de una unidad del catálogo (resultado del buscador): pasa a «Establecimientos de
+         * Salud» si se veía otra cosa y agrega su nivel (y su institución, si se agrupa por institución) a lo elegido.
+         * Devuelve el punto ya dibujado, o null si no se pudo.
+         */
+        muestraUnidad: async function(container, state, p) {
+            const pos = state.pos;
+            if (!pos || !pos.ui || !p || !app.pos.urlEstab(state)) return null;
+            const nivel = p.nivel_atencion || SIN_NIVEL, inst = p.institucion || SIN_INSTITUCION;
+            if (pos.ver !== 'establecimientos') {
+                app.pos._apagaReales(container, state);
+                pos.ver = 'establecimientos';
+                pos.modo = 'nivel';
+                pos.nivSel = new Set();
+                pos.insSel = new Set();
+                pos.nivAuto = false;
+            }
+            pos.reinicia = false;
+            if ((modoDe(pos.modo) || {}).por === 'institucion') pos.insSel.add(inst);
+            pos.nivSel.add(nivel);
+            await app.pos.apply(container, state);
+            for (const k of pos.claves) {
+                const d = (state.markersData[k] || []).find(function(x) {
+                    return p.clues ? x.clues === p.clues : (x.lat === p.lat && x.lon === p.lon && x.nombre === p.nombre);
+                });
+                if (d) return d;
+            }
+            return null;
+        },
+
         /**
          * Modelo de la leyenda de los marcadores por tema, igual que la de RHEMX: titulo, resumen y grupos de simbolos.
          * Por nivel: un grupo con el simbolo de cada nivel. Por institucion: «Nivel de atencion (color)» y «Institucion (forma)»

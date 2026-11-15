@@ -76,11 +76,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                                 ${ico('icon-etiquetas')} <span class="siarhe-btn-texto">Ver etiquetas</span>
                             </button>
                         </div>
-                        <div class="siarhe-control-group siarhe-control-group--action" id="c-ancho">
-                            <button type="button" class="siarhe-btn siarhe-layout-btn" aria-pressed="false" title="Usar todo el ancho de la ventana o el ancho normal de la página">
-                                ${ico('icon-entidad')} <span class="siarhe-btn-texto">Ancho completo</span>
-                            </button>
-                        </div>
                         <div class="siarhe-control-group siarhe-control-group--action" id="c-personalizar">
                             <button type="button" class="siarhe-btn siarhe-palette-btn" aria-expanded="false" title="Cambiar los colores del mapa (solo en tu navegador)">
                                 <svg class="siarhe-reset-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.3-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4a3.6 3.6 0 0 0 3.6-3.6C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11.5" r="1"/><circle cx="12" cy="7.5" r="1"/><circle cx="16.5" cy="11.5" r="1"/></svg>
@@ -220,7 +215,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 opt.addEventListener('click', (e) => {
                     e.stopPropagation();
                     state.currentMetric = key;
-                    app.sortConfig = { key: 'tasa', direction: 'desc' };
+                    app.sortConfig = { key: 'tasaTotal', direction: 'desc' };
 
                     // ☀️ ACTUALIZAR LA ESCALA SEGÚN LA NUEVA MÉTRICA SELECCIONADA
                     const newInfo = state.metricas[key] || {};
@@ -305,8 +300,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     </select>
                 `;
 
-                cVista.querySelector('select').addEventListener('change', (e) => {
-                    const val = e.target.value;
+                const selVista = cVista.querySelector('select');
+                const cambiaVista = (val) => {
                     const loading = container.querySelector('.siarhe-loading-overlay');
                     const setLoading = (text) => {
                         if (!loading) return;
@@ -322,62 +317,50 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         state.isGeoLocMode = false;
                         if (app.map) app.map.updateGeography(container, state);
                         onUpdate();
+                        return Promise.resolve(true);
                     }
-                    else if (val === 'detalle' && state.geoLocUrl) {
-                        setLoading('Cargando ' + labelNivel2 + '...');
+                    if (val !== 'detalle' || !state.geoLocUrl) return Promise.resolve(false);
 
-                        const dataPromise = state.locGeoData ? Promise.resolve(state.locGeoData) : app.controls.loadLocGeo(container, state, state.geoLocUrl, (pct) => setLoading('Preparando ' + labelNivel2 + '... ' + pct + '%'));
-                        dataPromise.then(data => {
-                            if (!data || !Array.isArray(data.features) || data.features.length === 0) {
-                                throw new Error('La capa detallada esta vacia o no es valida');
-                            }
-                            state.locGeoData = data;
-                            state.isGeoLocMode = true;
-                            if (!app.map) return null;
-                            // Los poligonos se dibujan por lotes; el overlay muestra el avance
-                            return app.map.updateGeography(container, state, (pct) => {
-                                if (pct < 100) setLoading('Dibujando ' + labelNivel2 + '... ' + pct + '%');
-                            });
-                        }).then(() => {
-                            hideLoading();
-                            onUpdate();
-                        }).catch(err => {
-                            console.error("[SIARHE] Error al cargar la capa detallada", err);
-                            hideLoading();
-                            state.isGeoLocMode = false;
-                            e.target.value = 'base';
+                    setLoading('Cargando ' + labelNivel2 + '...');
+                    const dataPromise = state.locGeoData ? Promise.resolve(state.locGeoData) : app.controls.loadLocGeo(container, state, state.geoLocUrl, (pct) => setLoading('Preparando ' + labelNivel2 + '... ' + pct + '%'));
+                    return dataPromise.then(data => {
+                        if (!data || !Array.isArray(data.features) || data.features.length === 0) {
+                            throw new Error('La capa detallada esta vacia o no es valida');
+                        }
+                        state.locGeoData = data;
+                        state.isGeoLocMode = true;
+                        if (!app.map) return null;
+                        // Los poligonos se dibujan por lotes; el overlay muestra el avance
+                        return app.map.updateGeography(container, state, (pct) => {
+                            if (pct < 100) setLoading('Dibujando ' + labelNivel2 + '... ' + pct + '%');
                         });
-                    }
-                });
+                    }).then(() => {
+                        hideLoading();
+                        onUpdate();
+                        return true;
+                    }).catch(err => {
+                        console.error("[SIARHE] Error al cargar la capa detallada", err);
+                        hideLoading();
+                        state.isGeoLocMode = false;
+                        selVista.value = 'base';
+                        return false;
+                    });
+                };
+                selVista.addEventListener('change', (e) => { cambiaVista(e.target.value); });
+                // Pone la vista pedida (si no es ya la que se ve) y avisa cuando el mapa quedó dibujado
+                state.setVista = (val) => {
+                    if ((val === 'detalle') === !!state.isGeoLocMode) return Promise.resolve(true);
+                    const opcion = selVista.querySelector('option[value="' + val + '"]');
+                    if (!opcion || opcion.disabled) return Promise.resolve(false);
+                    selVista.value = val;
+                    return cambiaVista(val);
+                };
             }
 
             const resetBtn = wrapper.querySelector('.siarhe-reset-btn');
             if (resetBtn) resetBtn.addEventListener('click', () => app.controls.resetAll(container, state, onUpdate));
 
             if (!isTableOnly) app.controls.initPalette(container, state, wrapper, onUpdate);
-
-            // Boton de ancho: el sitio define la disposicion por defecto (contenedor o canvas) y el visitante puede cambiarla;
-            // su eleccion se recuerda en el navegador (localStorage «siarheLayout»)
-            const layoutBtn = wrapper.querySelector('.siarhe-layout-btn');
-            if (layoutBtn) {
-                const fijaAncho = function() { document.documentElement.style.setProperty('--siarhe-vw', document.documentElement.clientWidth + 'px'); };
-                let escucha = false;
-                const pon = function(canvas) {
-                    if (canvas) { fijaAncho(); if (!escucha) { window.addEventListener('resize', fijaAncho); escucha = true; } }
-                    container.classList.toggle('siarhe-layout-canvas', canvas);
-                    layoutBtn.setAttribute('aria-pressed', canvas ? 'true' : 'false');
-                    const t = layoutBtn.querySelector('.siarhe-btn-texto');
-                    if (t) t.textContent = canvas ? 'Ancho normal' : 'Ancho completo';
-                };
-                let guardado = null;
-                try { guardado = window.localStorage.getItem('siarheLayout'); } catch (e) {}
-                pon(guardado === 'canvas' || guardado === 'contenedor' ? guardado === 'canvas' : container.classList.contains('siarhe-layout-canvas'));
-                layoutBtn.addEventListener('click', function() {
-                    const canvas = !container.classList.contains('siarhe-layout-canvas');
-                    pon(canvas);
-                    try { window.localStorage.setItem('siarheLayout', canvas ? 'canvas' : 'contenedor'); } catch (e) {}
-                });
-            }
 
             // Boton «Ver etiquetas»: nombres sobre el mapa, sin encimarse (app.map.setLabels)
             const labelsBtn = wrapper.querySelector('.siarhe-labels-btn');
@@ -932,7 +915,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const info = state.metricas[state.currentMetric] || {};
             state.colorMode = info.scale_type || 'cuartiles';
             state.realStyleMode = state.colorMode;
-            app.sortConfig = { key: 'tasa', direction: 'desc' };
+            app.sortConfig = { key: 'tasaTotal', direction: 'desc' };
 
             const trigger = container.querySelector('#c-indicador .siarhe-cs-trigger');
             if (trigger) trigger.innerHTML = `<span>${app.utils.esc(app.controls.indicatorName(info))}</span>`;
@@ -945,7 +928,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const selEscala = container.querySelector('#siarhe-escala-select');
             if (selEscala) selEscala.value = (state.colorMode === 'degradado' || state.colorMode === 'quartiles') ? 'cuartiles' : (state.colorMode === 'mono' ? 'monocromatico' : state.colorMode);
 
-            // 3) Etiquetas y marcadores apagados
+            // 3) Lugar buscado, etiquetas y marcadores apagados
+            if (state.buscador) state.buscador.limpia();
             if (app.map) app.map.setLabels(state, false);
             if (state.syncLabelsBtn) state.syncLabelsBtn();
             if (app.pos) app.pos.reset(container, state);
@@ -1330,65 +1314,193 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         },
 
         /**
-         * Buscador de lugares: entidades (mapa nacional) o municipios en la vista base y, con la vista detallada cargada,
-         * municipios y localidades. Al elegir un resultado el mapa se acerca a ese lugar y lo resalta. Lista tipo combobox
-         * (flechas, Enter y Esc).
+         * Qué tan bien coincide `texto` con la consulta `q` (los dos ya normalizados): 0 empieza igual, 1 empieza una palabra,
+         * 2 está dentro, -1 no coincide. La consulta se separa en palabras y todas deben aparecer, en cualquier orden
+         * («hospital general victoria»). Función pura, la misma regla que el buscador de RHEMX.
+         */
+        _rangoBusqueda: function(texto, q) {
+            const palabras = q.split(/\s+/).filter(Boolean);
+            let peor = 0;
+            for (let i = 0; i < palabras.length; i++) {
+                const pos = texto.indexOf(palabras[i]);
+                if (pos < 0) return -1;
+                peor = Math.max(peor, pos === 0 ? 0 : (texto[pos - 1] === ' ' ? 1 : 2));
+            }
+            return texto.indexOf(q) === 0 ? 0 : Math.max(peor, 1);
+        },
+
+        /** Los `max` elementos de `lista` que mejor coinciden con `q`: primero el mejor rango y, a igual rango, el texto más corto. */
+        _mejoresBusqueda: function(lista, textoDe, q, max) {
+            const rango = app.controls._rangoBusqueda;
+            return lista.map(function(it) { return { it: it, r: rango(textoDe(it), q) }; })
+                .filter(function(x) { return x.r >= 0; })
+                .sort(function(a, b) { return a.r - b.r || textoDe(a.it).length - textoDe(b.it).length; })
+                .slice(0, max).map(function(x) { return x.it; });
+        },
+
+        /**
+         * Buscador de lugares y unidades, como el de RHEMX: encuentra estados, municipios, localidades (con la vista de
+         * localidades de un estado) y unidades de salud (por nombre o CLUES) y lleva el mapa hasta el lugar. Lo que se
+         * buscó viaja en el enlace (`f=mun:28032`) para que «Copiar enlace» lo reproduzca.
+         *   - República: estados de la capa base y municipios de la capa detallada, que se descarga al empezar a escribir.
+         *   - Estado: municipios de la capa base y localidades cuando la vista detallada está a la vista.
+         *   - Unidades: el catálogo de establecimientos del año, que se descarga al escribir tres letras.
+         * Lista tipo combobox (flechas, Enter y Esc). Deja en `state.buscador` { aplicaFoco, limpia }.
          */
         buildSearch: function(container, state, wrapper) {
             const host = wrapper.querySelector('#c-buscar');
             if (!host || !app.map) return;
-            const norm = app.controls._normBusqueda;
-            const MAX_POR_GRUPO = 8;
+            const norm = app.controls._normBusqueda, mejores = app.controls._mejoresBusqueda;
+            const MAX_POR_GRUPO = 6, MAX_UNIDADES = 400;
+            const hayUnidades = function() { return !!(app.pos && app.pos.urlEstab && app.pos.urlEstab(state)); };
 
             const entrada = document.createElement('input');
             entrada.type = 'search'; entrada.id = 'siarhe-buscar-entrada'; entrada.className = 'siarhe-metric-select siarhe-buscar-entrada';
-            entrada.placeholder = state.isNacional ? 'Estado o municipio' : 'Municipio o localidad';
+            entrada.placeholder = (state.isNacional ? 'Estado, municipio' : 'Municipio, localidad') + (hayUnidades() ? ' o CLUES' : '');
             entrada.autocomplete = 'off';
             entrada.setAttribute('role', 'combobox'); entrada.setAttribute('aria-autocomplete', 'list');
             entrada.setAttribute('aria-haspopup', 'listbox'); entrada.setAttribute('aria-expanded', 'false');
+            entrada.setAttribute('aria-label', 'Buscar un estado, municipio, localidad o unidad de salud');
             const lista = document.createElement('ul');
             lista.className = 'siarhe-resultados'; lista.id = 'siarhe-resultados-' + Math.random().toString(36).slice(2, 7);
             lista.setAttribute('role', 'listbox'); lista.hidden = true;
             entrada.setAttribute('aria-controls', lista.id);
             host.appendChild(entrada); host.appendChild(lista);
 
-            // Nombre de cada geometria: el de la base cargada (si trae el lugar) o el de las propiedades de la capa
+            // ---- Lugares: nombre, clave y texto de búsqueda de cada geometría ----
+            const prop = function(f) { return f.properties || {}; };
+            const esLoc = function(f) { const p = prop(f); return !!(p.NOM_LOC || p.LOCALIDAD || p.CVE_LOC); };
+            // Clave geoestadística: entidad (2), entidad + municipio (5) o entidad + municipio + localidad (9)
+            const claveDe = function(f) {
+                const p = prop(f), mun = String(p.CVE_MUN || '');
+                return (mun.length > 3 ? mun : String(p.CVE_ENT || '') + mun) + String(p.CVE_LOC || '');
+            };
+            // El nombre de la capa base es el de la base cargada (si trae el lugar) o el de la geometría
             const nombreBase = function(f) {
-                const p = f.properties || {};
+                const p = prop(f);
                 const row = state.dataMap ? state.dataMap.get(app.utils.getGeoKey(p, state.isNacional)) : null;
                 return (row && row.estado) || p.NOMGEO || p.NOM_MUN || p.NOM_ENT || '';
             };
-            const busca = function(q) {
-                const nq = norm(q);
+            const nombreDet = function(f) { const p = prop(f); return p.NOM_LOC || p.LOCALIDAD || p.NOM_MUN || p.MUNICIPIO || p.NOMGEO || ''; };
+            // Segundo renglón de un resultado de la capa detallada: el municipio de una localidad o el estado de un municipio.
+            // Si la geometría no lo trae, se toma de la capa base por su clave.
+            const nombreDeBase = function(clave) {
+                const f = capaBase().find(function(x) { return claveDe(x) === clave; });
+                return f ? nombreBase(f) : '';
+            };
+            const detalleDet = function(f) {
+                const p = prop(f);
+                return (esLoc(f) ? (p.NOM_MUN || p.MUNICIPIO) : p.NOM_ENT) || nombreDeBase(claveDe(f).slice(0, state.isNacional ? 2 : 5));
+            };
+            // Índice de una capa (se arma una vez por capa): [{ f, texto, n }]
+            const indices = new WeakMap();
+            const indice = function(features, nombreDe, filtro) {
+                if (!Array.isArray(features)) return [];
+                let por = indices.get(features);
+                if (!por) { por = {}; indices.set(features, por); }
+                const k = filtro ? 'loc' : 'todo';
+                if (!por[k]) {
+                    por[k] = features.filter(function(f) { return !filtro || filtro(f); })
+                        .map(function(f) { const t = nombreDe(f); return { f: f, texto: t, n: norm(t) }; }).filter(function(x) { return !!x.n; });
+                }
+                return por[k];
+            };
+            const capaBase = function() { return ((state.isGeoLocMode ? state.baseGeoData : null) || state.geoData || {}).features || []; };
+            const capaDetalle = function() { return state.locGeoData && Array.isArray(state.locGeoData.features) ? state.locGeoData.features : null; };
+
+            // ---- Descargas bajo demanda: municipios del país y catálogo de unidades ----
+            let pideDetalle = null, urlDetalleFallida = '';
+            const faltaDetalle = function() { return state.isNacional && !capaDetalle() && !!state.geoLocUrl && state.geoLocUrl !== urlDetalleFallida; };
+            const cargaDetalle = function() {
+                if (capaDetalle()) return Promise.resolve(true);
+                if (!state.geoLocUrl) return Promise.resolve(false);
+                if (!pideDetalle) {
+                    const url = state.geoLocUrl;
+                    pideDetalle = app.controls.loadLocGeo(container, state, url).then(function(data) {
+                        pideDetalle = null;
+                        const ok = !!(data && Array.isArray(data.features) && data.features.length);
+                        if (!ok) urlDetalleFallida = url;
+                        else if (state.geoLocUrl === url && !state.locGeoData) state.locGeoData = data;
+                        return ok;
+                    }).catch(function() { pideDetalle = null; urlDetalleFallida = url; return false; });
+                }
+                return pideDetalle;
+            };
+            let unidades = null, pideUnidades = null, urlUnidadesFallida = '';
+            const faltanUnidades = function() {
+                const url = hayUnidades() ? app.pos.urlEstab(state) : '';
+                return !!url && url !== urlUnidadesFallida && !(unidades && unidades.url === url);
+            };
+            const cargaUnidades = function() {
+                const url = hayUnidades() ? app.pos.urlEstab(state) : '';
+                if (!url) return Promise.resolve(null);
+                if (unidades && unidades.url === url) return Promise.resolve(unidades);
+                if (!pideUnidades) {
+                    pideUnidades = app.pos.unidades(container, state).then(function(pts) {
+                        pideUnidades = null;
+                        unidades = { url: url, pts: pts || [], n: (pts || []).map(function(p) { return norm(p.nombre); }) };
+                        return unidades;
+                    }).catch(function() { pideUnidades = null; urlUnidadesFallida = url; return null; });
+                }
+                return pideUnidades;
+            };
+
+            // ---- Coincidencias por grupo: [{ titulo, items: [{ tipo, clave, texto, detalle, f | p }] }] ----
+            const busca = function(consulta) {
+                const q = norm(consulta);
                 const grupos = [];
-                if (nq.length < 2) return grupos;
-                const toma = function(titulo, features, nombreDe, detalleDe, esDetalle) {
-                    const items = [];
-                    for (let i = 0; i < features.length && items.length < MAX_POR_GRUPO; i++) {
-                        const f = features[i], n = nombreDe(f);
-                        if (n && norm(n).indexOf(nq) !== -1) items.push({ f: f, texto: n, detalle: detalleDe(f), detalleCapa: esDetalle });
-                    }
+                if (q.length < 2) return grupos;
+                const agrega = function(titulo, tipo, idx, detalleDe) {
+                    const items = mejores(idx, function(x) { return x.n; }, q, MAX_POR_GRUPO)
+                        .map(function(x) { return { tipo: tipo, clave: claveDe(x.f), texto: x.texto, detalle: detalleDe(x.f), f: x.f }; });
                     if (items.length) grupos.push({ titulo: titulo, items: items });
                 };
-                const base = (state.geoData && state.geoData.features) || [];
-                if (!state.isGeoLocMode) toma(state.isNacional ? 'Entidades' : 'Municipios', base, nombreBase, function() { return ''; }, false);
-                const det = state.isGeoLocMode && state.locGeoData && Array.isArray(state.locGeoData.features) ? state.locGeoData.features : null;
-                if (det) {
-                    const esLoc = function(f) { return !!(f.properties && (f.properties.NOM_LOC || f.properties.LOCALIDAD)); };
-                    const nombreDet = function(f) { const p = f.properties || {}; return p.NOM_LOC || p.LOCALIDAD || p.NOM_MUN || p.MUNICIPIO || p.NOMGEO || ''; };
-                    const detalleDet = function(f) { const p = f.properties || {}; return esLoc(f) ? [p.NOM_MUN || p.MUNICIPIO, p.NOM_ENT].filter(Boolean).join(', ') : (p.NOM_ENT || ''); };
-                    const locs = det.filter(esLoc), muns = det.filter(function(f) { return !esLoc(f); });
-                    if (muns.length) toma('Municipios', muns, nombreDet, detalleDet, true);
-                    if (locs.length) toma('Localidades', locs, nombreDet, detalleDet, true);
+                const det = capaDetalle();
+                if (state.isNacional) {
+                    agrega('Estados', 'ent', indice(capaBase(), nombreBase), function() { return ''; });
+                    if (det) agrega('Municipios', 'mun', indice(det, nombreDet), detalleDet);
+                } else {
+                    agrega('Municipios', 'mun', indice(capaBase(), nombreBase), function() { return ''; });
+                    if (det && state.isGeoLocMode) agrega('Localidades', 'loc', indice(det, nombreDet, esLoc), detalleDet);
+                }
+                const u = unidades && hayUnidades() && unidades.url === app.pos.urlEstab(state) ? unidades : null;
+                if (u && q.length >= 3) {
+                    const clues = q.toUpperCase(), hallados = [];
+                    for (let i = 0; i < u.pts.length && hallados.length < MAX_UNIDADES; i++) {
+                        const r = String(u.pts[i].clues || '').indexOf(clues) === 0 ? 0 : app.controls._rangoBusqueda(u.n[i], q);
+                        if (r >= 0) hallados.push({ i: i, r: r });
+                    }
+                    hallados.sort(function(a, b) { return a.r - b.r || u.n[a.i].length - u.n[b.i].length; });
+                    const items = hallados.slice(0, MAX_POR_GRUPO).map(function(h) {
+                        const p = u.pts[h.i];
+                        return { tipo: 'clues', clave: p.clues || '', texto: app.utils.titleCase(p.nombre) || p.clues, detalle: [p.clues, app.utils.titleCase(p.institucion)].filter(Boolean).join(' · '), p: p };
+                    });
+                    if (items.length) grupos.push({ titulo: 'Unidades de salud', items: items });
                 }
                 return grupos;
             };
 
-            let items = [], activo = -1;
+            // ---- Ir al lugar. Devuelve el foco del enlace (`tipo:clave`) o null si no hubo a dónde ir ----
+            const ir = async function(it) {
+                if (it.tipo === 'clues') {
+                    const d = await app.pos.muestraUnidad(container, state, it.p);
+                    if (!d) return null;
+                    app.map.focusPoint(state, d);
+                    return 'clues:' + it.clave;
+                }
+                // Un municipio del país se ve en la vista de municipios; una localidad, en la de localidades
+                const enDetalle = (it.tipo === 'mun' && state.isNacional) || it.tipo === 'loc';
+                if (enDetalle && state.setVista && !(await state.setVista('detalle'))) return null;
+                app.map.focusFeature(state, it.f, enDetalle);
+                return it.tipo + ':' + it.clave;
+            };
+
+            // ---- Lista de resultados ----
+            let items = [], activo = -1, consulta = 0;
             const cierra = function() { lista.hidden = true; entrada.setAttribute('aria-expanded', 'false'); activo = -1; };
             const marca = function() { lista.querySelectorAll('.siarhe-res-item').forEach(function(li, i) { li.classList.toggle('activo', i === activo); }); };
-            const esc = function(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; };
-            const dibuja = function() {
+            const esc = app.utils.esc;
+            const dibuja = function(mensaje) {
                 const grupos = busca(entrada.value);
                 items = grupos.reduce(function(a, g) { return a.concat(g.items); }, []);
                 let n = 0;
@@ -1396,27 +1508,44 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     return '<li class="siarhe-res-grupo" role="presentation">' + g.titulo + '</li>' + g.items.map(function(it) {
                         return '<li class="siarhe-res-item" role="option" data-i="' + (n++) + '">' + esc(it.texto) + (it.detalle ? '<small>' + esc(it.detalle) + '</small>' : '') + '</li>';
                     }).join('');
-                }).join('') + (!items.length && norm(entrada.value).length >= 2 ? '<li class="siarhe-res-vacio" role="presentation">Sin resultados</li>' : '');
+                }).join('') + (mensaje ? '<li class="siarhe-res-vacio" role="presentation">' + mensaje + '</li>' : '') +
+                    (!items.length && !mensaje && norm(entrada.value).length >= 2 ? '<li class="siarhe-res-vacio" role="presentation">Sin resultados</li>' : '');
                 lista.hidden = !lista.innerHTML;
                 entrada.setAttribute('aria-expanded', String(!lista.hidden));
                 activo = -1;
             };
-            const elige = function(it) {
+            // Dibuja lo que ya se puede buscar y pide lo que falta; al llegar, vuelve a dibujar si la consulta no cambió
+            const actualiza = function() {
+                const mio = ++consulta, q = norm(entrada.value), avisos = [], esperas = [];
+                if (q.length >= 2 && faltaDetalle()) { avisos.push('Buscando municipios…'); esperas.push(cargaDetalle()); }
+                if (q.length >= 3 && faltanUnidades()) { avisos.push('Buscando unidades de salud…'); esperas.push(cargaUnidades()); }
+                dibuja(avisos.join(' '));
+                esperas.forEach(function(p) { p.then(function() { if (mio === consulta && document.activeElement === entrada) actualiza(); }); });
+            };
+            const elige = async function(it) {
                 cierra();
                 entrada.value = it.texto;
                 entrada.blur();
-                app.map.focusFeature(state, it.f, it.detalleCapa);
+                // En pantalla completa el panel tapa el mapa: se cierra para ver a dónde se llegó
+                if (wrapper.classList.contains('is-fullscreen-mode')) { const x = wrapper.querySelector('.siarhe-close-controls-btn'); if (x) x.click(); }
+                state.foco = await ir(it);
+                if (app.urlState) app.urlState.write(container, state);
                 const mapDiv = container.querySelector('.siarhe-map-container');
                 if (mapDiv && !document.fullscreenElement) {
                     const r = mapDiv.getBoundingClientRect();
                     if (r.top < 0 || r.bottom > window.innerHeight) mapDiv.scrollIntoView({ block: 'center', behavior: 'smooth' });
                 }
             };
-            entrada.addEventListener('input', dibuja);
-            entrada.addEventListener('focus', function() { if (norm(entrada.value).length >= 2) dibuja(); });
+            entrada.addEventListener('input', function() {
+                // Al vaciar el campo el lugar buscado deja de viajar en el enlace
+                if (!entrada.value.trim() && state.foco) { state.foco = null; if (app.urlState) app.urlState.write(container, state); }
+                actualiza();
+            });
+            entrada.addEventListener('focus', function() { if (norm(entrada.value).length >= 2) actualiza(); });
             entrada.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') { cierra(); return; }
-                if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && items.length) {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    if (!items.length) return;
                     e.preventDefault();
                     activo = (activo + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
                     marca();
@@ -1433,6 +1562,36 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (li) elige(items[Number(li.dataset.i)]);
             });
             document.addEventListener('pointerdown', function(e) { if (!host.contains(e.target)) cierra(); });
+
+            state.buscador = {
+                /** Lleva el mapa al foco de un enlace (`tipo:clave`): ent, mun, loc o clues. */
+                aplicaFoco: async function(foco) {
+                    if (!foco || foco === state.foco) return;
+                    const corte = foco.indexOf(':'), tipo = foco.slice(0, corte), clave = foco.slice(corte + 1);
+                    if (corte < 1 || !clave) return;
+                    const enCapa = function(features, filtro) {
+                        return (features || []).find(function(f) { return (!filtro || filtro(f)) && claveDe(f) === clave; }) || null;
+                    };
+                    let it = null;
+                    if (tipo === 'clues') {
+                        const u = await cargaUnidades();
+                        const p = u ? u.pts.find(function(x) { return x.clues === clave; }) : null;
+                        if (p) it = { tipo: tipo, clave: clave, texto: app.utils.titleCase(p.nombre) || clave, p: p };
+                    } else {
+                        let f = null;
+                        if (tipo === 'ent' && state.isNacional) f = enCapa(capaBase());
+                        else if (tipo === 'mun' && state.isNacional) { await cargaDetalle(); f = enCapa(capaDetalle(), function(x) { return !esLoc(x); }); }
+                        else if (tipo === 'mun') f = enCapa(capaBase());
+                        else if (tipo === 'loc' && !state.isNacional && state.setVista && await state.setVista('detalle')) f = enCapa(capaDetalle(), esLoc);
+                        if (f) it = { tipo: tipo, clave: clave, texto: (tipo === 'ent' || (tipo === 'mun' && !state.isNacional)) ? nombreBase(f) : nombreDet(f), f: f };
+                    }
+                    if (!it) return;
+                    entrada.value = it.texto;
+                    state.foco = await ir(it);
+                },
+                /** Vacía el buscador y olvida el lugar buscado. */
+                limpia: function() { entrada.value = ''; cierra(); state.foco = null; }
+            };
         },
 
         /**
@@ -1714,88 +1873,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     if (app.map) app.map.downloadMapAsPNG(container, state, !!state.showLabels);
                 });
             }
-        },
-
-        setupExcelExport: function(container, state) {
-            const btnExcel = container.querySelector('.siarhe-btn-download-excel');
-            if (!btnExcel) return;
-
-            btnExcel.addEventListener('click', (e) => {
-                e.preventDefault();
-                let csvContent = '\uFEFF';
-                const colEntidad = state.isNacional ? 'Entidad Federativa' : 'Municipio';
-                csvContent += `${colEntidad},Población,Enfermeras,Tasa\n`;
-
-                const metricInfo = state.metricas[state.currentMetric];
-                const mKey = state.currentMetric;
-
-                // 🌟 CORRECCIÓN ARQUITECTÓNICA AL EXPORTAR
-                // Extraemos el gafete (pairGroup) y buscamos los nombres REALES de las columnas
-                const pairGroup = metricInfo.pair || mKey;
-                const isPob = (mKey === 'poblacion');
-
-                const enfDataKey = isPob ? null : app.utils.findAbsoluteKeyForPair(pairGroup, state.metricas);
-                const tasaDataKey = isPob ? null : ((metricInfo.tipo === 'tasa') ? mKey : app.utils.findRateKeyForAbsolute(pairGroup, state.metricas));
-
-                const getVal = (r, colId) => {
-                    if (colId === 'estado') return r.estado;
-                    if (colId === 'poblacion') return r.poblacion;
-                    if (colId === 'enfermeras') return isPob ? null : r[enfDataKey];
-                    if (colId === 'tasa') return isPob ? null : r[tasaDataKey];
-                    return null;
-                };
-
-                const rows = state.csvData.filter(r => !r.isTotal && !r.isSpecial).sort((a,b) => {
-                    const va = getVal(a, app.sortConfig.key);
-                    const vb = getVal(b, app.sortConfig.key);
-                    if (va === null && vb !== null) return 1;
-                    if (vb === null && va !== null) return -1;
-                    if (va === null && vb === null) return 0;
-                    if (va < vb) return app.sortConfig.direction === 'asc' ? -1 : 1;
-                    if (va > vb) return app.sortConfig.direction === 'asc' ? 1 : -1;
-                    return 0;
-                });
-
-                const fixed = state.csvData.filter(r => (r.isTotal || r.isSpecial) && !r.isExtranjero);
-
-                [...rows, ...fixed].forEach(r => {
-                    const estado = `"${r.estado}"`;
-                    const pob = r.poblacion || 0;
-
-                    let enfStr = '-';
-                    if (!isPob && enfDataKey && r[enfDataKey] !== null && r[enfDataKey] !== undefined) {
-                        enfStr = r[enfDataKey];
-                    }
-
-                    let tasaStr = '-';
-                    if (!isPob && tasaDataKey && r[tasaDataKey] !== null && r[tasaDataKey] !== undefined) {
-                        tasaStr = r[tasaDataKey].toFixed(2);
-                    }
-
-                    csvContent += `${estado},${pob},${enfStr},${tasaStr}\n`;
-                });
-
-                const anioNode = document.querySelector('.siarhe-dynamic-year');
-                const anio = anioNode ? anioNode.innerText : new Date().getFullYear();
-
-                const titleNode = container.querySelector('h2.siarhe-title');
-                const entidadNombreRaw = titleNode ? titleNode.innerText.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '').trim() : "Mexico";
-                const entidadClean = entidadNombreRaw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_');
-
-                const labelRaw = metricInfo.label || metricInfo.fullLabel || 'Datos';
-                const labelClean = labelRaw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\./g, "").replace(/\s+/g, '_');
-
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-
-                a.download = `${labelClean}_${entidadClean}_${anio}.csv`;
-                a.href = url;
-                a.style.display = "none";
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            });
         }
     };
 

@@ -36,8 +36,10 @@ La 0.1.9.0 (selectores con búsqueda, esqueleto de carga, contenedor o canvas, r
 
 La 0.1.10.0 (controles homologados con RHEMX) agregó `prueba_controles.js` (conmutador, buscador, grupos de marcadores, etiquetas sin encimarse y marcadores de posición por tema, con un DOM simulado) y el **arnés de navegador** de `tests/arnes/`, que carga el front real con datos de RHEMX sin WordPress. Con el arnés se vieron en PC, tableta y móvil los controles, los marcadores por tema, el cambio de año, los enlaces, el buscador, las etiquetas, el ancho, la tabla y la pantalla completa con Esc. La 0.1.11.0 (un solo botón «PNG», D3 local primero, pestaña *Configuración › General*) se revisó con `php -l`, `node --check` y `prueba_controles.js`.
 
+La 0.1.12.0 (buscador con municipios y CLUES, tabla con clave y descargas, conmutador Contenedor / Canvas, zoom y tamaños de RHEMX) agregó a `prueba_controles.js` el rango del buscador y las columnas y claves de la tabla, y se vio en el arnés: mismas coincidencias que RHEMX para «madero» y «civil de», ir a un municipio y a una unidad, enlace con el lugar buscado, descargas CSV, Excel y JSON, zoom máximo de 50 y marcadores de 14 px.
+
 > [!IMPORTANT]
-> La 0.1.10.0 y la 0.1.11.0 **no se han probado en un WordPress real**. Falta todo el lado PHP (que la pestaña *General* guarde y el mapa la respete, que D3 cargue de `public/js/libs/`), el aspecto con el tema del sitio, la descarga del PNG, las páginas estatales, la vista detallada y los marcadores de densidad.
+> La 0.1.10.0, la 0.1.11.0 y la 0.1.12.0 **no se han probado en un WordPress real** (el dueño vio la 0.1.11.0 en su sitio). Falta todo el lado PHP (que la pestaña *General* guarde y el mapa la respete, que D3 cargue de `public/js/libs/`), el aspecto con el tema del sitio, la descarga del PNG, las páginas estatales, la vista detallada y los marcadores de densidad.
 
 > [!IMPORTANT]
 > La 0.1.8.0 tampoco se ha probado en un WordPress real: faltan las pantallas de carga con sus filtros, la migración del esquema (versión 4: columna `tema`), la carga de bases de clínicas y de temas propios, el botón *Validar archivos cargados* y la versión por entidad de los marcadores en el mapa de un estado.

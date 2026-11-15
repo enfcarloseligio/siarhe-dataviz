@@ -238,3 +238,51 @@ assert.strictEqual(pos.leyenda(sv, ''), null);
 // Partir un título largo sin cortar palabras
 assert.deepStrictEqual(app.map._wrap('Instituto de Seguridad y Servicios Sociales', 20), ['Instituto de', 'Seguridad y', 'Servicios Sociales']);
 console.log('prueba_controles: marcadores de posición por tema correctos');
+
+// Buscador: rango de coincidencia (0 empieza igual, 1 empieza una palabra, 2 dentro, -1 no coincide) y orden de los resultados
+{
+    const rango = app.controls._rangoBusqueda;
+    assert.strictEqual(rango('madero', 'madero'), 0);
+    assert.strictEqual(rango('ciudad madero', 'madero'), 1);
+    assert.strictEqual(rango('altamadero', 'madero'), 2);
+    assert.strictEqual(rango('victoria', 'madero'), -1);
+    assert.strictEqual(rango('hospital general de ciudad victoria', 'hospital victoria general'), 1);   // todas las palabras, en cualquier orden
+    assert.strictEqual(rango('hospital general', 'hospital pediatrico'), -1);
+    const nombres = ['Francisco I. Madero', 'Madero', 'Villa Maderoso', 'Ciudad Madero', 'Tula'].map(app.controls._normBusqueda);
+    assert.deepStrictEqual(app.controls._mejoresBusqueda(nombres, t => t, 'madero', 3), ['madero', 'ciudad madero', 'villa maderoso']);
+    console.log('prueba_controles: rango y orden del buscador correctos');
+}
+
+// Tabla: columnas según el indicador y la unidad, y clave geoestadística de cada renglón
+{
+    const tabla = fs.readFileSync(path.join(__dirname, '..', 'siarhe-dataviz', 'public', 'js', 'siarhe-table.js'), 'utf8');
+    app.utils = {
+        findAbsoluteKeyForPair: (g, m) => Object.keys(m).find(k => m[k].pair === g && m[k].tipo === 'absoluto') || null,
+        findRateKeyForAbsolute: (g, m) => Object.keys(m).find(k => m[k].pair === g && m[k].tipo === 'tasa') || null
+    };
+    new Function(tabla).call(global);
+    const metricas = {
+        poblacion: { label: 'Población' },
+        enfermeras_total: { nombre: 'Total', tipo: 'absoluto', pair: 'total' },
+        tasa_total: { nombre: 'Total', tipo: 'tasa', pair: 'total' },
+        enf_admin: { nombre: 'Administración', tipo: 'absoluto', pair: 'admin' },
+        tasa_admin: { nombre: 'Administración', tipo: 'tasa', pair: 'admin' }
+    };
+    const ids = cols => cols.map(c => c.id).join(',');
+    assert.strictEqual(ids(app.table.columnas(metricas, 'tasa_total', 'plazas', true)), 'nombre,clave,pob,total,tasaTotal');
+    assert.strictEqual(ids(app.table.columnas(metricas, 'poblacion', 'plazas', true)), 'nombre,clave,pob,total,tasaTotal');
+    const conVar = app.table.columnas(metricas, 'tasa_admin', 'personas', false);
+    assert.strictEqual(ids(conVar), 'nombre,clave,pob,total,tasaTotal,cnt,tasa');
+    assert.strictEqual(conVar[0].titulo, 'Municipio');
+    assert.strictEqual(conVar[3].titulo, 'Recursos humanos (total)');
+    assert.strictEqual(conVar[5].titulo, 'Administración (recursos humanos)');
+    assert.strictEqual(conVar[5].dato, 'enf_admin');
+    assert.strictEqual(conVar[6].dato, 'tasa_admin');
+
+    assert.strictEqual(app.table.clave({ CVE_ENT: '9' }, true), '09');
+    assert.strictEqual(app.table.clave({ CVE_ENT: '28', CVE_MUN: '032' }, false, '28'), '28032');
+    assert.strictEqual(app.table.clave({ CVE_MUN: '1' }, false, '1'), '01001');
+    assert.strictEqual(app.table.clave({ CVE_MUN: '28032' }, false, '28'), '28032');
+    assert.strictEqual(app.table.clave({ CVE_ENT: '33', isTotal: true }, true), '');
+    console.log('prueba_controles: columnas y claves de la tabla correctas');
+}

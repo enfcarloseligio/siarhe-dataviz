@@ -49,7 +49,7 @@ Cada script termina con `RESULTADO: todo correcto` o con la lista de fallas.
 | `prueba_geo.php` | Lista de marcos quinquenales; aceptación de cada archivo en su pestaña y rechazo por capa equivocada, entidad equivocada o AGEB |
 | `prueba_marcadores.php` | Periodos válidos; ida y vuelta JSON → CSV → JSON de las capas de RHEMX; ida y vuelta CSV → JSON → CSV del catálogo CLUES (celda por celda) |
 | `prueba_worker.js` | Mismos puntos desde el JSON y desde el CSV; filtros por nivel de atención; puntos de una sola entidad; capas de clínicas |
-| `prueba_controles.js` | Sin argumentos (`node tests\prueba_controles.js`). Conmutador de dos opciones, normalización del buscador, grupos y resumen de los desplegables de marcadores y acomodo de etiquetas sin encimarse, con un DOM simulado |
+| `prueba_controles.js` | Sin argumentos (`node tests\prueba_controles.js`). Conmutador de dos opciones, normalización del buscador, grupos y resumen de los desplegables de marcadores, acomodo de etiquetas sin encimarse, rango y orden de los resultados del buscador y columnas y claves de la tabla, con un DOM simulado |
 | `prueba_validador.php` | Orden Extranjero, República Mexicana y entidades; tipos de marcador y sus periodos; temas de las bases; las 33 bases de un año aceptadas en su lugar y rechazadas en otro (CSV y JSON); una base de clínicas; división de `unidades_clues`, catéteres y heridas en 32 capas con las mismas filas que la completa |
 
 Lo que **no** cubren: las pantallas del panel, la carga real de archivos y el aspecto del mapa. Eso se prueba en un WordPress (ver [docs/pruebas.md](../docs/pruebas.md)).

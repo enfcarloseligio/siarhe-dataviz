@@ -2,6 +2,30 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.12.0] - 2026-11-15
+
+Segunda tanda de la copia del mapa de RHEMX, tras la prueba de la 0.1.11.0 en el sitio. Probado con `tests/` y visto en navegador con el arnés (datos de RHEMX, sin WordPress); **falta verlo en un WordPress real**.
+
+### Mapa
+- **Buscador como el de RHEMX:** encuentra estados, municipios (en la República, los de todo el país), localidades (con la vista de localidades de un estado) y **unidades de salud por nombre o CLUES**. Coinciden todas las palabras en cualquier orden, primero lo que empieza igual, seis resultados por grupo. Al elegir un municipio del país el mapa pasa a la vista de municipios y se acerca; al elegir una unidad se enciende su marcador, el mapa se centra en ella y se abre su ficha. Los municipios del país y el catálogo de unidades se descargan al empezar a escribir.
+- **El lugar buscado viaja en el enlace** (`f=mun:28009`, `f=clues:...`): «Copiar enlace» lo reproduce. Restablecer o vaciar el buscador lo olvida.
+- **Zoom máximo igual al de RHEMX:** 50 veces el encuadre de la República y 200 veces el de un estado en cualquier dispositivo (antes hasta 400 en la República, según la pantalla). Los botones + y − duplican o reducen a la mitad.
+- **Tamaño de los marcadores de posición igual al de RHEMX:** 17 px en PC, 14 en tableta y 11 en teléfono, que bajan a 14, 11 y 8 al llegar a 25 aumentos (antes 14→8, 15→10 y 11→8).
+- **Etiquetas a 11 px** (10 en teléfono), como en RHEMX.
+- **Botones encendidos:** el icono toma el color del texto del botón; antes quedaba del color del relleno y no se veía («Ocultar etiquetas»).
+- **PNG:** el pie con la fuente ya no lleva barras «|» de más.
+
+### Página
+- **Conmutador «Contenedor / Canvas»** arriba a la derecha de la visualización, con sus iconos, en lugar del botón «Ancho completo» del panel del mapa: cambia el ancho de toda la página (mapa, tabla y pie) y se recuerda en el navegador. Solo en pantallas de 1024 px o más.
+
+### Tabla
+- **Columnas de RHEMX:** lugar, **Clave** (entidad de 2 dígitos o municipio de 5), Población, total de la unidad («Plazas (total)» o «Recursos humanos (total)») y su tasa; con un indicador distinto del total se agregan su conteo y su tasa. Sin dato se muestra «S/D». Orden inicial por la tasa del total.
+- **Barra de opciones:** «Ver mapa», «Pantalla completa» y descargas en **CSV, Excel y JSON** (antes un solo botón que entregaba CSV). El Excel es un `.xlsx` real (SheetJS 0.18.5, que se descarga solo al pedirlo: primero la copia del plugin y, si falla, el CDN); las claves conservan sus ceros.
+
+### Interno
+- `app.layout` (`siarhe-core.js`), `app.table.columnas / clave` y `app.controls._rangoBusqueda / _mejoresBusqueda` (puras, probadas), `app.pos.unidades / muestraUnidad`, `app.map.focusPoint`, `state.setVista`.
+- `public/js/libs/xlsx.full.min.js` e iconos nuevos en `public/img/`.
+
 ## [0.1.11.0] - 2026-11-14
 
 Ajustes sobre la 0.1.10.0, que entran al repositorio en el mismo commit. Revisado con `php -l`, `node --check` y `tests/`; **falta verlo en un WordPress real** (el arnés de navegador no pasa por PHP).

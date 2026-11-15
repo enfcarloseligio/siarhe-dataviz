@@ -1,9 +1,19 @@
 /**
- * SIARHE DataViz - Módulo de Tabla (Table)
+ * siarhe-dataviz/public/js/siarhe-table.js
  * ------------------------------------------------------------------
- * Gestiona la creación, actualización y ordenamiento interactivo
- * de la tabla de datos estadísticos. Recibe los datos procesados del
- * Core y los renderiza manejando nulos de forma segura.
+ * SIARHE DataViz - Módulo de Tabla (app.table)
+ *
+ * Tabla de datos de la vista, con las columnas y las opciones de la tabla del mapa de RHEMX
+ * (rhemx/web/assets/js/geoespacial.js, dibujaTabla): lugar, clave, población, total de la unidad
+ * y su tasa y, con un indicador distinto del total, el conteo y la tasa del indicador. Se ordena
+ * por cualquier columna y se descarga en CSV, Excel o JSON.
+ *
+ *   1. Configuración
+ *   2. Utilidades
+ *   3. Estructura (barra de opciones y tabla)
+ *   4. Columnas y renglones
+ *   5. Dibujo y orden
+ *   6. Descargas
  */
 
 window.SiarheDataViz = window.SiarheDataViz || {};
@@ -11,10 +21,65 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 (function(app) {
     'use strict';
 
+    // ==========================================
+    // 1. CONFIGURACIÓN
+    // ==========================================
+    // Columnas del total de la unidad de conteo (plazas o recursos humanos) en las bases de enfermería
+    const COL_TOTAL = 'enfermeras_total';
+    const COL_TASA_TOTAL = 'tasa_total';
+    const SIN_DATO = 'S/D';
+    // SheetJS se pide solo al descargar un Excel: primero la copia del plugin y, si falla, la del CDN
+    const SHEETJS_CDN = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    let promesaSheetJS = null;
+
+    // ==========================================
+    // 2. UTILIDADES
+    // ==========================================
+    const esTexto = function(col) { return col === 'nombre' || col === 'clave'; };
+    const sinAcentos = function(t) { return String(t == null ? '' : t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); };
+    const fmtN = function(v) { return v.toLocaleString('es-MX'); };
+    const vacio = function(v) { return v === null || v === undefined || (typeof v === 'number' && isNaN(v)); };
+
+    // Icono de línea de public/img, pintado con el color del texto del botón
+    const icono = function(container, nombre) {
+        return container.dataset.img ? '<span class="siarhe-ctl-icon" aria-hidden="true" style="--ico: url(\'' + container.dataset.img + nombre + '.svg\')"></span>' : '';
+    };
+
+    const cargaScript = function(src) {
+        return new Promise(function(resuelve, rechaza) {
+            const s = document.createElement('script');
+            s.src = src;
+            s.onload = resuelve;
+            s.onerror = function() { rechaza(new Error('No se pudo cargar ' + src)); };
+            document.head.appendChild(s);
+        });
+    };
+
+    const cargaSheetJS = function() {
+        if (typeof XLSX !== 'undefined' && XLSX.utils && XLSX.writeFile) return Promise.resolve();
+        if (!promesaSheetJS) {
+            const local = (window.SiarheDataVizConfig || {}).xlsx;
+            promesaSheetJS = (local ? cargaScript(local).catch(function() { return cargaScript(SHEETJS_CDN); }) : cargaScript(SHEETJS_CDN))
+                .catch(function(err) { promesaSheetJS = null; throw err; });
+        }
+        return promesaSheetJS;
+    };
+
+    const descarga = function(contenido, tipo, nombre) {
+        const url = URL.createObjectURL(new Blob([contenido], { type: tipo }));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = nombre;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
     app.table = {
 
         // ==========================================
-        // 1. CONSTRUCCIÓN DE LA ESTRUCTURA BASE
+        // 3. ESTRUCTURA (BARRA DE OPCIONES Y TABLA)
         // ==========================================
 
         init: function(container, state) {
@@ -24,158 +89,251 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             const table = document.createElement('table');
             table.className = 'siarhe-data-table';
-
-            // Guardamos las referencias en el estado para no buscar en el DOM a cada rato
-            state.tableElements = {
-                table: table,
-                thead: table.createTHead(),
-                tbody: table.createTBody()
-            };
-
+            state.tableElements = { table: table, thead: table.createTHead(), tbody: table.createTBody() };
             div.appendChild(table);
 
-            // Primer renderizado
+            app.table._barra(container, state, div);
             app.table.update(container, state);
         },
 
+        // Barra de opciones sobre la tabla: ir al mapa, pantalla completa y descargas
+        _barra: function(container, state, div) {
+            const vista = div.closest('.siarhe-table-wrapper') || div;
+            if (vista.querySelector('.siarhe-tabla-barra')) return;
+            const hayMapa = !!container.querySelector('#siarhe-map-section');
+            const boton = function(clase, ico, texto, titulo) {
+                return '<button type="button" class="siarhe-btn ' + clase + '" title="' + titulo + '">' + icono(container, ico) +
+                    ' <span class="siarhe-btn-texto">' + texto + '</span></button>';
+            };
+            const barra = document.createElement('div');
+            barra.className = 'siarhe-tabla-barra siarhe-controls-layout';
+            barra.innerHTML = '<div class="siarhe-controls-row">' +
+                (hayMapa ? boton('siarhe-tabla-mapa', 'icon-chart', 'Ver mapa', 'Ir al mapa') : '') +
+                boton('siarhe-tabla-pantalla', 'fs-enter', 'Pantalla completa', 'Ver la tabla en pantalla completa') +
+                boton('siarhe-tabla-csv', 'icon-csv', 'CSV', 'Descargar la tabla en CSV') +
+                boton('siarhe-tabla-xlsx', 'icon-excel', 'Excel', 'Descargar la tabla en Excel') +
+                boton('siarhe-tabla-json', 'icon-json', 'JSON', 'Descargar la tabla en JSON') +
+                '</div>';
+            vista.insertBefore(barra, vista.firstChild);
+
+            const alPulsar = function(clase, fn) {
+                const b = barra.querySelector('.' + clase);
+                if (b) b.addEventListener('click', function(e) { e.preventDefault(); fn(b); });
+            };
+            alPulsar('siarhe-tabla-mapa', function() {
+                if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+                const mapa = container.querySelector('#siarhe-map-section');
+                const quieto = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                if (mapa) mapa.scrollIntoView({ behavior: quieto ? 'auto' : 'smooth', block: 'start' });
+            });
+            alPulsar('siarhe-tabla-pantalla', function() {
+                if (document.fullscreenElement === vista) { if (document.exitFullscreen) document.exitFullscreen(); return; }
+                const pide = vista.requestFullscreen ? vista.requestFullscreen() : (vista.webkitRequestFullscreen && vista.webkitRequestFullscreen());
+                if (pide && pide.catch) pide.catch(function() {});
+            });
+            document.addEventListener('fullscreenchange', function() {
+                const b = barra.querySelector('.siarhe-tabla-pantalla'), dentro = document.fullscreenElement === vista;
+                if (!b) return;
+                b.setAttribute('aria-pressed', dentro ? 'true' : 'false');
+                b.querySelector('.siarhe-btn-texto').textContent = dentro ? 'Salir de pantalla completa' : 'Pantalla completa';
+            });
+            alPulsar('siarhe-tabla-csv', function() { app.table.aCSV(container, state); });
+            alPulsar('siarhe-tabla-xlsx', function() { app.table.aXLSX(container, state); });
+            alPulsar('siarhe-tabla-json', function() { app.table.aJSON(container, state); });
+        },
+
         // ==========================================
-        // 2. ACTUALIZACIÓN DINÁMICA DE DATOS Y ORDENAMIENTO
+        // 4. COLUMNAS Y RENGLONES
+        // ==========================================
+
+        /**
+         * Columnas de la tabla para el indicador y la unidad que se ven: [{ id, titulo, dato }]. Función pura.
+         *   metricas: configuración de métricas; mKey: indicador elegido; unidad: 'plazas' | 'personas'; esNacional.
+         */
+        columnas: function(metricas, mKey, unidad, esNacional) {
+            const info = metricas[mKey] || {};
+            const esPob = mKey === 'poblacion';
+            const u = unidad === 'personas' ? { boton: 'Recursos humanos', corto: 'recursos humanos' } : { boton: 'Plazas', corto: 'plazas' };
+            const grupo = info.pair || mKey;
+            const colCnt = esPob ? null : app.utils.findAbsoluteKeyForPair(grupo, metricas);
+            const colTasa = esPob ? null : (info.tipo === 'tasa' ? mKey : app.utils.findRateKeyForAbsolute(grupo, metricas));
+            const conVariable = !esPob && !!colCnt && colCnt !== COL_TOTAL;
+            const nombreVar = (app.controls && app.controls.indicatorName ? app.controls.indicatorName(info) : '') || info.label || mKey;
+            const cols = [
+                { id: 'nombre', titulo: esNacional ? 'Entidad' : 'Municipio' },
+                { id: 'clave', titulo: 'Clave' },
+                { id: 'pob', titulo: 'Población', dato: 'poblacion' },
+                { id: 'total', titulo: u.boton + ' (total)', dato: COL_TOTAL },
+                { id: 'tasaTotal', titulo: 'Tasa por 1,000 hab. (' + u.corto + ')', dato: COL_TASA_TOTAL, tasa: true }
+            ];
+            if (conVariable) {
+                cols.push({ id: 'cnt', titulo: nombreVar + ' (' + u.corto + ')', dato: colCnt });
+                if (colTasa) cols.push({ id: 'tasa', titulo: 'Tasa por 1,000 hab. (' + nombreVar + ')', dato: colTasa, tasa: true });
+            }
+            return cols;
+        },
+
+        /**
+         * Clave geoestadística de un renglón: la de la entidad (2 dígitos) en la República y la del municipio
+         * (entidad + municipio, 5 dígitos) en un estado. Los renglones de total y «No disponible» no llevan clave.
+         */
+        clave: function(row, esNacional, cveEnt) {
+            if (row.isTotal || row.isSpecial) return '';
+            if (esNacional) return row.CVE_ENT ? String(row.CVE_ENT).padStart(2, '0') : '';
+            const mun = String(row.CVE_MUN || '');
+            if (!mun) return '';
+            return mun.length > 3 ? mun.padStart(5, '0') : String(cveEnt || row.CVE_ENT || '').padStart(2, '0') + mun.padStart(3, '0');
+        },
+
+        // ==========================================
+        // 5. DIBUJO Y ORDEN
         // ==========================================
 
         update: function(container, state) {
-            if (!state.csvData || state.csvData.length === 0) return;
-            const { thead, tbody } = state.tableElements;
-
+            if (!state.csvData || state.csvData.length === 0 || !state.tableElements) return;
             const mKey = state.currentMetric;
-
-            // Verificación de seguridad por si la métrica fue eliminada
             if (!state.metricas[mKey]) return;
+            const thead = state.tableElements.thead, tbody = state.tableElements.tbody;
 
-            // 🌟 CORRECCIÓN ARQUITECTÓNICA:
-            // La Clave Par solo es un GAFETE (grupo), no el nombre de la columna.
-            const pairGroup = state.metricas[mKey].pair || mKey;
-            const isPob = (mKey === 'poblacion');
+            const unidad = (state.base && state.base.unidad) || container.dataset.unidad || 'plazas';
+            const cols = app.table.columnas(state.metricas, mKey, unidad, state.isNacional);
+            const cveEnt = container.dataset.cveEnt;
+            const valor = function(r, c) {
+                if (c.id === 'nombre') return r.estado;
+                if (c.id === 'clave') return app.table.clave(r, state.isNacional, cveEnt);
+                return r[c.dato];
+            };
 
-            // 🌟 EXTRAEMOS LOS NOMBRES REALES DE LAS COLUMNAS USANDO LOS HELPERS DEL CORE
-            const enfDataKey = isPob ? null : app.utils.findAbsoluteKeyForPair(pairGroup, state.metricas);
+            // Orden vigente; si su columna ya no está (cambió el indicador), vuelve a la tasa del total
+            if (!cols.some(function(c) { return c.id === app.sortConfig.key; })) app.sortConfig = { key: 'tasaTotal', direction: 'desc' };
+            const colOrden = cols.find(function(c) { return c.id === app.sortConfig.key; });
+            const asc = app.sortConfig.direction === 'asc';
 
-            let tasaDataKey = null;
-            if (!isPob) {
-                tasaDataKey = (state.metricas[mKey].tipo === 'tasa') ? mKey : app.utils.findRateKeyForAbsolute(pairGroup, state.metricas);
-            }
-
-            const labelEntidad = state.isNacional ? 'Entidad Federativa' : 'Municipio';
-
-            const cols = [
-                { id: 'estado', label: labelEntidad, isNum: false, align: 'left' },
-                { id: 'poblacion', label: 'Población', isNum: true, align: 'right' },
-                { id: 'enfermeras', label: 'Enfermeras', isNum: true, dataKey: enfDataKey, dash: isPob, align: 'right' },
-                { id: 'tasa', label: 'Tasa', isNum: true, dataKey: tasaDataKey, dash: isPob, align: 'right' }
-            ];
-
-            // Renderizado de las Cabeceras (Th)
+            // Encabezados: se ordena con clic o con teclado y se anuncia el orden
             thead.innerHTML = '';
             const tr = document.createElement('tr');
-            cols.forEach(c => {
+            cols.forEach(function(c) {
                 const th = document.createElement('th');
-                th.style.textAlign = c.align;
-
-                let arrow = '↕';
-                if (app.sortConfig.key === c.id) {
-                    arrow = app.sortConfig.direction === 'asc' ? '▲' : '▼';
-                }
-
-                th.innerHTML = `${app.utils.esc(c.label)} <small>${arrow}</small>`;
-
-                // Accesibilidad: encabezado ordenable con teclado y estado de orden anunciado
+                const activa = c.id === app.sortConfig.key;
+                th.innerHTML = app.utils.esc(c.titulo) + '<span class="siarhe-sort-arrow">' + (activa ? (asc ? '▲' : '▼') : '') + '</span>';
                 th.dataset.col = c.id;
+                if (!esTexto(c.id)) th.classList.add('siarhe-num');
                 th.setAttribute('tabindex', '0');
-                th.setAttribute('aria-sort', app.sortConfig.key === c.id
-                    ? (app.sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none');
-                th.onkeydown = (ev) => {
-                    if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); th.onclick(); }
-                };
-
-                // Evento de ordenamiento
-                th.onclick = () => {
+                th.setAttribute('aria-sort', activa ? (asc ? 'ascending' : 'descending') : 'none');
+                th.onclick = function() {
                     app._tableFocusCol = c.id;
-                    if (app.sortConfig.key === c.id) {
-                        app.sortConfig.direction = app.sortConfig.direction === 'asc' ? 'desc' : 'asc';
-                    } else {
-                        app.sortConfig.key = c.id;
-                        app.sortConfig.direction = c.isNum ? 'desc' : 'asc';
-                    }
+                    app.sortConfig = { key: c.id, direction: app.sortConfig.key === c.id ? (asc ? 'desc' : 'asc') : (esTexto(c.id) ? 'asc' : 'desc') };
                     app.table.update(container, state);
                 };
+                th.onkeydown = function(ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); th.onclick(); } };
                 tr.appendChild(th);
             });
             thead.appendChild(tr);
 
-            // El encabezado se reconstruye al ordenar: devolvemos el foco a la columna usada
+            // El encabezado se reconstruye al ordenar: el foco vuelve a la columna usada
             if (app._tableFocusCol) {
                 const focusTh = thead.querySelector('[data-col="' + app._tableFocusCol + '"]');
                 app._tableFocusCol = null;
                 if (focusTh) focusTh.focus();
             }
 
-            // Helper para obtener el valor correcto según la columna elegida para ordenar
-            const getVal = (r, colId) => {
-                if (colId === 'estado') return r.estado;
-                if (colId === 'poblacion') return r.poblacion;
-                if (colId === 'enfermeras') return isPob ? null : r[enfDataKey];
-                if (colId === 'tasa') return isPob ? null : r[tasaDataKey];
-                return null;
-            };
-
-            // Filtrado y Ordenamiento
-            const rows = state.csvData.filter(r => !r.isTotal && !r.isSpecial).sort((a,b) => {
-                const va = getVal(a, app.sortConfig.key);
-                const vb = getVal(b, app.sortConfig.key);
-
-                // Tratamiento de los Nulos para evitar que rompan el ordenamiento (siempre van al final)
-                if (va === null && vb !== null) return 1;
-                if (vb === null && va !== null) return -1;
-                if (va === null && vb === null) return 0;
-
-                if (va < vb) return app.sortConfig.direction === 'asc' ? -1 : 1;
-                if (va > vb) return app.sortConfig.direction === 'asc' ? 1 : -1;
-                return 0;
+            // Lugares ordenados (los vacíos al final) y, después, «No disponible» y el total
+            const lugares = state.csvData.filter(function(r) { return !r.isTotal && !r.isSpecial; }).sort(function(a, b) {
+                let va = valor(a, colOrden), vb = valor(b, colOrden);
+                if (esTexto(colOrden.id)) { va = sinAcentos(va); vb = sinAcentos(vb); }
+                if (vacio(va) && vacio(vb)) return 0;
+                if (vacio(va)) return 1;
+                if (vacio(vb)) return -1;
+                return (asc ? 1 : -1) * (typeof va === 'string' ? va.localeCompare(vb, 'es') : va - vb);
             });
+            const fijos = state.csvData.filter(function(r) { return (r.isTotal || r.isSpecial) && !r.isExtranjero; })
+                .sort(function(a, b) { return (a.isTotal ? 1 : 0) - (b.isTotal ? 1 : 0); });
 
-            // Elementos fijos que siempre van al final (Totales / No Disponibles)
-            const fixed = state.csvData.filter(r => (r.isTotal || r.isSpecial) && !r.isExtranjero);
-
-            // Renderizado del Cuerpo (Tbody)
             tbody.innerHTML = '';
-            [...rows, ...fixed].forEach(r => {
-                const row = document.createElement('tr');
-                if(r.isTotal) row.className = 'siarhe-row-total';
-
-                cols.forEach(c => {
+            lugares.concat(fijos).forEach(function(r) {
+                const fila = document.createElement('tr');
+                fila.className = r.isTotal ? 'siarhe-row-total' : (r.isSpecial ? 'siarhe-row-extra' : 'siarhe-row-lugar');
+                cols.forEach(function(c) {
                     const td = document.createElement('td');
-                    td.style.textAlign = c.align;
-
-                    if (c.id === 'estado') {
-                        td.innerHTML = !r.isTotal ? `<strong>${app.utils.esc(r.estado)}</strong>` : app.utils.esc(r.estado);
-                    }
-                    else if (c.dash) {
-                        td.textContent = '—';
-                    }
+                    const v = valor(r, c);
+                    if (c.id === 'nombre') td.textContent = v || '';
+                    else if (c.id === 'clave') { td.textContent = v; td.dataset.t = 's'; }   // texto: conserva los ceros a la izquierda en Excel
                     else {
-                        const v = (c.id === 'poblacion') ? r.poblacion : r[c.dataKey];
-
-                        // 🌟 Si el valor es null (celda vacía), pintar el guion elegante
-                        if (v === null || v === undefined || isNaN(v)) {
-                            td.textContent = '—';
-                        } else {
-                            if (c.id === 'tasa') td.textContent = v.toFixed(2);
-                            else td.textContent = v.toLocaleString('es-MX');
-                        }
+                        td.classList.add('siarhe-num');
+                        if (vacio(v)) { td.textContent = SIN_DATO; td.classList.add('siarhe-sin-dato'); }
+                        else td.textContent = c.tasa ? v.toFixed(2) : fmtN(v);
                     }
-                    row.appendChild(td);
+                    fila.appendChild(td);
                 });
-                tbody.appendChild(row);
+                tbody.appendChild(fila);
             });
+        },
+
+        // ==========================================
+        // 6. DESCARGAS
+        // ==========================================
+
+        // Encabezados y renglones tal como se ven
+        _matriz: function(state) {
+            const t = state.tableElements && state.tableElements.table;
+            if (!t) return { headers: [], rows: [] };
+            const headers = Array.from(t.querySelectorAll('thead th')).map(function(th) {
+                const copia = th.cloneNode(true), flecha = copia.querySelector('.siarhe-sort-arrow');
+                if (flecha) flecha.remove();
+                return copia.textContent.trim();
+            });
+            const rows = Array.from(t.querySelectorAll('tbody tr')).map(function(tr) {
+                return Array.from(tr.querySelectorAll('td')).map(function(td) { return td.textContent.trim(); });
+            });
+            return { headers: headers, rows: rows };
+        },
+
+        // Nombre del archivo: indicador, lugar y año
+        _nombreArchivo: function(container, state) {
+            const limpia = function(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_'); };
+            const info = state.metricas[state.currentMetric] || {};
+            const titulo = container.querySelector('h2.siarhe-title');
+            const anioNode = container.querySelector('.siarhe-dynamic-year');
+            const anio = (state.base && state.base.anio) || (anioNode ? anioNode.textContent : '') || container.dataset.anio || '';
+            return [limpia(info.label || info.fullLabel || 'Datos'), limpia(titulo ? titulo.textContent : 'Mexico'), limpia(anio)].filter(Boolean).join('_');
+        },
+
+        aCSV: function(container, state) {
+            const m = app.table._matriz(state);
+            if (!m.headers.length) return;
+            // Texto entre comillas; lo que empieza como fórmula se neutraliza para Excel
+            const celda = function(v) { return '"' + (/^[=+\-@]/.test(v) && isNaN(Number(v.replace(/,/g, ''))) ? "'" + v : v).replace(/"/g, '""') + '"'; };
+            const lineas = [m.headers.map(celda).join(',')].concat(m.rows.map(function(r) { return r.map(celda).join(','); }));
+            descarga('﻿' + lineas.join('\n') + '\n', 'text/csv;charset=utf-8;', app.table._nombreArchivo(container, state) + '.csv');
+        },
+
+        aXLSX: async function(container, state) {
+            const t = state.tableElements && state.tableElements.table;
+            if (!t) return;
+            try { await cargaSheetJS(); } catch (err) {
+                window.alert('No se pudo cargar la librería para generar el archivo de Excel. Revisa tu conexión e inténtalo de nuevo.');
+                return;
+            }
+            const copia = t.cloneNode(true);
+            copia.querySelectorAll('.siarhe-sort-arrow').forEach(function(a) { a.remove(); });
+            XLSX.writeFile(XLSX.utils.table_to_book(copia, { sheet: 'Datos' }), app.table._nombreArchivo(container, state) + '.xlsx');
+        },
+
+        aJSON: function(container, state) {
+            const m = app.table._matriz(state);
+            if (!m.headers.length) return;
+            const lista = m.rows.map(function(r) {
+                const obj = {};
+                m.headers.forEach(function(h, i) {
+                    const v = r[i] || '';
+                    // Las claves son texto: como número perderían los ceros iniciales (01001)
+                    if (h === 'Clave') { obj[h] = v; return; }
+                    const n = parseFloat(v.replace(/,/g, ''));
+                    obj[h] = (i > 0 && !isNaN(n)) ? n : (v === SIN_DATO ? null : v);
+                });
+                return obj;
+            });
+            descarga(JSON.stringify(lista, null, 2), 'application/json;charset=utf-8;', app.table._nombreArchivo(container, state) + '.json');
         }
     };
 

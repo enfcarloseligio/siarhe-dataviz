@@ -43,7 +43,64 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     };
 
     // Objeto de ordenamiento compartido (usado por la tabla)
-    app.sortConfig = { key: 'tasa', direction: 'desc' };
+    app.sortConfig = { key: 'tasaTotal', direction: 'desc' };
+
+    /**
+     * Disposición de la página: «contenedor» (ancho de lectura) o «canvas» (ancho de la ventana). El sitio define la
+     * de inicio (Configuración › General) y el visitante la cambia con el conmutador que va arriba de la primera
+     * visualización; su elección se recuerda en el navegador (localStorage «siarheLayout») y vale para todas las
+     * visualizaciones de la página.
+     */
+    app.layout = {
+        CLAVE: 'siarheLayout',
+
+        // Ancho útil de la ventana (sin la barra de desplazamiento): con él la disposición «canvas» sale del contenedor del tema
+        fijaAncho: function() {
+            document.documentElement.style.setProperty('--siarhe-vw', document.documentElement.clientWidth + 'px');
+        },
+
+        aplica: function(wrappers, modo) {
+            const canvas = modo === 'canvas';
+            if (canvas) {
+                app.layout.fijaAncho();
+                if (!app.layout._escucha) { window.addEventListener('resize', app.layout.fijaAncho); app.layout._escucha = true; }
+            }
+            wrappers.forEach(function(w) { w.classList.toggle('siarhe-layout-canvas', canvas); });
+            document.querySelectorAll('[data-siarhe-layout]').forEach(function(b) {
+                b.setAttribute('aria-pressed', String(b.dataset.siarheLayout === modo));
+            });
+            // El mapa y sus leyendas se acomodan al ancho nuevo
+            window.dispatchEvent(new Event('resize'));
+        },
+
+        init: function(wrappers) {
+            wrappers = Array.from(wrappers || []);
+            if (!wrappers.length) return;
+            const primero = wrappers[0];
+            let modo = primero.classList.contains('siarhe-layout-canvas') ? 'canvas' : 'contenedor';
+            try {
+                const guardado = window.localStorage.getItem(app.layout.CLAVE);
+                if (guardado === 'canvas' || guardado === 'contenedor') modo = guardado;
+            } catch (e) {}
+
+            const img = primero.dataset.img || '';
+            const ico = function(n) { return img ? '<span class="siarhe-ctl-icon" aria-hidden="true" style="--ico: url(&quot;' + img + n + '.svg&quot;)"></span>' : ''; };
+            const barra = document.createElement('div');
+            barra.className = 'siarhe-barra-pagina';
+            barra.innerHTML = '<div class="siarhe-layout-toggle" role="group" aria-label="Ancho de la página">' +
+                '<button type="button" class="siarhe-layout-op" data-siarhe-layout="contenedor" title="Contenedor: ancho limitado, más cómodo de leer">' + ico('icon-contenedor') + ' Contenedor</button>' +
+                '<button type="button" class="siarhe-layout-op" data-siarhe-layout="canvas" title="Canvas: todo el ancho de la ventana, ideal para ver mejor el mapa y la tabla">' + ico('icon-canvas') + ' Canvas</button>' +
+                '</div>';
+            primero.insertBefore(barra, primero.firstChild);
+            barra.addEventListener('click', function(e) {
+                const b = e.target.closest('[data-siarhe-layout]');
+                if (!b) return;
+                app.layout.aplica(wrappers, b.dataset.siarheLayout);
+                try { window.localStorage.setItem(app.layout.CLAVE, b.dataset.siarheLayout); } catch (err) {}
+            });
+            app.layout.aplica(wrappers, modo);
+        }
+    };
 
     // ==========================================
     // 2. UTILIDADES DE PROCESAMIENTO (Parsers)
@@ -400,7 +457,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             state._urlPending = {
                 view: qs.get('v') === 'detalle' ? 'detalle' : 'base',
                 markers: (qs.get('k') || '').split(',').filter(Boolean),
-                pos: qs.get('p') || ''
+                pos: qs.get('p') || '',
+                foco: qs.get('f') || ''
             };
         },
 
@@ -419,7 +477,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 }
             }
 
-            if ((p.markers.length > 0 || p.pos) && app.controls) {
+            if ((p.markers.length > 0 || p.pos || p.foco) && app.controls) {
                 (async function() {
                     // p = marcadores de posicion por tema (siarhe-posicion.js); k = marcadores sueltos. Un enlace anterior con
                     // marcadores del sistema en k (ESTAB_1, CATETER...) se traduce a la seleccion equivalente.
@@ -435,6 +493,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         }
                     }
                     if (adoptado) await app.pos.apply(container, state);
+                    // f = lugar o unidad que se buscó (ent:09, mun:28032, loc:..., clues:...): el mapa vuelve a ese lugar
+                    if (p.foco && state.buscador) await state.buscador.aplicaFoco(p.foco);
                 })();
             }
         },
@@ -463,6 +523,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (sueltos.length > 0) qs.set('k', sueltos.join(','));
             const posEnlace = app.pos ? app.pos.aEnlace(state) : '';
             if (posEnlace) qs.set('p', posEnlace);
+            if (state.foco) qs.set('f', state.foco);
 
             const raw = (window.location.hash || '').replace(/^#/, '');
             // Si la pagina usa el hash para otra cosa (ancla propia), no lo tocamos
@@ -734,7 +795,6 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             if (mode.includes('T') && csv && app.table) {
                 app.table.init(container, state);
-                if (app.controls) app.controls.setupExcelExport(container, state);
             }
 
             // El overlay se oculta hasta que todo se haya construido (antes se ocultaba antes de renderizar)
@@ -762,12 +822,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const app = window.SiarheDataViz;
     const wrappers = document.querySelectorAll('.siarhe-viz-wrapper');
 
-    // Ancho útil de la ventana (sin la barra de desplazamiento) para la disposición «canvas», que sale del contenedor del tema
-    const fijaAnchoVentana = () => document.documentElement.style.setProperty('--siarhe-vw', document.documentElement.clientWidth + 'px');
-    if (document.querySelector('.siarhe-layout-canvas')) {
-        fijaAnchoVentana();
-        window.addEventListener('resize', fijaAnchoVentana);
-    }
+    app.layout.init(wrappers);
     app.ensureD3(
         function() { wrappers.forEach(container => { app.initVisualization(container); }); },
         function() {

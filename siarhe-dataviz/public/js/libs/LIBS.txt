@@ -9,3 +9,8 @@ Version: 3.1.0 (ISC, Copyright 2019 Mike Bostock; misma licencia que D3, ver LIC
 Origen:  https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js
 Se carga solo cuando el mapa recibe una topologia (la pagina y el worker de geometrias).
 Para actualizarla, reemplaza topojson-client.min.js y ajusta la version en class-siarhe-shortcodes.php.
+
+SheetJS (descarga de la tabla en Excel; se pide solo al pulsar «Excel»: primero esta copia y, si falla, el CDN)
+Version: 0.18.5 (Apache-2.0)
+Origen:  https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js
+Para actualizarla, reemplaza xlsx.full.min.js y ajusta la version en class-siarhe-shortcodes.php y en siarhe-table.js.
