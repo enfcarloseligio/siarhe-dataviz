@@ -352,6 +352,37 @@ console.log('prueba_controles: marcadores de posición por tema correctos');
     assert.strictEqual(n.esTotal, true);
     assert.strictEqual(n.conRegistros, 1);
     console.log('prueba_controles: cifras del encabezado, resumen y nota correctas');
+
+    // Comparación de dos años (app.cambio, como `calculaCambio` de RHEMX): sin dato en un año se toma como 0, el municipio
+    // ausente en el año comparado es «nuevo», menos de 5 % es «sin cambio importante» y el total va con la clave «total»
+    const C = app.cambio;
+    const anterior = [fila('001', 1000, 10, 2), fila('002', 500, 0, 0), fila('100', 200, 2, 0), fila('9999', 1700, 15, 4, { isTotal: true })];
+    const sc = Object.assign({}, st, { currentMetric: 'enfermeras_primer', base: { anio: '2024', unidad: 'plazas', bases: {} }, comparar: '2023' });
+    sc.cmp = C.deFilas(sc, anterior, '2023', 'plazas');
+    const k = C.calcula(sc);
+    assert.ok(k, 'la comparación debía estar activa');
+    const g = x => k.mapa.get(x);
+    assert.deepStrictEqual([g('001').v1, g('001').v2, g('001').delta, g('001').pct, g('001').clase], [4, 2, 2, 100, 'sube']);
+    assert.strictEqual(g('002').ceros, true);                      // 0 en ambos años
+    assert.strictEqual(g('099').nuevo, true);                      // no estaba en 2023: incremento desde 0
+    assert.strictEqual(g('099').pct, null);
+    assert.strictEqual(C.fmtPctDe(g('099')), 'desde 0');
+    assert.strictEqual(g('100').clase, 'sube');
+    assert.deepStrictEqual([g('total').v1, g('total').v2, g('total').delta], [8, 4, 4]);
+    assert.deepStrictEqual(k.stats, { suben: 1, bajan: 0, iguales: 1, total: 2 });   // solo los del mapa (001 y 002)
+    assert.strictEqual(C.posicion({ clase: 'igual' }), 0.5);
+    assert.strictEqual(C.posicion({ clase: 'sube', pct: 25 }), 1);
+    assert.strictEqual(C.posicion({ clase: 'baja', pct: -15 }), 0.125);
+    assert.strictEqual(C.fmtCambio(sc, -3), '-3');
+    assert.strictEqual(C.fmtPorcentaje(4.26), '+4.3 %');
+    // Un cambio menor de 5 % es «igual»; la población y las localidades de un estado no se comparan
+    sc.cmp = C.deFilas(sc, [fila('001', 1000, 10, 3.9)], '2023', 'plazas');
+    sc.csvData = [fila('001', 1000, 10, 4)];
+    assert.strictEqual(C.calcula(sc).mapa.get('001').clase, 'igual');
+    assert.strictEqual(C.calcula(Object.assign({}, sc, { currentMetric: 'poblacion' })), null);
+    assert.strictEqual(C.calcula(Object.assign({}, sc, { isGeoLocMode: true })), null);
+    assert.strictEqual(C.calcula(Object.assign({}, sc, { comparar: '2024' })), null);
+    console.log('prueba_controles: comparación de dos años correcta');
 }
 
 // Proyección del worker de geometrías: la cónica conforme nacional de RHEMX debe dar los mismos puntos que d3

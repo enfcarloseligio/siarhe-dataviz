@@ -965,8 +965,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 state.svg.transition().duration(app.utils.motionMs(600)).call(state.zoom.transform, state.initialTransform);
             }
 
-            // 5c) Colores personalizados por el visitante
+            // 5c) Colores personalizados por el visitante y sin comparar años
             state.customColors = null;
+            state.comparar = ''; state.cmp = null;
+            if (state.syncComparar) state.syncComparar();
             if (typeof state._paletteRefresh === 'function') state._paletteRefresh();
 
             // 6) Recolorear mapa, tabla y totales; la URL vuelve a quedar limpia
@@ -1257,7 +1259,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const base = container.dataset.img;
             if (!base) return;
             const iconos = {
-                'c-anio': 'icon-calendario', 'c-unidad': 'icon-institucion', 'c-tema': 'icon-nivel', 'c-indicador': 'icon-grafico-pastel',
+                'c-anio': 'icon-calendario', 'c-comparar': 'icon-calendario', 'c-unidad': 'icon-institucion', 'c-tema': 'icon-nivel', 'c-indicador': 'icon-grafico-pastel',
                 'c-escala': 'icon-paleta', 'c-buscar': 'icon-buscar', 'c-vista': 'icon-entidad'
             };
             const etiquetas = Object.keys(iconos).map(function(id) { return [wrapper.querySelector('#' + id + ' > label'), iconos[id]]; });
@@ -1738,8 +1740,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
         /**
          * Selectores de año y unidad (plazas / recursos humanos) de las bases estáticas cargadas para la entidad
-         * (atributo data-bases). Al cambiar, se descarga esa base y se redibuja todo con onUpdate. Solo aparecen si hay
-         * más de una opción.
+         * (atributo data-bases). Al cambiar, se descarga esa base y se redibuja todo con onUpdate. El año se ve siempre y
+         * queda desactivado si solo hay uno; la unidad sin base para el año queda desactivada.
          */
         buildBaseSelectors: function(container, state, wrapper, onUpdate) {
             let bases = {};
@@ -1784,7 +1786,36 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             };
             selAnio.value = state.base.anio;
             llenaUnidades();
-            gAnio.hidden = anios.length < 2;
+            // El año siempre se ve (sirve de rótulo); con un solo año cargado queda desactivado
+            selAnio.disabled = anios.length < 2;
+            if (selAnio.disabled) selAnio.title = 'Solo hay un año cargado para esta entidad';
+
+            // «Comparar con» (app.cambio): siempre a la vista; desactivado con un solo año, con la población o en localidades
+            const gComparar = grupo('c-comparar', 'Comparar con');
+            const selCmp = document.createElement('select'); selCmp.className = 'siarhe-metric-select'; selCmp.id = 'siarhe-comparar-select';
+            gComparar.appendChild(selCmp);
+            state.comparar = '';
+            if (state._cmpInicial && bases[state._cmpInicial] && state._cmpInicial !== String(state.base.anio)) state.comparar = String(state._cmpInicial);
+            state._cmpInicial = null;
+            const anioCargado = String(state.base.anio);
+            // El año del mapa es siempre el más reciente de los dos: si el comparado es posterior, se intercambian
+            if (state.comparar && Number(state.comparar) > Number(state.base.anio)) {
+                state.base.anio = state.comparar; state.comparar = anioCargado;
+                selAnio.value = state.base.anio;
+                llenaUnidades();
+            }
+            const llenaComparar = function() {
+                if (state.comparar === String(state.base.anio)) state.comparar = '';
+                selCmp.innerHTML = '';
+                [{ v: '', t: 'Sin comparar' }].concat(anios.filter(function(a) { return String(a) !== String(state.base.anio); }).map(function(a) { return { v: String(a), t: String(a) }; }))
+                    .forEach(function(o) { const op = document.createElement('option'); op.value = o.v; op.textContent = o.t; selCmp.appendChild(op); });
+                selCmp.value = state.comparar;
+                const aplica = app.cambio.aplica(state);
+                selCmp.disabled = anios.length < 2 || !aplica;
+                selCmp.title = anios.length < 2 ? 'Solo hay un año cargado para esta entidad: no hay con qué comparar'
+                    : !aplica ? 'La comparación no aplica a la población ni a las localidades' : 'Pinta el cambio entre el año del mapa y el año elegido';
+            };
+            state.syncComparar = llenaComparar;
 
             const cambia = function() {
                 const info = (bases[state.base.anio] || {})[state.base.unidad];
@@ -1797,7 +1828,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const cambiaMarco = !!marco && marco !== state.marco && !!state.geos.base[marco];
                 const geoNuevo = cambiaMarco ? app.geo.load(state.geos.base[marco].url) : Promise.resolve(null);
 
-                Promise.all([app.data.loadBase(info.url), geoNuevo]).then(function(res) {
+                // La base del año comparado (si hay comparación) se pide junto con la del año del mapa
+                Promise.all([app.data.loadBase(info.url), geoNuevo, app.cambio.prepara(state)]).then(function(res) {
                     app.data.setBase(container, state, res[0], state.base.anio);
                     if (cambiaMarco && res[1]) app.controls.applyMarco(container, state, marco, res[1]);
                     else app.controls.syncDetalle(container, state);
@@ -1810,10 +1842,43 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     if (loading) loading.style.display = 'none';
                 });
             };
-            selAnio.addEventListener('change', function() { state.base.anio = selAnio.value; llenaUnidades(); cambia(); });
+            const cambiaAnio = function(anio) {
+                state.base.anio = String(anio);
+                if (state.comparar && Number(state.comparar) > Number(state.base.anio)) {
+                    const a = state.base.anio; state.base.anio = state.comparar; state.comparar = a;
+                }
+                selAnio.value = state.base.anio;
+                llenaUnidades();
+                llenaComparar();
+                cambia();
+            };
+            selAnio.addEventListener('change', function() { cambiaAnio(selAnio.value); });
+            selCmp.addEventListener('change', function() {
+                const antes = state.comparar;
+                state.comparar = selCmp.value;
+                // Al empezar a comparar la tabla se ordena por el cambio; al dejar de comparar, por la tasa
+                if (!antes !== !state.comparar) app.sortConfig = { key: state.comparar ? 'delta' : 'tasaTotal', direction: 'desc' };
+                if (state.comparar && Number(state.comparar) > Number(state.base.anio)) { cambiaAnio(state.base.anio); return; }
+                const loading = container.querySelector('.siarhe-loading-overlay');
+                if (loading && state.comparar) loading.style.display = 'flex';
+                app.cambio.prepara(state).then(function() {
+                    if (loading) loading.style.display = 'none';
+                    llenaComparar();
+                    onUpdate();
+                });
+            });
+            llenaComparar();
+            // El año del enlace (cmp) se carga al terminar de construir los controles
+            if (state.comparar) {
+                setTimeout(function() {
+                    if (String(state.base.anio) !== anioCargado) { cambia(); return; }   // se intercambiaron: falta la base del año del mapa
+                    app.cambio.prepara(state).then(function() { llenaComparar(); onUpdate(); });
+                }, 0);
+            }
 
             filaMedida.insertBefore(gUnidad, filaMedida.children[1] || null);
             filaVista.insertBefore(gAnio, filaVista.children[1] || null);
+            filaVista.insertBefore(gComparar, gAnio.nextSibling);
         },
 
         /**

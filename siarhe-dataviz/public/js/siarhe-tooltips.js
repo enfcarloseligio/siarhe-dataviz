@@ -122,6 +122,18 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const n = porEnt ? porEnt.get(String(cve).padStart(2, '0')) : 0;
                 if (n) datos += fila('Municipios', fmtN(n));
             }
+            // Comparación de dos años (textoTooltip de RHEMX con `vista.cambio`): el indicador, su valor en cada año y el cambio
+            const cmb = app.cambio ? app.cambio.calcula(state) : null;
+            if (cmb && row) {
+                const C = app.cambio, c = cmb.mapa.get(C._clave(state, row)) || { delta: null };
+                const anio = String((state.base && state.base.anio) || ''), medida = C.rotuloMedida(state);
+                const avisos = (c.nuevo ? nota('Municipio nuevo: no existía en ' + state.comparar + '; se toma como 0')
+                    : c.sinDatoBase ? nota('Sin dato en ' + state.comparar + ': se toma como 0') : c.sinDatoMapa ? nota('Sin dato en ' + anio + ': se toma como 0') : '') +
+                    (c.clase === 'igual' && !c.ceros ? nota('Sin cambio importante (menos de ' + C.UMBRAL + ' %)') : '');
+                datos = (deQuien ? nota(deQuien) : '') + '<div class="siarhe-ficha-fila"><strong>' + esc(app.cifras.nombreVariable(state)) + '</strong></div>' +
+                    fila(medida + ', ' + state.comparar, C.fmtMedida(state, c.v2)) + fila(medida + ', ' + anio, C.fmtMedida(state, c.v1)) +
+                    fila('Cambio', C.fmtCambio(state, c.delta) + ' (' + C.fmtPctDe(c) + ')') + avisos;
+            }
 
             // Aviso del clic: en la República, un estado con página propia se abre con doble clic
             let pista = '';

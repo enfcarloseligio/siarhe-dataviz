@@ -566,6 +566,19 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const mode = state.colorMode || metricConfig.scale_type || 'cuartiles';
             const pal = app.palette(state);
 
+            // Comparación de dos años: cada lugar se pinta por su cambio, con la leyenda de -25 % a +25 % (app.cambio)
+            const cmb = app.cambio ? app.cambio.calcula(state) : null;
+            if (cmb) {
+                const color = app.cambio.colorDe(state);
+                state.gPaths.selectAll("path.siarhe-feature").transition().duration(app.utils.motionMs(500))
+                    .style("fill", d => color(cmb.mapa.get(app.utils.getGeoKey(d.properties, state.isNacional))));
+                app.map.renderLegendCambio(state);
+                app.map.renderLabels(state);
+                app.map.updateAria(state);
+                if (app.urlState) app.urlState.write(container, state);
+                return;
+            }
+
             const values = state.csvData
                 .filter(d => !d.isTotal && !d.isSpecial && d[metric] !== null && d[metric] > 0)
                 .map(d => d[metric])
@@ -906,6 +919,89 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             lineasTitulo.forEach((t, i) => g.append("text").attr("x", 0).attr("y", -8 - extra + i * PASO).text(t)
                 .style("font-size", FT + "px").style("font-weight", "bold").style("fill", "#0F172A"));
             g.append("text").attr("x", 0).attr("y", -8).text(subtitulo).style("font-size", FL + "px").style("fill", "#475569");
+
+            state._legendBox = { w: boxW, h: boxH + extra, ox: 12, oy: 32 + extra };
+            if (state.containerEl) app.map.layoutLegends(state.containerEl, state);
+        },
+
+        /**
+         * Leyenda de la comparación de dos años (dibujaLeyenda de RHEMX con `vista.cambio`): el indicador, «Cambio de la tasa
+         * por 1,000 hab.» o «Cambio en plazas», «2024 frente a 2023» y la escala del cambio porcentual en sus cinco puntos fijos
+         * (-25 %, -5 %, 0, +5 % y +25 %): en rangos, cinco cuadros; en degradado o monocromática, una barra. Cierra con el color
+         * de «0 en ambos años» y el de «S/D».
+         */
+        renderLegendCambio: function(state) {
+            const g = state.gLegend, pal = app.palette(state), C = app.cambio;
+            g.html("");
+            g.style("font-family", "Roboto, Arial, sans-serif");
+            const FT = 17, FL = 15, CH = 8.4, PASO = 21;
+            const U = C.UMBRAL, E = C.EXTREMO;
+            const addLabel = (parent, x, y, txt) => parent.append("text").attr("x", x).attr("y", y).text(txt)
+                .style("font-size", FL + "px").style("fill", "#475569");
+            const personas = (state.base && state.base.unidad) === 'personas';
+            const titulo = app.map._wrap(app.cifras.nombreVariable(state) || 'Indicador', 26);
+            const subtitulos = [C.esTasa(state) ? 'Cambio de la tasa por 1,000 hab.' : 'Cambio en ' + (personas ? 'recursos humanos' : 'plazas'),
+                state.base.anio + ' frente a ' + state.comparar];
+            const pct = v => (v > 0 ? '+' : v < 0 ? '-' : '') + Math.abs(v) + ' %';
+            const fmt = v => (v <= -U ? '≤ ' : v >= U ? '≥ ' : '') + pct(v);
+            const rangos = state.colorMode === 'rangos';
+            const R = C.rangos();
+            const bloques = [
+                { color: R[4], texto: '≥ +' + E + ' %' }, { color: R[3], texto: '+' + U + ' % a < +' + E + ' %' },
+                { color: R[2], texto: '> -' + U + ' % a < +' + U + ' %' }, { color: R[1], texto: '≤ -' + U + ' % a > -' + E + ' %' },
+                { color: R[0], texto: '≤ -' + E + ' %' }
+            ];
+            const puntos = [-E, -U, 0, U, E];
+            const textoCero = '0 en ambos años';
+
+            // Encabezado: el título (en varias líneas si es largo) y los dos subtítulos; la caja crece hacia arriba
+            const lineas = titulo.length + subtitulos.length;
+            const extra = (lineas - 1) * PASO;
+            let boxH;
+            if (rangos) {
+                bloques.forEach((b, i) => {
+                    const y = 12 + i * 36;
+                    g.append("rect").attr("x", 0).attr("y", y).attr("width", 24).attr("height", 24).style("fill", b.color).style("stroke", "#cbd5e1");
+                    addLabel(g, 34, y + 18, b.texto);
+                });
+                const y0 = 12 + 5 * 36 + 8;
+                const g0 = g.append("g").attr("transform", `translate(0, ${y0})`);
+                g0.append("rect").attr("width", 16).attr("height", 16).style("fill", pal.ZERO);
+                addLabel(g0, 26, 13, textoCero);
+                const gN = g.append("g").attr("transform", `translate(0, ${y0 + 28})`);
+                gN.append("rect").attr("width", 16).attr("height", 16).style("fill", pal.NULL);
+                addLabel(gN, 26, 13, "S/D");
+                boxH = 32 + y0 + 28 + 28;
+            } else {
+                const gradient = state.svg.select(`#${state.gradientId}`);
+                gradient.selectAll("stop").remove();
+                const colores = C.coloresLeyenda(state);
+                gradient.selectAll("stop").data(colores).enter().append("stop")
+                    .attr("offset", (d, i) => `${(i / (colores.length - 1)) * 100}%`).attr("stop-color", d => d);
+                const h = 160, w = 20, step = h / 4;
+                g.append("rect").attr("x", 0).attr("y", 12).attr("width", w).attr("height", h)
+                    .style("fill", `url(#${state.gradientId})`).style("stroke", "#ccc");
+                puntos.forEach((v, i) => {
+                    const y = 12 + h - (i * step);
+                    g.append("line").attr("x1", w).attr("x2", w + 6).attr("y1", y).attr("y2", y).style("stroke", "#666");
+                    addLabel(g, w + 10, y + 5, fmt(v));
+                });
+                const g0 = g.append("g").attr("transform", `translate(0, ${h + 34})`);
+                g0.append("rect").attr("width", 16).attr("height", 16).style("fill", pal.ZERO);
+                addLabel(g0, 26, 13, textoCero);
+                const gN = g.append("g").attr("transform", `translate(0, ${h + 62})`);
+                gN.append("rect").attr("width", 16).attr("height", 16).style("fill", pal.NULL);
+                addLabel(gN, 26, 13, "S/D");
+                boxH = 284;
+            }
+            const anchoTextos = rangos ? Math.max.apply(null, bloques.map(b => b.texto.length)) * CH + 62 : Math.max.apply(null, puntos.map(v => fmt(v).length)) * CH + 58;
+            const boxW = Math.max(anchoTextos, textoCero.length * CH + 54, Math.max.apply(null, titulo.map(t => t.length * 9.6)) + 28,
+                Math.max.apply(null, subtitulos.map(t => t.length * 7.6)) + 28, 190);
+            g.insert("rect", ":first-child").attr("x", -12).attr("y", -32 - extra).attr("width", boxW).attr("height", boxH + extra)
+                .attr("fill", "rgba(255,255,255,0.92)").attr("rx", 6).style("filter", "drop-shadow(2px 2px 2px rgba(0,0,0,0.12))");
+            titulo.forEach((t, i) => g.append("text").attr("x", 0).attr("y", -8 - extra + i * PASO).text(t)
+                .style("font-size", FT + "px").style("font-weight", "bold").style("fill", "#0F172A"));
+            subtitulos.forEach((t, i) => addLabel(g, 0, -8 - extra + (titulo.length + i) * PASO, t));
 
             state._legendBox = { w: boxW, h: boxH + extra, ox: 12, oy: 32 + extra };
             if (state.containerEl) app.map.layoutLegends(state.containerEl, state);
@@ -3013,6 +3109,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const variable = !abs || abs === 'enfermeras_total' ? '' : ', ' + nombre;
             const lugar = state.isNacional ? 'la República Mexicana' : (container.dataset.lugar || '');
             const anio = (state.base && state.base.anio) || container.dataset.anio || '';
+            // Al comparar dos años: «Cambio de la tasa de enfermeras por cada mil habitantes … (2024 frente a 2023)»
+            if (app.cambio && app.cambio.calcula(state)) {
+                const cambio = info.tipo === 'tasa' ? 'Cambio de la tasa de ' + sujeto + ' por cada mil habitantes' : 'Cambio en el número de ' + sujeto;
+                return cambio + variable + ' en ' + lugar + ' (' + anio + ' frente a ' + state.comparar + ')';
+            }
             return medida + variable + ' en ' + lugar + ' (' + anio + ')';
         },
 

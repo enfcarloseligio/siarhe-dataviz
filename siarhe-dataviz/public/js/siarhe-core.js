@@ -467,7 +467,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     // 3b. ESTADO COMPARTIBLE POR URL (hash)
     // ==========================================
     // Formato: #siarhe-<CVE_ENT>=<querystring codificada>  (varias instancias se separan con ';')
-    //   a = año de los datos, u = unidad (plazas | personas), m = metrica, e = escala de color, v = vista (detalle), k = marcadores activos (separados por coma),
+    //   a = año de los datos, cmp = año comparado, u = unidad (plazas | personas), m = metrica, e = escala de color, v = vista (detalle), k = marcadores activos (separados por coma),
     //   p = marcadores de posicion por tema: ver~clinica~modo[~niveles separados por |]
     // Solo se escribe lo que difiere del estado inicial, asi la URL limpia sigue limpia.
     app.urlState = {
@@ -503,6 +503,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             const e = qs.get('e');
             if (e && ['cuartiles', 'monocromatico', 'rangos'].indexOf(e) !== -1) state.colorMode = e;
+
+            // cmp = año comparado; buildBaseSelectors lo valida contra los años cargados
+            if (qs.get('cmp')) state._cmpInicial = qs.get('cmp');
 
             state._urlPending = {
                 view: qs.get('v') === 'detalle' ? 'detalle' : 'base',
@@ -592,6 +595,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 if (String(state.base.anio) !== String(state._baseInicial.anio)) qs.set('a', state.base.anio);
                 if (state.base.unidad !== state._baseInicial.unidad) qs.set('u', state.base.unidad);
             }
+            if (state.base && state.comparar) qs.set('cmp', state.comparar);
             if (state.isGeoLocMode) qs.set('v', 'detalle');
             const sueltos = state.activeMarkers ? Array.from(state.activeMarkers).filter(function(k) { return k.charAt(0) !== '@'; }) : [];
             if (sueltos.length > 0) qs.set('k', sueltos.join(','));
@@ -897,6 +901,17 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 partes.push('De ese total, ' + cifra(fmtN(c.cnt)) + ' (' + cifra(pct.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %') +
                     ') corresponden a «' + esc(c.nombre) + '», una tasa de ' + cifra(app.utils.fmtTasa(c.pob > 0 ? (c.cnt / c.pob) * 1000 : null)) + ' por cada 1,000 habitantes.');
             }
+            // Comparación de dos años: cómo cambió el lugar y cuántos lugares suben, bajan o se quedan igual
+            const cmb = app.cambio.calcula(state), ct = cmb && cmb.mapa.get('total');
+            if (ct && ct.delta !== null) {
+                const C = app.cambio, s = cmb.stats, U = C.UMBRAL;
+                const medida = C.esTasa(state) ? 'la tasa por 1,000 habitantes' : 'el número de ' + u.plural;
+                const nivel = state.isNacional ? 'entidades' : 'municipios';
+                partes.push('Entre ' + cifra(state.comparar) + ' y ' + cifra(anio) + ', ' + medida + ' de ' + lugar + ' pasó de ' + cifra(C.fmtMedida(state, ct.v2)) +
+                    ' a ' + cifra(C.fmtMedida(state, ct.v1)) + ' (' + cifra(C.fmtCambio(state, ct.delta)) + (ct.pct === null ? '' : ', ' + cifra(C.fmtPorcentaje(ct.pct))) + '). ' +
+                    'De ' + (state.isNacional ? 'las ' : 'los ') + cifra(fmtN(s.total)) + ' ' + nivel + ' con dato en ambos años, ' + cifra(fmtN(s.suben)) + ' suben ' + U + ' % o más, ' +
+                    cifra(fmtN(s.bajan)) + ' bajan ' + U + ' % o más y ' + cifra(fmtN(s.iguales)) + ' cambian menos de ' + U + ' % (sin cambio importante).');
+            }
             nodo.innerHTML = partes.join(' ');
         },
 
@@ -915,6 +930,27 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     : 'La plaza es la unidad estándar del conteo; una persona puede ocupar más de una. ') +
                 'El total ' + lugarTotal + ' es la suma de ' + (state.isNacional ? 'las 32 entidades federativas más los registros sin entidad asignada' : 'los municipios más los registros clasificados como «No Disponible»') + '. ' +
                 'Cada registro cuenta una sola vez por variable; el 0 y el sin dato (S/D) no entran en el cálculo de los cuartiles.'];
+            if (app.cambio.calcula(state)) {
+                const C = app.cambio, anio = esc(app.cifras._anio(container, state)), cmp = esc(state.comparar);
+                // Si los lugares con población en los dos años tienen la misma, ambos años usan el mismo censo (un municipio
+                // nuevo sin población en un año no cuenta)
+                let comunes = 0, iguales = 0;
+                (state.csvData || []).forEach(function(r) {
+                    if (r.isTotal || r.isSpecial || !(r.poblacion > 0)) return;
+                    const r2 = state.cmp.porClave.get(app.cambio._clave(state, r));
+                    if (!r2 || !(r2.poblacion > 0)) return;
+                    comunes++;
+                    if (r2.poblacion === r.poblacion) iguales++;
+                });
+                const mismaPob = comunes > 0 && iguales === comunes;
+                partes.push(rotulo('Nota estadística (comparación).') + ' El cambio es el valor de ' + anio + ' menos el de ' + cmp + '; el porcentaje lo mide frente al valor de ' + cmp + '. ' +
+                    'El color sigue el cambio porcentual frente al año comparado: un cambio menor de ' + C.UMBRAL + ' % se considera sin cambio importante y queda en el color neutro; desde ' + C.UMBRAL +
+                    ' % se nota con un tono suave y el color se intensifica hasta ' + C.EXTREMO + ' %, que toma el color más intenso (verde si sube, guinda si baja). ' +
+                    (mismaPob ? 'Ambos años usan la misma población de INEGI, así que el cambio de la tasa viene solo del cambio en las ' + u.plural + '. '
+                        : 'Cada año usa la población del censo o conteo de INEGI que le corresponde, por lo que parte del cambio de la tasa puede deberse al cambio de población y no solo a las ' + u.plural + '. ') +
+                    'El año del mapa es siempre el más reciente de los dos. Un lugar sin dato en uno de los años se toma como 0 en ese año (un municipio nuevo cuenta como un incremento desde 0 y su ficha lo indica); ' +
+                    'queda en S/D solo si no tiene dato en ninguno de los dos, y con 0 en ambos años tiene su propio color.');
+            }
             if (c.nuevos.length) {
                 const uno = c.nuevos.length === 1;
                 partes.push(rotulo('Nota estadística (municipios).') + (uno ? ' Se identificó ' : ' Se identificaron ') + c.nuevos.length.toLocaleString('es-MX') + (uno ? ' municipio' : ' municipios') +
@@ -927,6 +963,185 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     ' después del marco geoestadístico de INEGI que usa el mapa); aparece' + (n === 1 ? '' : 'n') + ' solo en la tabla con sus ' + u.plural + '.');
             }
             nodo.innerHTML = partes.join('<br>');
+        }
+    };
+
+    // ==========================================
+    // 4 ter. COMPARACIÓN DE DOS AÑOS (port de la sección 3b de geoespacial.js de RHEMX)
+    // ==========================================
+    /**
+     * Con «Comparar con» el mapa pinta, en cada lugar, el cambio del indicador elegido (tasa o número) entre el año del mapa y
+     * el año comparado: valor del año del mapa menos valor del año comparado. El color sigue el cambio porcentual con cinco
+     * puntos fijos (-25 %, -5 %, 0, +5 % y +25 %): un cambio menor de UMBRAL % es «sin cambio importante» (color neutro) y desde
+     * EXTREMO % toma el color más intenso. No aplica a la población ni a las localidades de un estado. El año del mapa es
+     * siempre el más reciente de los dos. La base del año comparado (misma unidad) queda en `state.cmp`; los cambios se
+     * calculan al vuelo con el indicador vigente (`calcula`, probada en tests/prueba_controles.js).
+     */
+    app.cambio = {
+        UMBRAL: 5,
+        EXTREMO: 25,
+        COLORES: { BAJA: '#9b2247', BAJA_CLARO: '#e3a0b6', NEUTRO: '#efeadd', SUBE_CLARO: '#9fd5b5', SUBE: '#006400' },
+
+        // Los cinco colores, de la baja más fuerte a la subida más fuerte
+        rangos: function() {
+            const c = app.cambio.COLORES;
+            return [c.BAJA, c.BAJA_CLARO, c.NEUTRO, c.SUBE_CLARO, c.SUBE];
+        },
+
+        // Clave de un renglón, la misma del mapa de datos (state.dataMap)
+        _clave: function(state, r) {
+            return state.isNacional ? r.CVE_ENT : (r.CVE_MUN || r.CVE_ENT);
+        },
+
+        // La comparación aplica a los indicadores (no a la población) y no a las localidades de un estado
+        aplica: function(state) {
+            return state.currentMetric !== 'poblacion' && !(!state.isNacional && state.isGeoLocMode);
+        },
+
+        activa: function(state) {
+            const b = state.base, c = state.cmp;
+            return !!(b && state.comparar && state.comparar !== String(b.anio) && c && c.anio === state.comparar &&
+                c.unidad === b.unidad && app.cambio.aplica(state));
+        },
+
+        /**
+         * Descarga la base del año comparado con la unidad vigente y la deja en `state.cmp` (si ya está, no la vuelve a
+         * pedir). Sin año comparado, o si ese año no tiene base de la unidad, la quita. Devuelve una promesa.
+         */
+        prepara: function(state) {
+            const b = state.base;
+            if (!b || !state.comparar || state.comparar === String(b.anio)) { state.cmp = null; return Promise.resolve(); }
+            const info = (b.bases[state.comparar] || {})[b.unidad];
+            if (!info) { state.cmp = null; return Promise.resolve(); }
+            if (state.cmp && state.cmp.url === info.url) return Promise.resolve();
+            const anio = state.comparar, unidad = b.unidad;
+            return app.data.loadBase(info.url).then(function(rows) {
+                state.cmp = app.cambio.deFilas(state, app.data.processCSV(rows, state.metricas), anio, unidad, info.url);
+            }).catch(function(err) {
+                console.error('[SIARHE] No se pudo cargar la base del año comparado', err);
+                state.cmp = null;
+            });
+        },
+
+        // Base del año comparado indexada por clave, con su renglón de total aparte
+        deFilas: function(state, filas, anio, unidad, url) {
+            const porClave = new Map();
+            let total = null;
+            filas.forEach(function(r) {
+                if (r.isTotal) { total = r; return; }
+                if (r.isSpecial || r.isExtranjero) return;
+                const k = app.cambio._clave(state, r);
+                if (k) porClave.set(k, r);
+            });
+            return { anio: String(anio), unidad: unidad, url: url || '', porClave: porClave, total: total };
+        },
+
+        /**
+         * Cambios del indicador vigente: { mapa: clave -> cambio, stats }. Cada cambio es { v1 (año del mapa), v2 (año
+         * comparado), delta, pct, clase, ceros, nuevo, sinDatoBase, sinDatoMapa }; el total va con la clave «total». Un valor
+         * sin dato en uno de los dos años se toma como 0 en ese año (un municipio nuevo es un incremento desde 0); solo queda
+         * S/D si no hay dato en ninguno. `stats` cuenta los lugares del mapa que suben, bajan o no cambian. Devuelve null si
+         * la comparación no está activa.
+         */
+        calcula: function(state) {
+            if (!app.cambio.activa(state)) return null;
+            const m = state.currentMetric, cmp = state.cmp, memo = state._cambio;
+            if (memo && memo.datos === state.csvData && memo.cmp === cmp && memo.m === m && memo.geo === state.geoData) return memo;
+            const U = app.cambio.UMBRAL, mapa = new Map();
+            const valor = function(r) {
+                const x = r ? r[m] : null;
+                return (x === null || x === undefined || x === '' || isNaN(Number(x))) ? null : Number(x);
+            };
+            const agrega = function(clave, r1, r2) {
+                const v1 = valor(r1), v2 = valor(r2);
+                const sinDato = v1 === null && v2 === null;
+                const a = v1 === null ? 0 : v1, b = v2 === null ? 0 : v2;
+                const delta = sinDato ? null : a - b;
+                const pct = delta !== null && b > 0 ? (delta / b) * 100 : null;
+                const clase = delta === null ? null : (delta === 0 || (pct !== null && Math.abs(pct) < U)) ? 'igual' : delta > 0 ? 'sube' : 'baja';
+                mapa.set(clave, { v1: v1, v2: v2, delta: delta, pct: pct, clase: clase, ceros: !sinDato && a === 0 && b === 0,
+                    nuevo: !r2, sinDatoBase: v2 === null && v1 !== null, sinDatoMapa: v1 === null && v2 !== null });
+            };
+            let total = null;
+            (state.csvData || []).forEach(function(r) {
+                if (r.isTotal) { total = r; return; }
+                if (r.isSpecial || r.isExtranjero) return;
+                const k = app.cambio._clave(state, r);
+                if (k && !mapa.has(k)) agrega(k, r, cmp.porClave.get(k) || null);
+            });
+            if (total) agrega('total', total, cmp.total);
+
+            // Resumen de los lugares que se ven en el mapa (los que tienen polígono; sin geometría, todos)
+            const feats = state.geoData && state.geoData.features;
+            const conPoligono = feats && feats.length ? new Set(feats.map(function(f) { return app.utils.getGeoKey(f.properties, state.isNacional); })) : null;
+            const validos = [];
+            mapa.forEach(function(c, k) { if (k !== 'total' && c.clase && (!conPoligono || conPoligono.has(k))) validos.push(c); });
+            const cuenta = function(clase) { return validos.filter(function(c) { return c.clase === clase; }).length; };
+            state._cambio = { datos: state.csvData, cmp: cmp, m: m, geo: state.geoData, mapa: mapa,
+                stats: { suben: cuenta('sube'), bajan: cuenta('baja'), iguales: cuenta('igual'), total: validos.length } };
+            return state._cambio;
+        },
+
+        /**
+         * Posición del cambio sobre los cinco puntos de la leyenda (0 = -25 % o menos, 0.25 = -5 %, 0.5 = sin cambio importante,
+         * 0.75 = +5 %, 1 = +25 % o más). Un lugar que antes valía 0 y ahora tiene valor no tiene porcentaje: cuenta como el extremo.
+         */
+        posicion: function(c) {
+            const U = app.cambio.UMBRAL, E = app.cambio.EXTREMO;
+            if (c.clase === 'igual') return 0.5;
+            const p = c.pct === null ? E : Math.abs(c.pct);
+            const avance = Math.max(0, Math.min(1, (p - U) / (E - U)));
+            return c.clase === 'sube' ? 0.75 + 0.25 * avance : 0.25 - 0.25 * avance;
+        },
+
+        /** Color de un cambio según el estilo del mapa: degradado, monocromático (de menos a más) o rangos. */
+        colorDe: function(state) {
+            const pal = app.palette(state), modo = state.colorMode, R = app.cambio.rangos();
+            const mono = modo === 'monocromatico' || modo === 'mono';
+            const escala = mono ? d3.interpolate(pal.MONO[0], pal.MONO[pal.MONO.length - 1]) : d3.scaleLinear().domain([0, 0.25, 0.5, 0.75, 1]).range(R);
+            return function(c) {
+                if (!c || !c.clase) return pal.NULL;
+                if (c.ceros) return pal.ZERO;
+                const t = app.cambio.posicion(c);
+                if (modo !== 'rangos') return escala(t);
+                return R[c.clase === 'igual' ? 2 : t >= 1 ? 4 : t > 0.5 ? 3 : t <= 0 ? 0 : 1];
+            };
+        },
+
+        // Colores de la leyenda en degradado (de la baja más fuerte a la subida más fuerte)
+        coloresLeyenda: function(state) {
+            const modo = state.colorMode;
+            if (modo === 'monocromatico' || modo === 'mono') {
+                const pal = app.palette(state), f = d3.interpolate(pal.MONO[0], pal.MONO[pal.MONO.length - 1]);
+                return [f(0), f(0.25), f(0.5), f(0.75), f(1)];
+            }
+            return app.cambio.rangos();
+        },
+
+        // Formatos de RHEMX: la medida con los decimales de la tasa o en enteros, el cambio con signo y el porcentaje
+        esTasa: function(state) { return ((state.metricas || {})[state.currentMetric] || {}).tipo === 'tasa'; },
+        signo: function(v) { return v > 0 ? '+' : v < 0 ? '-' : ''; },
+        fmtMedida: function(state, v) {
+            if (v === null || v === undefined) return 'S/D';
+            return app.cambio.esTasa(state) ? app.utils.fmtTasa(v) : Math.round(v).toLocaleString('es-MX');
+        },
+        fmtCambio: function(state, v) {
+            return (v === null || v === undefined) ? 'S/D' : app.cambio.signo(v) + app.cambio.fmtMedida(state, Math.abs(v));
+        },
+        fmtPorcentaje: function(p) {
+            return (p === null || p === undefined) ? 'S/D'
+                : app.cambio.signo(p) + Math.abs(p).toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %';
+        },
+        // «desde 0» cuando el valor anterior era 0 (o no existía) y ahora hay valor
+        fmtPctDe: function(c) {
+            if (!c || c.delta === null || c.delta === undefined) return 'S/D';
+            return c.delta === 0 ? '0 %' : c.pct === null ? 'desde 0' : app.cambio.fmtPorcentaje(c.pct);
+        },
+
+        // Rótulo de la medida (tooltip y columnas): la tasa o la unidad de conteo
+        rotuloMedida: function(state) {
+            if (app.cambio.esTasa(state)) return 'Tasa por 1,000 habitantes';
+            return (state.base && state.base.unidad) === 'personas' ? 'Recursos humanos' : 'Plazas';
         }
     };
 
@@ -1182,6 +1397,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             // Callback centralizado para actualizaciones en cadena (Selector Métrica)
             const onMetricUpdate = () => {
+                if (state.syncComparar) state.syncComparar();   // «Comparar con» no aplica a la población ni a las localidades
                 if (app.map && mode.includes('M')) app.map.updateVisuals(container, state);
                 app.data.calcularTotalHeader(container, state);
                 if (app.table && mode.includes('T')) app.table.update(container, state);

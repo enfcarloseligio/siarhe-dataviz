@@ -1337,6 +1337,9 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 .siarhe-viz-wrapper table.siarhe-data-table td.siarhe-num { text-align: right; font-variant-numeric: tabular-nums; }
 .siarhe-viz-wrapper table.siarhe-data-table .siarhe-sort-arrow { display: inline-block; min-width: 1em; margin-left: 4px; font-size: 0.7em; }
 .siarhe-viz-wrapper table.siarhe-data-table td.siarhe-sin-dato { opacity: 0.6; }
+/* Comparación de dos años: el cambio en verde si sube y en guinda si baja (los colores de RHEMX) */
+.siarhe-viz-wrapper table.siarhe-data-table td.siarhe-cambio-sube { color: #006400; font-weight: 600; }
+.siarhe-viz-wrapper table.siarhe-data-table td.siarhe-cambio-baja { color: #9B2247; font-weight: 600; }
 .siarhe-viz-wrapper table.siarhe-data-table tr.siarhe-row-lugar td:first-child { font-weight: 700; }
 .siarhe-viz-wrapper .siarhe-table-wrapper:fullscreen { padding: 16px; background: #fff; overflow: auto; box-sizing: border-box; }
 .siarhe-viz-wrapper .siarhe-table-wrapper:fullscreen .siarhe-table-container { overflow: visible; }

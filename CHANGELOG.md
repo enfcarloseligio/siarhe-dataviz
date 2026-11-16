@@ -2,6 +2,19 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.20.0] - 2026-11-16
+
+Comparación de dos años, port de la de RHEMX (`geoespacial.js`, sección 3b), y el año siempre a la vista (pedido del dueño).
+- **«Año de los datos» se ve siempre**: con un solo año cargado para la entidad queda desactivado y sirve de rótulo (antes se ocultaba).
+- **«Comparar con»**, junto al año (y su espejo en los selectores de la tabla): «Sin comparar» o cualquier otro año cargado. Se ve siempre; queda desactivado con un solo año, con la población y en la vista de localidades de un estado. El año del mapa es siempre el más reciente de los dos (si se elige uno posterior, se intercambian). Viaja en el enlace como `cmp`.
+- **Mapa**: cada lugar se pinta por el cambio porcentual del indicador elegido (tasa o número) frente al año comparado, con los cinco puntos fijos de RHEMX (-25 %, -5 %, sin cambio importante, +5 %, +25 %) y sus colores (guinda si baja, verde si sube); menos de 5 % es «sin cambio importante». Funciona con los tres estilos: degradado, monocromático y rangos. Color propio para «0 en ambos años».
+- **Leyenda**: el indicador, «Cambio de la tasa por 1,000 hab.» o «Cambio en plazas», «2025 frente a 2024» y la escala del cambio.
+- **Tooltip**: el indicador, su valor en cada año, el cambio con su porcentaje y los avisos de RHEMX (municipio nuevo, sin dato en un año, sin cambio importante).
+- **Tabla**: columnas del valor de cada año, «Cambio» y «Cambio (%)», en verde o guinda; al empezar a comparar se ordena por el cambio.
+- **Resumen y nota**: cómo cambió el lugar y cuántos lugares suben, bajan o no cambian; nota estadística de la comparación (si los dos años usan la misma población, lo dice).
+- **PNG**: título «Cambio de la tasa de enfermeras por cada mil habitantes en … (2025 frente a 2024)».
+- `prueba_controles.js` prueba el cálculo del cambio (`app.cambio.calcula`).
+
 ## [0.1.19.2] - 2026-11-16
 
 Regla del dueño: **el mapa muestra los municipios que tienen polígono y la tabla, los del SIARHE aunque todavía no lo tengan** (Baja California 2024: 6 polígonos y «Municipios: 6» en el tooltip; 7 renglones en la tabla, con San Felipe).

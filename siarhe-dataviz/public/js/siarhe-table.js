@@ -5,8 +5,9 @@
  *
  * Tabla de datos de la vista, con las columnas y las opciones de la tabla del mapa de RHEMX
  * (rhemx/web/assets/js/geoespacial.js, dibujaTabla): lugar, clave, población, total de la unidad
- * y su tasa y, con un indicador distinto del total, el conteo y la tasa del indicador. Se ordena
- * por cualquier columna y se descarga en CSV, Excel o JSON.
+ * y su tasa y, con un indicador distinto del total, el conteo y la tasa del indicador; al comparar
+ * dos años (app.cambio), el valor de cada año, el cambio y el cambio en %. Se ordena por cualquier
+ * columna y se descarga en CSV, Excel o JSON.
  *
  *   1. Configuración
  *   2. Utilidades
@@ -197,11 +198,16 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 });
                 return function() {
                     const o = origen(), g = o && o.closest('.siarhe-control-group');
-                    c.g.hidden = !o || o.options.length < 2 || !!(g && g.hidden);
-                    if (o) llena(c.sel, Array.from(o.options).map(function(x) { return { v: x.value, t: x.textContent, d: x.disabled }; }), o.value);
+                    // El año y «Comparar con» se ven siempre: con un solo año quedan desactivados, como en el mapa
+                    c.g.hidden = !o || !!(g && g.hidden) || (id === 'siarhe-tema-select' && o.options.length < 2);
+                    if (!o) return;
+                    llena(c.sel, Array.from(o.options).map(function(x) { return { v: x.value, t: x.textContent, d: x.disabled }; }), o.value);
+                    c.sel.disabled = o.disabled;
+                    c.sel.title = o.title || '';
                 };
             };
             const pintaAnio = nativo('Año', 'icon-calendario', 'siarhe-anio-select');
+            const pintaComparar = nativo('Comparar con', 'icon-calendario', 'siarhe-comparar-select');
             const pintaTema = nativo('Tema', 'icon-nivel', 'siarhe-tema-select');
 
             // Indicador: las opciones visibles del desplegable del mapa
@@ -241,7 +247,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             // La medida (Tasa / Frecuencia) no va: la tabla ya muestra las dos columnas (pedido del dueño, 2026-11-16)
             const pintaUnidad = conmutador('c-unidad', 'Unidad de conteo');
 
-            state.syncTabla = function() { pintaAnio(); pintaTema(); pintaIndicador(); pintaUnidad(); };
+            state.syncTabla = function() { pintaAnio(); pintaComparar(); pintaTema(); pintaIndicador(); pintaUnidad(); };
             state.syncTabla();
             // Lo que se cambie en el panel del mapa se refleja aquí aunque no redibuje la tabla
             let pendiente = 0;
@@ -316,9 +322,22 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const unidad = (state.base && state.base.unidad) || container.dataset.unidad || 'plazas';
             const cols = app.table.columnas(state.metricas, mKey, unidad, state.isNacional);
             const cveEnt = container.dataset.cveEnt;
+            // Comparación de dos años (app.cambio): el valor de cada año, el cambio y el cambio en %, como en RHEMX
+            const cmb = app.cambio ? app.cambio.calcula(state) : null;
+            if (cmb) {
+                const med = app.cambio.esTasa(state) ? 'Tasa' : (unidad === 'personas' ? 'Recursos humanos' : 'Plazas');
+                const anio = (state.base && state.base.anio) || '';
+                cols.push({ id: 'v1', titulo: med + ' ' + anio, cambio: true }, { id: 'v2', titulo: med + ' ' + state.comparar, cambio: true },
+                    { id: 'delta', titulo: 'Cambio', cambio: true }, { id: 'pct', titulo: 'Cambio (%)', cambio: true });
+            }
+            const cambioDe = function(r) {
+                if (!cmb || r.isSpecial) return null;
+                return cmb.mapa.get(r.isTotal ? 'total' : app.cambio._clave(state, r)) || null;
+            };
             const valor = function(r, c) {
                 if (c.id === 'nombre') return r.estado;
                 if (c.id === 'clave') return app.table.clave(r, state.isNacional, cveEnt);
+                if (c.cambio) { const x = cambioDe(r); return x ? x[c.id] : null; }
                 return r[c.dato];
             };
 
@@ -376,7 +395,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const v = valor(r, c);
                     if (c.id === 'nombre') td.textContent = v || '';
                     else if (c.id === 'clave') { td.textContent = v; td.dataset.t = 's'; }   // texto: conserva los ceros a la izquierda en Excel
-                    else {
+                    else if (c.cambio) {
+                        const x = cambioDe(r) || { delta: null };
+                        td.classList.add('siarhe-num');
+                        td.textContent = c.id === 'pct' ? app.cambio.fmtPctDe(x) : c.id === 'delta' ? app.cambio.fmtCambio(state, x.delta) : app.cambio.fmtMedida(state, v);
+                        if (vacio(c.id === 'pct' ? x.delta : v)) td.classList.add('siarhe-sin-dato');
+                        if ((c.id === 'delta' || c.id === 'pct') && (x.clase === 'sube' || x.clase === 'baja')) td.classList.add('siarhe-cambio-' + x.clase);
+                    } else {
                         td.classList.add('siarhe-num');
                         if (vacio(v)) { td.textContent = SIN_DATO; td.classList.add('siarhe-sin-dato'); }
                         else td.textContent = c.tasa ? app.utils.fmtTasa(v) : fmtN(v);
