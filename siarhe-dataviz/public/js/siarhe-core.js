@@ -769,10 +769,23 @@ window.SiarheDataViz = window.SiarheDataViz || {};
     app.cifras = {
         // Textos de cada unidad de conteo (los de RHEMX, `UNIDADES`)
         UNIDADES: {
-            plazas: { tarjeta: 'Personal de Enfermería', nota: '(plazas de enfermería)', resumen: 'plazas de enfermería', plural: 'plazas', corto: 'plazas' },
-            personas: { tarjeta: 'Recursos Humanos de Enfermería', nota: '(personas estimadas)', resumen: 'recursos humanos de enfermería', plural: 'recursos humanos', corto: 'recursos humanos' }
+            plazas: { etiqueta: 'Plazas de enfermería', tarjeta: 'Personal de Enfermería', nota: '(plazas de enfermería)', resumen: 'plazas de enfermería', plural: 'plazas', corto: 'plazas' },
+            personas: { etiqueta: 'Recursos Humanos de Enfermería', tarjeta: 'Recursos Humanos de Enfermería', nota: '(personas estimadas)', resumen: 'recursos humanos de enfermería', plural: 'recursos humanos', corto: 'recursos humanos' }
         },
         TOTAL: 'enfermeras_total',
+
+        /**
+         * Nombre del indicador elegido como lo dice RHEMX (`nombreVariable`): el total es «Plazas de enfermería» o «Recursos
+         * Humanos de Enfermería» según la unidad de conteo; los demás, su nombre («Primer nivel», «Licenciatura»…). Lo usan el
+         * título de la leyenda y el tooltip.
+         */
+        nombreVariable: function(state) {
+            const info = (state.metricas || {})[state.currentMetric] || {};
+            const abs = info.tipo === 'absoluto' ? state.currentMetric
+                : (app.utils.findAbsoluteKeyForPair(info.pair || state.currentMetric, state.metricas || {}) || info.pair || null);
+            if (!abs || abs === app.cifras.TOTAL) return app.cifras.unidad(state).etiqueta;
+            return (app.controls && app.controls.indicatorName) ? app.controls.indicatorName(info) : (info.nombre || info.label || '');
+        },
 
         unidad: function(state, container) {
             const u = (state.base && state.base.unidad) || (container && container.dataset.unidad) || 'plazas';
@@ -1111,7 +1124,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             markerStyles: MARCADOR_ESTILOS, markerUrls: MARCADOR_URLS,
             markerLabels: MARCADOR_LABELS,
             entityUrls: ENTITY_URLS, homeUrl: container.dataset.homeUrl || '',
-            isNacional: isNacional,
+            isNacional: isNacional, lugar: container.dataset.lugar || '',
             tooltip: null, markerTrigger: null, lastClickTime: 0,
             rawCSVDataCache: {},
             initialTransform: d3.zoomIdentity

@@ -107,8 +107,8 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
                     <span class="dashicons dashicons-menu siarhe-drag-handle"></span>
                     <label class="siarhe-toggle"><input type="checkbox" id="tt_geo_abs"><span class="siarhe-slider"></span></label>
                     <div>
-                        <strong>Valor Absoluto (Total de Elementos)</strong><br>
-                        <small class="siarhe-text-muted">Ej: "Enfermeras: 1,450".</small>
+                        <strong>Indicador elegido</strong><br>
+                        <small class="siarhe-text-muted">Ej: "Plazas de enfermería: 1,339" o "Primer nivel: 512".</small>
                     </div>
                 </div>',
             'rate' => '
@@ -116,8 +116,8 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
                     <span class="dashicons dashicons-menu siarhe-drag-handle"></span>
                     <label class="siarhe-toggle"><input type="checkbox" id="tt_geo_rate"><span class="siarhe-slider"></span></label>
                     <div>
-                        <strong>Valor Relativo (Tasa)</strong><br>
-                        <small class="siarhe-text-muted">Ej: "Tasa: 2.45".</small>
+                        <strong>Tasa</strong><br>
+                        <small class="siarhe-text-muted">Ej: "Tasa por 1,000 habitantes: 4.67".</small>
                     </div>
                 </div>'
         ];
@@ -149,19 +149,8 @@ $mkOrder = isset($configObj['mk_order']) && is_array($configObj['mk_order']) ? $
         </div>
     </div>
 
-    <h4 style="margin-top: 25px; margin-bottom: 10px;">Destacar una Variable<?php Siarhe_Admin::help('Resalta un dato al final del tooltip con un color propio.'); ?></h4>
-    <p style="color: #64748b; margin-top:0;">La variable destacada se colocará al final del tooltip, separada por una línea sutil, utilizando el color elegido.</p>
-    
-    <div class="siarhe-panel siarhe-panel--blue">
-        <div class="siarhe-flex-field"> <label><strong>¿Qué dato destacar?</strong></label><?php Siarhe_Admin::help('Dato que se muestra al final del tooltip con color distinto: poblacion, valor absoluto o la tasa principal.'); ?><br>
-            <select id="tt_highlight_var" class="siarhe-mt-1 siarhe-w-full">
-                <option value="none" <?php selected($hlVar, 'none'); ?>>Ninguno (Todo estándar)</option>
-                <option value="pob" <?php selected($hlVar, 'pob'); ?>>Población Total</option>
-                <option value="abs" <?php selected($hlVar, 'abs'); ?>>Valor Absoluto (Ej. Total de Enfermeras)</option>
-                <option value="rate" <?php selected($hlVar, 'rate'); ?>>Valor Relativo (La Tasa / Indicador Principal)</option>
-            </select>
-        </div>
-        <div class="siarhe-flex-field"> <label><strong>Color del Texto Destacado</strong></label><?php Siarhe_Admin::help('Color con el que se pinta el dato destacado.'); ?><br>
+    <div class="siarhe-panel siarhe-panel--blue siarhe-mt-1">
+        <div class="siarhe-flex-field"> <label><strong>Color de las etiquetas</strong></label><?php Siarhe_Admin::help('Color de los nombres de cada dato («Población:», «Plazas de enfermería:», «Tasa por 1,000 habitantes:»). Las cifras van en el color del texto base, como en RHEMX.'); ?><br>
             <input type="text" id="tt_highlight_color" value="<?php echo esc_attr($hlColor); ?>" class="siarhe-mt-1 siarhe-w-full siarhe-color-field">
         </div>
     </div>

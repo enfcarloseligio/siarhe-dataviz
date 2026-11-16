@@ -21,7 +21,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const tip = state.tooltip && state.tooltip.node();
             if (!tip || !mapDiv || state._fijo) return;   // la ficha fija de un marcador elegido no sigue al puntero
             const W = mapDiv.clientWidth, H = mapDiv.clientHeight, M = 6;
-            tip.style.maxWidth = Math.max(160, Math.min(300, W - 2 * M)) + 'px';
+            tip.style.maxWidth = Math.max(160, Math.min(320, W - 2 * M)) + 'px';
             const tw = tip.offsetWidth, th = tip.offsetHeight;
             if (!tw || !th) return;
 
@@ -36,99 +36,91 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             state.tooltip.style('left', left + 'px').style('top', top + 'px');
         },
 
+        /**
+         * Tooltip de un estado o municipio con la estructura de RHEMX (`textoTooltip`): un estado lleva su nombre; un municipio,
+         * el estado como nombre y debajo «Municipio: …». Tras una línea, la población, el indicador elegido (con el total, «Plazas
+         * de enfermería» o «Recursos Humanos de Enfermería») y la tasa por 1,000 habitantes; y, tras otra, el aviso del clic.
+         * Las etiquetas van en el color de Configuración › Tooltips; el orden y qué datos se muestran también salen de ahí.
+         */
         showGeoTooltip: function(event, d, state, mapDiv) {
             if (state._fijo) return;   // no tapa la ficha fija del marcador elegido
-            const tc = function(v) { return app.utils.titleCase(v); };
-            let cve = app.utils.getGeoKey(d.properties, state.isNacional);
+            const esc = app.utils.esc;
+            const p = d.properties || {};
+            const cve = app.utils.getGeoKey(p, state.isNacional);
             let row = state.dataMap.get(cve);
             const wrapper = mapDiv.closest('.siarhe-viz-wrapper');
-            
-            // LÓGICA DE HERENCIA: Si estamos en vista detalle y no hay fila, heredar del padre
-            if (!row && state.isGeoLocMode && d.properties.CVE_ENT && d.properties.CVE_MUN) {
-                let parentCve = state.isNacional ? d.properties.CVE_ENT : (d.properties.CVE_ENT + d.properties.CVE_MUN);
-                row = state.dataMap.get(parentCve);
-            }
-            
-            // LÓGICA INTELIGENTE DE TÍTULOS (NACIONAL VS ESTATAL)
-            let nombre = app.utils.esc(tc(row ? row.estado : (d.properties.NOMGEO || d.properties.NOM_ENT || "Sin Datos")));
-            
-            if (state.isGeoLocMode) {
-                let ent = row ? row.estado : (d.properties.NOM_ENT || "");
-                let mun = d.properties.NOM_MUN || d.properties.MUNICIPIO || "";
-                let loc = d.properties.NOM_LOC || d.properties.LOCALIDAD || "";
+            // Los nombres van como vienen (los de RHEMX ya traen mayúsculas y acentos); solo los que llegan en mayúsculas se ajustan
+            const nom = function(v) { v = String(v || ''); return /[a-zà-ÿ]/.test(v) ? v : app.utils.titleCase(v); };
 
-                if (state.isNacional) {
-                    if (!mun && d.properties.NOMGEO) mun = d.properties.NOMGEO; 
-                    if (mun) {
-                        nombre = `${app.utils.esc(tc(ent))} / <span style="opacity:0.8; font-weight:normal;">${app.utils.esc(tc(mun))}</span>`;
-                    }
-                } else {
-                    let munName = row ? row.estado : (d.properties.NOM_MUN || d.properties.MUNICIPIO || "Municipio");
-                    if (!loc && d.properties.NOMGEO) loc = d.properties.NOMGEO; 
-                    if (munName && loc && munName !== loc) {
-                        nombre = `${app.utils.esc(tc(munName))} / <span style="opacity:0.8; font-weight:normal;">${app.utils.esc(tc(loc))}</span>`;
-                    } else if (loc) {
-                        nombre = app.utils.esc(tc(loc));
-                    }
-                }
+            // En la capa detallada (municipios de la República o localidades de un estado) el plugin no tiene cifras propias:
+            // se muestran las del lugar que la contiene, con un aviso
+            let deQuien = '';
+            if (!row && state.isGeoLocMode && p.CVE_ENT) {
+                row = state.dataMap.get(state.isNacional ? String(p.CVE_ENT).padStart(2, '0') : String(p.CVE_ENT).padStart(2, '0') + String(p.CVE_MUN || '').padStart(3, '0'));
+                if (row) deQuien = state.isNacional ? 'Cifras del estado' : 'Cifras del municipio';
             }
 
-            const tt = state.tooltipConfig || {}; 
+            const tt = state.tooltipConfig || {};
             const order = tt.geo_order || ['pob', 'abs', 'rate'];
-            const hlVar = tt.highlight_var || 'rate'; 
-            const hlColor = tt.highlight_color || '#06b6d4';
+            const lblColor = tt.highlight_color || '#06b6d4';
             const bgColor = tt.bg_color || '#0f172a';
             const bgOpacity = (tt.bg_opacity !== undefined ? parseInt(tt.bg_opacity, 10) : 90) / 100;
             const txtColor = tt.text_color || '#f8fafc';
-            
             const finalBgColor = app.map.hexToRgba(bgColor, bgOpacity);
-            
-            const mKey = state.currentMetric; 
-            const pKey = state.metricas[mKey] ? state.metricas[mKey].pair : mKey; 
-            
-            let blocks = {};
-            
-            if (tt.geo_pob !== false) {
-                blocks['pob'] = { label: 'Población', value: row && row.poblacion ? row.poblacion.toLocaleString('es-MX') : '—' };
+
+            const sep = '<div class="siarhe-ficha-sep"></div>';
+            const fila = function(etq, val) {
+                return (val === '' || val === null || val === undefined) ? '' :
+                    '<div class="siarhe-ficha-fila"><span style="color:' + lblColor + ';">' + esc(etq) + ':</span> <strong>' + esc(val) + '</strong></div>';
+            };
+            const nota = function(t) { return '<div class="siarhe-ficha-fila"><em>' + esc(t) + '</em></div>'; };
+            const fmtN = function(v) { return (v === null || v === undefined || v === '' || isNaN(Number(v))) ? 'S/D' : Number(v).toLocaleString('es-MX'); };
+
+            // Encabezado: la entidad como nombre y, debajo, el municipio y la localidad
+            const lugarPagina = wrapper ? (wrapper.dataset.lugar || '') : '';
+            let cabecera;
+            if (state.isNacional && !state.isGeoLocMode) {
+                cabecera = '<div class="siarhe-ficha-nombre">' + esc(nom(row ? row.estado : (p.NOMGEO || p.NOM_ENT || 'S/D'))) + '</div>';
+            } else if (state.isNacional) {
+                cabecera = '<div class="siarhe-ficha-nombre">' + esc(nom(row ? row.estado : (p.NOM_ENT || 'S/D'))) + '</div>' +
+                    fila('Municipio', nom(p.NOMGEO || p.NOM_MUN || p.MUNICIPIO || 'S/D'));
+            } else if (!state.isGeoLocMode) {
+                cabecera = '<div class="siarhe-ficha-nombre">' + esc(lugarPagina || 'S/D') + '</div>' +
+                    fila('Municipio', nom(row ? row.estado : (p.NOMGEO || p.NOM_MUN || 'S/D')));
+            } else {
+                cabecera = '<div class="siarhe-ficha-nombre">' + esc(lugarPagina || 'S/D') + '</div>' +
+                    fila('Municipio', nom(row ? row.estado : (p.NOM_MUN || p.MUNICIPIO || 'S/D'))) +
+                    fila('Localidad', nom(p.NOMGEO || p.NOM_LOC || p.LOCALIDAD || ''));
             }
-            
-            if (mKey !== 'poblacion') {
-                if (tt.geo_abs !== false) {
-                    const labelAbs = state.metricas[pKey] ? state.metricas[pKey].label : pKey;
-                    const valAbs = (row && row[pKey] !== null && row[pKey] !== undefined) ? row[pKey].toLocaleString('es-MX') : '—';
-                    blocks['abs'] = { label: labelAbs, value: valAbs };
-                }
-                
+
+            // Datos: población, el indicador elegido y su tasa (calculada como en RHEMX si la base no la trae)
+            const mKey = state.currentMetric;
+            const info = state.metricas[mKey] || {};
+            const absKey = info.tipo === 'absoluto' ? mKey : (app.utils.findAbsoluteKeyForPair(info.pair || mKey, state.metricas) || info.pair || null);
+            const pob = row ? row.poblacion : null;
+            const blocks = {};
+            if (tt.geo_pob !== false) blocks.pob = fila('Población', fmtN(pob));
+            if (mKey === 'poblacion') {
+                blocks.abs = fila(app.cifras.unidad(state).etiqueta, fmtN(row ? row[app.cifras.TOTAL] : null));
+            } else {
+                const cnt = row && absKey ? row[absKey] : null;
+                if (tt.geo_abs !== false) blocks.abs = fila(app.cifras.nombreVariable(state), fmtN(cnt));
                 if (tt.geo_rate !== false) {
-                    let tasaKey = (state.metricas[mKey].tipo === 'tasa') ? mKey : app.utils.findRateKeyForAbsolute(pKey, state.metricas);
-                    let valTasa = row && tasaKey ? row[tasaKey] : null;
-                    const valTasaFmt = (valTasa !== null && valTasa !== undefined) ? app.utils.fmtTasa(valTasa) : '—';
-                    const labelTasa = state.metricas[mKey] ? state.metricas[mKey].label : 'Tasa';
-                    blocks['rate'] = { label: labelTasa, value: valTasaFmt };
+                    const tasaKey = info.tipo === 'tasa' ? mKey : (absKey ? app.utils.findRateKeyForAbsolute(absKey, state.metricas) : null);
+                    let tasa = row && tasaKey ? row[tasaKey] : null;
+                    if ((tasa === null || tasa === undefined) && pob > 0 && cnt !== null && cnt !== undefined) tasa = (Number(cnt) / pob) * 1000;
+                    blocks.rate = fila('Tasa por 1,000 habitantes', (tasa === null || tasa === undefined || isNaN(tasa)) ? 'S/D' : app.utils.fmtTasa(tasa));
                 }
             }
+            let datos = deQuien ? nota(deQuien) : '';
+            order.forEach(function(k) { if (blocks[k]) datos += blocks[k]; });
+            if (mKey === 'poblacion' && blocks.abs && order.indexOf('abs') === -1) datos += blocks.abs;
 
-            let htmlStandard = '';
-            let htmlHighlight = '';
-
-            order.forEach(itemKey => {
-                if (!blocks[itemKey]) return; 
-                const b = blocks[itemKey];
-
-                if (hlVar === itemKey) {
-                    htmlHighlight = `
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.2);">
-                            <span style="font-size:12px; opacity:0.9;">${app.utils.esc(b.label)}:</span> 
-                            <strong style="color:${hlColor}; font-size:14px; margin-left:15px;">${app.utils.esc(b.value)}</strong>
-                        </div>`;
-                } else {
-                    htmlStandard += `
-                        <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px;">
-                            <span style="opacity:0.8; margin-right:15px;">${app.utils.esc(b.label)}:</span> 
-                            <b>${app.utils.esc(b.value)}</b>
-                        </div>`;
-                }
-            });
+            // Aviso del clic: en la República, un estado con página propia se abre con doble clic
+            let pista = '';
+            if (state.isNacional && !state.isGeoLocMode && app.urlState && app.urlState.enlaceEntidad && app.urlState.enlaceEntidad(state, cve)) {
+                pista = sep + nota('Doble clic para ver sus municipios');
+            }
 
             let htmlResumenMarcadores = '';
             try {
@@ -219,22 +211,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 console.error("[SIARHE] Error calculando resumen geográfico:", error);
             }
 
-            // 🌟 SUBTÍTULO DINÁMICO: "Información Estatal" o "Información Municipal"
-            const labelNivel = state.isNacional ? 'Información Estatal:' : 'Información Municipal:';
-
-            let html = `
-                <div style="font-family:'Roboto', sans-serif;">
-                    <div style="font-weight:bold; font-size:14px; margin-bottom:2px;">
-                        ${nombre}
-                    </div>
-                    <div style="font-size:10px; text-transform:uppercase; color:#94a3b8; letter-spacing:0.5px; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:6px;">
-                        ${labelNivel}
-                    </div>
-                    ${htmlStandard}
-                    ${htmlHighlight}
-                    ${htmlResumenMarcadores}
-                </div>
-            `;
+            const html = '<div class="siarhe-ficha" style="color:' + txtColor + ';">' + cabecera + sep + datos + htmlResumenMarcadores + pista + '</div>';
             
             if (mapDiv) {
                 const [mx, my] = d3.pointer(event, mapDiv);
@@ -290,7 +267,14 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const personas = state.base && state.base.unidad === 'personas';
             const n = app.utils.parseNum(col(personas ? ['recursos humanos estimados', 'personas'] : ['plazas de enfermeria', 'plazas']));
             const tipo = [d.tipo_estab, d.tipologia].filter(Boolean).join(' - ');
-            const ubicacion = [col(['entidad', 'nom_ent']), d.municipio, col(['localidad', 'nom_loc'])].filter(Boolean).join(', ');
+            // Ubicación como RHEMX: entidad, municipio y localidad (las capas de RHEMX no traen el nombre de la entidad: sale de su clave)
+            let entidad = col(['entidad', 'nom_ent']);
+            if (!entidad) {
+                const ce = d.cve_ent ? String(d.cve_ent).padStart(2, '0') : '';
+                const filaEnt = state.isNacional && ce && state.dataMap ? state.dataMap.get(ce) : null;
+                entidad = filaEnt ? filaEnt.estado : (!state.isNacional ? state.lugar : '');
+            }
+            const ubicacion = [entidad, d.municipio, col(['localidad', 'nom_loc'])].filter(Boolean).join(', ');
             let zona = String(d.estrato || '').trim();
             if (zona === '1') zona = 'Rural'; else if (zona === '2') zona = 'Urbano';
             let html = '<div class="siarhe-ficha-nombre">' + esc(d.nombre || d.clues || 'Unidad') + '</div>' +

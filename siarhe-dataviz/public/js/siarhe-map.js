@@ -895,7 +895,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             // Encabezado como en RHEMX: el nombre del indicador (en varias lineas si es largo) y debajo la medida. La caja crece
             // hacia arriba lo que ocupan las lineas adicionales, asi el resto de la leyenda no cambia de sitio dentro de ella.
-            const nombreInd = (app.controls && app.controls.indicatorName ? app.controls.indicatorName(metricInfo) : '') || label;
+            const nombreInd = (app.cifras ? app.cifras.nombreVariable(state) : '') || label;   // «Plazas de enfermería» con el total, como RHEMX
             const unidadBase = (state.base && state.base.unidad) === 'personas' ? 'Recursos humanos' : 'Plazas';
             const lineasTitulo = app.map._wrap(nombreInd, 26);
             const subtitulo = metricInfo.tipo === 'tasa' ? 'Tasa por 1,000 habitantes' : unidadBase;
@@ -2934,7 +2934,39 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         // blanca, abajo la fuente y la fecha de corte sobre otra, y el mapa encuadrado entre las dos. Si el mapa está en su vista de
         // arranque se vuelve a encuadrar para ese lienzo; si el usuario acercó o movió el mapa, se conserva su acercamiento relativo
         // a la vista de arranque y el punto que tenía en el centro. Después se restaura todo.
-        PIE_PNG: { fuente: "18px Roboto, 'Noto Sans', Arial, sans-serif", color: '#475569', interlineado: 26, margenLateral: 60, relleno: 16 },
+        PIE_PNG: { fuente: "18px 'Siarhe Roboto', Roboto, Arial, sans-serif", color: '#475569', interlineado: 26, margenLateral: 60, relleno: 16 },
+
+        /**
+         * Roboto del plugin (`public/fonts/roboto-var.woff2`, variable de 300 a 700, licencia OFL) para el PNG, como RHEMX incrusta
+         * Noto Sans: se registra en la página como «Siarhe Roboto» (para medir y dibujar el pie en el canvas) y se devuelve la regla
+         * @font-face con el archivo en base64 para meterla en el SVG. Se lee una vez por visita; si falla, el PNG sale con la fuente
+         * del navegador. Devuelve una promesa con la regla CSS ('' si falló).
+         */
+        _fuentePng: function(container) {
+            if (app.map._fuentePngPromesa) return app.map._fuentePngPromesa;
+            const base = container.dataset.img || '';
+            const url = base ? new URL('../fonts/roboto-var.woff2', new URL(base, document.baseURI)).href : '';
+            app.map._fuentePngPromesa = !url || typeof fetch !== 'function' ? Promise.resolve('') : fetch(url).then(function(r) {
+                if (!r.ok) throw new Error('No se pudo leer ' + url);
+                return r.arrayBuffer();
+            }).then(function(buf) {
+                const bytes = new Uint8Array(buf);
+                let bin = '';
+                for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+                const datos = 'data:font/woff2;base64,' + btoa(bin);
+                const registro = typeof FontFace === 'function' && document.fonts
+                    ? new FontFace('Siarhe Roboto', buf, { weight: '300 700' }).load().then(function(f) { document.fonts.add(f); }).catch(function() {})
+                    : Promise.resolve();
+                return registro.then(function() {
+                    return "@font-face{font-family:'Siarhe Roboto';font-weight:300 700;src:url(" + datos + ") format('woff2');}" +
+                        "text,tspan{font-family:'Siarhe Roboto',Roboto,Arial,sans-serif !important;}";
+                });
+            }).catch(function(err) {
+                console.warn('[SIARHE] PNG sin la fuente incrustada:', err);
+                return '';
+            });
+            return app.map._fuentePngPromesa;
+        },
 
         /** «Fuente: … | Fecha de corte: …» de los datos de enfermería (pie del mapa). */
         _textoPie: function(container) {
@@ -2988,6 +3020,14 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const mapDiv = container.querySelector('.siarhe-map-container');
             const svgNode = mapDiv && mapDiv.querySelector('svg');
             if (!svgNode || !state.zoom) return;
+            // La primera vez se espera a la Roboto del plugin: con ella se mide el pie y se dibuja todo el texto
+            if (app.map._fuentePngCss === undefined) {
+                app.map._fuentePng(container).then(function(css) {
+                    app.map._fuentePngCss = css;
+                    app.map.downloadMapAsPNG(container, state, withLabels);
+                });
+                return;
+            }
             const L = app.map.LIENZO, F = L.F, PIE = app.map.PIE_PNG;
 
             // 1. El pie se mide antes para encuadrar el mapa y colocar las leyendas por encima de él (alto en px de la imagen)
@@ -3058,7 +3098,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             clone.setAttribute('viewBox', '0 0 ' + L.W + ' ' + L.H);
             clone.setAttribute('width', 1920); clone.setAttribute('height', 1080);
             clone.style.removeProperty('width'); clone.style.removeProperty('height');
-            const svgData = new XMLSerializer().serializeToString(clone);
+            let svgData = new XMLSerializer().serializeToString(clone);
+            if (app.map._fuentePngCss) svgData = svgData.replace(/(<svg\b[^>]*>)/, '$1<style>' + app.map._fuentePngCss + '</style>');
 
             // 5. Se restaura la vista de la pantalla
             state._exportando = false; state._bandaPie = 0; state._desplazaLeyenda = 0; state._kBaseExport = null;

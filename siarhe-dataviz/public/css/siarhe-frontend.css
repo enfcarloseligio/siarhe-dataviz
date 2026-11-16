@@ -133,8 +133,7 @@ path.siarhe-feature:hover {
     z-index: 10000;
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     display: none;
-    min-width: 200px;
-    max-width: 300px;
+    max-width: 320px;   /* como el tooltip de RHEMX (.geo-tip) */
     font-family: 'Roboto', sans-serif;
     font-size: 13px;
     line-height: 1.4;
@@ -1412,5 +1411,5 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 .siarhe-viz-wrapper .siarhe-ficha { font-size: 11.8px; line-height: 1.4; max-width: 320px; }
 .siarhe-viz-wrapper .siarhe-ficha-nombre { margin-bottom: 4px; font-size: 13px; font-weight: 700; }
 .siarhe-viz-wrapper .siarhe-ficha-sep { margin: 6px 0; border-top: 1px dashed rgba(255, 255, 255, 0.25); }
-.siarhe-viz-wrapper .siarhe-ficha-fila strong { font-weight: 700; }
+.siarhe-viz-wrapper .siarhe-ficha-fila strong { font-weight: 700; font-size: inherit; color: inherit; }
 .siarhe-viz-wrapper .siarhe-ficha, .siarhe-viz-wrapper .siarhe-ficha strong, .siarhe-viz-wrapper .siarhe-ficha span { font-family: inherit; letter-spacing: normal; }

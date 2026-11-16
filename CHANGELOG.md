@@ -2,6 +2,20 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.19.0] - 2026-11-16
+
+Retroalimentación del dueño sobre la 0.1.18.0: los tooltips de estados y municipios dicen lo mismo que los de RHEMX y el PNG lleva Roboto. Probado con `tests/` y en el arnés; **falta verlo en un WordPress real**.
+
+### Tooltips del mapa como los de RHEMX
+- **Estado:** su nombre; tras una línea, «Población», el indicador elegido y «Tasa por 1,000 habitantes»; y, si el estado tiene página propia, «Doble clic para ver sus municipios». Antes: «Información estatal», «Total Enfermeras» y «Tasa Total» destacada en otro color y tamaño.
+- **Municipio:** el estado como nombre y debajo «Municipio: …», con los mismos datos. En la capa detallada (municipios de la República, localidades de un estado) se añaden el municipio o la localidad y el aviso «Cifras del estado» o «Cifras del municipio», porque el plugin todavía no tiene cifras propias de esa capa.
+- El indicador total se llama como en RHEMX: **«Plazas de enfermería»** o **«Recursos Humanos de Enfermería»**, según la unidad de conteo, también en el título de la leyenda; los demás llevan su nombre («Primer nivel»…). Si la base no trae la tasa, se calcula como RHEMX (indicador ÷ población × 1,000).
+- Etiquetas y cifras del mismo tamaño (antes las cifras salían a 14 px) y ancho máximo de 320 px, como RHEMX. En *Configuración › Tooltips*, «Destacar una variable» del mapa se cambió por **«Color de las etiquetas»**; el orden y qué datos se ven siguen ahí.
+- **Ficha de las unidades del sistema:** la ubicación empieza con la entidad («Tamaulipas, San Fernando, …»), como en RHEMX.
+
+### PNG con Roboto
+- El plugin trae la Roboto del portafolio (`public/fonts/roboto-var.woff2`, variable de 300 a 700, 33 KB, licencia OFL en `OFL-Roboto.txt`) y la incrusta en el PNG como RHEMX incrusta Noto Sans: el título, las leyendas, las etiquetas y el pie salen en Roboto aunque el equipo no la tenga instalada. Se lee la primera vez que se descarga un PNG.
+
 ## [0.1.18.0] - 2026-11-16
 
 Retroalimentación del dueño sobre la 0.1.17.0: el mapa se ve y se comporta exactamente como el de RHEMX. Probado con `tests/` y en el arnés; **falta verlo en un WordPress real**.
