@@ -317,3 +317,39 @@ console.log('prueba_controles: marcadores de posición por tema correctos');
     assert.strictEqual(app.nav.disponible(), true);
     console.log('prueba_controles: decimales de las tasas y entidad del enlace correctos');
 }
+
+// Cifras del encabezado, resumen y nota (app.cifras, como en RHEMX): sumas sin el extranjero, municipios con registros,
+// municipios nuevos (sin polígono ni población) y municipios sin polígono (con población, creados después del marco)
+{
+    const metricas = {
+        tasa_total: { tipo: 'tasa', pair: 'total', nombre: 'Total' }, enfermeras_total: { tipo: 'absoluto', pair: 'total', nombre: 'Total' },
+        tasa_primer: { tipo: 'tasa', pair: 'primer', nombre: 'Primer nivel' }, enfermeras_primer: { tipo: 'absoluto', pair: 'primer', nombre: 'Primer nivel' }
+    };
+    const fila = (mun, pob, tot, pri, extra) => Object.assign({ CVE_ENT: '28', CVE_MUN: mun, estado: 'M' + mun, poblacion: pob, enfermeras_total: tot, enfermeras_primer: pri, isTotal: false, isSpecial: false, isExtranjero: false }, extra || {});
+    const st = {
+        metricas, currentMetric: 'tasa_primer', isNacional: false,
+        csvData: [fila('001', 1000, 10, 4), fila('002', 500, 0, 0), fila('099', 0, 3, 1), fila('100', 200, 2, 2),
+            fila('8888', 0, 5, 1, { isSpecial: true }), fila('9999', 1700, 20, 8, { isTotal: true })],
+        geoData: { features: [{ properties: { CVE_ENT: '28', CVE_MUN: '001' } }, { properties: { CVE_ENT: '28', CVE_MUN: '002' } }, { properties: { CVE_ENT: '28', CVE_MUN: '003' } }] }
+    };
+    app.utils.getGeoKey = (p) => p.CVE_MUN;
+    const c = app.cifras.calcula(st);
+    assert.strictEqual(c.pob, 1700);
+    assert.strictEqual(c.total, 20);
+    assert.strictEqual(c.sinLugar, 5);
+    assert.strictEqual(c.cnt, 8);
+    assert.strictEqual(c.esTotal, false);
+    assert.strictEqual(c.abs, 'enfermeras_primer');
+    assert.strictEqual(c.lugares, 3);          // los del marco geoestadístico
+    assert.strictEqual(c.conRegistros, 1);     // 001 (002 tiene 0; 099 y 100 no tienen polígono)
+    assert.deepStrictEqual(c.nuevos.map(x => x.clave), ['099']);
+    assert.deepStrictEqual(c.sinPoligono.map(x => x.clave), ['100']);
+    // Con el total y el extranjero en la República
+    const sn = { metricas, currentMetric: 'enfermeras_total', isNacional: true, geoData: null,
+        csvData: [fila('', 100, 7, 1, { CVE_ENT: '01' }), fila('', 0, 9, 9, { CVE_ENT: '34', isSpecial: true, isExtranjero: true }), fila('', 0, 2, 0, { CVE_ENT: '8888', isSpecial: true })] };
+    const n = app.cifras.calcula(sn);
+    assert.strictEqual(n.total, 9);
+    assert.strictEqual(n.esTotal, true);
+    assert.strictEqual(n.conRegistros, 1);
+    console.log('prueba_controles: cifras del encabezado, resumen y nota correctas');
+}

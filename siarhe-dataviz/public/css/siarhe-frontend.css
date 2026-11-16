@@ -337,24 +337,8 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 }
 
 /* =========================================
-   7. BOTONES INFERIORES
+   7. BOTONES
    ========================================= */
-.siarhe-actions {
-    margin-top: 15px;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    flex-wrap: wrap;
-}
-
-.siarhe-map-actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 15px;
-    margin-top: 20px;
-}
-
 /* Botones: un solo estilo para todo el frontend, configurable en Personalizar > Mapa y Colores
    (variables --s-btn-*). No usan las clases .button del tema para que este no los recolore. */
 .siarhe-viz-wrapper .siarhe-btn {
@@ -450,15 +434,10 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     .siarhe-footer-grid {
         grid-template-columns: 1fr 1fr;
     }
-    .siarhe-map-actions button {
-        width: auto;
-    }
 }
 
 @media (max-width: 767px) {
     .siarhe-title { font-size: 20px; }
-    .siarhe-map-actions { flex-direction: column; align-items: stretch; }
-    .siarhe-map-actions button { width: 100%; }
 }
 
 
@@ -611,17 +590,8 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     .siarhe-viz-wrapper .siarhe-smart-toast.show {
         transform: translateY(0);
     }
-    .siarhe-viz-wrapper .siarhe-controls-layout.is-fullscreen-mode {
-        gap: 8px;
-        padding: 10px 15px;
-        margin-bottom: 20px; /* Espacio para el botón */
-    }
     .siarhe-viz-wrapper .siarhe-controls-layout.is-fullscreen-mode .siarhe-controls-row {
         gap: 6px;
-    }
-    .siarhe-viz-wrapper .siarhe-controls-layout.is-fullscreen-mode .siarhe-metric-select,
-    .siarhe-viz-wrapper .siarhe-controls-layout.is-fullscreen-mode .mc-trigger {
-        height: 34px; font-size: 13px;
     }
     /* 🌟 En móvil movemos la X al Centro Inferior para no chocar con el mapa 🌟 */
     .siarhe-viz-wrapper .siarhe-close-controls-btn {
@@ -720,19 +690,6 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 }
 .siarhe-viz-wrapper .siarhe-map-container.is-fullscreen > svg {
     width: 100%; height: 100%; display: block;
-}
-/* Panel en Fullscreen PC */
-@media (min-width: 768px) {
-    .siarhe-viz-wrapper .siarhe-controls-layout.is-fullscreen-mode {
-        position: absolute;
-        /* Mismo margen superior que leyendas y controles de zoom */
-        top: var(--siarhe-edge, 14px);
-        left: 50%;
-        transform: translateX(-50%) scale(0.75); transform-origin: top center;
-        background: rgba(255, 255, 255, 0.95); padding: 15px 25px;
-        border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        z-index: 1000; width: 90%; max-width: 1000px;
-    }
 }
 
 
@@ -1114,17 +1071,6 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     mask: var(--ico) center / contain no-repeat;
 }
 
-/* Filas de controles con título (como RHEMX): cada fila agrupa una tarea y las filas se separan con una línea punteada */
-.siarhe-viz-wrapper .siarhe-controls-row { flex-wrap: wrap; }
-.siarhe-viz-wrapper .siarhe-controls-row ~ .siarhe-controls-row { padding-top: 10px; border-top: 1px dashed #cbd5e1; }
-.siarhe-viz-wrapper .siarhe-controls-row .siarhe-control-group { flex: 1 1 170px; }
-.siarhe-viz-wrapper .siarhe-controls-row .siarhe-control-group--action { flex: 0 0 auto; }
-.siarhe-viz-wrapper .siarhe-controls-row .siarhe-control-group--conm { flex: 0 0 auto; }
-.siarhe-viz-wrapper .siarhe-fila-titulo {
-    flex: 0 0 100%; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 11.5px; color: #0A66C2;
-    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: -6px;
-}
-
 /* Conmutador de dos opciones (Plazas / Recursos humanos, Tasa / Frecuencia).
    Cada estado declara fondo y texto juntos: el tema del sitio suele dar a button:hover y button:focus
    un texto blanco, y si aquí solo se fijara el fondo el rótulo quedaría ilegible sobre el fondo claro. */
@@ -1162,10 +1108,7 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 .siarhe-viz-wrapper .siarhe-conm-pista[aria-checked="true"] .siarhe-conm-perilla { transform: translateX(18px); }
 @media (prefers-reduced-motion: reduce) { .siarhe-viz-wrapper .siarhe-conm-perilla { transition: none; } }
 @media (max-width: 767px) {
-    .siarhe-viz-wrapper .siarhe-controls-row .siarhe-control-group,
-    .siarhe-viz-wrapper .siarhe-controls-row .siarhe-control-group--conm { flex: none; width: 100%; }
     .siarhe-viz-wrapper .siarhe-conm { width: 100%; justify-content: space-between; }
-    .siarhe-viz-wrapper .siarhe-fila-titulo { margin-bottom: 0; }
 }
 .siarhe-viz-wrapper .siarhe-metric-select:disabled { background: #f8fafc; color: #64748b; cursor: default; }
 
@@ -1195,10 +1138,10 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 .siarhe-viz-wrapper .siarhe-controls-placeholder:empty { min-height: 690px; border-radius: 6px; }
 @media (min-width: 768px) { .siarhe-viz-wrapper .siarhe-controls-placeholder:empty { min-height: 468px; } }
 @media (min-width: 1024px) { .siarhe-viz-wrapper .siarhe-controls-placeholder:empty { min-height: 320px; } }
-/* La cifra del encabezado (tasa y enfermeras) se escribe al cargar los datos: su renglón queda reservado (dos líneas en
-   móvil y tableta, una en PC) */
-.siarhe-viz-wrapper .siarhe-dynamic-total { min-height: 42px; }
-@media (min-width: 1024px) { .siarhe-viz-wrapper .siarhe-dynamic-total { min-height: 24px; } }
+/* Las tarjetas de cifras del encabezado (app.cifras) se escriben al cargar los datos: su espacio queda reservado con el
+   alto final (dos renglones de dos tarjetas en móvil y tableta, uno de cuatro en PC) */
+.siarhe-viz-wrapper .siarhe-kpis { min-height: 258px; }
+@media (min-width: 1024px) { .siarhe-viz-wrapper .siarhe-kpis { min-height: 124px; } }
 .siarhe-viz-wrapper .siarhe-table-controls-placeholder:empty { min-height: 48px; border-radius: 6px; }
 .siarhe-viz-wrapper .siarhe-esqueleto-tabla { display: grid; gap: 8px; padding: 4px 0; }
 .siarhe-viz-wrapper .siarhe-esqueleto-fila { height: 34px; border-radius: 4px; }
@@ -1454,3 +1397,31 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 /* Selectores propios de la tabla (espejo de los del mapa) y renglón del lugar señalado en el mapa */
 .siarhe-viz-wrapper .siarhe-tabla-barra .siarhe-tabla-selectores { margin-bottom: 8px; }
 .siarhe-viz-wrapper table.siarhe-data-table tbody tr.siarhe-row-resaltada td { background-color: var(--s-th-hover, #e2e8f0); }
+
+/* ==========================================
+   CIFRAS, RESUMEN Y NOTA COMO EN RHEMX (0.1.17.0)
+   Tarjetas del encabezado del mapa (.tile-kpi de RHEMX), cifras resaltadas del resumen y nota al pie (app.cifras).
+   ========================================== */
+.siarhe-viz-wrapper .siarhe-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+@media (min-width: 1024px) { .siarhe-viz-wrapper .siarhe-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.siarhe-viz-wrapper .siarhe-kpis:empty { border-radius: 6px; background: #f1f5f9; }
+.siarhe-viz-wrapper .siarhe-kpi {
+    box-sizing: border-box; display: flex; flex-direction: column; min-height: 124px; padding: 12px 12px 0;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+.siarhe-viz-wrapper .siarhe-kpi-titulo {
+    display: flex; align-items: center; justify-content: center; min-height: 2.6em;
+    font-size: 13px; font-weight: 600; line-height: 1.3; text-align: center; color: #475569;
+}
+.siarhe-viz-wrapper .siarhe-kpi-valor {
+    margin-top: 4px; font-size: 26px; font-weight: 700; line-height: 1.1; text-align: center;
+    font-variant-numeric: tabular-nums; color: var(--s-marca);
+}
+.siarhe-viz-wrapper .siarhe-kpi-periodo { margin-top: 2px; font-size: 11.5px; line-height: 1.3; text-align: center; color: #64748b; }
+.siarhe-viz-wrapper .siarhe-kpi-nota { margin: 0; padding: 4px 0 8px; font-size: 11.5px; line-height: 1.3; text-align: center; color: #64748b; }
+@media (max-width: 767px) { .siarhe-viz-wrapper .siarhe-kpi-valor { font-size: 22px; } }
+
+.siarhe-viz-wrapper .siarhe-cifra { color: var(--s-marca); }
+
+.siarhe-viz-wrapper .siarhe-nota-mapa { margin: 10px 2px 0; font-size: 12.8px; line-height: 1.5; color: #475569; }
+.siarhe-viz-wrapper .siarhe-nota-mapa em { font-style: italic; font-weight: 600; color: #0f172a; }

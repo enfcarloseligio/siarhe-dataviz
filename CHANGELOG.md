@@ -2,6 +2,24 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.17.0] - 2026-11-16
+
+Etapa 1 de la ruta para llevar al plugin lo que tiene el mapa de RHEMX: cifras y textos que cambian con lo elegido. Probado con `tests/` y en el arnés; **falta verlo en un WordPress real**.
+
+### Mapa
+- **Tarjetas de cifras sobre el mapa, como las de RHEMX:** población, personal de enfermería (plazas o recursos humanos, según la unidad) y la tasa por 1,000 habitantes; con un indicador distinto del total, su conteo con el porcentaje del total y su tasa. Cambian con el año, la unidad y el indicador. Sustituyen al renglón «indicador: valor · Enfermeras: total». Su espacio queda reservado con el alto final (cuatro en fila en PC, dos y dos en tableta y móvil), así que la página no se recorre al cargar.
+- **Resumen en texto que sigue lo elegido:** «En el año 2025, Tamaulipas cuenta con un total de 11,208 plazas de enfermería distribuidos en los 43 municipios de INEGI (en 42 de ellos hay registros; 232 no tienen municipio asignado)…», y con un indicador, «De ese total, 1,783 (15.9 %) corresponden a «Primer nivel», una tasa de…». En un estado cuenta también los municipios del SIARHE que no están en INEGI. Antes era un texto fijo con el total de enfermeras.
+- **Nota al pie del mapa (APA, como en RHEMX):** «Nota estadística.» con la fórmula de la tasa y cómo se cuenta cada unidad (plazas o recursos humanos estimados) y cómo se forma el total; «Nota estadística (municipios).» con los municipios del SIARHE no localizados en INEGI, y «Nota específica.» con los municipios sin polígono en el marco geoestadístico (creados después), que solo aparecen en la tabla. El servidor la deja escrita para las plazas y el JS la rehace.
+- **La ficha de la unidad buscada queda fija:** al elegir una unidad en el buscador su ficha ya no se cierra al mover el cursor; se cierra con la ×, al tocar otro lugar del mapa o al moverlo. Es el mismo panel de los marcadores encimados, con una sola unidad.
+- **Fondo de las leyendas casi opaco en el PNG,** para que los polígonos y marcadores no se asomen entre los textos (en pantalla sigue translúcido).
+
+### Hoja de estilos
+- Se quitaron las reglas que ya no aplicaban: la barra de botones bajo el mapa (`.siarhe-map-actions`, `.siarhe-actions`), el panel de pantalla completa reducido con `scale(0.75)`, los tamaños anteriores del panel en pantalla completa en móvil y la sección «Filas de controles con título», anuladas por «Panel de controles como el de RHEMX». Comprobado en el arnés: los 520 elementos del panel tienen los mismos estilos calculados antes y después, en PC y en móvil.
+
+### Pruebas
+- `tests/prueba_controles.js` comprueba las cifras (sumas sin el extranjero, municipios con registros, nuevos y sin polígono).
+- El arnés lleva el resumen, las tarjetas y la nota.
+
 ## [0.1.16.1] - 2026-11-16
 
 Textos de ayuda al día con las carpetas de RHEMX. Sin cambios en el mapa ni en la tabla.

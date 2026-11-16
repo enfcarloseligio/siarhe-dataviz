@@ -720,7 +720,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
         calcularTotalHeader: function(container, state) {
             const headerDiv = container.querySelector('.siarhe-dynamic-total');
-            if (!headerDiv) return;
+            if (!headerDiv) { if (app.cifras) app.cifras.dibuja(container, state); return; }
 
             const info = state.metricas[state.currentMetric];
             if(!info) return;
@@ -746,6 +746,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 valorMuestra = (info.tipo === 'tasa') ? null : totalAbs;
             }
 
+            // Desde la 0.1.17.0 el encabezado lleva las tarjetas de cifras de RHEMX; el texto anterior solo queda si no hay cifras
+            if (app.cifras && app.cifras.dibuja(container, state)) return;
             const absFmt = totalAbs.toLocaleString('es-MX');
             const valFmt = (valorMuestra === null || valorMuestra === undefined) ? '—'
                 : (info.tipo === 'tasa' ? app.utils.fmtTasa(valorMuestra) : valorMuestra.toLocaleString('es-MX', { maximumFractionDigits: 2 }));
@@ -753,6 +755,163 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             headerDiv.innerHTML = info.tipo === 'tasa'
                 ? `<span style="margin-right:15px;">${app.utils.esc(info.fullLabel)}: <strong style="color:#0A66C2; font-size:1.2em;">${valFmt}</strong></span><span>Enfermeras: <strong style="color:#0A66C2; font-size:1.2em;">${absFmt}</strong></span>`
                 : `<span>${app.utils.esc(info.fullLabel)}: <strong style="color:#0A66C2; font-size:1.2em;">${valFmt}</strong></span>`;
+        }
+    };
+
+    // ==========================================
+    // 4 bis. CIFRAS Y TEXTOS QUE CAMBIAN CON LO ELEGIDO (port de dibujaIndicadores, dibujaResumen y dibujaNota de RHEMX)
+    // ==========================================
+    /**
+     * Tarjetas de cifras sobre el mapa, resumen en texto y nota al pie. Se recalculan con el año, la unidad y el indicador
+     * (`app.data.calcularTotalHeader` las llama en cada cambio). El servidor deja escrito el resumen y la nota de las plazas con
+     * su tamaño final, para que la página no se recorra cuando el JS los completa.
+     */
+    app.cifras = {
+        // Textos de cada unidad de conteo (los de RHEMX, `UNIDADES`)
+        UNIDADES: {
+            plazas: { tarjeta: 'Personal de Enfermería', nota: '(plazas de enfermería)', resumen: 'plazas de enfermería', plural: 'plazas', corto: 'plazas' },
+            personas: { tarjeta: 'Recursos Humanos de Enfermería', nota: '(personas estimadas)', resumen: 'recursos humanos de enfermería', plural: 'recursos humanos', corto: 'recursos humanos' }
+        },
+        TOTAL: 'enfermeras_total',
+
+        unidad: function(state, container) {
+            const u = (state.base && state.base.unidad) || (container && container.dataset.unidad) || 'plazas';
+            return app.cifras.UNIDADES[u] || app.cifras.UNIDADES.plazas;
+        },
+
+        /**
+         * Cifras del lugar con la base y el indicador vigentes (pura, probada en tests/prueba_controles.js). Suma los lugares y los
+         * registros sin lugar asignado; el extranjero (clave 34) no entra, como en el resto del plugin. Con la geometría compara las
+         * claves: un municipio del SIARHE sin polígono y sin población es «nuevo» (no localizado en INEGI); con población, se creó
+         * después del marco geoestadístico (sin polígono).
+         */
+        calcula: function(state) {
+            const T = app.cifras.TOTAL, filas = state.csvData || [];
+            const info = (state.metricas || {})[state.currentMetric] || {};
+            const abs = info.tipo === 'absoluto' ? state.currentMetric
+                : (app.utils.findAbsoluteKeyForPair(info.pair || state.currentMetric, state.metricas || {}) || null);
+            const lugares = filas.filter(function(r) { return !r.isTotal && !r.isSpecial && !r.isExtranjero; });
+            const sinLugar = filas.filter(function(r) { return !r.isTotal && r.isSpecial && !r.isExtranjero; });
+            const suma = function(lista, k) { return lista.reduce(function(a, r) { return a + (Number(r[k]) || 0); }, 0); };
+            const c = {
+                pob: suma(lugares, 'poblacion'),
+                total: suma(lugares, T) + suma(sinLugar, T),
+                sinLugar: suma(sinLugar, T),
+                abs: abs, esTotal: !abs || abs === T,
+                cnt: abs ? suma(lugares, abs) + suma(sinLugar, abs) : null,
+                nombre: (app.controls && app.controls.indicatorName) ? app.controls.indicatorName(info) : (info.nombre || info.label || ''),
+                lugares: lugares.length, conRegistros: 0, nuevos: [], sinPoligono: [], conGeo: false
+            };
+            const feats = state.geoData && state.geoData.features;
+            if (feats && feats.length) {
+                c.conGeo = true;
+                const claves = new Set(feats.map(function(f) { return app.utils.getGeoKey(f.properties, state.isNacional); }));
+                c.lugares = claves.size;
+                lugares.forEach(function(r) {
+                    const k = state.isNacional ? r.CVE_ENT : (r.CVE_MUN || r.CVE_ENT);
+                    if (claves.has(k)) { if ((Number(r[T]) || 0) > 0) c.conRegistros++; }
+                    else (r.poblacion > 0 ? c.sinPoligono : c.nuevos).push({ clave: k, nombre: r.estado });
+                });
+            } else {
+                c.conRegistros = lugares.filter(function(r) { return (Number(r[T]) || 0) > 0; }).length;
+            }
+            return c;
+        },
+
+        // Pinta las tarjetas, el resumen y la nota; devuelve false si no hay datos (se queda el encabezado de antes)
+        dibuja: function(container, state) {
+            if (!state.csvData || !state.csvData.length) return false;
+            const c = app.cifras.calcula(state);
+            app.cifras._tarjetas(container, state, c);
+            app.cifras._resumen(container, state, c);
+            app.cifras._nota(container, state, c);
+            return true;
+        },
+
+        _lugar: function(container) {
+            return container.dataset.lugar || '';
+        },
+
+        _anio: function(container, state) {
+            return String((state.base && state.base.anio) || container.dataset.anio || '');
+        },
+
+        _tarjetas: function(container, state, c) {
+            const nodo = container.querySelector('.siarhe-dynamic-total');
+            if (!nodo) return;
+            const u = app.cifras.unidad(state, container), fmtN = function(v) { return (Number(v) || 0).toLocaleString('es-MX'); };
+            const tasa = function(n) { return c.pob > 0 ? (n / c.pob) * 1000 : null; };
+            const lugar = app.cifras._lugar(container), anio = app.cifras._anio(container, state);
+            const tiles = [
+                ['Población', fmtN(c.pob), 'INEGI, ' + lugar],
+                [u.tarjeta, fmtN(c.total), lugar + ', ' + anio, u.nota]
+            ];
+            if (c.esTotal) tiles.push(['Tasa por 1,000 habitantes', app.utils.fmtTasa(tasa(c.total)), u.tarjeta, u.nota]);
+            else {
+                const part = c.total > 0 ? (c.cnt / c.total) * 100 : null;
+                tiles.push([c.nombre, fmtN(c.cnt), part === null ? '' : part.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' % de ' + u.plural],
+                    ['Tasa por 1,000 habitantes', app.utils.fmtTasa(tasa(c.cnt)), c.nombre]);
+            }
+            const esc = app.utils.esc, hayNota = tiles.some(function(t) { return t[3]; });
+            nodo.classList.add('siarhe-kpis');
+            nodo.removeAttribute('style');
+            nodo.innerHTML = tiles.map(function(t) {
+                return '<div class="siarhe-kpi"><div class="siarhe-kpi-titulo">' + esc(t[0]) + '</div><div class="siarhe-kpi-valor">' + esc(t[1]) + '</div>' +
+                    '<div class="siarhe-kpi-periodo">' + esc(t[2]) + '</div>' + (hayNota ? '<p class="siarhe-kpi-nota">' + (t[3] ? esc(t[3]) : '&nbsp;') + '</p>' : '') + '</div>';
+            }).join('');
+        },
+
+        _resumen: function(container, state, c) {
+            const nodo = container.querySelector('.siarhe-resumen');
+            if (!nodo) return;
+            const esc = app.utils.esc, u = app.cifras.unidad(state, container);
+            const fmtN = function(v) { return (Number(v) || 0).toLocaleString('es-MX'); };
+            const cifra = function(v) { return '<strong class="siarhe-cifra">' + esc(v) + '</strong>'; };
+            const lugar = state.isNacional ? 'la República Mexicana' : esc(app.cifras._lugar(container)), anio = app.cifras._anio(container, state);
+            let donde;
+            if (state.isNacional) {
+                donde = 'las ' + cifra(32) + ' entidades federativas' + (c.sinLugar > 0 ? ' (y ' + cifra(fmtN(c.sinLugar)) + ' sin entidad asignada)' : '');
+            } else {
+                const detalle = ['en ' + cifra(fmtN(c.conRegistros)) + ' de ellos hay registros'];
+                if (c.nuevos.length) detalle.push('se identificaron ' + cifra(fmtN(c.nuevos.length)) + ' ' + (c.nuevos.length === 1 ? 'municipio nuevo' : 'municipios nuevos') + ' en el SIARHE no localizados en INEGI');
+                if (c.sinLugar > 0) detalle.push(cifra(fmtN(c.sinLugar)) + ' no tienen municipio asignado');
+                donde = 'los ' + cifra(fmtN(c.lugares)) + ' municipios de INEGI (' + detalle.join('; ') + ')';
+            }
+            const partes = ['En el año ' + cifra(anio) + ', ' + lugar + ' cuenta con un total de ' + cifra(fmtN(c.total)) + ' ' + u.resumen +
+                ' distribuidos en ' + donde + ', según el corte del SIARHE y la población de INEGI.'];
+            if (!c.esTotal) {
+                const pct = c.total > 0 ? (c.cnt / c.total) * 100 : 0;
+                partes.push('De ese total, ' + cifra(fmtN(c.cnt)) + ' (' + cifra(pct.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %') +
+                    ') corresponden a «' + esc(c.nombre) + '», una tasa de ' + cifra(app.utils.fmtTasa(c.pob > 0 ? (c.cnt / c.pob) * 1000 : null)) + ' por cada 1,000 habitantes.');
+            }
+            nodo.innerHTML = partes.join(' ');
+        },
+
+        _nota: function(container, state, c) {
+            const nodo = container.querySelector('.siarhe-nota-mapa');
+            if (!nodo) return;
+            const esc = app.utils.esc, rotulo = function(t) { return '<em>' + t + '</em>'; };
+            const u = app.cifras.unidad(state, container), personas = u === app.cifras.UNIDADES.personas;
+            const lugarTotal = state.isNacional ? 'nacional' : 'estatal';
+            const lista = function(l) {
+                const n = l.map(function(x) { return esc(x.nombre) + ' (' + esc(x.clave) + ')'; });
+                return n.length > 6 ? n.slice(0, 6).join('; ') + ' y ' + (n.length - 6) + ' más' : n.join('; ');
+            };
+            const partes = [rotulo('Nota estadística.') + ' Tasa por 1,000 habitantes = (' + (personas ? 'recursos humanos de enfermería estimados' : 'plazas de enfermería') + ' ÷ población) × 1,000. ' +
+                (personas ? 'Los recursos humanos de enfermería son estimados: se cuentan las plazas con ingreso «Primer» (una por persona estimada; el SIARHE no trae CURP, por lo que las personas no se pueden verificar). '
+                    : 'La plaza es la unidad estándar del conteo; una persona puede ocupar más de una. ') +
+                'El total ' + lugarTotal + ' es la suma de ' + (state.isNacional ? 'las 32 entidades federativas más los registros sin entidad asignada' : 'los municipios más los registros clasificados como «No Disponible»') + '. ' +
+                'Cada registro cuenta una sola vez por variable; el 0 y el sin dato (S/D) no entran en el cálculo de los cuartiles.'];
+            if (c.nuevos.length) {
+                partes.push(rotulo('Nota estadística (municipios).') + ' Se identificaron ' + c.nuevos.length.toLocaleString('es-MX') + ' ' + (c.nuevos.length === 1 ? 'municipio' : 'municipios') +
+                    ' en la base del SIARHE no localizados en los registros de INEGI: ' + lista(c.nuevos) + '. Se listan en la tabla, con su clave, sin población ni tasa, y su conteo está incluido en el total.');
+            }
+            if (c.sinPoligono.length) {
+                const n = c.sinPoligono.length;
+                partes.push(rotulo('Nota específica.') + ' <sup>a</sup> Sin polígono: ' + lista(c.sinPoligono) + ' (' + (n === 1 ? 'municipio creado' : 'municipios creados') +
+                    ' después del marco geoestadístico de INEGI que usa el mapa); aparece' + (n === 1 ? '' : 'n') + ' solo en la tabla con sus ' + u.plural + '.');
+            }
+            nodo.innerHTML = partes.join('<br>');
         }
     };
 

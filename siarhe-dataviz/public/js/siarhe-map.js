@@ -2779,16 +2779,20 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const muestra = function() {
                 const nodo = state.svg.node(), mapDiv = nodo.parentNode;
                 const cv = state._cv;
-                if (cv && cv.pts && cv.pts.length) {
-                    cv.sel = cv.pts.find(function(p) { return p.d === d || (d.clues && p.d.clues === d.clues && p.d.tipo === d.tipo); }) || null;
-                    app.map._cvSchedule(state);
-                } else if (state._mkNodes) {
-                    state._aroSel = state._mkNodes.find(function(n) { const m = n.__data__; return m && (m === d || (d.clues && m.clues === d.clues && m.tipo === d.tipo)); }) || null;
-                    app.map.pintaAros(state);
+                const esEste = function(m) { return m && (m === d || (d.clues && m.clues === d.clues && m.tipo === d.tipo)); };
+                const pt = cv && cv.pts && cv.pts.length ? (cv.pts.find(function(p) { return esEste(p.d); }) || null) : null;
+                const el = !pt && state._mkNodes ? (state._mkNodes.find(function(n) { return esEste(n.__data__); }) || null) : null;
+                // El marcador quedó en el centro del lienzo: ahí se abre su ficha, fija (la tarjeta de los encimados con uno
+                // solo) hasta que se cierra, se toca otro lugar o se mueve el mapa; el aro lo pone `_stackMark`
+                const r = nodo.getBoundingClientRect(), mr = mapDiv.getBoundingClientRect();
+                const cx = r.left - mr.left + r.width / 2, cy = r.top - mr.top + r.height / 2;
+                if (state.tooltip) state.tooltip.style('opacity', 0).style('display', 'none');
+                if (app.tooltips && app.tooltips.showStackCard) {
+                    state._stack = { list: [pt ? pt.d : (el ? el.__data__ : d)], idx: 0, ax: cx, ay: cy, nodes: el ? [el] : null, pts: pt ? [pt] : null };
+                    app.map.stackShow(state);
+                } else if (app.tooltips && state.tooltip) {
+                    app.tooltips.showMarkerTooltip({ clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }, d, state, mapDiv);
                 }
-                // El marcador quedó en el centro del lienzo: ahí se abre su ficha
-                const r = nodo.getBoundingClientRect();
-                if (app.tooltips && state.tooltip) app.tooltips.showMarkerTooltip({ clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }, d, state, mapDiv);
             };
             const quieto = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             if (quieto) { state.svg.call(state.zoom.transform, t); muestra(); }
@@ -2822,7 +2826,15 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 // se incorporan al clon para que el PNG salga completo
                 const ovlNode = state.ovl && state.ovl.node();
                 if (ovlNode) {
-                    ovlNode.querySelectorAll('.siarhe-legend-group, .siarhe-marker-legend-group').forEach(g => clone.appendChild(g.cloneNode(true)));
+                    ovlNode.querySelectorAll('.siarhe-legend-group, .siarhe-marker-legend-group').forEach(g => {
+                        const copia = g.cloneNode(true);
+                        // En la imagen el fondo de las leyendas va casi opaco para que los polígonos y marcadores de abajo no
+                        // se asomen entre los textos (en pantalla sigue translúcido)
+                        copia.querySelectorAll('rect').forEach(r => {
+                            if (/^rgba\(255,\s*255,\s*255,\s*0\.\d+\)$/.test(r.getAttribute('fill') || '')) r.setAttribute('fill', 'rgba(255,255,255,0.98)');
+                        });
+                        clone.appendChild(copia);
+                    });
                     const mg = state.gMeasure && state.gMeasure.node();
                     const mapLayerEl = clone.querySelector('.map-layer');
                     if (mg && mapLayerEl) mapLayerEl.appendChild(mg.cloneNode(true));

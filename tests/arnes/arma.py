@@ -74,7 +74,7 @@ doc = f'''<!DOCTYPE html>
 <script>window.SiarheDataVizConfig = {json.dumps({'d3Fallback': P + 'js/libs/d3.v7.min.js', 'topojson': P + 'js/libs/topojson-client.min.js', 'topoHelper': P + 'js/siarhe-topo.js', 'capas': P + 'js/siarhe-capas.js', 'xlsx': P + 'js/libs/xlsx.full.min.js'})};</script>
 </head><body><div class="tema">
 <div class="siarhe-viz-wrapper{' siarhe-layout-canvas' if layout == 'canvas' else ''}" style="--s-canvas-margin: 2.5%;" id="siarhe-viz-{ENT}"
- data-cve-ent="{ENT}" data-slug="{'republica-mexicana' if NACIONAL else 'entidad-' + ENT}" data-mode="MT"
+ data-cve-ent="{ENT}" data-slug="{'republica-mexicana' if NACIONAL else 'entidad-' + ENT}" data-mode="MT" data-lugar="{NOMBRE if NACIONAL else 'Entidad ' + ENT}"
  data-geojson="{at(geos['base']['2025']['url'])}" data-csv="{at(bases['2025']['plazas']['url'])}" data-img="{P}img/"
  data-temas="{at(cfg['temas'])}" data-bases="{at(bases)}" data-anio="2025" data-unidad="plazas"
  data-geojson-loc="{at(geos['loc'].get('2025', {}).get('url', ''))}" data-geos="{at(geos)}"
@@ -85,11 +85,13 @@ doc = f'''<!DOCTYPE html>
     <button type="button" class="siarhe-layout-op" data-siarhe-layout="contenedor" aria-pressed="{'false' if layout == 'canvas' else 'true'}"><span class="siarhe-ctl-icon" aria-hidden="true" style="--ico: url(&quot;{P}img/icon-contenedor.svg&quot;)"></span> Contenedor</button>
     <button type="button" class="siarhe-layout-op" data-siarhe-layout="canvas" aria-pressed="{'true' if layout == 'canvas' else 'false'}"><span class="siarhe-ctl-icon" aria-hidden="true" style="--ico: url(&quot;{P}img/icon-canvas.svg&quot;)"></span> Canvas</button>
   </div></div>
+  <div class="siarhe-intro-text"><p class="siarhe-resumen">En el año <strong class="siarhe-cifra">2025</strong>, {'la República Mexicana' if NACIONAL else 'Entidad ' + ENT} cuenta con un total de <strong class="siarhe-cifra"><span class="siarhe-dynamic-nurses-sum">…</span></strong> plazas de enfermería distribuidos en {'las <strong class="siarhe-cifra">32</strong> entidades federativas' if NACIONAL else 'los <strong class="siarhe-cifra"><span class="siarhe-dynamic-mun-count">…</span></strong> municipios de INEGI (en <strong class="siarhe-cifra">…</strong> de ellos hay registros; <strong class="siarhe-cifra">…</strong> no tienen municipio asignado)'}, según el corte del SIARHE y la población de INEGI.</p></div>
   <section id="siarhe-map-section" class="siarhe-section-map siarhe-block-card">
-    <header class="siarhe-header"><h2 class="siarhe-title">{NOMBRE if NACIONAL else 'Entidad ' + ENT}</h2><div class="siarhe-dynamic-total"></div></header>
+    <header class="siarhe-header"><h2 class="siarhe-title">{NOMBRE if NACIONAL else 'Entidad ' + ENT}</h2><div class="siarhe-dynamic-total siarhe-kpis" aria-live="polite"></div></header>
     <div class="siarhe-controls-placeholder"></div>
     <div class="siarhe-map-container"><div class="siarhe-loading-overlay"><div class="spinner"></div><p>Cargando mapa interactivo...</p></div></div>
     <div class="siarhe-map-footer">Pie del mapa</div>
+    <p class="siarhe-nota-mapa"><em>Nota estadística.</em> Tasa por 1,000 habitantes = (plazas de enfermería ÷ población) × 1,000. La plaza es la unidad estándar del conteo; una persona puede ocupar más de una. El total {'nacional es la suma de las 32 entidades federativas más los registros sin entidad asignada' if NACIONAL else 'estatal es la suma de los municipios más los registros clasificados como «No Disponible»'}. Cada registro cuenta una sola vez por variable; el 0 y el sin dato (S/D) no entran en el cálculo de los cuartiles.</p>
     <div class="siarhe-ref-clinica" data-ref-archivo="clinicas-cateteres.csv" hidden>Referencia de catéteres</div>
     <div class="siarhe-ref-clinica" data-ref-archivo="clinicas-heridas.csv" hidden>Referencia de heridas</div>
   </section>

@@ -445,19 +445,23 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const ms = state.measure;
             const cfgCur = state.markerLabels[cur.tipo] || {};
 
-            let html = `<div class="siarhe-stack-head">
+            // Con un solo marcador (la unidad elegida en el buscador) la tarjeta es la ficha fija: solo lleva el botón de cerrar
+            el.setAttribute('aria-label', n > 1 ? 'Marcadores encimados' : 'Ficha de la unidad');
+            let html = n > 1 ? `<div class="siarhe-stack-head">
                 <button type="button" class="siarhe-stack-btn" data-act="prev" aria-label="Marcador anterior">&#9664;</button>
                 <span class="siarhe-stack-count" aria-live="polite">${stack.idx + 1} de ${n}</span>
                 <button type="button" class="siarhe-stack-btn" data-act="next" aria-label="Marcador siguiente">&#9654;</button>
                 <button type="button" class="siarhe-stack-btn siarhe-stack-close" data-act="close" aria-label="Cerrar">&times;</button>
+            </div>` : `<div class="siarhe-stack-head siarhe-stack-head-uno">
+                <button type="button" class="siarhe-stack-btn siarhe-stack-close" data-act="close" aria-label="Cerrar la ficha">&times;</button>
             </div>`;
             html += card.html;
             if (ms && ms.active && cfgCur.tipo === 'posicion') {
                 const inMs = ms.points.some(function(p) { return p.uid === cur._uid; });
                 html += `<button type="button" class="siarhe-stack-measure" data-act="measure">${inMs ? 'Quitar de la medición' : 'Agregar a la medición'}</button>`;
             }
-            html += `<ol class="siarhe-stack-list">`;
-            list.forEach(function(d, i) {
+            if (n > 1) html += `<ol class="siarhe-stack-list">`;
+            if (n > 1) list.forEach(function(d, i) {
                 const st = app.utils.getMarkerStyle(d.tipo, state);
                 const nm = app.utils.titleCase(d.nombre || d.clues || (state.markerLabels[d.tipo] || {}).label || 'Marcador');
                 html += `<li><button type="button" data-act="go" data-i="${i}" class="${i === stack.idx ? 'is-current' : ''}">
@@ -465,7 +469,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     <span class="siarhe-stack-dot" style="background:${esc(st.fill)}"></span>
                     <span class="siarhe-stack-name">${esc(nm)}</span></button></li>`;
             });
-            html += `</ol>`;
+            if (n > 1) html += `</ol>`;
 
             el.style.backgroundColor = card.bg;
             el.style.color = card.txt;

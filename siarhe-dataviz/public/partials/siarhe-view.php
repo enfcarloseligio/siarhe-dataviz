@@ -63,7 +63,8 @@ $siarhe_layout  = siarhe_get_layout();
 $catalogo_oficial = siarhe_get_entity_catalog();
 
 $es_nacional = ($slug === 'republica-mexicana' || $cve_ent === '33');
-$lugar_texto = esc_html( isset($catalogo_oficial[$cve_ent]) ? $catalogo_oficial[$cve_ent] : $nombre_entidad );
+$lugar_nombre = isset($catalogo_oficial[$cve_ent]) ? $catalogo_oficial[$cve_ent] : $nombre_entidad;
+$lugar_texto = esc_html( $lugar_nombre );
 
 // 1. OBTENER CONFIGURACIÓN DE COLORES BASE
 $opts = siarhe_get_map_options();
@@ -253,6 +254,7 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
      id="siarhe-viz-<?php echo esc_attr($cve_ent); ?>"
      data-cve-ent="<?php echo esc_attr($cve_ent); ?>"
      data-slug="<?php echo esc_attr($slug); ?>"
+     data-lugar="<?php echo esc_attr($lugar_nombre); ?>"
      data-mode="<?php echo esc_attr($mode); ?>"
      data-geojson="<?php echo esc_url($geojson_url); ?>"
      data-csv="<?php echo esc_url($csv_url); ?>"
@@ -297,10 +299,11 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
     </h1>
 
     <div class="siarhe-intro-text" style="line-height: 1.6; margin-bottom: 25px;">
-        <p>
-            En el año <strong style="color: #0F172A;"><?php echo esc_html($anio); ?></strong>, <?php echo $lugar_texto; ?> cuenta con un total de 
-            <strong style="color: #06B6D4;"><span class="siarhe-dynamic-nurses-sum">...</span></strong> 
-            profesionales de enfermería distribuidos en <?php echo $es_nacional ? 'las 32 entidades federativas' : 'los <strong style="color: #0A66C2;"><span class="siarhe-dynamic-mun-count">...</span></strong> municipios'; ?>, según el último corte estadístico del SIARHE y proyecciones INEGI.
+        <?php // Resumen de RHEMX: el JS (app.cifras) completa las cifras y agrega el indicador elegido ?>
+        <p class="siarhe-resumen">
+            En el año <strong class="siarhe-cifra"><?php echo esc_html($anio); ?></strong>, <?php echo $es_nacional ? 'la República Mexicana' : $lugar_texto; ?> cuenta con un total de
+            <strong class="siarhe-cifra"><span class="siarhe-dynamic-nurses-sum">…</span></strong> plazas de enfermería distribuidos en
+            <?php echo $es_nacional ? 'las <strong class="siarhe-cifra">32</strong> entidades federativas' : 'los <strong class="siarhe-cifra"><span class="siarhe-dynamic-mun-count">…</span></strong> municipios de INEGI (en <strong class="siarhe-cifra">…</strong> de ellos hay registros; <strong class="siarhe-cifra">…</strong> no tienen municipio asignado)'; ?>, según el corte del SIARHE y la población de INEGI.
         </p>
         <p>
             Contar con información actualizada y geolocalizada sobre la distribución del capital humano es fundamental para identificar brechas de atención, planificar recursos estratégicos y fortalecer el sistema de salud estatal, asegurando una cobertura equitativa para la población. Esta herramienta permite visualizar las disparidades regionales en la cobertura de salud. Haz doble clic en cualquier <?php echo $es_nacional ? 'estado' : 'municipio'; ?> para consultar el desglose detallado.
@@ -316,7 +319,7 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
                     <span class="dashicons dashicons-location"></span> 
                     <?php echo $lugar_texto; ?>
                 </h2>
-                <div class="siarhe-dynamic-total" style="color: #444; margin-top:5px;"></div>
+                <div class="siarhe-dynamic-total siarhe-kpis" aria-live="polite"></div>
             </header>
 
             <details class="siarhe-nav-guide" style="margin-bottom: 20px; background: #f0f6fc; padding: 15px; border-radius: 6px; border: 1px solid #c3c4c7;">
@@ -343,6 +346,9 @@ $geojson_url = siarhe_data_read_url( $geojson_url );
             <div class="siarhe-map-footer">
                 💡 Tip: Usa los controles para hacer zoom +/- o ⟳ para resetear. Pasa el cursor para ver detalles.
             </div>
+
+            <?php // Nota al pie de RHEMX (app.cifras la rehace con la unidad y los municipios sin polígono) ?>
+            <p class="siarhe-nota-mapa"><em>Nota estadística.</em> Tasa por 1,000 habitantes = (plazas de enfermería ÷ población) × 1,000. La plaza es la unidad estándar del conteo; una persona puede ocupar más de una. El total <?php echo $es_nacional ? 'nacional es la suma de las 32 entidades federativas más los registros sin entidad asignada' : 'estatal es la suma de los municipios más los registros clasificados como «No Disponible»'; ?>. Cada registro cuenta una sola vez por variable; el 0 y el sin dato (S/D) no entran en el cálculo de los cuartiles.</p>
 
         </section>
     <?php endif; ?>
