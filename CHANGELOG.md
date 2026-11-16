@@ -2,6 +2,17 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.16.1] - 2026-11-16
+
+Textos de ayuda al día con las carpetas de RHEMX. Sin cambios en el mapa ni en la tabla.
+
+### Panel
+- *Carga de Datos* nombra las carpetas nuevas de RHEMX: las bases de cada año quedan en `data/processed/mapas/data/<año>/plazas/` y `personas/`, y en cada una cada entidad tiene su CSV, su JSON y su Parquet con el mismo nombre (antes iban en `csv_plazas/`, `json_plazas/`, `csv_personas/` y `json_personas/`). El plugin sigue cargando el CSV o el JSON.
+
+### Pruebas
+- `tests/prueba_validador.php`, `tests/prueba_topo.js` y el arnés leen las bases de las carpetas nuevas.
+- `tests/prueba_topo.js` acepta rutas relativas (`node tests\prueba_topo.js siarhe-dataviz\public\js ..\rhemx`, como dice `tests/LEEME.md`); antes solo funcionaba con rutas completas.
+
 ## [0.1.16.0] - 2026-11-15
 
 Segunda corrección del cambio de diseño en PC y más piezas de RHEMX. Probado con `tests/` y en el arnés; **falta verlo en un WordPress real**.

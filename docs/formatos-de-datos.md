@@ -31,7 +31,7 @@ Nombre de los archivos en el servidor: `{entidad}-{año}-{unidad}.csv` y `.json`
 
 ### CSV o JSON: se acepta cualquiera y siempre existen los dos
 
-Se puede subir el CSV o el JSON optimizado que genera RHEMX (`data/processed/mapas/data/<año>/json_plazas/` para plazas y `json_personas/` para personas, con los mismos nombres que los CSV). El plugin valida lo que se sube y crea el otro formato (`Siarhe_Static_Json`), de modo que los dos son siempre equivalentes: el CSV queda para descargarlo o editarlo en Excel y el JSON, que pesa casi la mitad, es el que lee el mapa.
+Se puede subir el CSV o el JSON optimizado que genera RHEMX (`data/processed/mapas/data/<año>/plazas/` para plazas y `personas/` para personas: en cada carpeta, cada entidad tiene su CSV, su JSON y su Parquet con el mismo nombre; el plugin carga el CSV o el JSON). El plugin valida lo que se sube y crea el otro formato (`Siarhe_Static_Json`), de modo que los dos son siempre equivalentes: el CSV queda para descargarlo o editarlo en Excel y el JSON, que pesa casi la mitad, es el que lee el mapa.
 
 El JSON (`formato: "siarhe-estatico"`, `version: 1`) lleva las mismas columnas que el CSV, pero no repite las tasas que se pueden calcular: cada `tasa_<x>` que es exactamente `enfermeras_<x> / población × 1,000` se declara en `tasas` y el navegador la calcula.
 

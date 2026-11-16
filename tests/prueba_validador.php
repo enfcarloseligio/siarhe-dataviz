@@ -52,15 +52,15 @@ ok( array_keys( $temas['clinicas_cateteres']['unidades'] ) === array( 'tasa', 'f
 echo "2. entidad de una base estatica (CSV y JSON de RHEMX)\n";
 $anio = '';
 foreach ( array_reverse( (array) glob( $rhemx . '/data/processed/mapas/data/*', GLOB_ONLYDIR ) ) as $carpeta ) {
-    if ( primero( $carpeta . '/csv_plazas/*aguascalientes.csv' ) ) { $anio = basename( $carpeta ); break; }
+    if ( primero( $carpeta . '/plazas/*aguascalientes.csv' ) ) { $anio = basename( $carpeta ); break; }
 }
 if ( $anio === '' ) {
     echo "   (sin bases en data/processed/mapas/data: se omite)\n";
 } else {
     $base = $rhemx . '/data/processed/mapas/data/' . $anio;
-    $ags  = primero( $base . '/csv_plazas/*aguascalientes.csv' );
-    $coah = primero( $base . '/csv_plazas/*coahuila.csv' );
-    $nac  = primero( $base . '/csv_plazas/*republica-mexicana.csv' );
+    $ags  = primero( $base . '/plazas/*aguascalientes.csv' );
+    $coah = primero( $base . '/plazas/*coahuila.csv' );
+    $nac  = primero( $base . '/plazas/*republica-mexicana.csv' );
     ok( Siarhe_Validador::revisa_base_csv( $ags, 'aguascalientes' ) === '', 'Aguascalientes en Aguascalientes debe aceptarse' );
     ok( Siarhe_Validador::revisa_base_csv( $coah, 'coahuila' ) === '', 'Coahuila en Coahuila debe aceptarse' );
     $e = Siarhe_Validador::revisa_base_csv( $coah, 'campeche' );
@@ -80,13 +80,13 @@ if ( $anio === '' ) {
     $revisadas = 0;
     foreach ( $entidades as $slug => $d ) {
         if ( $slug === 'extranjero' ) continue;
-        $csv = primero( $base . '/csv_plazas/*' . ( $slug === 'mexico' ? 'estado-de-mexico' : $slug ) . '.csv' );
+        $csv = primero( $base . '/plazas/*' . ( $slug === 'mexico' ? 'estado-de-mexico' : $slug ) . '.csv' );
         if ( $csv === '' || ( $slug === 'mexico' ? false : basename( $csv, '.csv' ) !== $slug && ! preg_match( '/^\d\d_' . preg_quote( $slug, '/' ) . '$/', basename( $csv, '.csv' ) ) ) ) continue;
         $revisadas++;
         ok( Siarhe_Validador::revisa_base_csv( $csv, $slug ) === '', $slug . ': su propia base debe aceptarse (' . Siarhe_Validador::revisa_base_csv( $csv, $slug ) . ')' );
         $otra = ( $slug === 'zacatecas' ) ? 'aguascalientes' : ( $slug === 'republica-mexicana' ? 'oaxaca' : 'zacatecas' );
         ok( Siarhe_Validador::revisa_base_csv( $csv, $otra ) !== '', $slug . ': en ' . $otra . ' debe rechazarse' );
-        $json = dirname( dirname( $csv ) ) . '/json_plazas/' . basename( $csv, '.csv' ) . '.json';
+        $json = dirname( $csv ) . '/' . basename( $csv, '.csv' ) . '.json';   // el JSON va junto a su CSV
         if ( is_file( $json ) ) {
             $j = json_decode( file_get_contents( $json ), true );
             ok( Siarhe_Validador::revisa_base_json( $j, $slug ) === '', $slug . ': su JSON debe aceptarse' );

@@ -28,7 +28,7 @@ ENLACES = {f'{n:02d}': f'/siarhe-dataviz/builds/pruebas/estado-{n:02d}.html' for
 bases = {}
 for anio in ('2025', '2024', '2019'):
     u = {}
-    for unidad, carpeta in (('plazas', 'json_plazas'), ('personas', 'json_personas')):
+    for unidad, carpeta in (('plazas', 'plazas'), ('personas', 'personas')):
         url = base_de(anio, carpeta)
         if hay(url): u[unidad] = {'url': url, 'fecha': '01/ene/' + anio}
     if u: bases[anio] = u
