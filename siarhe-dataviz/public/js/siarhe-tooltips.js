@@ -115,6 +115,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             let datos = deQuien ? nota(deQuien) : '';
             order.forEach(function(k) { if (blocks[k]) datos += blocks[k]; });
             if (mKey === 'poblacion' && blocks.abs && order.indexOf('abs') === -1) datos += blocks.abs;
+            // Un estado dice además cuántos municipios tiene (contados en la capa 2 de la República, como RHEMX en sus datos)
+            if (state.isNacional && !state.isGeoLocMode) {
+                state._ultimoGeo = { d: d, x: event.clientX, y: event.clientY };
+                const porEnt = app.tooltips.municipiosPorEntidad(state, wrapper, mapDiv);
+                const n = porEnt ? porEnt.get(String(cve).padStart(2, '0')) : 0;
+                if (n) datos += fila('Municipios', fmtN(n));
+            }
 
             // Aviso del clic: en la República, un estado con página propia se abre con doble clic
             let pista = '';
@@ -225,6 +232,39 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     .style("opacity", 1);
                 app.tooltips.position(state, mapDiv, mx, my);
             }
+        },
+
+        /**
+         * Municipios de cada estado (Map clave de entidad → número) contados en la capa 2 de la República (municipios del país).
+         * Esa capa pesa ~2 MB y el plugin no la baja al abrir la página (PageSpeed): la pide la primera vez que se pasa por un
+         * estado y, al llegar, vuelve a dibujar el tooltip si sigue a la vista. Mientras tanto devuelve null (sin la fila).
+         */
+        municipiosPorEntidad: function(state, container, mapDiv) {
+            const capa = state.locGeoData;
+            if (capa && Array.isArray(capa.features) && capa.features.length) {
+                if (state._munPorEnt && state._munPorEnt.capa === capa) return state._munPorEnt.mapa;
+                const mapa = new Map();
+                capa.features.forEach(function(f) {
+                    const p = f.properties || {};
+                    const e = String(p.CVE_ENT || String(p.CVEGEO || '').slice(0, 2)).padStart(2, '0');
+                    mapa.set(e, (mapa.get(e) || 0) + 1);
+                });
+                state._munPorEnt = { capa: capa, mapa: mapa };
+                return mapa;
+            }
+            const url = state.geoLocUrl;
+            if (!url || !container || state._pideMunicipios || state._municipiosFallo === url || !(app.controls && app.controls.loadLocGeo)) return null;
+            state._pideMunicipios = app.controls.loadLocGeo(container, state, url).then(function(data) {
+                state._pideMunicipios = null;
+                if (!(data && Array.isArray(data.features) && data.features.length)) { state._municipiosFallo = url; return; }
+                if (state.geoLocUrl === url && !state.locGeoData) state.locGeoData = data;
+                // Si el puntero sigue sobre un estado, el tooltip se vuelve a dibujar ya con los municipios
+                const u = state._ultimoGeo, tip = state.tooltip && state.tooltip.node();
+                if (u && tip && tip.style.display === 'block' && !state._fijo && !state.isGeoLocMode) {
+                    app.tooltips.showGeoTooltip({ clientX: u.x, clientY: u.y }, u.d, state, mapDiv);
+                }
+            }).catch(function() { state._pideMunicipios = null; state._municipiosFallo = url; });
+            return null;
         },
 
         showMarkerTooltip: function(event, d, state, mapDiv) {

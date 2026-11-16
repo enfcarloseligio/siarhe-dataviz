@@ -54,6 +54,8 @@ La 0.1.18.0 (proyección y encuadre de RHEMX, PNG de RHEMX, selección y ficha f
 
 La 0.1.19.0 (tooltips de estados y municipios de RHEMX, Roboto incrustada en el PNG) se revisó con `node --check`, `php -l`, `prueba_controles.js` y `prueba_topo.js`, y en el arnés: Tampico da «Municipio: Tampico», población, «Plazas de enfermería» y «Tasa por 1,000 habitantes» con etiquetas y cifras de 11.8 px; Tamaulipas en la República da sus tres datos y «Doble clic para ver sus municipios»; la leyenda dice «Plazas de enfermería»; y el PNG de la República sale de 1920×1080 con la fuente incrustada (en un Windows sin Roboto instalada).
 
+La 0.1.19.1 (municipios de cada estado en el tooltip) se vio en el arnés: Tamaulipas muestra «Municipios: 43» medio segundo después de pasar por él; los conteos de la capa 2 se compararon con los datos de RHEMX en los 32 estados (iguales con el marco 2025).
+
 > [!IMPORTANT]
 > La 0.1.10.0 a la 0.1.15.0 no se probaron por separado en un WordPress real; la 0.1.16.0, que las incluye, sí: el dueño la instaló en su sitio y confirmó que todo está correcto (2026-11-16). La 0.1.17.0 falta verla en el sitio: las tarjetas, el resumen y la nota con el tema del sitio, la ficha fija tras buscar una unidad, el PNG y repetir PageSpeed (las tarjetas reservan su alto para no mover la página).
 

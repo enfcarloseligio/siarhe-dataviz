@@ -2,6 +2,10 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.19.1] - 2026-11-16
+
+- **«Municipios: N» en el tooltip de un estado**, como RHEMX, contados en la capa 2 de la República (los municipios del país). Esa capa pesa unos 2 MB y no se baja al abrir la página para no afectar PageSpeed: se pide la primera vez que se pasa por un estado y el tooltip se actualiza al llegar (medio segundo en el arnés). Con el marco 2025 los 32 estados dan lo mismo que RHEMX; con el marco 2020 (años 2024 y anteriores) cuatro estados dan menos, porque RHEMX cuenta además los municipios creados después del marco, que no tienen polígono (Baja California 6 contra 7, Campeche 12 contra 13, Guerrero 81 contra 85, Sinaloa 18 contra 20).
+
 ## [0.1.19.0] - 2026-11-16
 
 Retroalimentación del dueño sobre la 0.1.18.0: los tooltips de estados y municipios dicen lo mismo que los de RHEMX y el PNG lleva Roboto. Probado con `tests/` y en el arnés; **falta verlo en un WordPress real**.
