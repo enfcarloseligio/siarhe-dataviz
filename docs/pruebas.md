@@ -56,6 +56,8 @@ La 0.1.19.0 (tooltips de estados y municipios de RHEMX, Roboto incrustada en el 
 
 La 0.1.19.1 (municipios de cada estado en el tooltip) se vio en el arnés: Tamaulipas muestra «Municipios: 43» medio segundo después de pasar por él; los conteos de la capa 2 se compararon con los datos de RHEMX en los 32 estados (iguales con el marco 2025).
 
+La 0.1.19.2 se vio en el arnés con la base de Baja California 2024 regenerada en RHEMX: 6 polígonos en el mapa y 7 renglones en la tabla (San Felipe, 02007, con 40 plazas y población y tasa S/D), «No Disponible» con 507 y el total de 9,556; el resumen y la nota mencionan el municipio nuevo. `prueba_validador.php` acepta la base nueva.
+
 > [!IMPORTANT]
 > La 0.1.10.0 a la 0.1.15.0 no se probaron por separado en un WordPress real; la 0.1.16.0, que las incluye, sí: el dueño la instaló en su sitio y confirmó que todo está correcto (2026-11-16). La 0.1.17.0 falta verla en el sitio: las tarjetas, el resumen y la nota con el tema del sitio, la ficha fija tras buscar una unidad, el PNG y repetir PageSpeed (las tarjetas reservan su alto para no mover la página).
 

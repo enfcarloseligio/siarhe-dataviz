@@ -2,6 +2,12 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.19.2] - 2026-11-16
+
+Regla del dueño: **el mapa muestra los municipios que tienen polígono y la tabla, los del SIARHE aunque todavía no lo tengan** (Baja California 2024: 6 polígonos y «Municipios: 6» en el tooltip; 7 renglones en la tabla, con San Felipe).
+- El plugin ya cumplía la regla con lo que recibe: el tooltip cuenta los polígonos de la capa 2 y la tabla lista cada renglón de la base. Lo que faltaba venía de RHEMX: sus bases mandaban las plazas de los municipios nuevos a «No Disponible». Desde hoy RHEMX los escribe como renglón propio, sin población ni tasa, y el plugin los muestra en la tabla con «S/D», en el resumen y en la nota (Baja California 2024: San Felipe con 40 plazas; «No Disponible» baja de 547 a 507; el total no cambia). **Hay que volver a subir las bases de 2006–2009, 2013–2016, 2021, 2023 y 2024.**
+- Concordancia en singular de los avisos: «se identificó 1 municipio nuevo en el SIARHE no localizado en INEGI» y «Se lista en la tabla…».
+
 ## [0.1.19.1] - 2026-11-16
 
 - **«Municipios: N» en el tooltip de un estado**, como RHEMX, contados en la capa 2 de la República (los municipios del país). Esa capa pesa unos 2 MB y no se baja al abrir la página para no afectar PageSpeed: se pide la primera vez que se pasa por un estado y el tooltip se actualiza al llegar (medio segundo en el arnés). Con el marco 2025 los 32 estados dan lo mismo que RHEMX; con el marco 2020 (años 2024 y anteriores) cuatro estados dan menos, porque RHEMX cuenta además los municipios creados después del marco, que no tienen polígono (Baja California 6 contra 7, Campeche 12 contra 13, Guerrero 81 contra 85, Sinaloa 18 contra 20).

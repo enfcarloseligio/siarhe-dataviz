@@ -886,7 +886,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 donde = 'las ' + cifra(32) + ' entidades federativas' + (c.sinLugar > 0 ? ' (y ' + cifra(fmtN(c.sinLugar)) + ' sin entidad asignada)' : '');
             } else {
                 const detalle = ['en ' + cifra(fmtN(c.conRegistros)) + ' de ellos hay registros'];
-                if (c.nuevos.length) detalle.push('se identificaron ' + cifra(fmtN(c.nuevos.length)) + ' ' + (c.nuevos.length === 1 ? 'municipio nuevo' : 'municipios nuevos') + ' en el SIARHE no localizados en INEGI');
+                if (c.nuevos.length) detalle.push((c.nuevos.length === 1 ? 'se identificó ' : 'se identificaron ') + cifra(fmtN(c.nuevos.length)) + ' ' + (c.nuevos.length === 1 ? 'municipio nuevo en el SIARHE no localizado' : 'municipios nuevos en el SIARHE no localizados') + ' en INEGI');
                 if (c.sinLugar > 0) detalle.push(cifra(fmtN(c.sinLugar)) + ' no tienen municipio asignado');
                 donde = 'los ' + cifra(fmtN(c.lugares)) + ' municipios de INEGI (' + detalle.join('; ') + ')';
             }
@@ -916,8 +916,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 'El total ' + lugarTotal + ' es la suma de ' + (state.isNacional ? 'las 32 entidades federativas más los registros sin entidad asignada' : 'los municipios más los registros clasificados como «No Disponible»') + '. ' +
                 'Cada registro cuenta una sola vez por variable; el 0 y el sin dato (S/D) no entran en el cálculo de los cuartiles.'];
             if (c.nuevos.length) {
-                partes.push(rotulo('Nota estadística (municipios).') + ' Se identificaron ' + c.nuevos.length.toLocaleString('es-MX') + ' ' + (c.nuevos.length === 1 ? 'municipio' : 'municipios') +
-                    ' en la base del SIARHE no localizados en los registros de INEGI: ' + lista(c.nuevos) + '. Se listan en la tabla, con su clave, sin población ni tasa, y su conteo está incluido en el total.');
+                const uno = c.nuevos.length === 1;
+                partes.push(rotulo('Nota estadística (municipios).') + (uno ? ' Se identificó ' : ' Se identificaron ') + c.nuevos.length.toLocaleString('es-MX') + (uno ? ' municipio' : ' municipios') +
+                    ' en la base del SIARHE ' + (uno ? 'no localizado' : 'no localizados') + ' en los registros de INEGI: ' + lista(c.nuevos) + '. ' +
+                    (uno ? 'Se lista en la tabla, con su clave, sin población ni tasa, y su conteo está incluido en el total.' : 'Se listan en la tabla, con su clave, sin población ni tasa, y su conteo está incluido en el total.'));
             }
             if (c.sinPoligono.length) {
                 const n = c.sinPoligono.length;
