@@ -6,13 +6,14 @@
  * de detalle, todo fuera del hilo principal. La capa nacional de municipios en GeoJSON pesa ~37 MB (1.8 millones de
  * vertices): proyectarla y dibujarla completa en cada cuadro es lo que volvia lenta la vista por municipios.
  *
- * Recibe { id, url, proj: { scale, translate: [tx, ty] }, tolerances: [t0, t1], libs: [siarhe-topo.js, topojson-client] }
+ * Recibe { id, url, proj: { tipo, scale, translate: [tx, ty], rotate, parallels }, tolerances: [t0, t1], libs: [siarhe-topo.js, topojson-client] }
  * (libs solo se cargan si el archivo es una topologia).
  * Responde { id, progress } mientras trabaja y al final { id, ok, features: [{ properties, bounds, d: [lod0, lod1, lod2] }] }.
  *  - d[0] y d[1]: simplificados con Douglas-Peucker (tolerancia en unidades del viewBox).
  *  - d[2]: detalle completo (2 decimales).
- * La proyeccion es Mercator con centro [0,0] y sin rotacion (la que usa el mapa); el hilo principal verifica
- * eso antes de pedir el trabajo.
+ * La proyeccion es la del mapa: la conica conforme nacional de RHEMX (`tipo: 'conica'`, con su rotacion y sus paralelos;
+ * desde la 0.1.18.0) o Mercator con centro [0,0] y sin rotacion (antes). Las formulas son las de d3 (geoConicConformalRaw y
+ * geoMercatorRaw); el hilo principal verifica que la proyeccion del mapa sea una de las dos antes de pedir el trabajo.
  */
 'use strict';
 
@@ -76,12 +77,36 @@ function ringPath(xs, ys, keep, mult) {
     return count >= 3 ? out + 'Z' : '';
 }
 
-function buildFeature(f, scale, tx, ty, tolerances) {
+/**
+ * Funcion de proyeccion en unidades del viewBox: [lon, lat] en grados -> [x, y]. Mismas formulas que d3: rotacion en longitud,
+ * proyeccion "raw" en radianes y despues escala y traslacion (y hacia abajo).
+ */
+function creaProyeccion(proj) {
+    const k = proj.scale, tx = proj.translate[0], ty = proj.translate[1], rad = PI / 180;
+    if (proj.tipo !== 'conica') {
+        return function(lon, lat) { return [tx + k * lon * rad, ty - k * Math.log(Math.tan(PI / 4 + lat * rad / 2))]; };
+    }
+    const halfPi = PI / 2, eps = 1e-6, dLambda = ((proj.rotate && proj.rotate[0]) || 0) * rad;
+    const y0 = proj.parallels[0] * rad, y1 = proj.parallels[1] * rad;
+    const tany = function(y) { return Math.tan((halfPi + y) / 2); };
+    const cy0 = Math.cos(y0);
+    const n = y0 === y1 ? Math.sin(y0) : Math.log(cy0 / Math.cos(y1)) / Math.log(tany(y1) / tany(y0));
+    const f = cy0 * Math.pow(tany(y0), n) / n;
+    return function(lon, lat) {
+        let x = lon * rad + dLambda;
+        if (x > PI) x -= 2 * PI; else if (x < -PI) x += 2 * PI;
+        let y = lat * rad;
+        if (f > 0) { if (y < -halfPi + eps) y = -halfPi + eps; } else if (y > halfPi - eps) y = halfPi - eps;
+        const r = f / Math.pow(tany(y), n);
+        return [tx + k * (r * Math.sin(n * x)), ty - k * (f - r * Math.cos(n * x))];
+    };
+}
+
+function buildFeature(f, proyecta, tolerances) {
     const g = f && f.geometry;
     const polys = !g ? [] : (g.type === 'Polygon' ? [g.coordinates] : (g.type === 'MultiPolygon' ? g.coordinates : []));
     const lods = [[], [], []];            // trazos por nivel
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    const k = PI / 180;
 
     for (let p = 0; p < polys.length; p++) {
         const rings = polys[p];
@@ -91,9 +116,8 @@ function buildFeature(f, scale, tx, ty, tolerances) {
             if (n < 4) continue;
             const xs = new Float64Array(n), ys = new Float64Array(n);
             for (let i = 0; i < n; i++) {
-                const lon = ring[i][0], lat = ring[i][1];
-                const x = tx + scale * lon * k;
-                const y = ty - scale * Math.log(Math.tan(PI / 4 + lat * k / 2));
+                const q = proyecta(ring[i][0], ring[i][1]);
+                const x = q[0], y = q[1];
                 xs[i] = x; ys[i] = y;
                 if (x < x0) x0 = x; if (x > x1) x1 = x;
                 if (y < y0) y0 = y; if (y > y1) y1 = y;
@@ -132,12 +156,12 @@ self.onmessage = async function(e) {
         const feats = Array.isArray(data && data.features) ? data.features : [];
         if (!feats.length) throw new Error('La capa detallada esta vacia o no es valida');
 
-        const scale = msg.proj.scale, tx = msg.proj.translate[0], ty = msg.proj.translate[1];
+        const proyecta = creaProyeccion(msg.proj);
         const tol = msg.tolerances || [0.25, 0.06];
         const out = new Array(feats.length);
         let lastPct = -1;
         for (let i = 0; i < feats.length; i++) {
-            out[i] = buildFeature(feats[i], scale, tx, ty, tol);
+            out[i] = buildFeature(feats[i], proyecta, tol);
             const pct = Math.floor(((i + 1) / feats.length) * 20) * 5;   // avisos cada 5 %
             if (pct !== lastPct) { lastPct = pct; self.postMessage({ id: msg.id, progress: pct }); }
         }

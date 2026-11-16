@@ -276,7 +276,8 @@ function siarhe_get_default_metricas() {
     // {unidad} / {Unidad}, que el mapa sustituye por "plazas" o "personas" segun la base que se este viendo.
     // [clave, nombre corto, tema, etiqueta de la tasa, abreviatura de la tasa, etiqueta de la frecuencia, abreviatura de la frecuencia, descripcion, opcional]
     $variables = [
-        ['total',           'Total',           'general',        'Tasa Total',                     'Tasa Total',            'Total Enfermeras',           'Total Enf.',       '{Unidad} de enfermería en total', false],
+        // El nombre del total es «Enfermería» (pedido del dueño, 2026-11-16): «Total» se confundía con el total de la población
+        ['total',           'Enfermería',      'general',        'Tasa Total',                     'Tasa Total',            'Total Enfermeras',           'Total Enf.',       '{Unidad} de enfermería en total', false],
         ['primer',          'Primer nivel',    'nivel_atencion', 'Tasa Primer Nivel',              'Tasa Enf. 1er Nivel',   'Enfermeras Primer Nivel',    'Enf. 1er Nivel',   '{Unidad} en establecimientos de primer nivel de atención', false],
         ['segundo',         'Segundo nivel',   'nivel_atencion', 'Tasa Segundo Nivel',             'Tasa Enf. 2do Nivel',   'Enfermeras Segundo Nivel',   'Enf. 2do Nivel',   '{Unidad} en establecimientos de segundo nivel de atención', false],
         ['tercer',          'Tercer nivel',    'nivel_atencion', 'Tasa Tercer Nivel',              'Tasa Enf. 3er Nivel',   'Enfermeras Tercer Nivel',    'Enf. 3er Nivel',   '{Unidad} en establecimientos de tercer nivel de atención', false],

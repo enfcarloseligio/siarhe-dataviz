@@ -353,3 +353,23 @@ console.log('prueba_controles: marcadores de posición por tema correctos');
     assert.strictEqual(n.conRegistros, 1);
     console.log('prueba_controles: cifras del encabezado, resumen y nota correctas');
 }
+
+// Proyección del worker de geometrías: la cónica conforme nacional de RHEMX debe dar los mismos puntos que d3
+{
+    const vm = require('vm');
+    const js = path.join(__dirname, '..', 'siarhe-dataviz', 'public', 'js');
+    const ctx = { self: {}, console }; ctx.window = ctx; vm.createContext(ctx);
+    vm.runInContext(fs.readFileSync(path.join(js, 'libs', 'd3.v7.min.js'), 'utf8'), ctx);
+    vm.runInContext(fs.readFileSync(path.join(js, 'siarhe-geo-worker.js'), 'utf8') + '\nthis.creaProyeccion = creaProyeccion;', ctx);
+    const prm = { parallels: [17.5, 29.5], rotate: [102, 0], scale: 2548.8484, translate: [926.0453, 1551.0627] };
+    const d = ctx.d3.geoConicConformal().parallels(prm.parallels).rotate(prm.rotate).scale(prm.scale).translate(prm.translate);
+    const w = ctx.creaProyeccion(Object.assign({ tipo: 'conica' }, prm));
+    [[-117.1, 32.5], [-86.7, 21.1], [-99.13, 19.43], [-92.1, 14.6], [-110.3, 24.1]].forEach(([lon, lat]) => {
+        const a = d([lon, lat]), b = w(lon, lat);
+        assert.ok(Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9, 'cónica del worker distinta de d3 en ' + lon + ',' + lat);
+    });
+    const m = ctx.d3.geoMercator().scale(1000).translate([800, 450]), wm = ctx.creaProyeccion({ scale: 1000, translate: [800, 450] });
+    const a = m([-99, 19]), b = wm(-99, 19);
+    assert.ok(Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9, 'Mercator del worker distinto de d3');
+    console.log('prueba_controles: proyección del worker igual a la de d3 (cónica de RHEMX y Mercator)');
+}

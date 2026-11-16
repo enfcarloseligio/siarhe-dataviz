@@ -384,6 +384,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             app.controls.buildBaseSelectors(container, state, wrapper, onUpdate);
             app.controls.buildThemeSelector(container, state, wrapper);
             app.controls.buildMeasureSwitch(container, state, wrapper);
+            if (isTableOnly) {
+                // La tabla muestra la tasa y la frecuencia juntas: el conmutador de medida sobra (sigue existiendo, oculto,
+                // porque el resto de los controles lee su estado)
+                const medida = wrapper.querySelector('#c-medida');
+                const g = medida && (medida.closest('.siarhe-control-group') || medida);
+                if (g) g.hidden = true;
+            }
             if (!isTableOnly) app.controls.buildSearch(container, state, wrapper);
             app.controls.addControlIcons(container, wrapper);
             app.controls.syncIndicatorOptions(container, state);
@@ -644,15 +651,20 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const worker = app.controls._geoWorker(container);
             const p = state.projection;
             const near0 = (v) => Math.abs(v) < 1e-9;
-            // El worker solo reproduce Mercator sin rotacion y centrada en [0,0] (la proyeccion del mapa)
-            const reproducible = worker && p && typeof p.scale === 'function' && p.rotate().every(near0) && p.center().every(near0);
+            // El worker reproduce la conica conforme del mapa (con rotacion solo en longitud y sus paralelos) y Mercator sin
+            // rotacion; las dos centradas en [0,0]
+            const conica = !!(p && typeof p.parallels === 'function');
+            const reproducible = worker && p && typeof p.scale === 'function' && p.center().every(near0) &&
+                (conica ? near0(p.rotate()[1]) && near0(p.rotate()[2]) : p.rotate().every(near0));
             if (!reproducible) return app.geo.load(url);
+            const proj = conica ? { tipo: 'conica', scale: p.scale(), translate: p.translate(), rotate: p.rotate(), parallels: p.parallels() }
+                : { tipo: 'mercator', scale: p.scale(), translate: p.translate() };
 
             const t0 = performance.now();
             return new Promise((resolve, reject) => {
                 const id = ++worker._seq;
                 worker._pending.set(id, { resolve: resolve, reject: reject, onProgress: onProgress });
-                worker.postMessage({ id: id, url: url, proj: { scale: p.scale(), translate: p.translate() }, tolerances: [0.25, 0.06], libs: app.geo.workerLibs() });
+                worker.postMessage({ id: id, url: url, proj: proj, tolerances: [0.25, 0.06], libs: app.geo.workerLibs() });
             }).then((res) => {
                 app.utils.perf('worker de geometrias: capa detallada lista', t0, res.features.length + ' poligonos');
                 return { type: 'FeatureCollection', _prepared: true, features: res.features };

@@ -1003,6 +1003,71 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         }
     };
 
+    /**
+     * Centrado óptico de los textos de los controles. El panel centra cada caja de línea en su control, pero cada fuente
+     * reparte su alto de forma distinta (ascendentes, descendentes): con la Roboto del sitio los rótulos en mayúsculas
+     * («BUSCAR», «TEMA») y los títulos de fila quedaban 1.5 px arriba del centro y los botones entre 0.5 y 1 px. Aquí se mide,
+     * con la fuente que de verdad usa el sitio, cuánto se desvía el centro de las mayúsculas del centro de su caja, y se
+     * corrige con variables CSS que mueven solo el texto (los iconos se quedan donde están; ver «CENTRADO ÓPTICO» en la hoja).
+     */
+    app.centraTextos = function(container) {
+        const cv = (app.centraTextos._cv = app.centraTextos._cv || document.createElement('canvas').getContext('2d'));
+        if (!cv || typeof cv.measureText !== 'function') return;
+        const VARS = ['rotulo', 'titulo', 'boton', 'conm', 'tabla'];
+        VARS.forEach(function(v) { container.style.removeProperty('--siarhe-aj-' + v); });   // se mide sin corrección
+        const metricas = function(el, texto) {
+            const cs = getComputedStyle(el);
+            cv.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+            const m = cv.measureText(texto || 'H'), h = cv.measureText('H');
+            if (!m.fontBoundingBoxAscent && m.fontBoundingBoxAscent !== 0) return null;   // navegador sin estas métricas
+            return { A: m.fontBoundingBoxAscent, D: m.fontBoundingBoxDescent, cap: h.actualBoundingBoxAscent };
+        };
+        const textoDe = function(el) {
+            const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, { acceptNode: function(n) { return n.textContent.trim() ? 1 : 2; } });
+            return w.nextNode();
+        };
+        // Desvío (px; negativo = arriba) del centro de las mayúsculas del primer texto de `el` respecto al centro de `caja`
+        const desvio = function(el, caja) {
+            const n = el && caja && el.offsetHeight && caja.offsetHeight ? textoDe(el) : null;
+            if (!n) return null;
+            const m = metricas(n.parentElement, n.textContent.trim());
+            if (!m) return null;
+            const rg = document.createRange(); rg.selectNodeContents(n);
+            const rr = rg.getClientRects()[0];
+            if (!rr) return null;
+            const base = rr.top + (rr.height - (m.A + m.D)) / 2 + m.A;
+            const cb = caja.getBoundingClientRect();
+            return (base - m.cap / 2) - (cb.top + cb.height / 2);
+        };
+        const pon = function(v, d) {
+            if (d === null || !isFinite(d) || Math.abs(d) > 6) return;   // sin dato o un valor absurdo: se deja como está
+            const px = Math.round(-d * 4) / 4;
+            if (px) container.style.setProperty('--siarhe-aj-' + v, px + 'px');
+        };
+        const q = function(sel) { return Array.from(container.querySelectorAll(sel)).find(function(e) { return e.offsetHeight > 0 && textoDe(e); }) || null; };
+        const rotulo = q('.siarhe-controls-layout .siarhe-control-group > label');
+        const dRotulo = rotulo ? desvio(rotulo, rotulo.closest('.siarhe-control-group')) : null;
+        pon('rotulo', dRotulo);
+        // El título de la fila se centra con el primer control de su renglón; si va en su propio renglón (tableta y móvil) no
+        // hay con qué alinearlo y no se corrige
+        const titulo = q('.siarhe-controls-layout .siarhe-fila-titulo');
+        const vecino = titulo ? Array.from(titulo.parentElement.children).find(function(e) { return e !== titulo && e.offsetHeight > 0; }) : null;
+        if (titulo && vecino) {
+            const a = titulo.getBoundingClientRect(), b = vecino.getBoundingClientRect();
+            if (a.top < b.bottom && b.top < a.bottom) pon('titulo', desvio(titulo, vecino));
+        }
+        const boton = q('.siarhe-controls-layout .siarhe-btn');
+        pon('boton', boton ? desvio(boton, boton) : null);
+        const conm = q('.siarhe-conm-op');
+        pon('conm', conm ? desvio(conm, conm.closest('.siarhe-conm') || conm) : null);
+        // El botón de la tabla escribe su texto con ::before (no hay nodo que medir): se calcula con las métricas de su letra
+        const tabla = container.querySelector('.siarhe-table-toggle');
+        if (tabla && tabla.offsetHeight) {
+            const m = metricas(tabla, 'Mostrar tabla');
+            if (m) pon('tabla', (m.A - m.D - m.cap) / 2);
+        }
+    };
+
     app.initVisualization = function(container) {
         const cveEnt = container.dataset.cveEnt;
         let geojsonUrl = container.dataset.geojson;
@@ -1128,6 +1193,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             // El overlay se oculta hasta que todo se haya construido (antes se ocultaba antes de renderizar)
             if (loading) loading.style.display = 'none';
             container.classList.add('siarhe-cargado'); // termina el esqueleto de carga
+
+            // Centrado óptico de los textos del panel con la fuente del sitio (y otra vez cuando terminen de cargar las fuentes)
+            app.centraTextos(container);
+            if (document.fonts && document.fonts.ready) document.fonts.ready.then(function() { app.centraTextos(container); });
 
             // Vista detalle y marcadores guardados en la URL (necesitan los controles ya renderizados)
             if (app.urlState) app.urlState.applyDeferred(container, state);

@@ -2,6 +2,26 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.18.0] - 2026-11-16
+
+Retroalimentación del dueño sobre la 0.1.17.0: el mapa se ve y se comporta exactamente como el de RHEMX. Probado con `tests/` y en el arnés; **falta verlo en un WordPress real**.
+
+### Mapa igual al de RHEMX en cualquier pantalla y en el PNG
+- **Misma proyección y mismo encuadre que RHEMX.** El plugin usaba Mercator ajustada a todo el lienzo; ahora usa la proyección de RHEMX (cónica conforme de México, paralelos 17.5° y 29.5°, ajustada a su zona del lienzo), también en las páginas de los estados, y encuadra como RHEMX: la República deja libre la izquierda para las leyendas y cada estado llena su zona sin las islas lejanas (Colima y Yucatán ya no necesitan un caso aparte). El zoom mínimo es el encuadre de la República y el máximo, 50 veces el de la República o 200 el de un estado. Comparado con el cálculo de RHEMX: Tamaulipas 3.2325 contra 3.2258 y Colima 21.18 contra 21.37 (el plugin mide sobre los municipios y RHEMX sobre el contorno del estado).
+- **PNG con la receta de RHEMX:** lienzo de 1920×1080 visto como en una PC venga de donde venga, título sobre una banda blanca, la fuente y la fecha de corte en el pie, el mapa encuadrado entre las dos bandas (si el usuario movió el mapa se conserva su acercamiento y su centro), leyendas bajo el título y sobre el pie, etiquetas de 15 px y marcadores con las medidas de PC. Antes el mapa se estiraba a 1920×820 entre dos franjas.
+- **Selección y ficha como en RHEMX:** un clic o toque en un marcador (o elegir una unidad en el buscador) lo deja seleccionado con un aro del color de marca hasta elegir otro o tocar otro lugar; su ficha queda fija hasta que el puntero se mueve más de 6 px, y después el aro oscuro y la ficha siguen al marcador bajo el puntero sin quitar el seleccionado. Mover el mapa con la ficha fija suelta la selección. La 0.1.17.0 usaba para esto el panel de marcadores encimados.
+- **Aros del tamaño de RHEMX** (antes quedaban pegados al marcador) y **zoom al buscar una unidad** de 25 veces el encuadre de arranque, centrado en la zona del estado (antes 25 o 8 veces absolutas). Buscar un municipio o una localidad encuadra como RHEMX.
+- **Ficha de las unidades del sistema con la estructura de RHEMX:** nombre; institución, CLUES, CLUES anterior, tipo, nivel y personal de enfermería; tras una línea, jurisdicción, ubicación y zona; tras otra, la clínica de catéteres y la de heridas. Los marcadores propios del sitio conservan la ficha configurable.
+- **Botones del mapa con los iconos y el orden de RHEMX** (acercar, alejar, ajustar, pantalla completa, filtros, medir, casa): 32 px, en columna arriba a la derecha en todas las pantallas; el de filtros ya no es azul.
+- El indicador «Total» se llama **«Enfermería»** (se confundía con el total de la población).
+
+### Panel y tabla
+- **Textos centrados de verdad:** con la fuente del sitio (Roboto) los rótulos en mayúsculas («BUSCAR», «TEMA») y los títulos de fila quedaban 1.5 px arriba del centro de su caja y los botones entre 0.5 y 1 px. El plugin mide al cargar, con la fuente que use el sitio, cuánto se desvía cada tipo de texto y lo corrige (los iconos no se mueven). Medido en píxeles con Roboto: todos a 0.25 px del centro.
+- La tabla ya no lleva el conmutador **Tasa / Frecuencia** (muestra las dos columnas); en la tabla sola queda oculto.
+
+### Pruebas
+- `tests/prueba_controles.js` comprueba que el worker de geometrías proyecta igual que d3 (cónica de RHEMX y Mercator).
+
 ## [0.1.17.0] - 2026-11-16
 
 Etapa 1 de la ruta para llevar al plugin lo que tiene el mapa de RHEMX: cifras y textos que cambian con lo elegido. Probado con `tests/` y en el arnés; **falta verlo en un WordPress real**.

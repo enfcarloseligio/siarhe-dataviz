@@ -19,7 +19,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
          */
         position: function(state, mapDiv, mx, my) {
             const tip = state.tooltip && state.tooltip.node();
-            if (!tip || !mapDiv) return;
+            if (!tip || !mapDiv || state._fijo) return;   // la ficha fija de un marcador elegido no sigue al puntero
             const W = mapDiv.clientWidth, H = mapDiv.clientHeight, M = 6;
             tip.style.maxWidth = Math.max(160, Math.min(300, W - 2 * M)) + 'px';
             const tw = tip.offsetWidth, th = tip.offsetHeight;
@@ -37,6 +37,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         },
 
         showGeoTooltip: function(event, d, state, mapDiv) {
+            if (state._fijo) return;   // no tapa la ficha fija del marcador elegido
             const tc = function(v) { return app.utils.titleCase(v); };
             let cve = app.utils.getGeoKey(d.properties, state.isNacional);
             let row = state.dataMap.get(cve);
@@ -265,15 +266,70 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         },
 
         /** Contenido (HTML) y colores de la tarjeta de un marcador; lo usan el tooltip y el panel de marcadores apilados. */
+        /** Marcador del sistema (establecimientos de salud, clínicas o los virtuales de «Marcadores de posición»). */
+        esDelSistema: function(d, state) {
+            const tipo = String(d && d.tipo || '');
+            if (tipo.charAt(0) === '@') return true;
+            const m = (state.markerLabels || {})[tipo] || {};
+            return !!(m.sistema || m.grupo === 'establecimientos' || m.grupo === 'clinicas');
+        },
+
+        /**
+         * Ficha de una unidad del sistema con la estructura de RHEMX (`fichaMarcador`): el nombre; institución, CLUES (y la
+         * anterior), tipo, nivel y personal de enfermería; tras una línea, jurisdicción, ubicación y zona; y, tras otra, lo propio
+         * de la clínica (catéteres y heridas). Los textos van como vienen de RHEMX (sin cambiar mayúsculas). Los colores son los
+         * de Configuración › Tooltips.
+         */
+        fichaSistema: function(d, state, colores) {
+            const esc = app.utils.esc, raw = d._raw || {}, col = function(nombres) { return app.utils.getColValue(raw, nombres); };
+            const fila = function(etq, val) {
+                return (val === '' || val === null || val === undefined) ? '' :
+                    '<div class="siarhe-ficha-fila"><span style="color:' + colores.etiqueta + ';">' + esc(etq) + ':</span> <strong style="color:' + colores.valor + ';">' + esc(val) + '</strong></div>';
+            };
+            const sep = '<div class="siarhe-ficha-sep"></div>';
+            const personas = state.base && state.base.unidad === 'personas';
+            const n = app.utils.parseNum(col(personas ? ['recursos humanos estimados', 'personas'] : ['plazas de enfermeria', 'plazas']));
+            const tipo = [d.tipo_estab, d.tipologia].filter(Boolean).join(' - ');
+            const ubicacion = [col(['entidad', 'nom_ent']), d.municipio, col(['localidad', 'nom_loc'])].filter(Boolean).join(', ');
+            let zona = String(d.estrato || '').trim();
+            if (zona === '1') zona = 'Rural'; else if (zona === '2') zona = 'Urbano';
+            let html = '<div class="siarhe-ficha-nombre">' + esc(d.nombre || d.clues || 'Unidad') + '</div>' +
+                fila('Institución', d.institucion) + fila('CLUES', d.clues) + fila('CLUES anterior', col(['clues anterior', 'anterior'])) +
+                fila('Tipo', tipo) + fila('Nivel', d.nivel_atencion) +
+                (n === null ? '' : fila(personas ? 'Recursos Humanos de Enfermería' : 'Personal de Enfermería', n.toLocaleString('es-MX'))) +
+                sep + fila('Jurisdicción', d.jurisdiccion) + fila('Ubicación', ubicacion) + fila('Zona', zona);
+            // Lo propio de cada clínica: catéteres (reportes y, en toda la historia, los años con reportes) y heridas
+            const secciones = [];
+            const reportes = app.utils.parseNum(col(['reportes']));
+            if (reportes !== null) {
+                const anios = col(['anios reportados', 'anios']), primer = col(['primer anio', 'primer']), ultimo = col(['ultimo anio', 'ultimo']);
+                secciones.push('<div class="siarhe-ficha-fila"><strong>Clínica de catéteres</strong></div>' +
+                    fila(anios ? 'Reportes de catéteres (toda la historia)' : 'Reportes de catéteres' + (state.base && state.base.anio ? ' en ' + state.base.anio : ''), reportes.toLocaleString('es-MX')) +
+                    (anios ? fila('Años con reportes', anios + (primer && ultimo ? ' (' + primer + '–' + ultimo + ')' : '')) : ''));
+            }
+            const reporta = col(['reporta']);
+            if (reporta !== '' && reporta !== null && reporta !== undefined && String(reporta) !== '-1') {
+                secciones.push('<div class="siarhe-ficha-fila"><strong>Clínica de heridas</strong></div>' +
+                    fila('Reporta en la plataforma de heridas', /^(1|true|s[ií])$/i.test(String(reporta)) ? 'Sí' : 'No'));
+            }
+            if (secciones.length) html += sep + secciones.join(sep);
+            return html;
+        },
+
         markerCard: function(d, state) {
             const tc = function(v) { return app.utils.titleCase(v); };
-            const tt = state.tooltipConfig || {}; 
+            const tt = state.tooltipConfig || {};
             const hlVar = tt.mk_highlight_var || 'none';
             const hlColor = tt.mk_highlight_color || '#06b6d4';
             const bgColor = tt.mk_bg_color || '#0f172a';
             const bgOpacity = (tt.mk_bg_opacity !== undefined ? parseInt(tt.mk_bg_opacity, 10) : 90) / 100;
             const txtColor = tt.mk_text_color || '#f8fafc';
             const finalBgColor = app.map.hexToRgba(bgColor, bgOpacity);
+            // Los marcadores del sistema llevan la ficha de RHEMX; los propios del sitio, la configurable de abajo
+            if (app.tooltips.esDelSistema(d, state)) {
+                const html = '<div class="siarhe-ficha" style="color:' + txtColor + ';">' + app.tooltips.fichaSistema(d, state, { etiqueta: '#06B6D4', valor: txtColor }) + '</div>';
+                return { html: html, bg: finalBgColor, txt: txtColor };
+            }
             const mkOrder = (tt.mk_order || ['mk_inst', 'mk_clues', 'mk_tipo', 'mk_nivel', 'mk_separator', 'mk_juris', 'mk_mun']).slice();
             // CLUES anterior y personal de enfermería de la unidad (como en RHEMX): van tras la CLUES y tras el nivel aunque el orden
             // guardado en Configuración › Tooltips sea anterior a estos datos

@@ -37,14 +37,15 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const mapDiv = container.querySelector('.siarhe-map-container');
             if (!mapDiv || !state.gLegend || !state.gMarkerLegend) return;
 
-            const rect = mapDiv.getBoundingClientRect();
+            // Al exportar el PNG se mide con una pantalla de referencia (no la del dispositivo), como `ajustaLeyenda` de RHEMX
+            const rect = state._exportando ? { width: 1920, height: 1080 } : mapDiv.getBoundingClientRect();
             // Proteccion contra division por cero si el mapa esta oculto (otra pestana)
             if (rect.width <= 0 || rect.height <= 0) return;
 
             // Margen unico a los bordes para TODO lo flotante (leyendas, zoom, panel de controles, medicion):
             // 2.5 % del lado menor del mapa en movil, tablet y PC, nunca menor a 5 px. El CSS lo lee con var(--siarhe-edge)
             const edgePx = Math.max(5, Math.round(Math.min(rect.width, rect.height) * 0.025));
-            container.style.setProperty('--siarhe-edge', edgePx + 'px');
+            if (!state._exportando) container.style.setProperty('--siarhe-edge', edgePx + 'px');
 
             const svgW = 1600;
             const svgH = 900;
@@ -56,11 +57,12 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const emptyX = (rect.width - svgW * s) / 2;
             const emptyY = (rect.height - svgH * s) / 2;
             const left = -(emptyX / s);
-            const top = -(emptyY / s);
-            const bottom = svgH + (emptyY / s);
+            // Al exportar, la leyenda de colores baja bajo el título y la de marcadores queda encima del pie
+            const top = -(emptyY / s) + (state._exportando ? (state._desplazaLeyenda || 0) : 0);
+            const bottom = svgH + (emptyY / s) - (state._exportando ? (state._bandaPie || 0) : 0);
 
             const isFullscreen = mapDiv.classList.contains('is-fullscreen');
-            const isMobile = window.innerWidth <= 767;
+            const isMobile = !state._exportando && window.innerWidth <= 767;
             const padPx = edgePx;
             const padX = padPx / s;
             const padY = padPx / s;
@@ -75,7 +77,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             // Como en RHEMX: la de colores (arriba) ocupa a lo mas el 46 % del ancho y la mitad del alto; la de marcadores (abajo)
             // mide lo mismo mientras quepa en el ancho visible y, si las dos no caben una sobre otra, se reducen juntas
-            const anchoVisible = rect.width / s, altoVisible = rect.height / s;
+            const anchoVisible = rect.width / s, altoVisible = rect.height / s - (state._exportando ? (state._desplazaLeyenda || 0) + (state._bandaPie || 0) : 0);
             L = Math.max(0.5, Math.min(L, (0.46 * rect.width) / (lb.w * s), (0.5 * rect.height) / (lb.h * s)));
             let Lm = L;
             if (hasMarkers) {
@@ -124,7 +126,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .on("mouseout", () => {
                     let k = 1; if (state.svg) { try { k = d3.zoomTransform(state.svg.node()).k; } catch(err) {} }
                     state.gPaths.selectAll("path.siarhe-feature").attr("stroke", "#fff").attr("stroke-width", 0.5 / k);
-                    if (state.tooltip) state.tooltip.style("opacity", 0).style("display", "none");
+                    app.map.ocultaTip(state);
                     if (app.table && app.table.resaltaFila) app.table.resaltaFila(state, null, false);
                 })
                 .on("click", (e, d) => {
@@ -155,6 +157,104 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             app.map._drawBase(state, mapDiv);
             if (typeof state._kbdRefresh === 'function') state._kbdRefresh();
             app.map.updateVisuals(container, state);
+        },
+
+        // ----- Lienzo, proyección y encuadres de RHEMX (geoespacial.js: ZONA_MAPA, MARGEN_*, preparaProyeccion, encaja) -----
+        // El lienzo del plugin mide 1600×900 y el de RHEMX 1920×1080 (la misma proporción): cada medida de RHEMX va × 5/6.
+        LIENZO: { W: 1600, H: 900, F: 1600 / 1920 },
+        MARGEN_PAIS: { izq: 350, arriba: 60, der: 50, abajo: 40 },     // en unidades de RHEMX: la República deja libre la izquierda
+        MARGEN_ESTADO: { izq: 40, arriba: 100, der: 40, abajo: 30 },   // un estado llena lo más posible
+        MARGEN_VERTICAL: 40,
+        ZOOM_MAXIMO_PAIS: 50, ZOOM_MAXIMO_ESTADO: 200, ZOOM_ABSOLUTO_MAXIMO: 6000,
+        // Proyección nacional de RHEMX: cónica conforme de México ajustada a ZONA_MAPA con las entidades del marco 2025 (en
+        // los marcos 2016 y 2020 cambia en la cuarta cifra). Se usa también en las páginas de los estados: así cada estado
+        // ocupa el mismo lugar del lienzo que en RHEMX y el zoom, los marcadores y el PNG miden lo mismo.
+        PROYECCION: { parallels: [17.5, 29.5], rotate: [102, 0], scale: 2548.8484, translate: [926.0453, 1551.0627] },
+
+        proyeccion: function() {
+            const p = app.map.PROYECCION;
+            return d3.geoConicConformal().parallels(p.parallels).rotate(p.rotate).scale(p.scale).translate(p.translate);
+        },
+
+        /** Región del lienzo que se ve (como `areaVisible` de RHEMX): el SVG se ajusta con «meet». Al exportar, el lienzo completo. */
+        _areaVisible: function(state) {
+            const L = app.map.LIENZO;
+            if (state._exportando) return { x0: 0, y0: 0, x1: L.W, y1: L.H - (state._bandaPie || 0), vertical: false };
+            const el = state.svg && state.svg.node(), r = el ? el.getBoundingClientRect() : null;
+            const w = r ? r.width : 0, h = r ? r.height : 0;
+            if (!(w > 0 && h > 0)) return { x0: 0, y0: 0, x1: L.W, y1: L.H, vertical: false };
+            const s = Math.min(w / L.W, h / L.H), dx = (w - L.W * s) / 2 / s, dy = (h - L.H * s) / 2 / s;
+            return { x0: -dx, y0: -dy, x1: L.W + dx, y1: L.H + dy, vertical: h > w * 1.1 };
+        },
+
+        /** Zona del lienzo donde se encuadra un mapa (`zonaDe` de RHEMX), con márgenes en unidades de RHEMX. */
+        zona: function(state, margen) {
+            const f = app.map.LIENZO.F, v = app.map._areaVisible(state);
+            if (v.vertical) {
+                const mv = app.map.MARGEN_VERTICAL * f, leyenda = 330 * f;
+                return [[v.x0 + mv, v.y0 + Math.max(margen.arriba * f, leyenda)], [v.x1 - mv, v.y1 - Math.max(margen.abajo * f, mv)]];
+            }
+            return [[v.x0 + margen.izq * f, v.y0 + margen.arriba * f], [v.x1 - margen.der * f, v.y1 - margen.abajo * f]];
+        },
+
+        /**
+         * Límites del estado sin sus islas lejanas (`limitesRasgo` de RHEMX): la tierra firme (la parte más grande y las que la
+         * tocan; los municipios comparten límites) y las partes que quedan a menos de un 25 % de su tamaño.
+         */
+        _limitesSinIslas: function(state, features) {
+            const partes = [];
+            (features || []).forEach(function(f) {
+                const g = f && f.geometry;
+                const polys = !g ? [] : (g.type === 'Polygon' ? [g.coordinates] : (g.type === 'MultiPolygon' ? g.coordinates : []));
+                polys.forEach(function(c) {
+                    const pg = { type: 'Polygon', coordinates: c };
+                    const b = state.path.bounds(pg);
+                    if (isFinite(b[0][0]) && isFinite(b[1][0])) partes.push({ b: b, a: state.path.area(pg) });
+                });
+            });
+            if (!partes.length) return state.path.bounds(state.geoData);
+            partes.sort(function(p, q) { return q.a - p.a; });
+            const toca = function(b, c, mx, my) { return b[1][0] >= c[0][0] - mx && b[0][0] <= c[1][0] + mx && b[1][1] >= c[0][1] - my && b[0][1] <= c[1][1] + my; };
+            const une = function(c, b) { return [[Math.min(c[0][0], b[0][0]), Math.min(c[0][1], b[0][1])], [Math.max(c[1][0], b[1][0]), Math.max(c[1][1], b[1][1])]]; };
+            let caja = partes[0].b, usadas = new Set([0]), crece = true;
+            while (crece) {
+                crece = false;
+                partes.forEach(function(pt, i) {
+                    if (usadas.has(i) || !toca(pt.b, caja, 0, 0)) return;
+                    usadas.add(i); caja = une(caja, pt.b); crece = true;
+                });
+            }
+            const mx = (caja[1][0] - caja[0][0]) * 0.25, my = (caja[1][1] - caja[0][1]) * 0.25;
+            let limites = caja;
+            partes.forEach(function(pt, i) { if (!usadas.has(i) && toca(pt.b, caja, mx, my)) limites = une(limites, pt.b); });
+            return limites;
+        },
+
+        /** Transformación que encaja una caja del lienzo en una zona (k con tope, centrada), como `encaja` / `encajaPais` de RHEMX. */
+        _encajaCaja: function(caja, zona, factor, tope) {
+            const x0 = caja[0][0], y0 = caja[0][1], x1 = caja[1][0], y1 = caja[1][1];
+            const izq = zona[0][0], arriba = zona[0][1], der = zona[1][0], abajo = zona[1][1];
+            const k = Math.min(tope || Infinity, factor * Math.min((der - izq) / Math.max(x1 - x0, 1e-6), (abajo - arriba) / Math.max(y1 - y0, 1e-6)));
+            return d3.zoomIdentity.translate(izq + (der - izq) / 2 - (k * (x0 + x1)) / 2, arriba + (abajo - arriba) / 2 - (k * (y0 + y1)) / 2).scale(k);
+        },
+
+        /** Vista de arranque (`vistaInicial` de RHEMX): la República en su zona o el estado (sin islas lejanas) en la suya. */
+        encuadreInicial: function(state) {
+            if (state.isNacional) return app.map._encajaCaja(state.path.bounds(state.geoData), app.map.zona(state, app.map.MARGEN_PAIS), 1);
+            return app.map._encajaCaja(app.map._limitesSinIslas(state, state.geoData.features), app.map.zona(state, app.map.MARGEN_ESTADO), 0.98, 600);
+        },
+
+        /** Escala del encuadre de la República (el zoom mínimo, como `kPais` de RHEMX): la proyección está ajustada a ZONA_MAPA. */
+        kPais: function(state) {
+            const f = app.map.LIENZO.F, zonaMapa = [[350 * f, 60 * f], [(1920 - 50) * f, (1080 - 40) * f]];
+            return app.map._encajaCaja(zonaMapa, app.map.zona(state, app.map.MARGEN_PAIS), 1).k;
+        },
+
+        /** Centra el mapa en (x, y) del lienzo con la escala k, en el centro de la zona de un estado (`centraEn` de RHEMX). */
+        centraEn: function(state, x, y, k) {
+            const z = app.map.zona(state, app.map.MARGEN_ESTADO), ext = state.zoom.scaleExtent();
+            const kf = Math.max(ext[0], Math.min(ext[1], k));
+            return d3.zoomIdentity.translate(z[0][0] + (z[1][0] - z[0][0]) / 2 - kf * x, z[0][1] + (z[1][1] - z[0][1]) / 2 - kf * y).scale(kf);
         },
 
         render: function(container, state, cveEnt) {
@@ -216,36 +316,16 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             state.gLegend = ovl.append("g").attr("class", "siarhe-legend-group").attr("transform", "translate(20, 20)");
             state.gMarkerLegend = ovl.append("g").attr("class", "siarhe-marker-legend-group").attr("transform", `translate(20, ${height - 20})`);
 
-            const projection = d3.geoMercator().fitSize([width, height], state.geoData);
+            // Proyección nacional de RHEMX (también en los estados) y encuadre de arranque en la zona de RHEMX
+            const projection = app.map.proyeccion();
             state.projection = projection;
             const path = d3.geoPath().projection(projection);
             // Menos decimales por coordenada = cadenas 'd' mucho mas cortas (miles de poligonos)
             if (typeof path.digits === 'function') path.digits(2);
             state.path = path;
 
-            let initialTransform = d3.zoomIdentity;
-            if (cveEnt === '06' || cveEnt === '31') {
-                let lons = [], lats = [];
-                state.geoData.features.forEach(f => {
-                    let center = d3.geoCentroid(f);
-                    if (!isNaN(center[0]) && !isNaN(center[1])) {
-                        lons.push(center[0]);
-                        lats.push(center[1]);
-                    }
-                });
-                lons.sort(d3.ascending);
-                lats.sort(d3.ascending);
-
-                if (lons.length > 0 && lats.length > 0) {
-                    let medianLon = lons[Math.floor(lons.length / 2)];
-                    let medianLat = lats[Math.floor(lats.length / 2)];
-                    let targetK = cveEnt === '06' ? 5.5 : 1.6;
-                    let [x, y] = projection([medianLon, medianLat]);
-                    let tx = width / 2 - x * targetK;
-                    let ty = height / 2 - y * targetK;
-                    initialTransform = d3.zoomIdentity.translate(tx, ty).scale(targetK);
-                }
-            }
+            // Colima y Yucatán ya no necesitan un caso aparte: el encuadre deja fuera las islas lejanas, como en RHEMX
+            const initialTransform = app.map.encuadreInicial(state);
             state.initialTransform = initialTransform;
 
             d3.selectAll(mapDiv.querySelectorAll(".siarhe-tooltip, .siarhe-stack-card")).remove();
@@ -262,15 +342,19 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             app.map.enableKeyboard(container, state, mapDiv);
             app.map.stackBind(state);
 
-            // Zoom máximo como en RHEMX: 50 veces el encuadre de la República y 200 veces el de un estado, igual en
-            // celular, tableta y PC. Los marcadores dejan de reducirse a 25 veces, así que acercarse más no los cambia.
-            const maxZoom = state.initialTransform.k * (state.isNacional ? 50 : 200);
+            // Zoom como en RHEMX (`fijaZoomBase`): el mínimo es el encuadre de la República; el máximo, 50 veces el de la
+            // República o 200 veces el de un estado (con tope absoluto), igual en celular, tableta y PC.
+            const kBase = state.initialTransform.k;
+            state.kPais = state.isNacional ? kBase : app.map.kPais(state);
+            const maxZoom = state.isNacional ? kBase * app.map.ZOOM_MAXIMO_PAIS : Math.min(app.map.ZOOM_ABSOLUTO_MAXIMO, kBase * app.map.ZOOM_MAXIMO_ESTADO);
             const zoom = d3.zoom()
-                .scaleExtent([1, maxZoom])
+                .scaleExtent([Math.min(state.kPais, kBase), maxZoom])
                 .on("zoom", (e) => {
                     gMain.attr("transform", e.transform);
                     if (state.gMeasureHost) state.gMeasureHost.attr("transform", e.transform);
                     if (state._stack && e.sourceEvent) app.map.stackClose(state);   // el panel esta anclado en pantalla, no al mapa
+                    // Como en RHEMX: si el usuario mueve el mapa con la ficha fija, se suelta la selección
+                    if (e.sourceEvent && state._fijo) app.map.quitaSeleccion(state);
                     // Animaciones programadas (Restablecer, botones + y -): el canvas se dibuja en el mismo cuadro que el mapa;
                     // si se agendara para el siguiente, los marcadores irian un paso atras durante el movimiento.
                     // Con el puntero o el dedo (sourceEvent) se agrupa en un solo dibujo por cuadro.
@@ -345,7 +429,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const t = e.target;
                     if (!isLoc(t)) return;
                     d3.select(t).attr("stroke", "rgba(255, 255, 255, 0.4)").attr("stroke-width", 0.5 / zoomK());
-                    if (state.tooltip) state.tooltip.style("opacity", 0).style("display", "none");
+                    app.map.ocultaTip(state);
                 })
                 .on("click", function(e) {
                     const t = e.target;
@@ -613,6 +697,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             let sc = 1, px = 11;   // 11 px en tableta y PC, 10 en teléfono (RHEMX)
             try { const m = app.map._markerMetrics(state, k); if (m && m.sc > 0) sc = m.sc; } catch (e) {}
             try { if (app.map._deviceInfo(state).kind === 'phone') px = 10; } catch (e) {}
+            if (state._exportando) px = 15;   // en la imagen de 1920 px, como en RHEMX
             return px / (k * sc);
         },
 
@@ -1208,7 +1293,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const area = burbuja ? app.map._cvBubbleArea(dims, hv.frac).area : areaPos * 1.8;
                 const sp = app.map._cvSprite(state, hv.d.tipo, area, v.sc, dpr, burbuja);
                 ctx.drawImage(sp.img, sx - sp.side / 2, sy - sp.side / 2, sp.side, sp.side);
-                const r = burbuja ? Math.sqrt(area / Math.PI) + 3 : Math.sqrt(area) * 0.62 + 3;
+                // Radio de RHEMX: medio lado de la imagen del símbolo agrandado (√área · 1.8 + 6) más 3 px
+                const r = burbuja ? Math.sqrt(area / Math.PI) + 3 : Math.ceil(Math.sqrt(area) * 1.8 + 6) / 2 + 3;
                 ctx.beginPath(); ctx.arc(sx, sy, r, 0, 2 * Math.PI);
                 ctx.lineWidth = par[1]; ctx.strokeStyle = par[2]; ctx.stroke();
             });
@@ -1410,8 +1496,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 .attr('r', function(p) {
                     const tipo = (state.markerLabels[(p[0].__data__ || {}).tipo] || {}).tipo;
                     const b = p[0].getBBox ? p[0].getBBox() : null;
-                    const base = app.utils.isDensity(tipo) && b ? Math.max(b.width, b.height) / 2 : Math.sqrt(mt.symbolSize) * 0.62;
-                    return base + 3 * u;
+                    if (app.utils.isDensity(tipo) && b) return Math.max(b.width, b.height) / 2 + 3 * u;
+                    // Radio de RHEMX en px de pantalla (símbolo agrandado 1.8 veces: medio lado de su imagen más 3 px), en unidades del mapa
+                    const areaPx = mt.symbolSize / (u * u) * 1.8;
+                    return (Math.ceil(Math.sqrt(areaPx) * 1.8 + 6) / 2 + 3) * u;
                 })
                 .attr('fill', 'none').attr('stroke', function(p) { return p[2]; }).attr('stroke-width', function(p) { return p[1] * u; });
         },
@@ -1420,6 +1508,43 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             let k = 1; try { k = d3.zoomTransform(state.svg.node()).k; } catch (err) {}
             const mt = app.map._markerMetrics(state, k);
             el.setAttribute('stroke-width', mt.strokePx / (k * mt.sc));
+        },
+
+        // ----- Selección y ficha fija, como en RHEMX (`clicMarcador`, `cv.sel`, `cv.fijo`) -----
+        // Un clic o toque en un marcador (o elegir una unidad en el buscador) lo deja seleccionado, con el aro del color de marca,
+        // hasta que se elige otro o se toca otro lugar del mapa; su ficha queda fija mientras el puntero no se mueva más de 6 px.
+        // Después el puntero vuelve a mandar: la ficha sigue al marcador que esté debajo (aro oscuro) y el seleccionado sigue marcado.
+        UMBRAL_MOVIMIENTO_PX: 6,
+
+        _sueltaFijo: function(state, e) {
+            if (state._fijo && e && Math.hypot(e.clientX - state._fijo[0], e.clientY - state._fijo[1]) > app.map.UMBRAL_MOVIMIENTO_PX) state._fijo = null;
+        },
+
+        /** Oculta la ficha del puntero, salvo la que está fija. */
+        ocultaTip: function(state) {
+            if (state._fijo || !state.tooltip) return;
+            state.tooltip.style('opacity', 0).style('display', 'none');
+        },
+
+        /** Deja `d` seleccionado (aro de marca) y su ficha fija junto al punto del evento. `el` = nodo SVG o `pt` = punto del canvas. */
+        selecciona: function(state, d, el, pt, ev) {
+            state._fijo = null;
+            const cv = state._cv;
+            if (cv) { cv.sel = pt || null; app.map._cvSchedule(state); }
+            state._aroSel = el || null;
+            app.map.pintaAros(state);
+            const mapDiv = state.svg.node().parentNode;
+            if (app.tooltips && state.tooltip) app.tooltips.showMarkerTooltip(ev, d, state, mapDiv);
+            state._fijo = [ev.clientX, ev.clientY];
+        },
+
+        /** Quita la selección y la ficha fija (clic en otro lado o el usuario movió el mapa). */
+        quitaSeleccion: function(state) {
+            const cv = state._cv, habia = state._fijo || (cv && cv.sel) || state._aroSel;
+            state._fijo = null;
+            if (cv && cv.sel) { cv.sel = null; app.map._cvSchedule(state); }
+            if (state._aroSel) { state._aroSel = null; app.map.pintaAros(state); }
+            if (habia && state.tooltip) state.tooltip.style('opacity', 0).style('display', 'none');
         },
 
         /** Cierra el panel (clic en otro lado, zoom, cerrar o cambio de marcadores). */
@@ -1459,6 +1584,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (!node || node.__siarheStackBound) return;
             node.__siarheStackBound = true;
 
+            // Cualquier movimiento real del puntero suelta la ficha fija (antes que los demás manejadores)
+            node.addEventListener('mousemove', (e) => { app.map._sueltaFijo(state, e); }, true);
             node.addEventListener('click', (e) => {
                 const cv = state._cv;
                 let list = [], nodes = null;
@@ -1468,10 +1595,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     const items = app.map._svgStackAt(e);
                     list = items.map(o => o.d); nodes = items.map(o => o.el);
                 }
-                if (!list.length) { app.map.stackClose(state); return; }     // clic en otro lado: se cierra el panel
+                if (!list.length) { app.map.stackClose(state); app.map.quitaSeleccion(state); return; }   // clic en otro lado
                 e.stopPropagation();
-                if (list.length > 1) { app.map.stackClick(state, e, list, nodes); return; }
+                if (list.length > 1) { state._fijo = null; app.map.stackClick(state, e, list, nodes); return; }
+                // Un marcador solo: queda seleccionado con su ficha fija (con el dedo o el lápiz no hay «pasar el puntero»)
+                const pt = cv && cv.pts.length ? ((state._stackPts || [])[0] || null) : null;
                 app.map.stackClose(state);
+                app.map.selecciona(state, list[0], nodes ? nodes[0] : null, pt, e);
                 if (state.measure && state.measure.active) app.map.measureAddPoint(state, list[0]);
             }, true);
         },
@@ -1487,7 +1617,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const changed = cv.hover !== hit;
                 cv.hover = hit;
                 node.style.cursor = 'pointer';
-                if (app.tooltips) app.tooltips.showMarkerTooltip(e, hit.d, state, mapDiv);
+                if (app.tooltips && !state._fijo) app.tooltips.showMarkerTooltip(e, hit.d, state, mapDiv);
                 if (changed) app.map._cvSchedule(state);
             } else if (cv.hover) {
                 cv.hover = null;
@@ -1497,8 +1627,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 const tg = e.target;
                 if (tg && tg.classList && (tg.classList.contains('siarhe-feature') || tg.classList.contains('siarhe-loc-feature')) && tg.__data__ && app.tooltips) {
                     app.tooltips.showGeoTooltip(e, tg.__data__, state, mapDiv);
-                } else if (state.tooltip) {
-                    state.tooltip.style('opacity', 0).style('display', 'none');
+                } else {
+                    app.map.ocultaTip(state);
                 }
             }
         },
@@ -1622,9 +1752,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
          * Se guarda 200 ms para no forzar una medicion de la pagina en cada marcador y cada cuadro.
          */
         _deviceInfo: function(state) {
-            // Imagen descargada: siempre con las medidas de PC y a la escala de la imagen (el lienzo de 900 unidades de alto ocupa
-            // 820 px), así el PNG es igual se descargue desde un celular, una tableta o una PC, como en RHEMX
-            if (state._exportando) return { t: 0, w: 1920, h: 820, coarse: false, kind: 'pc', isTouch: false, sc: 820 / 900 };
+            // Imagen descargada: siempre con las medidas de PC y a la escala de la imagen (el lienzo de 1600×900 ocupa los 1920×1080
+            // px), así el PNG es igual se descargue desde un celular, una tableta o una PC, como en RHEMX
+            if (state._exportando) return { t: 0, w: 1920, h: 1080, coarse: false, kind: 'pc', isTouch: false, sc: 1920 / 1600 };
             const now = performance.now();
             if (state._devCache && now - state._devCache.t < 200) return state._devCache;
             let w = 0, h = 0;
@@ -1662,7 +1792,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const dev = app.map._deviceInfo(state);
             // [tamaño base, tamaño mínimo] en px, los de RHEMX; el zoom se cuenta desde el encuadre inicial del mapa
             const SIZES = { phone: [11, 8], tablet: [14, 11], pc: [17, 14] };
-            const kRel = k / ((state.initialTransform && state.initialTransform.k) || 1);
+            const kRel = k / ((state._exportando && state._kBaseExport) || (state.initialTransform && state.initialTransform.k) || 1);
             const base = SIZES[dev.kind][0], min = SIZES[dev.kind][1];
             let px = base;
             if (kRel >= 25) px = min;
@@ -1872,13 +2002,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                         app.map.pintaAros(state);
 
                         const mapDiv = node.closest('.siarhe-map-container');
-                        if (app.tooltips && mapDiv) app.tooltips.showMarkerTooltip(e, d, state, mapDiv);
+                        if (app.tooltips && mapDiv && !state._fijo) app.tooltips.showMarkerTooltip(e, d, state, mapDiv);
                     })
                     .on("mouseout", function(e) {
                         if (!isMarker(e) || e.target === state._stackEl) return;
                         const kz = zoomK(), mz = app.map._markerMetrics(state, kz);
                         e.target.setAttribute("stroke-width", mz.strokePx / (kz * mz.sc));
-                        if (state.tooltip) state.tooltip.style("display", "none");
+                        app.map.ocultaTip(state);
                         if (state._aroHover === e.target) { state._aroHover = null; app.map.pintaAros(state); }
                     });
                 // El clic (medir, marcadores encimados) se atiende en app.map.stackBind
@@ -2572,15 +2702,18 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             const createBtn = (l, t, cb) => {
                 const b = document.createElement('button');
-                b.className = 'boton'; b.innerHTML = l; b.title = t; b.setAttribute('aria-label', t); b.onclick = cb;
+                b.type = 'button'; b.className = 'boton'; b.innerHTML = l; b.title = t; b.setAttribute('aria-label', t); b.onclick = cb;
                 ctrlDiv.appendChild(b);
                 return b;
             };
+            // Iconos de RHEMX (public/img, copiados de rhemx/web/assets/img), pintados con máscara en el color del botón
+            const img = container.dataset.img || '';
+            const ico = (n) => img ? '<span class="siarhe-ctl-icon siarhe-zoom-ico" aria-hidden="true" style="--ico: url(&quot;' + img + n + '.svg&quot;)"></span>' : '';
 
             // Dentro de un estado al que se entró desde otra vista: botón para volver (también con Esc fuera de pantalla completa)
             if (container.dataset.origen && container.dataset.origen !== container.dataset.cveEnt && app.nav) {
                 const aRepublica = container.dataset.origen === '33';
-                const volver = createBtn('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>',
+                const volver = createBtn(ico('icon-home'),
                     aRepublica ? 'Ir a la República' : 'Volver', (e) => { e.preventDefault(); app.nav.regresa(container); });
                 volver.classList.add('siarhe-btn-volver');
                 const conEsc = (e) => {
@@ -2595,15 +2728,15 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 document.addEventListener('keydown', conEsc);
             }
 
-            createBtn('+', 'Acercar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 2); });
-            createBtn('–', 'Alejar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 0.5); });
-            createBtn('⟳', 'Reset', (e) => { e.preventDefault(); svg.transition().duration(750).call(zoom.transform, state.initialTransform); });
+            const btnAcercar = createBtn(ico('zoom-in'), 'Acercar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 2); });
+            const btnAlejar = createBtn(ico('zoom-out'), 'Alejar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 0.5); });
+            const btnAjustar = createBtn(ico('zoom-reset'), 'Ajustar el mapa', (e) => { e.preventDefault(); svg.transition().duration(750).call(zoom.transform, state.initialTransform); });
+            let btnMeasure = null;
 
             // Medir distancias: solo tiene sentido si existen marcadores de posicion configurados
             const hasPositionMarkers = Object.keys(state.markerLabels || {}).some(k => (state.markerLabels[k] || {}).tipo === 'posicion' && state.markerUrls && state.markerUrls[k]);
             if (hasPositionMarkers) {
-                const rulerIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 17 17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/></svg>';
-                const btnMeasure = createBtn(rulerIcon, 'Medir distancia entre marcadores de posición', (e) => {
+                btnMeasure = createBtn(ico('icon-regla'), 'Medir distancia entre marcadores de posición (Esc termina)', (e) => {
                     e.preventDefault();
                     app.map.setMeasureMode(state, !state.measure.active);
                 });
@@ -2613,15 +2746,19 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             }
 
             const btnFullscreen = document.createElement('button');
+            btnFullscreen.type = 'button';
             btnFullscreen.className = 'boton';
-            btnFullscreen.innerHTML = '⤢';
-            btnFullscreen.title = 'Pantalla Completa';
+            btnFullscreen.innerHTML = ico('fs-enter');
+            btnFullscreen.title = 'Alternar pantalla completa';
+            btnFullscreen.setAttribute('aria-label', 'Pantalla completa');
             const mapContainer = mapDiv;
 
             const btnShowControls = document.createElement('button');
+            btnShowControls.type = 'button';
             btnShowControls.className = 'boton btn-show-controls';
-            btnShowControls.innerHTML = '🎛️';
-            btnShowControls.title = 'Mostrar Controles';
+            btnShowControls.innerHTML = ico('icon-filter');
+            btnShowControls.title = 'Mostrar u ocultar los filtros';
+            btnShowControls.setAttribute('aria-label', 'Filtros');
 
             btnShowControls.onclick = (e) => {
                 e.preventDefault();
@@ -2640,7 +2777,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     else if (mapContainer.webkitRequestFullscreen) { mapContainer.webkitRequestFullscreen(); }
                     else if (mapContainer.msRequestFullscreen) { mapContainer.msRequestFullscreen(); }
 
-                    btnFullscreen.innerHTML = '⤡';
+                    btnFullscreen.innerHTML = ico('fs-exit');
                     mapContainer.classList.add('is-fullscreen');
 
                     // El panel entra cerrado para dejar ver el mapa; se abre con el boton de controles y se cierra con su X o con Esc
@@ -2655,7 +2792,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); }
                     else if (document.msExitFullscreen) { document.msExitFullscreen(); }
 
-                    btnFullscreen.innerHTML = '⤢';
+                    btnFullscreen.innerHTML = ico('fs-enter');
                     mapContainer.classList.remove('is-fullscreen');
                     mapContainer.classList.remove('controls-are-hidden');
 
@@ -2670,7 +2807,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             document.addEventListener('fullscreenchange', () => {
                 if (!document.fullscreenElement) {
-                    btnFullscreen.innerHTML = '⤢';
+                    btnFullscreen.innerHTML = ico('fs-enter');
                     mapContainer.classList.remove('is-fullscreen');
                     mapContainer.classList.remove('controls-are-hidden');
 
@@ -2713,13 +2850,13 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
             }, true);
 
-            ctrlDiv.appendChild(btnFullscreen);
-
+            let btnCasa = null;
             if (!state.isNacional && state.homeUrl) {
-                createBtn('🏠', 'Ir a Nacional', (e) => { e.preventDefault(); window.location.href = state.homeUrl; });
+                btnCasa = createBtn(ico('icon-home'), 'Ir a la República', (e) => { e.preventDefault(); window.location.href = state.homeUrl; });
             }
 
-            ctrlDiv.appendChild(btnShowControls);
+            // Orden de RHEMX: acercar, alejar, ajustar, pantalla completa, filtros (solo en pantalla completa), medir y casa
+            [btnAcercar, btnAlejar, btnAjustar, btnFullscreen, btnShowControls, btnMeasure, btnCasa].forEach(b => { if (b) ctrlDiv.appendChild(b); });
         },
 
         /**
@@ -2728,16 +2865,17 @@ window.SiarheDataViz = window.SiarheDataViz || {};
          */
         focusFeature: function(state, feature, esDetalle) {
             if (!state.svg || !state.zoom || !feature) return;
-            const W = 1600, H = 900;
             let b;
             if (feature.bounds) b = [[feature.bounds[0], feature.bounds[1]], [feature.bounds[2], feature.bounds[3]]];
             else if (state.path) b = state.path.bounds(feature);
             if (!b || !isFinite(b[0][0]) || !isFinite(b[1][0])) return;
 
-            const dx = Math.max(b[1][0] - b[0][0], 1), dy = Math.max(b[1][1] - b[0][1], 1);
-            const kMax = state.zoom.scaleExtent()[1];
-            const k = Math.max(1, Math.min(kMax, 0.85 / Math.max(dx / W, dy / H)));
-            const t = d3.zoomIdentity.translate(W / 2 - k * (b[0][0] + b[1][0]) / 2, H / 2 - k * (b[0][1] + b[1][1]) / 2).scale(k);
+            // Como `acercaALimites` de RHEMX: 0.85 de la zona de un estado; una localidad sin pasar de 60 veces el encuadre
+            const ext = state.zoom.scaleExtent(), tope = esDetalle && !state.isNacional ? state.initialTransform.k * 60 : Infinity;
+            const z = app.map.zona(state, app.map.MARGEN_ESTADO);
+            const k0 = Math.min(tope, 0.85 * Math.min((z[1][0] - z[0][0]) / Math.max(b[1][0] - b[0][0], 1e-6), (z[1][1] - z[0][1]) / Math.max(b[1][1] - b[0][1], 1e-6)));
+            const t = app.map.centraEn(state, (b[0][0] + b[1][0]) / 2, (b[0][1] + b[1][1]) / 2, Math.max(ext[0], k0));
+            const k = t.k;
             // Resalte: el trazo del lugar se oscurece y engrosa 3 s. Se aplica al terminar el acercamiento, porque el zoom reescribe el grosor.
             const resalta = function() {
                 const capa = esDetalle ? state.gLocPaths : state.gPaths;
@@ -2772,159 +2910,190 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (!state.svg || !state.zoom || !state.projection || !d) return;
             const c = state.projection([d.lon, d.lat]);
             if (!c || isNaN(c[0]) || isNaN(c[1])) return;
-            const W = 1600, H = 900;
-            const kActual = d3.zoomTransform(state.svg.node()).k;
-            const k = Math.min(state.zoom.scaleExtent()[1], Math.max(kActual, state.isNacional ? 25 : 8));
-            const t = d3.zoomIdentity.translate(W / 2 - k * c[0], H / 2 - k * c[1]).scale(k);
+            // Como `iraUnidad` de RHEMX: 25 veces el encuadre de arranque, centrado en la zona del estado
+            const t = app.map.centraEn(state, c[0], c[1], state.initialTransform.k * 25);
             const muestra = function() {
-                const nodo = state.svg.node(), mapDiv = nodo.parentNode;
                 const cv = state._cv;
                 const esEste = function(m) { return m && (m === d || (d.clues && m.clues === d.clues && m.tipo === d.tipo)); };
                 const pt = cv && cv.pts && cv.pts.length ? (cv.pts.find(function(p) { return esEste(p.d); }) || null) : null;
                 const el = !pt && state._mkNodes ? (state._mkNodes.find(function(n) { return esEste(n.__data__); }) || null) : null;
-                // El marcador quedó en el centro del lienzo: ahí se abre su ficha, fija (la tarjeta de los encimados con uno
-                // solo) hasta que se cierra, se toca otro lugar o se mueve el mapa; el aro lo pone `_stackMark`
-                const r = nodo.getBoundingClientRect(), mr = mapDiv.getBoundingClientRect();
-                const cx = r.left - mr.left + r.width / 2, cy = r.top - mr.top + r.height / 2;
-                if (state.tooltip) state.tooltip.style('opacity', 0).style('display', 'none');
-                if (app.tooltips && app.tooltips.showStackCard) {
-                    state._stack = { list: [pt ? pt.d : (el ? el.__data__ : d)], idx: 0, ax: cx, ay: cy, nodes: el ? [el] : null, pts: pt ? [pt] : null };
-                    app.map.stackShow(state);
-                } else if (app.tooltips && state.tooltip) {
-                    app.tooltips.showMarkerTooltip({ clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }, d, state, mapDiv);
-                }
+                // Punto del marcador en la pantalla: ahí se abre su ficha, fija, y queda seleccionado
+                const r = state.svg.node().getBoundingClientRect(), tz = d3.zoomTransform(state.svg.node());
+                const sc = Math.min(r.width / 1600, r.height / 900), ox = (r.width - 1600 * sc) / 2, oy = (r.height - 900 * sc) / 2;
+                const ev = { clientX: r.left + ox + sc * (tz.x + tz.k * c[0]), clientY: r.top + oy + sc * (tz.y + tz.k * c[1]) };
+                app.map.stackClose(state);
+                app.map.selecciona(state, pt ? pt.d : (el ? el.__data__ : d), el, pt, ev);
             };
             const quieto = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             if (quieto) { state.svg.call(state.zoom.transform, t); muestra(); }
             else state.svg.transition().duration(700).call(state.zoom.transform, t).on('end', muestra);
         },
 
+        // ----- PNG como el de RHEMX (`descargaPng` de geoespacial.js y `downloadSVGAsPNG` de main.js) -----
+        // La imagen es siempre la de un lienzo de 1920×1080 visto desde una PC, venga de donde venga: arriba el título sobre una banda
+        // blanca, abajo la fuente y la fecha de corte sobre otra, y el mapa encuadrado entre las dos. Si el mapa está en su vista de
+        // arranque se vuelve a encuadrar para ese lienzo; si el usuario acercó o movió el mapa, se conserva su acercamiento relativo
+        // a la vista de arranque y el punto que tenía en el centro. Después se restaura todo.
+        PIE_PNG: { fuente: "18px Roboto, 'Noto Sans', Arial, sans-serif", color: '#475569', interlineado: 26, margenLateral: 60, relleno: 16 },
+
+        /** «Fuente: … | Fecha de corte: …» de los datos de enfermería (pie del mapa). */
+        _textoPie: function(container) {
+            let texto = 'Fuente: SIARHE.';
+            container.querySelectorAll('.siarhe-ref-col').forEach(function(node) {
+                if (!(node.innerHTML.includes('dashicons-groups') || node.innerHTML.includes('Datos de Enfermería'))) return;
+                const pTag = node.querySelector('p');
+                if (pTag) texto = pTag.innerText.split(/\n+/).map(function(t) { return t.replace(/\s+/g, ' ').trim(); }).filter(Boolean).join(' | ').replace(/: \| /g, ': ');
+            });
+            return texto;
+        },
+
+        /** Líneas del texto que caben en `ancho` px con la letra ya puesta en `ctx`. */
+        _lineas: function(ctx, texto, ancho) {
+            const out = [];
+            let actual = '';
+            String(texto).split(' ').forEach(function(pal) {
+                const prueba = actual ? actual + ' ' + pal : pal;
+                if (actual && ctx.measureText(prueba).width > ancho) { out.push(actual); actual = pal; } else actual = prueba;
+            });
+            if (actual) out.push(actual);
+            return out;
+        },
+
+        /** Parte un texto en renglones de hasta `max` letras sin cortar palabras (`envuelve` de RHEMX). */
+        _envuelve: function(texto, max) {
+            const out = [];
+            let actual = '';
+            String(texto).split(/\s+/).forEach(function(pal) {
+                if (actual && (actual + ' ' + pal).length > max) { out.push(actual); actual = pal; } else actual = actual ? actual + ' ' + pal : pal;
+            });
+            if (actual) out.push(actual);
+            return out;
+        },
+
+        /** Título del mapa como `tituloMapa` de RHEMX: «Tasa de enfermeras por cada mil habitantes, Primer nivel en Tamaulipas (2026)». */
+        _tituloPng: function(container, state) {
+            const info = state.metricas[state.currentMetric] || {};
+            const personas = state.base && state.base.unidad === 'personas';
+            const sujeto = personas ? 'recursos humanos de enfermería' : 'enfermeras';
+            const medida = info.tipo === 'tasa' ? 'Tasa de ' + sujeto + ' por cada mil habitantes' : 'Número de ' + sujeto;
+            const abs = info.tipo === 'absoluto' ? state.currentMetric : app.utils.findAbsoluteKeyForPair(info.pair || state.currentMetric, state.metricas);
+            const nombre = app.controls && app.controls.indicatorName ? app.controls.indicatorName(info) : (info.nombre || '');
+            const variable = !abs || abs === 'enfermeras_total' ? '' : ', ' + nombre;
+            const lugar = state.isNacional ? 'la República Mexicana' : (container.dataset.lugar || '');
+            const anio = (state.base && state.base.anio) || container.dataset.anio || '';
+            return medida + variable + ' en ' + lugar + ' (' + anio + ')';
+        },
+
         downloadMapAsPNG: function(container, state, withLabels) {
             const mapDiv = container.querySelector('.siarhe-map-container');
-            const svgNode = mapDiv.querySelector('svg');
-            if (!svgNode) return;
+            const svgNode = mapDiv && mapDiv.querySelector('svg');
+            if (!svgNode || !state.zoom) return;
+            const L = app.map.LIENZO, F = L.F, PIE = app.map.PIE_PNG;
 
-            // Mientras se arma la imagen, marcadores y etiquetas se miden con las medidas de exportación (_deviceInfo)
+            // 1. El pie se mide antes para encuadrar el mapa y colocar las leyendas por encima de él (alto en px de la imagen)
+            const medidor = document.createElement('canvas').getContext('2d');
+            medidor.font = PIE.fuente;
+            const lineasPie = app.map._lineas(medidor, app.map._textoPie(container), 1920 - 2 * PIE.margenLateral);
+            const banda = lineasPie.length ? lineasPie.length * PIE.interlineado + 2 * PIE.relleno : 0;
+
+            // 2. Encuadre de la imagen
+            const tPrev = d3.zoomTransform(svgNode), extPrev = state.zoom.scaleExtent(), t0 = state.initialTransform;
+            const enInicial = Math.abs(tPrev.k - t0.k) < 1e-6 * t0.k && Math.abs(tPrev.x - t0.x) < 0.5 && Math.abs(tPrev.y - t0.y) < 0.5;
+            const etiquetasPrevias = !!state.showLabels;
             state._exportando = true;
-            state.gLabels.style("display", withLabels ? "block" : "none");
+            state._bandaPie = banda * F;
+            const ref = app.map.encuadreInicial(state);
+            state._kBaseExport = ref.k;
+            let tImg = ref;
+            if (!enInicial) {
+                const k2 = tPrev.k * ref.k / t0.k, cx = (L.W / 2 - tPrev.x) / tPrev.k, cy = (L.H / 2 - tPrev.y) / tPrev.k;
+                tImg = d3.zoomIdentity.translate(L.W / 2 - k2 * cx, L.H / 2 - k2 * cy).scale(k2);
+            }
+            state.zoom.scaleExtent([0.01, 100000]);
+            state.svg.call(state.zoom.transform, tImg);
+            try { app.map._refreshMarkerGeometry(state, tImg, true); } catch (e) {}
+            state.gLabels.style('display', withLabels ? 'block' : 'none');
             if (withLabels) { app.map.renderLabels(state); app.map.declutterLabels(state); }
-            // Devuelve el mapa de la pantalla a sus medidas una vez clonado
-            const restaura = () => {
-                state._exportando = false;
-                state._mkStale = true;
-                try { app.map._refreshMarkerGeometry(state, d3.zoomTransform(svgNode), true); } catch (e) {}
-                state.gLabels.style("display", state.showLabels ? "block" : "none");
-                if (state.showLabels) { app.map.renderLabels(state); app.map.declutterLabels(state); }
-            };
 
-            setTimeout(() => {
-                // Marcadores SVG fuera de pantalla pueden tener un tamano anterior: se actualizan todos antes de clonar
-                try { app.map._refreshMarkerGeometry(state, d3.zoomTransform(svgNode), true); } catch (e) {}
-                const clone = svgNode.cloneNode(true);
+            // 3. Título (en unidades del lienzo: las de RHEMX × 5/6) y leyendas bajo él
+            const lineasTitulo = app.map._envuelve(app.map._tituloPng(container, state), 74);
+            const altoTitulo = (34 + lineasTitulo.length * 44) * F;
+            state._desplazaLeyenda = altoTitulo + 14 * F;
+            app.map.layoutLegends(container, state);
 
-                // La capa superior (leyendas y medicion) y los marcadores del canvas viven fuera del SVG principal:
-                // se incorporan al clon para que el PNG salga completo
-                const ovlNode = state.ovl && state.ovl.node();
-                if (ovlNode) {
-                    ovlNode.querySelectorAll('.siarhe-legend-group, .siarhe-marker-legend-group').forEach(g => {
-                        const copia = g.cloneNode(true);
-                        // En la imagen el fondo de las leyendas va casi opaco para que los polígonos y marcadores de abajo no
-                        // se asomen entre los textos (en pantalla sigue translúcido)
-                        copia.querySelectorAll('rect').forEach(r => {
-                            if (/^rgba\(255,\s*255,\s*255,\s*0\.\d+\)$/.test(r.getAttribute('fill') || '')) r.setAttribute('fill', 'rgba(255,255,255,0.98)');
-                        });
-                        clone.appendChild(copia);
+            // 4. Copia del SVG con las leyendas, la medición y los marcadores del canvas como vectores
+            const clone = svgNode.cloneNode(true);
+            const ovlNode = state.ovl && state.ovl.node();
+            if (ovlNode) {
+                ovlNode.querySelectorAll('.siarhe-legend-group, .siarhe-marker-legend-group').forEach(function(g) {
+                    const copia = g.cloneNode(true);
+                    // En la imagen el fondo de las leyendas va casi opaco (en pantalla sigue translúcido)
+                    copia.querySelectorAll('rect').forEach(function(r) {
+                        if (/^rgba\(255,\s*255,\s*255,\s*0\.\d+\)$/.test(r.getAttribute('fill') || '')) r.setAttribute('fill', 'rgba(255,255,255,0.98)');
                     });
-                    const mg = state.gMeasure && state.gMeasure.node();
-                    const mapLayerEl = clone.querySelector('.map-layer');
-                    if (mg && mapLayerEl) mapLayerEl.appendChild(mg.cloneNode(true));
+                    clone.appendChild(copia);
+                });
+                const mg = state.gMeasure && state.gMeasure.node();
+                const capaMapa = clone.querySelector('.map-layer');
+                if (mg && capaMapa) capaMapa.appendChild(mg.cloneNode(true));
+            }
+            const capaMarcadores = clone.querySelector('.markers-layer');
+            if (capaMarcadores) app.map._cvMaterialize(state, capaMarcadores);
+            const NS = 'http://www.w3.org/2000/svg';
+            const gTitulo = document.createElementNS(NS, 'g');
+            const banda0 = document.createElementNS(NS, 'rect');
+            banda0.setAttribute('x', 0); banda0.setAttribute('y', 0); banda0.setAttribute('width', L.W); banda0.setAttribute('height', altoTitulo);
+            banda0.setAttribute('fill', 'rgba(255,255,255,0.95)');
+            gTitulo.appendChild(banda0);
+            const colorTitulo = app.map.coloresAro(state).sel;
+            lineasTitulo.forEach(function(linea, i) {
+                const tx = document.createElementNS(NS, 'text');
+                tx.setAttribute('x', L.W / 2); tx.setAttribute('y', (54 + i * 44) * F);
+                tx.setAttribute('text-anchor', 'middle'); tx.setAttribute('font-size', 36 * F); tx.setAttribute('font-weight', 700);
+                tx.setAttribute('fill', colorTitulo); tx.setAttribute('font-family', "Roboto, 'Noto Sans', Arial, sans-serif");
+                tx.textContent = linea;
+                gTitulo.appendChild(tx);
+            });
+            clone.appendChild(gTitulo);
+            clone.setAttribute('viewBox', '0 0 ' + L.W + ' ' + L.H);
+            clone.setAttribute('width', 1920); clone.setAttribute('height', 1080);
+            clone.style.removeProperty('width'); clone.style.removeProperty('height');
+            const svgData = new XMLSerializer().serializeToString(clone);
+
+            // 5. Se restaura la vista de la pantalla
+            state._exportando = false; state._bandaPie = 0; state._desplazaLeyenda = 0; state._kBaseExport = null;
+            state._mkStale = true;
+            state.zoom.scaleExtent(extPrev);
+            state.svg.call(state.zoom.transform, tPrev);
+            try { app.map._refreshMarkerGeometry(state, tPrev, true); } catch (e) {}
+            state.gLabels.style('display', etiquetasPrevias ? 'block' : 'none');
+            if (etiquetasPrevias) { app.map.renderLabels(state); app.map.declutterLabels(state); }
+            app.map.layoutLegends(container, state);
+
+            // 6. Imagen de 1920×1080: el mar, el mapa y la banda del pie con la fuente
+            const canvas = document.createElement('canvas');
+            canvas.width = 1920; canvas.height = 1080;
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            img.onload = function() {
+                ctx.fillStyle = '#e6f0f8'; ctx.fillRect(0, 0, 1920, 1080);
+                ctx.drawImage(img, 0, 0, 1920, 1080);
+                if (banda) {
+                    const inicio = 1080 - banda;
+                    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, inicio, 1920, banda);
+                    ctx.fillStyle = PIE.color; ctx.font = PIE.fuente; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    lineasPie.forEach(function(linea, i) { ctx.fillText(linea, 960, inicio + PIE.relleno + (i + 0.5) * PIE.interlineado); });
                 }
-                const mkLayerEl = clone.querySelector('.markers-layer');
-                if (mkLayerEl) app.map._cvMaterialize(state, mkLayerEl);
-                restaura();
-
-                // Lienzo ampliado: el mapa conserva su proporcion (antes se estiraba 1600x900 -> 1600x820)
-                // y las leyendas se anclan a las esquinas del PNG con un tamano pensado para presentaciones.
-                const areaW = 1920, areaH = 820;
-                const vbW = areaW / (areaH / 900);
-                const vbX = -(vbW - 1600) / 2;
-                clone.setAttribute('viewBox', `${vbX} 0 ${vbW} 900`);
-                clone.setAttribute('width', areaW);
-                clone.setAttribute('height', areaH);
-
-                const lb = state._legendBox || null;
-                const mb = (state.activeMarkers && state.activeMarkers.size > 0) ? state._markerBox : null;
-                const padU = 28;
-                const totalH = (lb ? lb.h : 0) + (mb ? mb.h : 0);
-                let L = 1.5; // ~22 px de texto en el PNG final
-                if (totalH > 0) L = Math.min(L, ((900 - 2 * padU) * 0.92) / totalH);
-                if (mb && mb.w > 0) L = Math.min(L, (vbW - 2 * padU) / (mb.w + 12));   // la de marcadores no pasa del ancho de la imagen
-
-                const legendEl = clone.querySelector('.siarhe-legend-group');
-                const markerLegendEl = clone.querySelector('.siarhe-marker-legend-group');
-                if (legendEl && lb) legendEl.setAttribute('transform', `translate(${vbX + padU + lb.ox * L}, ${padU + lb.oy * L}) scale(${L})`);
-                if (markerLegendEl && mb) markerLegendEl.setAttribute('transform', `translate(${vbX + padU + mb.ox * L}, ${900 - padU}) scale(${L})`);
-
-                const svgData = new XMLSerializer().serializeToString(clone);
-                const canvas = document.createElement("canvas");
-                canvas.width = 1920;
-                canvas.height = 1080;
-                const ctx = canvas.getContext("2d");
-
-                const img = new Image();
-                img.onload = function() {
-                    ctx.fillStyle = "#e6f0f8"; ctx.fillRect(0, 0, 1920, 1080);
-                    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, 1920, 120);
-                    ctx.fillRect(0, 940, 1920, 140);
-
-                    ctx.drawImage(img, 0, 120, 1920, 820);
-
-                    const metricInfo = state.metricas[state.currentMetric];
-                    const anioNode = document.querySelector('.siarhe-dynamic-year');
-                    const anio = (state.base && state.base.anio) || (anioNode ? anioNode.innerText : new Date().getFullYear());
-                    const titleNode = container.querySelector('h2.siarhe-title');
-                    const entidadNombre = titleNode ? titleNode.innerText.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '').trim() : "México";
-
-                    const titleText = `${metricInfo.fullLabel} en ${entidadNombre} (${anio})`;
-                    ctx.fillStyle = "#0A66C2";
-                    ctx.font = "bold 38px 'IBM Plex Sans', Arial, sans-serif";
-                    ctx.textAlign = "center";
-                    ctx.fillText(titleText, 1920 / 2, 75);
-
-                    let refText = "Fuente de Datos: SIARHE.";
-                    const refNodes = container.querySelectorAll('.siarhe-ref-col');
-                    refNodes.forEach(node => {
-                        if (node.innerHTML.includes('dashicons-groups') || node.innerHTML.includes('Datos de Enfermería')) {
-                            const pTag = node.querySelector('p');
-                            // Un renglón por dato (fuente, fecha de corte), unidos con « | » y sin renglones vacíos
-                            if (pTag) refText = pTag.innerText.split(/\n+/).map(t => t.replace(/\s+/g, ' ').trim()).filter(Boolean)
-                                .join(' | ').replace(/: \| /g, ': ');
-                        }
-                    });
-
-                    ctx.fillStyle = "#475569";
-                    ctx.font = "20px 'Roboto', sans-serif";
-                    ctx.textAlign = "center";
-
-                    let words = refText.split(' '), line = '', y = 1000;
-                    for(let n = 0; n < words.length; n++) {
-                      let testLine = line + words[n] + ' ';
-                      let metrics = ctx.measureText(testLine);
-                      let testWidth = metrics.width;
-                      if (testWidth > 1800 && n > 0) {
-                          ctx.fillText(line, 1920 / 2, y); line = words[n] + ' '; y += 28;
-                      } else { line = testLine; }
-                    }
-                    ctx.fillText(line, 1920 / 2, y);
-
-                    const labelClean = (metricInfo.label || metricInfo.fullLabel).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\./g, "").replace(/\s+/g, '_');
-                    const entidadClean = entidadNombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_');
-                    const nombreArchivo = `${labelClean}_${entidadClean}_${anio}${withLabels ? '_Etiquetas' : ''}.png`;
-
-                    const a = document.createElement("a"); a.download = nombreArchivo; a.href = canvas.toDataURL("image/png"); a.click();
-                };
-                img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
-            }, 150);
+                const info = state.metricas[state.currentMetric] || {};
+                const anio = (state.base && state.base.anio) || container.dataset.anio || '';
+                const limpia = function(t) { return String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\./g, '').replace(/\s+/g, '_'); };
+                const lugar = state.isNacional ? 'Republica_Mexicana' : limpia(container.dataset.lugar || 'Mexico');
+                const a = document.createElement('a');
+                a.download = limpia(info.label || info.fullLabel || 'Mapa') + '_' + lugar + '_' + anio + (withLabels ? '_Etiquetas' : '') + '.png';
+                a.href = canvas.toDataURL('image/png');
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            };
+            img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
         }
     };
 

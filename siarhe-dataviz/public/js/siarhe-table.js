@@ -238,10 +238,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                     sw.set(o[1].classList.contains('is-active') ? 'b' : 'a');
                 };
             };
+            // La medida (Tasa / Frecuencia) no va: la tabla ya muestra las dos columnas (pedido del dueño, 2026-11-16)
             const pintaUnidad = conmutador('c-unidad', 'Unidad de conteo');
-            const pintaMedida = conmutador('c-medida', 'Medida');
 
-            state.syncTabla = function() { pintaAnio(); pintaTema(); pintaIndicador(); pintaUnidad(); pintaMedida(); };
+            state.syncTabla = function() { pintaAnio(); pintaTema(); pintaIndicador(); pintaUnidad(); };
             state.syncTabla();
             // Lo que se cambie en el panel del mapa se refleja aquí aunque no redibuje la tabla
             let pendiente = 0;

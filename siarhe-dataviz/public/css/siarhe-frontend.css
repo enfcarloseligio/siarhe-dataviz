@@ -615,68 +615,34 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 .siarhe-viz-wrapper .siarhe-map-container {
     position: relative; overflow: hidden;
 }
-/* Botones Zoom (Base) */
+/* Botones del mapa como los de RHEMX (.chart-zoom-controls / .btn-zoom): columna arriba a la derecha en todas las pantallas,
+   32 px, icono de 15 px en el color del texto; al pasar el cursor, borde e icono del color de marca; al pulsar, relleno de marca */
 .siarhe-viz-wrapper .siarhe-map-container .zoom-controles {
-    position: absolute;
-    z-index: 1000;
-    display: flex;
+    position: absolute; z-index: 1000; top: 12px; right: 12px; bottom: auto; left: auto;
+    display: flex; flex-direction: column; gap: 5px; user-select: none; transform: none;
 }
-.siarhe-viz-wrapper .siarhe-map-container .zoom-controles button {
-    padding: 0; margin: 0; line-height: 1;
+.siarhe-viz-wrapper .siarhe-map-container .zoom-controles button,
+.siarhe-viz-wrapper .siarhe-map-container .zoom-controles button:focus {
+    width: 32px; height: 32px; min-height: 0; padding: 0; margin: 0; box-sizing: border-box; line-height: 1;
     display: flex; align-items: center; justify-content: center;
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid #cbd5e1; border-radius: 4px;
-    cursor: pointer; color: #334155;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: all 0.2s;
+    background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px;
+    cursor: pointer; color: #334155; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08); transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
-.siarhe-viz-wrapper .siarhe-map-container .zoom-controles button:hover {
-    background: #f1f5f9;
+.siarhe-viz-wrapper .siarhe-map-container .zoom-controles .siarhe-zoom-ico { width: 15px; height: 15px; margin: 0; background-color: currentColor; }
+.siarhe-viz-wrapper .siarhe-map-container .zoom-controles button:hover,
+.siarhe-viz-wrapper .siarhe-map-container .zoom-controles button:focus-visible {
+    background: #F8FAFC; border-color: var(--s-marca, #0A66C2); color: var(--s-marca, #0A66C2); box-shadow: 0 3px 8px rgba(15, 23, 42, 0.15);
 }
-.siarhe-viz-wrapper .siarhe-map-container .zoom-controles button:disabled {
-    opacity: 0.4; cursor: not-allowed; background: #fff;
+.siarhe-viz-wrapper .siarhe-map-container .zoom-controles button:active,
+.siarhe-viz-wrapper .siarhe-map-container .zoom-controles button[aria-pressed="true"] {
+    background: var(--s-marca, #0A66C2); border-color: var(--s-marca, #0A66C2); color: var(--s-btn-text, #FFFFFF);
 }
-/* 🌟 LÓGICA DEL BOTÓN AJUSTES 🎛️ 🌟 */
-.siarhe-viz-wrapper .siarhe-map-container .zoom-controles button.btn-show-controls {
-    background: #0ea5e9; color: #fff; border-color: #0284c7;
-    display: none; /* Siempre oculto por defecto */
-}
-/* SOLO aparece si el mapa es Fullscreen Y los controles fueron cerrados (Clase mágica) */
-.siarhe-viz-wrapper .siarhe-map-container.is-fullscreen.controls-are-hidden .zoom-controles button.btn-show-controls {
-    display: flex;
-}
-/* 🌟 PC Y TABLET (≥ 768px): Botones SIEMPRE arriba derecha 🌟 */
-@media (min-width: 768px) {
-    .siarhe-viz-wrapper .siarhe-map-container .zoom-controles {
-        top: var(--siarhe-edge, 14px); right: var(--siarhe-edge, 14px); bottom: auto; left: auto;
-        flex-direction: column; gap: 8px;
-    }
-    .siarhe-viz-wrapper .siarhe-map-container .zoom-controles button {
-        width: 34px; height: 34px; font-size: 16px;
-    }
-}
-/* 🌟 MÓVIL (< 767px): Lógica Dinámica de Botones 🌟 */
+.siarhe-viz-wrapper .siarhe-map-container .zoom-controles button:disabled { opacity: 0.4; cursor: not-allowed; background: #FFFFFF; }
+/* Filtros: solo en pantalla completa con el panel cerrado (abre el panel) */
+.siarhe-viz-wrapper .siarhe-map-container .zoom-controles button.btn-show-controls { display: none; }
+.siarhe-viz-wrapper .siarhe-map-container.is-fullscreen.controls-are-hidden .zoom-controles button.btn-show-controls { display: flex; }
 @media (max-width: 767px) {
-    /* Modo Navegador Normal: Abajo, a la derecha */
-    .siarhe-viz-wrapper .siarhe-map-container:not(.is-fullscreen) .zoom-controles {
-        top: auto; bottom: var(--siarhe-edge, 14px);
-        left: auto; right: var(--siarhe-edge, 14px);
-        transform: none;
-        flex-direction: row; gap: 10px;
-    }
-    .siarhe-viz-wrapper .siarhe-map-container:not(.is-fullscreen) .zoom-controles button {
-        width: 32px; height: 32px; font-size: 16px;
-    }
-    /* Modo Fullscreen (Vertical u Horizontal): Arriba derecha en columna */
-    /* 🌟 CORRECCIÓN 2: Bajamos los controles para evitar avisos del navegador */
-    .siarhe-viz-wrapper .siarhe-map-container.is-fullscreen .zoom-controles {
-        top: var(--siarhe-edge, 14px); right: var(--siarhe-edge, 14px);
-        bottom: auto; left: auto;
-        transform: none;
-        flex-direction: column; gap: 8px;
-    }
-    .siarhe-viz-wrapper .siarhe-map-container.is-fullscreen .zoom-controles button {
-        width: 36px; height: 36px; font-size: 16px;
-    }
+    .siarhe-viz-wrapper .siarhe-map-container .zoom-controles { top: 10px; right: 10px; gap: 4px; }
 }
 /* ESTILOS FULLSCREEN GENERALES */
 .siarhe-viz-wrapper .siarhe-map-container.is-fullscreen {
@@ -826,13 +792,11 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
     height: 18px;
 }
 
-.siarhe-viz-wrapper .siarhe-map-container .zoom-controles button.is-active {
-    background: #0A66C2;
-    color: #ffffff;
-    border-color: #084C94;
-}
+.siarhe-viz-wrapper .siarhe-map-container .zoom-controles button.is-active,
 .siarhe-viz-wrapper .siarhe-map-container .zoom-controles button.is-active:hover {
-    background: #084C94;
+    background: var(--s-marca, #0A66C2);
+    color: var(--s-btn-text, #ffffff);
+    border-color: var(--s-marca, #0A66C2);
 }
 
 .siarhe-viz-wrapper .siarhe-map-container.is-measuring path.siarhe-marker {
@@ -1425,3 +1389,28 @@ table.siarhe-data-table tbody tr.siarhe-row-total td {
 
 .siarhe-viz-wrapper .siarhe-nota-mapa { margin: 10px 2px 0; font-size: 12.8px; line-height: 1.5; color: #475569; }
 .siarhe-viz-wrapper .siarhe-nota-mapa em { font-style: italic; font-weight: 600; color: #0f172a; }
+
+/* ==========================================
+   CENTRADO ÓPTICO DE LOS TEXTOS (0.1.18.0)
+   app.centraTextos mide con la fuente del sitio cuánto se desvía el centro de las mayúsculas del centro de su caja y deja
+   la corrección en --siarhe-aj-* (px; positivo = bajar). Se mueve solo el texto: los iconos vuelven a su lugar.
+   ========================================== */
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-control-group > label { position: relative; top: var(--siarhe-aj-rotulo, 0px); }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-control-group > label .siarhe-ctl-icon { position: relative; top: calc(-1 * var(--siarhe-aj-rotulo, 0px)); }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-fila-titulo { position: relative; top: var(--siarhe-aj-titulo, 0px); }
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-btn,
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-btn:focus {
+    padding-top: max(0px, calc(2 * var(--siarhe-aj-boton, 0px)));
+    padding-bottom: max(0px, calc(-2 * var(--siarhe-aj-boton, 0px)));
+}
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-btn .siarhe-ctl-icon,
+.siarhe-viz-wrapper .siarhe-controls-layout .siarhe-btn svg { position: relative; top: calc(-1 * var(--siarhe-aj-boton, 0px)); }
+.siarhe-viz-wrapper .siarhe-conm-op { position: relative; top: var(--siarhe-aj-conm, 0px); }
+.siarhe-viz-wrapper .siarhe-table-toggle::before { position: relative; top: var(--siarhe-aj-tabla, 0px); }
+
+/* Ficha de las unidades del sistema (estructura de RHEMX, .geo-tip / .geo-ficha-*) */
+.siarhe-viz-wrapper .siarhe-ficha { font-size: 11.8px; line-height: 1.4; max-width: 320px; }
+.siarhe-viz-wrapper .siarhe-ficha-nombre { margin-bottom: 4px; font-size: 13px; font-weight: 700; }
+.siarhe-viz-wrapper .siarhe-ficha-sep { margin: 6px 0; border-top: 1px dashed rgba(255, 255, 255, 0.25); }
+.siarhe-viz-wrapper .siarhe-ficha-fila strong { font-weight: 700; }
+.siarhe-viz-wrapper .siarhe-ficha, .siarhe-viz-wrapper .siarhe-ficha strong, .siarhe-viz-wrapper .siarhe-ficha span { font-family: inherit; letter-spacing: normal; }
