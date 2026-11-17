@@ -961,9 +961,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             if (app.map && app.map.setMeasureMode) app.map.setMeasureMode(state, false);
 
             // 5b) Zoom y desplazamiento iniciales
-            if (state.svg && state.zoom && state.initialTransform) {
-                state.svg.transition().duration(app.utils.motionMs(600)).call(state.zoom.transform, state.initialTransform);
-            }
+            if (state.svg && state.zoom && app.map) app.map.irAVistaInicial(state, 600);
 
             // 5c) Colores personalizados por el visitante y sin comparar años
             state.customColors = null;

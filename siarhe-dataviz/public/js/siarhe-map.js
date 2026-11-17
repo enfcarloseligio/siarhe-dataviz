@@ -88,13 +88,22 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             state.gLegend.attr("transform", `translate(${left + padX + lb.ox * L}, ${top + padY + lb.oy * L}) scale(${L})`);
             state.gMarkerLegend.attr("transform", `translate(${left + padX + mb.ox * Lm}, ${bottom - padY}) scale(${Lm})`);
+
+            // Alto que ocupan las leyendas (`ajustaLeyenda` de RHEMX): con el contenedor vertical el mapa se encuadra debajo de la
+            // de colores y encima de la de marcadores; si cambia (otro indicador, se prenden marcadores) se vuelve a encuadrar
+            if (!state._exportando) {
+                const altoV = lb.h * L + 3 * padY, reserva = hasMarkers ? mb.h * Lm + padY : 0;
+                const cambio = Math.abs((state._altoLeyendaV || 0) - altoV) > 1 || Math.abs((state._reservaInferior || 0) - reserva) > 1;
+                state._altoLeyendaV = altoV; state._reservaInferior = reserva;
+                if (cambio && rect.height > rect.width * 1.1 && state.zoom) app.map.reencuadra(state);
+            }
         },
 
         initResponsiveLegends: function(container, state) {
             const mapDiv = container.querySelector('.siarhe-map-container');
             if (!mapDiv) return;
 
-            const observer = new ResizeObserver(() => { app.map.layoutLegends(container, state); app.map._onMapResize(state); });
+            const observer = new ResizeObserver(() => { app.map.layoutLegends(container, state); app.map._onMapResize(state); app.map.reencuadra(state); });
             observer.observe(mapDiv);
             state.legendObserver = observer;
         },
@@ -155,6 +164,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             state._locBuildGen = (state._locBuildGen || 0) + 1;
             if (state.gLocPaths) state.gLocPaths.style("display", "none").selectAll("*").remove();
             app.map._drawBase(state, mapDiv);
+            app.map.dibujaContexto(state);   // las entidades del contexto también cambian de marco
             if (typeof state._kbdRefresh === 'function') state._kbdRefresh();
             app.map.updateVisuals(container, state);
         },
@@ -191,8 +201,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
         zona: function(state, margen) {
             const f = app.map.LIENZO.F, v = app.map._areaVisible(state);
             if (v.vertical) {
-                const mv = app.map.MARGEN_VERTICAL * f, leyenda = 330 * f;
-                return [[v.x0 + mv, v.y0 + Math.max(margen.arriba * f, leyenda)], [v.x1 - mv, v.y1 - Math.max(margen.abajo * f, mv)]];
+                // Arriba, el alto real de la leyenda de colores (con sus márgenes); abajo, el de la leyenda de marcadores si la hay
+                const mv = app.map.MARGEN_VERTICAL * f, leyenda = state._altoLeyendaV || 330 * f;
+                return [[v.x0 + mv, v.y0 + Math.max(margen.arriba * f, leyenda)], [v.x1 - mv, v.y1 - Math.max(margen.abajo * f, mv) - (state._reservaInferior || 0)]];
             }
             return [[v.x0 + margen.izq * f, v.y0 + margen.arriba * f], [v.x1 - margen.der * f, v.y1 - margen.abajo * f]];
         },
@@ -257,6 +268,72 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             return d3.zoomIdentity.translate(z[0][0] + (z[1][0] - z[0][0]) / 2 - kf * x, z[0][1] + (z[1][1] - z[0][1]) / 2 - kf * y).scale(kf);
         },
 
+        /**
+         * Límites del zoom (`fijaZoomBase` de RHEMX): el mínimo es el encuadre de la República; el máximo, 50 veces el de la
+         * República o 200 veces el de un estado (con tope absoluto). Se recalculan cada vez que cambia el encuadre de arranque.
+         */
+        _fijaZoomBase: function(state) {
+            if (!state.zoom || !state.initialTransform) return;
+            const kBase = state.initialTransform.k;
+            state.kPais = state.isNacional ? kBase : app.map.kPais(state);
+            const maxZoom = state.isNacional ? kBase * app.map.ZOOM_MAXIMO_PAIS : Math.min(app.map.ZOOM_ABSOLUTO_MAXIMO, kBase * app.map.ZOOM_MAXIMO_ESTADO);
+            state.zoom.scaleExtent([Math.min(state.kPais, kBase), maxZoom]);
+        },
+
+        /**
+         * Lleva el mapa a la vista de arranque para el tamaño actual del contenedor (`mueveAVistaInicial` de RHEMX): en el
+         * mapa normal (16:9) es siempre la misma; en pantalla completa vertical el mapa usa todo el alto debajo de la leyenda.
+         */
+        irAVistaInicial: function(state, ms) {
+            if (!state.svg || !state.zoom || !state.path || !state.geoData) return;
+            state.initialTransform = app.map.encuadreInicial(state);
+            app.map._fijaZoomBase(state);
+            state._enVistaInicial = true;
+            if (ms > 0) state.svg.transition().duration(app.utils.motionMs ? app.utils.motionMs(ms) : ms).call(state.zoom.transform, state.initialTransform);
+            else { state.svg.interrupt(); state.svg.call(state.zoom.transform, state.initialTransform); }
+        },
+
+        /**
+         * Si el contenedor cambió de tamaño (pantalla completa, girar el teléfono) y el usuario no ha movido el mapa, se vuelve
+         * a encuadrar (`reencuadra` de RHEMX). Con el mapa oculto (tabla a la vista) mide 0 y se espera a que vuelva.
+         */
+        reencuadra: function(state) {
+            clearTimeout(state._reencuadreTimer);
+            state._reencuadreTimer = setTimeout(function() {
+                if (!state._enVistaInicial || state._exportando || !state.svg) return;
+                const r = state.svg.node().getBoundingClientRect();
+                if (!(r.width > 0 && r.height > 0)) return;
+                app.map.irAVistaInicial(state, 0);
+            }, 200);
+        },
+
+        /**
+         * En la página de un estado, los demás estados en gris como contexto y el contorno del estado (`dibujaContexto` y
+         * `dibujaContorno` de RHEMX). Usa las entidades de la República del marco vigente; sin ese archivo no dibuja nada.
+         */
+        dibujaContexto: function(state) {
+            if (state.isNacional || !state.gContexto || !state.path) return;
+            const nac = (state.geos && state.geos.nac) || {};
+            const marco = app.geo.marcoFor(state.marco || '', nac) || Object.keys(nac).sort().pop();
+            const info = marco ? nac[marco] : null;
+            const gen = (state._contextoGen = (state._contextoGen || 0) + 1);
+            if (!info || !info.url) { state.gContexto.selectAll('*').remove(); state.gContorno.selectAll('*').remove(); return; }
+            app.geo.load(info.url).then(function(geo) {
+                if (gen !== state._contextoGen || !geo || !Array.isArray(geo.features)) return;
+                const cve = app.utils.cleanKey(state.cveEnt).padStart(2, '0');
+                const clave = function(f) { return app.utils.getGeoKey(f.properties || {}, true).padStart(2, '0'); };
+                const propio = geo.features.filter(function(f) { return clave(f) === String(cve); });
+                state.gContexto.selectAll('*').remove();
+                state.gContexto.selectAll('path').data(geo.features.filter(function(f) { return clave(f) !== String(cve); })).enter().append('path')
+                    .attr('d', state.path).attr('fill', '#d3dde8').attr('stroke', '#FFFFFF').attr('stroke-width', 0.5)
+                    .attr('vector-effect', 'non-scaling-stroke');
+                state.gContorno.selectAll('*').remove();
+                state.gContorno.selectAll('path').data(propio).enter().append('path')
+                    .attr('d', state.path).attr('fill', 'none').attr('stroke', '#0F172A').attr('stroke-width', 1.4)
+                    .attr('stroke-linejoin', 'round').attr('vector-effect', 'non-scaling-stroke');
+            }).catch(function() { /* sin contexto: el mapa del estado se ve igual que antes */ });
+        },
+
         render: function(container, state, cveEnt) {
             state.containerEl = container; // lo usan las leyendas para reacomodarse al cambiar su contenido
             // Sin geometrias no hay nada que dibujar: avisamos en vez de romper el render
@@ -296,8 +373,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             const gMain = svg.append("g").attr("class", "map-layer");
             state.gMain = gMain;
 
+            // Debajo, los demás estados en gris (solo en la página de un estado); encima de los polígonos, el contorno del estado
+            state.gContexto = gMain.append("g").attr("class", "contexto-layer").attr("pointer-events", "none");
             state.gPaths = gMain.append("g").attr("class", "paths-layer");
             state.gLocPaths = gMain.append("g").attr("class", "loc-paths-layer");
+            state.gContorno = gMain.append("g").attr("class", "contorno-layer").attr("pointer-events", "none");
 
             state.gLabels = gMain.append("g").attr("class", "labels-layer").style("display", "none").style("pointer-events", "none");
             state.gMarkers = gMain.append("g").attr("class", "markers-layer");
@@ -344,12 +424,11 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
             // Zoom como en RHEMX (`fijaZoomBase`): el mínimo es el encuadre de la República; el máximo, 50 veces el de la
             // República o 200 veces el de un estado (con tope absoluto), igual en celular, tableta y PC.
-            const kBase = state.initialTransform.k;
-            state.kPais = state.isNacional ? kBase : app.map.kPais(state);
-            const maxZoom = state.isNacional ? kBase * app.map.ZOOM_MAXIMO_PAIS : Math.min(app.map.ZOOM_ABSOLUTO_MAXIMO, kBase * app.map.ZOOM_MAXIMO_ESTADO);
+            state._enVistaInicial = true;
             const zoom = d3.zoom()
-                .scaleExtent([Math.min(state.kPais, kBase), maxZoom])
                 .on("zoom", (e) => {
+                    // Como en RHEMX: si el usuario mueve el mapa, ya no se reencuadra solo al cambiar el tamaño del contenedor
+                    if (e.sourceEvent) state._enVistaInicial = false;
                     gMain.attr("transform", e.transform);
                     if (state.gMeasureHost) state.gMeasureHost.attr("transform", e.transform);
                     if (state._stack && e.sourceEvent) app.map.stackClose(state);   // el panel esta anclado en pantalla, no al mapa
@@ -388,8 +467,10 @@ window.SiarheDataViz = window.SiarheDataViz || {};
             zoom.on("end.etiquetas", () => { if (state.showLabels) app.map.declutterLabels(state); });
             svg.call(zoom).on("dblclick.zoom", null);
             state.zoom = zoom;
+            app.map._fijaZoomBase(state);
             if (state.showLabels && state.gLabels) state.gLabels.style("display", "block");
             svg.call(zoom.transform, state.initialTransform);
+            app.map.dibujaContexto(state);
 
             app.map.renderZoomButtons(container, mapDiv, svg, zoom, state);
             app.map.updateVisuals(container, state);
@@ -2824,9 +2905,9 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 document.addEventListener('keydown', conEsc);
             }
 
-            const btnAcercar = createBtn(ico('zoom-in'), 'Acercar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 2); });
-            const btnAlejar = createBtn(ico('zoom-out'), 'Alejar', (e) => { e.preventDefault(); svg.transition().call(zoom.scaleBy, 0.5); });
-            const btnAjustar = createBtn(ico('zoom-reset'), 'Ajustar el mapa', (e) => { e.preventDefault(); svg.transition().duration(750).call(zoom.transform, state.initialTransform); });
+            const btnAcercar = createBtn(ico('zoom-in'), 'Acercar', (e) => { e.preventDefault(); state._enVistaInicial = false; svg.transition().call(zoom.scaleBy, 2); });
+            const btnAlejar = createBtn(ico('zoom-out'), 'Alejar', (e) => { e.preventDefault(); state._enVistaInicial = false; svg.transition().call(zoom.scaleBy, 0.5); });
+            const btnAjustar = createBtn(ico('zoom-reset'), 'Ajustar el mapa', (e) => { e.preventDefault(); app.map.irAVistaInicial(state, 750); });
             let btnMeasure = null;
 
             // Medir distancias: solo tiene sentido si existen marcadores de posicion configurados
@@ -2983,6 +3064,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 nodo.raise().attr('stroke', '#0F172A').attr('stroke-width', 2.5 / k);
                 state._focoTimer = setTimeout(function() { nodo.attr('stroke', '#fff').attr('stroke-width', 0.5 / k); }, 3000);
             };
+            state._enVistaInicial = false;
             const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             if (reduce) { state.svg.call(state.zoom.transform, t); resalta(); }
             else state.svg.transition().duration(700).call(state.zoom.transform, t).on('end', resalta);
@@ -3020,6 +3102,7 @@ window.SiarheDataViz = window.SiarheDataViz || {};
                 app.map.stackClose(state);
                 app.map.selecciona(state, pt ? pt.d : (el ? el.__data__ : d), el, pt, ev);
             };
+            state._enVistaInicial = false;
             const quieto = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             if (quieto) { state.svg.call(state.zoom.transform, t); muestra(); }
             else state.svg.transition().duration(700).call(state.zoom.transform, t).on('end', muestra);

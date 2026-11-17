@@ -2,6 +2,14 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Los números de versión siguen los hitos descritos en [docs/versiones-y-publicacion.md](docs/versiones-y-publicacion.md).
 
+## [0.1.21.0] - 2026-11-16
+
+Pantalla completa vertical y vista de un estado como en RHEMX (pedido del dueño, con capturas de los dos en el celular).
+- **El mapa se reencuadra al cambiar el tamaño del contenedor** (`reencuadra` de RHEMX): en pantalla completa con el celular en vertical la República o el estado usan todo el ancho y el alto debajo de la leyenda, en vez de quedarse en el marco de 16:9 al centro. Al girar el teléfono o salir de la pantalla completa vuelve solo al encuadre que corresponde. En el mapa normal (siempre 16:9) el encuadre es el mismo de antes.
+- Solo se reencuadra si el visitante no ha movido el mapa (rueda, arrastre, botones + y −, buscador); «Ajustar el mapa» y «Restablecer» vuelven a la vista de arranque del tamaño actual y reactivan el reencuadre. Los límites del zoom se recalculan con cada encuadre (`fijaZoomBase`).
+- La zona del mapa en vertical se mide con el alto real de la leyenda de colores y deja libre el de la leyenda de marcadores (antes, un alto fijo).
+- **Página de un estado**: los demás estados en gris como contexto y el contorno del estado en oscuro (`dibujaContexto` y `dibujaContorno` de RHEMX). Usa el mapa de entidades de la República cargado en Archivos Estáticos, del mismo marco geoestadístico; sin él, el estado se ve como antes.
+
 ## [0.1.20.0] - 2026-11-16
 
 Comparación de dos años, port de la de RHEMX (`geoespacial.js`, sección 3b), y el año siempre a la vista (pedido del dueño).

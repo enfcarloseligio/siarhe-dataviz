@@ -1364,7 +1364,8 @@ window.SiarheDataViz = window.SiarheDataViz || {};
 
         // Marco geoestadístico del año inicial: mapa base y capa detallada (municipios o localidades)
         const geos = safeParseJSON(container.dataset.geos, {}) || {};
-        state.geos = { base: geos.base || {}, loc: geos.loc || {} };
+        state.geos = { base: geos.base || {}, loc: geos.loc || {}, nac: geos.nac || {} };
+        state.cveEnt = cveEnt || '';
         state.marco = app.geo.marcoFor(container.dataset.anio, state.geos.base);
         if (state.marco && state.geos.base[state.marco]) geojsonUrl = state.geos.base[state.marco].url;
         state.geoLocUrl = app.geo.locUrl(state, container.dataset.anio) || container.dataset.geojsonLoc || '';

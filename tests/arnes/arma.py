@@ -33,13 +33,15 @@ for anio in ('2025', '2024', '2019'):
         if hay(url): u[unidad] = {'url': url, 'fecha': '01/ene/' + anio}
     if u: bases[anio] = u
 
-geos = {'base': {}, 'loc': {}}
+geos = {'base': {}, 'loc': {}, 'nac': {}}
 for marco in ('2015', '2020', '2025'):
     carpeta = '2016' if marco == '2015' else marco
     b = f'{R}web/data/geo/{carpeta}/' + ('33_entidades.json' if NACIONAL else f'{ENT}_municipios.json')
     l = f'{R}web/data/geo/{carpeta}/' + ('33_municipios.json' if NACIONAL else f'{ENT}_localidades.json')
+    n = f'{R}web/data/geo/{carpeta}/33_entidades.json'
     if hay(b): geos['base'][marco] = {'url': b, 'fecha': '—', 'ref': 'Marco geoestadístico ' + marco}
     if hay(l): geos['loc'][marco] = {'url': l}
+    if not NACIONAL and hay(n): geos['nac'][marco] = {'url': n}  # contexto: los demás estados en gris
 
 cat = {a: f'{R}web/data/maps/clinicas_cateteres_{a}.json' for a in ('2024', '2025') if hay(f'{R}web/data/maps/clinicas_cateteres_{a}.json')}
 cat['total'] = f'{R}web/data/maps/clinicas_cateteres_historico.json'

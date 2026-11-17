@@ -100,6 +100,15 @@ foreach ( $geos['base'] as $marco_g => $fila_g ) {
 foreach ( $geos['loc'] as $marco_g => $fila_g ) {
     $geos_mapa['loc'][ (string) $marco_g ] = array( 'url' => Siarhe_Geo::url( $fila_g ) );
 }
+// En la página de un estado, las entidades de la República por marco: los demás estados se dibujan en gris como contexto
+// y el estado lleva su contorno, como en RHEMX (`dibujaContexto` y `dibujaContorno`)
+$geos_mapa['nac'] = array();
+if ( ! $es_nacional ) {
+    $geos_nac = Siarhe_Geo::archivos( 'republica-mexicana' );
+    foreach ( $geos_nac['base'] as $marco_g => $fila_g ) {
+        $geos_mapa['nac'][ (string) $marco_g ] = array( 'url' => Siarhe_Geo::url( $fila_g ) );
+    }
+}
 
 // Capa detallada (municipios o localidades) del marco que corresponde al año inicial
 $marco_loc = Siarhe_Geo::marco_para( $anio, array_keys( $geos['loc'] ) );
